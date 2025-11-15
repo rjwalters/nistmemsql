@@ -198,7 +198,7 @@ where
                 ));
             }
         } else {
-            execute_table_scan(&table_ref.name, table_ref.alias.as_ref(), cte_results, database, where_clause)?
+            execute_table_scan(&table_ref.name, table_ref.alias.as_ref(), cte_results, database, where_clause, None)?
         };
 
         // Join with previous result (if any)

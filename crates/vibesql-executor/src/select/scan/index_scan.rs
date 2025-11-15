@@ -11,22 +11,22 @@ use crate::{errors::ExecutorError, schema::CombinedSchema};
 
 /// Determines if an index scan is beneficial for the given query
 ///
-/// Returns Some(index_name) if an index should be used, None otherwise
+/// Returns Some((index_name, sorted_columns)) if an index should be used, None otherwise.
+/// The sorted_columns vector indicates which columns are pre-sorted by the index scan.
 pub(crate) fn should_use_index_scan(
     table_name: &str,
     where_clause: Option<&Expression>,
+    order_by: Option<&[vibesql_ast::OrderByItem]>,
     database: &Database,
-) -> Option<String> {
-    // For now, we only use indexes if:
-    // 1. There's a WHERE clause
-    // 2. The table has user-defined indexes
-    // 3. The WHERE clause references an indexed column
+) -> Option<(String, Option<Vec<(String, vibesql_ast::OrderDirection)>>)> {
+    // We use indexes in three scenarios:
+    // 1. WHERE clause references an indexed column (with or without ORDER BY)
+    // 2. ORDER BY references an indexed column (even without WHERE)
+    // 3. Both WHERE and ORDER BY use the same index
     //
     // Note: Index scans can provide partial optimization even for complex
     // predicates (including OR expressions). The full WHERE clause is always
     // applied as a post-filter in execute_index_scan() to ensure correctness.
-
-    let where_expr = where_clause?;
 
     // Get all indexes for this table
     let _table = database.get_table(table_name)?;
@@ -36,20 +36,50 @@ pub(crate) fn should_use_index_scan(
         return None;
     }
 
-    // Check if WHERE clause can use any index
-    // For now, we look for simple equality predicates: column = value
-    // Future: support range scans, IN predicates, etc.
+    // Try to find an index that satisfies both WHERE and ORDER BY (if present)
+    for index_name in &indexes {
+        if let Some(index_metadata) = database.get_index(index_name) {
+            let first_indexed_column = index_metadata.columns.first()?;
 
-    for index_name in indexes {
-        if let Some(index_metadata) = database.get_index(&index_name) {
-            // Check if WHERE clause references the first column of this index
-            // (For composite indexes, we can only use the index if the WHERE
-            //  clause filters on the leftmost prefix of indexed columns)
+            // Check if this index can be used for WHERE clause
+            let can_use_for_where = where_clause
+                .map(|expr| expression_filters_column(expr, &first_indexed_column.column_name))
+                .unwrap_or(false);
 
-            if let Some(first_indexed_column) = index_metadata.columns.first() {
-                if expression_filters_column(where_expr, &first_indexed_column.column_name) {
-                    return Some(index_name);
+            // Check if this index can be used for ORDER BY clause
+            let can_use_for_order = if let Some(order_items) = order_by {
+                // For now, only optimize if:
+                // 1. ORDER BY has exactly one column
+                // 2. That column matches the first column of the index
+                // 3. It's a simple column reference (not an expression)
+                if order_items.len() == 1 {
+                    match &order_items[0].expr {
+                        Expression::ColumnRef { table: None, column } => {
+                            column == &first_indexed_column.column_name
+                        }
+                        _ => false,
+                    }
+                } else {
+                    false
                 }
+            } else {
+                false
+            };
+
+            // Use this index if it satisfies WHERE, ORDER BY, or both
+            if can_use_for_where || can_use_for_order {
+                // Build sorted_columns metadata if ORDER BY can be satisfied
+                let sorted_columns = if can_use_for_order {
+                    let order_item = &order_by.unwrap()[0];
+                    Some(vec![(
+                        first_indexed_column.column_name.clone(),
+                        order_item.direction.clone(),
+                    )])
+                } else {
+                    None
+                };
+
+                return Some((index_name.clone(), sorted_columns));
             }
         }
     }
@@ -305,11 +335,15 @@ fn extract_index_predicate(expr: &Expression, column_name: &str) -> Option<Index
 ///
 /// Uses the specified index to retrieve matching rows, then fetches full rows from the table.
 /// This implements the "index scan + fetch" strategy with optimized range scans.
+///
+/// If sorted_columns is provided, the function preserves index order and returns results
+/// marked as pre-sorted, allowing the caller to skip ORDER BY sorting.
 pub(crate) fn execute_index_scan(
     table_name: &str,
     index_name: &str,
     alias: Option<&String>,
     where_clause: Option<&Expression>,
+    sorted_columns: Option<Vec<(String, vibesql_ast::OrderDirection)>>,
     database: &Database,
 ) -> Result<super::FromResult, ExecutorError> {
     // Get table and index
@@ -425,7 +459,11 @@ pub(crate) fn execute_index_scan(
         rows = filtered_rows;
     }
 
-    Ok(super::FromResult::from_rows(schema, rows))
+    // Return results with sorting metadata if available
+    match sorted_columns {
+        Some(sorted) => Ok(super::FromResult::from_rows_sorted(schema, rows, sorted)),
+        None => Ok(super::FromResult::from_rows(schema, rows)),
+    }
 }
 
 #[cfg(test)]

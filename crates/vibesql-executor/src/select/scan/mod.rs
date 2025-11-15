@@ -33,6 +33,10 @@ mod table;
 /// - Equijoin predicates can be pushed into join operations
 /// - Complex predicates remain in post-join WHERE
 ///
+/// The ORDER BY clause is passed for index scan optimization:
+/// - If an index matches the ORDER BY column, results can be returned pre-sorted
+/// - This allows skipping expensive sorting in the SELECT executor
+///
 /// NEW: Join reordering optimization (opt-in via JOIN_REORDER_ENABLED):
 /// - For multi-table joins (3+ tables), analyzes join conditions
 /// - Uses cost-based search to find optimal join order
@@ -42,6 +46,7 @@ pub(super) fn execute_from_clause<F>(
     cte_results: &HashMap<String, CteResult>,
     database: &vibesql_storage::Database,
     where_clause: Option<&vibesql_ast::Expression>,
+    order_by: Option<&[vibesql_ast::OrderByItem]>,
     execute_subquery: F,
 ) -> Result<FromResult, ExecutorError>
 where
@@ -63,7 +68,7 @@ where
     // Fall back to standard execution (recursive left-deep joins)
     match from {
         vibesql_ast::FromClause::Table { name, alias } => {
-            table::execute_table_scan(name, alias.as_ref(), cte_results, database, where_clause)
+            table::execute_table_scan(name, alias.as_ref(), cte_results, database, where_clause, order_by)
         }
         vibesql_ast::FromClause::Join { left, right, join_type, condition, natural } => join_scan::execute_join(
             left,

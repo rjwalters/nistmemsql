@@ -78,9 +78,9 @@ impl SelectExecutor<'_> {
         let mut results = if has_aggregates || has_group_by {
             self.execute_with_aggregation(stmt, cte_results)?
         } else if let Some(from_clause) = &stmt.from {
-            // Pass WHERE clause to execute_from for predicate pushdown optimization
+            // Pass WHERE and ORDER BY to execute_from for optimization
             let from_result =
-                self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref())?;
+                self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref(), stmt.order_by.as_deref())?;
             self.execute_without_aggregation(stmt, from_result)?
         } else {
             // SELECT without FROM - evaluate expressions as a single row
@@ -123,7 +123,7 @@ impl SelectExecutor<'_> {
             self.execute_with_aggregation(right_stmt, cte_results)?
         } else if let Some(from_clause) = &right_stmt.from {
             let from_result =
-                self.execute_from_with_where(from_clause, cte_results, right_stmt.where_clause.as_ref())?;
+                self.execute_from_with_where(from_clause, cte_results, right_stmt.where_clause.as_ref(), right_stmt.order_by.as_deref())?;
             self.execute_without_aggregation(right_stmt, from_result)?
         } else {
             self.execute_select_without_from(right_stmt)?
@@ -148,18 +148,19 @@ impl SelectExecutor<'_> {
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause;
-        execute_from_clause(from, cte_results, self.database, None, |query| self.execute_with_columns(query))
+        execute_from_clause(from, cte_results, self.database, None, None, |query| self.execute_with_columns(query))
     }
 
-    /// Execute a FROM clause with WHERE clause for predicate pushdown
+    /// Execute a FROM clause with WHERE and ORDER BY for optimization
     pub(super) fn execute_from_with_where(
         &self,
         from: &vibesql_ast::FromClause,
         cte_results: &HashMap<String, CteResult>,
         where_clause: Option<&vibesql_ast::Expression>,
+        order_by: Option<&[vibesql_ast::OrderByItem]>,
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause;
-        execute_from_clause(from, cte_results, self.database, where_clause, |query| {
+        execute_from_clause(from, cte_results, self.database, where_clause, order_by, |query| {
             self.execute_with_columns(query)
         })
     }

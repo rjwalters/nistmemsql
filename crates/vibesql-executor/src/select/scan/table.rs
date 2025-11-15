@@ -21,6 +21,7 @@ pub(crate) fn execute_table_scan(
     cte_results: &HashMap<String, CteResult>,
     database: &vibesql_storage::Database,
     where_clause: Option<&vibesql_ast::Expression>,
+    order_by: Option<&[vibesql_ast::OrderByItem]>,
 ) -> Result<super::FromResult, ExecutorError> {
     // Check if table is a CTE first
     if let Some((cte_schema, cte_rows)) = cte_results.get(table_name) {
@@ -118,9 +119,9 @@ pub(crate) fn execute_table_scan(
     PrivilegeChecker::check_select(database, table_name)?;
 
     // Check if we should use an index scan
-    if let Some(index_name) = super::index_scan::should_use_index_scan(table_name, where_clause, database) {
+    if let Some((index_name, sorted_columns)) = super::index_scan::should_use_index_scan(table_name, where_clause, order_by, database) {
         // Use index scan for potentially better performance
-        return super::index_scan::execute_index_scan(table_name, &index_name, alias, where_clause, database);
+        return super::index_scan::execute_index_scan(table_name, &index_name, alias, where_clause, sorted_columns, database);
     }
 
     // Use database table (fall back to table scan)

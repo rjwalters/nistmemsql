@@ -2,7 +2,7 @@
 
 use super::{
     builder::SelectExecutor,
-    index_optimization::{try_index_based_ordering, try_index_based_where_filtering, try_index_for_in_clause, try_spatial_index_optimization},
+    index_optimization::{try_index_based_where_filtering, try_index_for_in_clause, try_spatial_index_optimization},
 };
 use crate::{
     errors::ExecutorError,
@@ -325,6 +325,7 @@ impl SelectExecutor<'_> {
         // Fall back to materialized execution for complex queries
         // (ORDER BY, DISTINCT, window functions require full materialization)
         let schema = from_result.schema.clone();
+        let sorted_by = from_result.sorted_by.clone();
         let rows = from_result.into_rows();
 
         // Track memory used by FROM clause results (JOINs, table scans, etc.)
@@ -451,17 +452,29 @@ impl SelectExecutor<'_> {
 
         // Apply ORDER BY sorting if present
         if let Some(order_by) = &stmt.order_by {
-            // Try to use index for ordering first
-            if let Some(ordered_rows) = try_index_based_ordering(
-                self.database,
-                &result_rows,
-                order_by,
-                &schema,
-                &stmt.from,
-                &stmt.select_list,
-            )? {
-                result_rows = ordered_rows;
+            // Check if results are already sorted by the index scan
+            let already_sorted = if let Some(ref sorted_cols) = sorted_by {
+                // Results are pre-sorted if:
+                // 1. ORDER BY has same number of columns as sorted_cols
+                // 2. Each column and sort direction matches
+                if sorted_cols.len() == order_by.len() {
+                    sorted_cols.iter().zip(order_by.iter()).all(|((col_name, sort_order), order_item)| {
+                        // Check if column names match and sort direction matches
+                        match &order_item.expr {
+                            vibesql_ast::Expression::ColumnRef { table: None, column } => {
+                                column == col_name && &order_item.direction == sort_order
+                            }
+                            _ => false,
+                        }
+                    })
+                } else {
+                    false
+                }
             } else {
+                false
+            };
+
+            if !already_sorted {
                 // Fall back to sorting
                 // Create evaluator for ORDER BY with procedural context support
                 // Priority: 1) window mapping 2) outer context 3) procedural context 4) database only

@@ -73,17 +73,29 @@ impl FromData {
 pub(super) struct FromResult {
     pub(super) schema: CombinedSchema,
     pub(super) data: FromData,
+    /// If present, indicates that results are already sorted by the specified columns
+    /// in the given order (ASC/DESC). This allows skipping ORDER BY sorting.
+    pub(super) sorted_by: Option<Vec<(String, vibesql_ast::OrderDirection)>>,
 }
 
 impl FromResult {
     /// Create a FromResult from materialized rows
     pub(super) fn from_rows(schema: CombinedSchema, rows: Vec<vibesql_storage::Row>) -> Self {
-        Self { schema, data: FromData::Materialized(rows) }
+        Self { schema, data: FromData::Materialized(rows), sorted_by: None }
+    }
+
+    /// Create a FromResult from materialized rows with sorting metadata
+    pub(super) fn from_rows_sorted(
+        schema: CombinedSchema,
+        rows: Vec<vibesql_storage::Row>,
+        sorted_by: Vec<(String, vibesql_ast::OrderDirection)>,
+    ) -> Self {
+        Self { schema, data: FromData::Materialized(rows), sorted_by: Some(sorted_by) }
     }
 
     /// Create a FromResult from an iterator
     pub(super) fn from_iterator(schema: CombinedSchema, iterator: FromIterator) -> Self {
-        Self { schema, data: FromData::Iterator(iterator) }
+        Self { schema, data: FromData::Iterator(iterator), sorted_by: None }
     }
 
     /// Get the rows, materializing if needed
