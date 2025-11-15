@@ -202,29 +202,9 @@ pub(in crate::select::executor) fn try_index_for_in_and_comparison(
         _ => return Ok(None), // Not an IN list
     };
 
-    // Check if second expression is a binary comparison
-    let comparison_can_use_index = match comparison_expr {
-        vibesql_ast::Expression::BinaryOp { left, op, right } => {
-            // Check if this is a simple column comparison that could use an index
-            matches!(
-                op,
-                vibesql_ast::BinaryOperator::Equal
-                    | vibesql_ast::BinaryOperator::GreaterThan
-                    | vibesql_ast::BinaryOperator::GreaterThanOrEqual
-                    | vibesql_ast::BinaryOperator::LessThan
-                    | vibesql_ast::BinaryOperator::LessThanOrEqual
-            ) && (matches!(left.as_ref(), vibesql_ast::Expression::ColumnRef { .. })
-                || matches!(right.as_ref(), vibesql_ast::Expression::ColumnRef { .. }))
-        }
-        _ => false,
-    };
-
-    if !comparison_can_use_index {
-        return Ok(None);
-    }
-
     // Strategy: Use index for IN clause to get candidate rows, then post-filter with comparison
     // This is correct and often faster than a full table scan
+    // Works for both simple comparisons AND complex expressions (OR, AND, BETWEEN, etc.)
 
     // Try to get rows using the IN clause index
     let candidate_rows = try_index_for_in_expr(database, in_expr, in_values, all_rows, schema)?;
@@ -246,10 +226,46 @@ pub(in crate::select::executor) fn try_index_for_in_and_comparison(
     };
 
     // Now filter the candidate rows by the comparison expression
-    // For simple comparisons, we can evaluate them directly
-    let result_rows = filter_rows_by_comparison(candidate_rows, comparison_expr, schema)?;
+    // Use the full evaluator to handle any expression type (simple or complex)
+    use crate::evaluator::CombinedExpressionEvaluator;
 
-    Ok(Some(result_rows))
+    let evaluator = CombinedExpressionEvaluator::with_database(schema, database);
+    let mut filtered_rows = Vec::new();
+
+    for row in candidate_rows {
+        // Clear CSE cache before evaluating each row
+        evaluator.clear_cse_cache();
+
+        let include_row = match evaluator.eval(comparison_expr, &row)? {
+            vibesql_types::SqlValue::Boolean(true) => true,
+            vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
+            // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
+            vibesql_types::SqlValue::Integer(0) => false,
+            vibesql_types::SqlValue::Integer(_) => true,
+            vibesql_types::SqlValue::Smallint(0) => false,
+            vibesql_types::SqlValue::Smallint(_) => true,
+            vibesql_types::SqlValue::Bigint(0) => false,
+            vibesql_types::SqlValue::Bigint(_) => true,
+            vibesql_types::SqlValue::Float(0.0) => false,
+            vibesql_types::SqlValue::Float(_) => true,
+            vibesql_types::SqlValue::Real(0.0) => false,
+            vibesql_types::SqlValue::Real(_) => true,
+            vibesql_types::SqlValue::Double(0.0) => false,
+            vibesql_types::SqlValue::Double(_) => true,
+            other => {
+                return Err(ExecutorError::InvalidWhereClause(format!(
+                    "WHERE clause must evaluate to boolean, got: {:?}",
+                    other
+                )))
+            }
+        };
+
+        if include_row {
+            filtered_rows.push(row);
+        }
+    }
+
+    Ok(Some(filtered_rows))
 }
 
 /// Try using index for comparison, then filter by IN clause
