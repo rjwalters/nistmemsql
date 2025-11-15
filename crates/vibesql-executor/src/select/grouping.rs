@@ -7,7 +7,7 @@ use std::{
 #[derive(Debug, Clone)]
 pub(super) enum AggregateAccumulator {
     Count { count: i64, distinct: bool, seen: Option<HashSet<vibesql_types::SqlValue>> },
-    Sum { sum: vibesql_types::SqlValue, distinct: bool, seen: Option<HashSet<vibesql_types::SqlValue>> },
+    Sum { sum: vibesql_types::SqlValue, count: i64, distinct: bool, seen: Option<HashSet<vibesql_types::SqlValue>> },
     Avg { sum: vibesql_types::SqlValue, count: i64, distinct: bool, seen: Option<HashSet<vibesql_types::SqlValue>> },
     Min { value: Option<vibesql_types::SqlValue>, distinct: bool, seen: Option<HashSet<vibesql_types::SqlValue>> },
     Max { value: Option<vibesql_types::SqlValue>, distinct: bool, seen: Option<HashSet<vibesql_types::SqlValue>> },
@@ -22,7 +22,7 @@ impl AggregateAccumulator {
         match function_name.to_uppercase().as_str() {
             "COUNT" => Ok(AggregateAccumulator::Count { count: 0, distinct, seen }),
             "SUM" => {
-                Ok(AggregateAccumulator::Sum { sum: vibesql_types::SqlValue::Integer(0), distinct, seen })
+                Ok(AggregateAccumulator::Sum { sum: vibesql_types::SqlValue::Integer(0), count: 0, distinct, seen })
             }
             "AVG" => Ok(AggregateAccumulator::Avg {
                 sum: vibesql_types::SqlValue::Integer(0),
@@ -61,7 +61,7 @@ impl AggregateAccumulator {
             }
 
             // SUM - sums numeric values (all numeric types), ignores NULLs
-            AggregateAccumulator::Sum { ref mut sum, distinct, seen } => {
+            AggregateAccumulator::Sum { ref mut sum, ref mut count, distinct, seen } => {
                 // Fast path: Skip non-numeric values early
                 if value.is_null() || !is_numeric_value(value) {
                     return;
@@ -74,9 +74,11 @@ impl AggregateAccumulator {
                     if !seen_set.contains(value) {
                         seen_set.insert(value.clone());
                         *sum = add_sql_values(sum, value);
+                        *count += 1;
                     }
                 } else {
                     *sum = add_sql_values(sum, value);
+                    *count += 1;
                 }
             }
 
@@ -157,7 +159,13 @@ impl AggregateAccumulator {
     pub(super) fn finalize(&self) -> vibesql_types::SqlValue {
         match self {
             AggregateAccumulator::Count { count, .. } => vibesql_types::SqlValue::Integer(*count),
-            AggregateAccumulator::Sum { sum, .. } => sum.clone(),
+            AggregateAccumulator::Sum { sum, count, .. } => {
+                if *count == 0 {
+                    vibesql_types::SqlValue::Null
+                } else {
+                    sum.clone()
+                }
+            }
             AggregateAccumulator::Avg { sum, count, .. } => {
                 if *count == 0 {
                     vibesql_types::SqlValue::Null
@@ -209,8 +217,8 @@ impl AggregateAccumulator {
             }
 
             // SUM: Add the sums
-            (AggregateAccumulator::Sum { sum: s1, distinct: d1, seen: seen1 },
-             AggregateAccumulator::Sum { sum: s2, distinct: d2, seen: seen2 }) => {
+            (AggregateAccumulator::Sum { sum: s1, count: c1, distinct: d1, seen: seen1 },
+             AggregateAccumulator::Sum { sum: s2, count: c2, distinct: d2, seen: seen2 }) => {
                 if *d1 != d2 {
                     return Err(crate::errors::ExecutorError::UnsupportedExpression(
                         "Cannot combine SUM with different DISTINCT flags".into()
@@ -221,12 +229,14 @@ impl AggregateAccumulator {
                     // DISTINCT: Merge seen sets, recalculate sum
                     if let (Some(s1_set), Some(s2_set)) = (seen1, seen2) {
                         s1_set.extend(s2_set);
-                        // Recalculate sum from merged set
+                        // Recalculate sum and count from merged set
                         *s1 = s1_set.iter()
                             .fold(vibesql_types::SqlValue::Integer(0), |acc, val| add_sql_values(&acc, val));
+                        *c1 = s1_set.len() as i64;
                     }
                 } else {
                     *s1 = add_sql_values(s1, &s2);
+                    *c1 += c2;
                 }
             }
 
@@ -563,11 +573,13 @@ mod tests {
     fn test_combine_sum() {
         let mut acc1 = AggregateAccumulator::Sum {
             sum: SqlValue::Integer(10),
+            count: 3,
             distinct: false,
             seen: None
         };
         let acc2 = AggregateAccumulator::Sum {
             sum: SqlValue::Integer(5),
+            count: 2,
             distinct: false,
             seen: None
         };
@@ -575,7 +587,8 @@ mod tests {
         acc1.combine(acc2).unwrap();
 
         match acc1 {
-            AggregateAccumulator::Sum { sum, .. } => {
+            AggregateAccumulator::Sum { sum, count, .. } => {
+                assert_eq!(count, 5);
                 // Note: add_sql_values now preserves type (Integer + Integer = Integer)
                 match sum {
                     SqlValue::Integer(val) => assert_eq!(val, 15),
@@ -667,6 +680,7 @@ mod tests {
         let mut acc1 = AggregateAccumulator::Count { count: 5, distinct: false, seen: None };
         let acc2 = AggregateAccumulator::Sum {
             sum: SqlValue::Integer(10),
+            count: 3,
             distinct: false,
             seen: None
         };
@@ -686,5 +700,49 @@ mod tests {
 
         let result = acc1.combine(acc2);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_sum_returns_null_for_empty_set() {
+        // Create a SUM accumulator
+        let acc = AggregateAccumulator::new("SUM", false).unwrap();
+
+        // Don't accumulate any values (empty set)
+
+        // Finalize should return NULL
+        let result = acc.finalize();
+        assert!(result.is_null(), "SUM over empty set should return NULL, got {:?}", result);
+    }
+
+    #[test]
+    fn test_sum_returns_null_for_all_nulls() {
+        // Create a SUM accumulator
+        let mut acc = AggregateAccumulator::new("SUM", false).unwrap();
+
+        // Accumulate only NULL values
+        acc.accumulate(&SqlValue::Null);
+        acc.accumulate(&SqlValue::Null);
+        acc.accumulate(&SqlValue::Null);
+
+        // Finalize should return NULL
+        let result = acc.finalize();
+        assert!(result.is_null(), "SUM of all NULLs should return NULL, got {:?}", result);
+    }
+
+    #[test]
+    fn test_sum_returns_zero_when_values_sum_to_zero() {
+        // Create a SUM accumulator
+        let mut acc = AggregateAccumulator::new("SUM", false).unwrap();
+
+        // Accumulate values that sum to 0
+        acc.accumulate(&SqlValue::Integer(5));
+        acc.accumulate(&SqlValue::Integer(-5));
+
+        // Finalize should return 0, not NULL
+        let result = acc.finalize();
+        match result {
+            SqlValue::Integer(0) => {}, // OK
+            _ => panic!("SUM of values that sum to 0 should return 0, got {:?}", result),
+        }
     }
 }
