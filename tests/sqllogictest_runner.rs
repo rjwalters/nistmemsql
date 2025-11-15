@@ -664,3 +664,64 @@ async fn run_single_test_file() {
     tester.run_script(&contents)
         .unwrap_or_else(|e| panic!("Test failed for {}: {}", test_file, e));
 }
+#[tokio::test]
+async fn test_div_integer_formatting() {
+    use vibesql_executor::SelectExecutor;
+    use vibesql_parser::Parser;
+    use vibesql_storage::Database;
+
+    let db = Database::new();
+    let stmt = Parser::parse_sql("SELECT 47 DIV -94").unwrap();
+    
+    match stmt {
+        vibesql_ast::Statement::Select(select) => {
+            let executor = SelectExecutor::new(&db);
+            let rows = executor.execute(&select).unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].values.len(), 1);
+            
+            // Should return Integer(0), not Numeric or Float
+            match &rows[0].values[0] {
+                vibesql_types::SqlValue::Integer(val) => {
+                    assert_eq!(*val, 0);
+                },
+                other => panic!("Expected Integer, got {:?}", other),
+            }
+        },
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[tokio::test]
+async fn test_div_more_cases() {
+    use vibesql_executor::SelectExecutor;
+    use vibesql_parser::Parser;
+    use vibesql_storage::Database;
+    use vibesql_types::SqlValue;
+
+    let db = Database::new();
+    
+    let cases = vec![
+        ("SELECT 10 DIV 3", 3i64),
+        ("SELECT -10 DIV 3", -3i64),
+        ("SELECT 100 DIV 10", 10i64),
+        ("SELECT 47 DIV -94", 0i64),
+    ];
+    
+    for (sql, expected) in cases {
+        let stmt = Parser::parse_sql(sql).unwrap();
+        match stmt {
+            vibesql_ast::Statement::Select(select) => {
+                let executor = SelectExecutor::new(&db);
+                let rows = executor.execute(&select).unwrap();
+                match &rows[0].values[0] {
+                    SqlValue::Integer(val) => {
+                        assert_eq!(*val, expected, "Failed for SQL: {}", sql);
+                    },
+                    other => panic!("Expected Integer for '{}', got {:?}", sql, other),
+                }
+            },
+            _ => panic!("Expected SELECT statement"),
+        }
+    }
+}
