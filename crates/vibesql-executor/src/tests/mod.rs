@@ -20,6 +20,7 @@
 //! - `scalar_subquery_basic_tests`: Basic scalar subquery execution tests
 //! - `scalar_subquery_error_tests`: Scalar subquery error handling tests
 //! - `scalar_subquery_correlated_tests`: Correlated scalar subquery tests
+//! - `subquery_mysql_compat`: MySQL 8.0 compatibility tests for subqueries (issue #1814)
 //! - `error_display`: ExecutorError Display implementation tests
 //! - `comparison_ops`: Comparison operator tests
 //! - `between_predicates`: BETWEEN predicate execution tests
@@ -95,6 +96,7 @@ mod select_where;
 mod select_window_aggregate;
 mod select_without_from;
 mod set_operations_associativity;
+mod subquery_mysql_compat;
 mod timeout_enforcement;
 mod transaction_tests;
 mod trigger_tests;
