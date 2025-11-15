@@ -66,10 +66,12 @@ pub(in crate::select::executor) fn try_index_based_ordering(
     // Find an index that can be used for this ORDER BY
     let result =
         find_index_for_multi_column_ordering(database, &table_name, &order_columns, &order_directions)?;
-    let (index_name, needs_reverse) = match result {
+    let (index_name, _needs_reverse) = match result {
         Some(r) => r,
         None => return Ok(None),
     };
+    // Note: We ignore needs_reverse and always sort according to target directions.
+    // This is simpler and more correct than trying to use index order with reversal.
 
     // Get the index data
     let index_data = if let Some(table_name) = index_name.strip_prefix("__pk_") {
@@ -131,52 +133,28 @@ pub(in crate::select::executor) fn try_index_based_ordering(
     let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> =
         index_data.iter().map(|(k, v): (&Vec<SqlValue>, &Vec<usize>)| (k.clone(), v.clone())).collect();
 
-    // Sort by key, respecting per-column ASC/DESC directions
+    // Sort by key, always respecting the desired ORDER BY directions
+    // This is simpler and more correct than trying to use vector reversal
     data_vec.sort_by(|(a, _): &(Vec<SqlValue>, Vec<usize>), (b, _): &(Vec<SqlValue>, Vec<usize>)| {
         for (i, (val_a, val_b)) in a.iter().zip(b.iter()).enumerate() {
-            // Determine NULL ordering for this specific column based on its direction
-            // SQL standard: ASC → NULLs last, DESC → NULLs first
-            // When needs_reverse=true, we'll reverse the whole vector, so we need to invert the NULL ordering
-            let direction = order_directions.get(i).unwrap_or(&vibesql_ast::OrderDirection::Asc);
-            let is_desc = matches!(direction, vibesql_ast::OrderDirection::Desc);
+            // Get the desired direction for this column
+            let target_direction = order_directions.get(i)
+                .cloned()
+                .unwrap_or(vibesql_ast::OrderDirection::Asc);
 
-            // Normal ordering: ASC → NULLs last (false), DESC → NULLs first (true)
-            // When reversing entire vector: invert this
-            let want_nulls_first = if needs_reverse {
-                !is_desc  // Invert for reversal
-            } else {
-                is_desc   // Use normal ordering
-            };
-
-            // Handle NULLs: sort first or last based on want_nulls_first
+            // Handle NULLs: always sort last regardless of ASC/DESC (SQL standard behavior)
             let ord = match (val_a.is_null(), val_b.is_null()) {
                 (true, true) => std::cmp::Ordering::Equal,
-                (true, false) => {
-                    if want_nulls_first {
-                        return std::cmp::Ordering::Less;    // NULL sorts first
-                    } else {
-                        return std::cmp::Ordering::Greater; // NULL sorts last
-                    }
-                }
-                (false, true) => {
-                    if want_nulls_first {
-                        return std::cmp::Ordering::Greater; // non-NULL sorts after NULL
-                    } else {
-                        return std::cmp::Ordering::Less;    // non-NULL sorts before NULL
-                    }
-                }
+                (true, false) => std::cmp::Ordering::Greater, // NULL always sorts last
+                (false, true) => std::cmp::Ordering::Less,    // non-NULL always sorts first
                 (false, false) => {
-                    // Compare non-NULL values
-                    let mut comparison = compare_sql_values(val_a, val_b);
+                    // Compare non-NULL values according to the target direction
+                    let comparison = compare_sql_values(val_a, val_b);
 
-                    // Reverse if this column should be DESC (but not if we're doing whole-vector reversal)
-                    if !needs_reverse {
-                        if matches!(direction, vibesql_ast::OrderDirection::Desc) {
-                            comparison = comparison.reverse();
-                        }
+                    match target_direction {
+                        vibesql_ast::OrderDirection::Asc => comparison,
+                        vibesql_ast::OrderDirection::Desc => comparison.reverse(),
                     }
-
-                    comparison
                 }
             };
 
@@ -186,11 +164,6 @@ pub(in crate::select::executor) fn try_index_based_ordering(
         }
         std::cmp::Ordering::Equal
     });
-
-    // Reverse if needed (when using ASC index for DESC ordering)
-    if needs_reverse {
-        data_vec.reverse();
-    }
 
     // Build ordered rows by traversing index and looking up filtered rows
     let mut ordered_rows: Vec<RowWithSortKeys> = Vec::new();
