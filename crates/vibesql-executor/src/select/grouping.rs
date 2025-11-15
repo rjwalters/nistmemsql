@@ -576,10 +576,10 @@ mod tests {
 
         match acc1 {
             AggregateAccumulator::Sum { sum, .. } => {
-                // Note: add_sql_values converts to Numeric (f64)
+                // Note: add_sql_values now preserves type (Integer + Integer = Integer)
                 match sum {
-                    SqlValue::Numeric(val) => assert_eq!(val, 15.0),
-                    _ => panic!("Expected Numeric result from sum"),
+                    SqlValue::Integer(val) => assert_eq!(val, 15),
+                    _ => panic!("Expected Integer result from sum"),
                 }
             }
             _ => panic!("Expected Sum accumulator"),
@@ -606,10 +606,10 @@ mod tests {
         match acc1 {
             AggregateAccumulator::Avg { sum, count, .. } => {
                 assert_eq!(count, 15);
-                // Sum should be 150.0 (as Numeric)
+                // Sum should be 150 (as Integer, type-preserving)
                 match sum {
-                    SqlValue::Numeric(val) => assert_eq!(val, 150.0),
-                    _ => panic!("Expected Numeric result"),
+                    SqlValue::Integer(val) => assert_eq!(val, 150),
+                    _ => panic!("Expected Integer result"),
                 }
             }
             _ => panic!("Expected Avg accumulator"),
