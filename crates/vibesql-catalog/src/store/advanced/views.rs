@@ -10,51 +10,57 @@ impl super::super::Catalog {
     /// Create a VIEW
     pub fn create_view(&mut self, view: ViewDefinition) -> Result<(), CatalogError> {
         let name = view.name.clone();
-        if self.views.contains_key(&name) {
+
+        // Normalize the key for case-insensitive storage
+        let key = if self.case_sensitive_identifiers {
+            name.clone()
+        } else {
+            name.to_uppercase()
+        };
+
+        // Check if view already exists
+        if self.views.contains_key(&key) {
             return Err(CatalogError::ViewAlreadyExists(name));
         }
-        self.views.insert(name, view);
+
+        self.views.insert(key, view);
         Ok(())
     }
 
     /// Get a VIEW definition by name with optional case-insensitive lookup
     pub fn get_view(&self, name: &str) -> Option<&ViewDefinition> {
-        if self.case_sensitive_identifiers {
-            self.views.get(name)
+        // Normalize the key for lookup
+        let key = if self.case_sensitive_identifiers {
+            name.to_string()
         } else {
-            // Case-insensitive lookup
-            let name_upper = name.to_uppercase();
-            self.views
-                .values()
-                .find(|view| view.name.to_uppercase() == name_upper)
-        }
+            name.to_uppercase()
+        };
+
+        self.views.get(&key)
     }
 
     /// Drop a VIEW
     pub fn drop_view(&mut self, name: &str, cascade: bool) -> Result<(), CatalogError> {
-        // Find the actual view name (handle case-insensitivity)
-        let actual_name = if self.case_sensitive_identifiers {
-            if !self.views.contains_key(name) {
-                return Err(CatalogError::ViewNotFound(name.to_string()));
-            }
+        // Normalize the key for case-insensitive lookup
+        let key = if self.case_sensitive_identifiers {
             name.to_string()
         } else {
-            // Case-insensitive lookup
-            let name_upper = name.to_uppercase();
-            self.views
-                .iter()
-                .find(|(_, view)| view.name.to_uppercase() == name_upper)
-                .map(|(key, _)| key.clone())
-                .ok_or_else(|| CatalogError::ViewNotFound(name.to_string()))?
+            name.to_uppercase()
         };
 
+        // Check if view exists
+        if !self.views.contains_key(&key) {
+            return Err(CatalogError::ViewNotFound(name.to_string()));
+        }
+
         // Find all views that depend on this view or table
-        let dependent_views = self.find_dependent_views(&actual_name);
+        // Use the original name for dependency checking (not the normalized key)
+        let dependent_views = self.find_dependent_views(name);
 
         // If RESTRICT and there are dependent views, return error
         if !cascade && !dependent_views.is_empty() {
             return Err(CatalogError::ViewInUse {
-                view_name: actual_name,
+                view_name: name.to_string(),
                 dependent_views,
             });
         }
@@ -68,8 +74,8 @@ impl super::super::Catalog {
             }
         }
 
-        // Finally, drop the view itself
-        self.views.remove(&actual_name);
+        // Finally, drop the view itself using the normalized key
+        self.views.remove(&key);
         Ok(())
     }
 
@@ -77,8 +83,15 @@ impl super::super::Catalog {
     fn find_dependent_views(&self, target_name: &str) -> Vec<String> {
         let mut dependent_views = Vec::new();
 
+        // Normalize target for key comparison
+        let target_key = if self.case_sensitive_identifiers {
+            target_name.to_string()
+        } else {
+            target_name.to_uppercase()
+        };
+
         for (view_name, view_def) in &self.views {
-            if view_name == target_name {
+            if view_name == &target_key {
                 // Skip the view itself
                 continue;
             }
