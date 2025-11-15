@@ -32,33 +32,26 @@ impl NistMemSqlDB {
     }
 
     /// Format result rows for SQLLogicTest
-    /// Flattens multi-column results: each value becomes its own row (one value per row)
-    /// This matches SQLLogicTest's row-oriented format where each value is on a separate line
+    /// Returns multi-column rows as Vec<Vec<String>> where each inner Vec represents one row.
+    /// The sqllogictest library will handle sorting and formatting based on the sort mode.
     fn format_result_rows(
         &self,
         rows: &[vibesql_storage::Row],
         types: Vec<DefaultColumnType>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
-        let mut flattened_rows: Vec<Vec<String>> = Vec::new();
-        let mut flattened_types: Vec<DefaultColumnType> = Vec::new();
+        let mut formatted_rows: Vec<Vec<String>> = Vec::new();
 
-        // Count total values for potential hashing
-        let total_values: usize = rows.iter().map(|r| r.values.len()).sum();
-
-        // Build flattened output: each value becomes its own row
+        // Build formatted output: each row contains all column values
         for row in rows {
+            let mut formatted_row = Vec::new();
             for (col_idx, val) in row.values.iter().enumerate() {
                 let formatted_val = self.format_sql_value(val, types.get(col_idx));
-                flattened_rows.push(vec![formatted_val]);
+                formatted_row.push(formatted_val);
             }
+            formatted_rows.push(formatted_row);
         }
 
-        // Replicate the first column type for all flattened values
-        if !types.is_empty() {
-            flattened_types = vec![types[0].clone(); total_values];
-        }
-
-        Ok(DBOutput::Rows { types: flattened_types, rows: flattened_rows })
+        Ok(DBOutput::Rows { types, rows: formatted_rows })
     }
 
     fn execute_sql(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {

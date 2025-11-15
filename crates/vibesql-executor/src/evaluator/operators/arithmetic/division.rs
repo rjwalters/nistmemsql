@@ -19,12 +19,13 @@ impl Division {
             return Ok(Null);
         }
 
-        // Fast path for integers (both modes) - division always returns float
+        // Fast path for integers - integer division (SQLite/SQL:1999 behavior)
+        // When both operands are integers, division returns integer (truncates toward zero)
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
                 return Ok(SqlValue::Null);
             }
-            return Ok(Float((*a as f64 / *b as f64) as f32));
+            return Ok(Integer(a / b));
         }
 
         // Use helper for type coercion
