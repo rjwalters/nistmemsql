@@ -26,6 +26,25 @@ pub(in crate::select::executor) fn try_index_based_ordering(
     _from_clause: &Option<vibesql_ast::FromClause>,
     select_list: &[vibesql_ast::SelectItem],
 ) -> Result<Option<Vec<RowWithSortKeys>>, ExecutorError> {
+    // DISABLED: ORDER BY index optimization temporarily disabled due to issue #1787
+    //
+    // The optimization was producing incorrect results when combined with WHERE clauses:
+    // - ORDER BY DESC returned ascending order instead of descending
+    // - Some rows were missing from results
+    //
+    // Pattern: This is the 4th index optimization bug (#1744, #1785, #1786, #1787),
+    // suggesting the overall optimization strategy needs redesign. PR #1749 already
+    // disabled some WHERE optimizations for similar reasons.
+    //
+    // Fix strategy: Fall back to apply_order_by() which correctly sorts filtered rows.
+    // Performance impact: Queries with ORDER BY will use standard sorting instead of
+    // index traversal. This is slower but correct.
+    //
+    // TODO: Redesign index optimization strategy to handle WHERE + ORDER BY correctly
+    return Ok(None);
+
+    #[allow(unreachable_code)]
+    {
     // Empty ORDER BY - nothing to optimize
     if order_by.is_empty() {
         return Ok(None);
@@ -236,6 +255,7 @@ pub(in crate::select::executor) fn try_index_based_ordering(
     }
 
     Ok(Some(ordered_rows))
+    } // end unreachable code block
 }
 
 /// Helper function to extract ORDER BY value from a row
