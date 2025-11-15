@@ -123,31 +123,80 @@ fn is_modification_statement(sql: &str) -> bool {
 
 /// Parse SQL script into individual statements
 ///
-/// This is a simple implementation that:
-/// 1. Removes comments (lines starting with -- or blocks with /* */)
-/// 2. Splits on semicolons
-/// 3. Filters empty statements
-///
-/// A more robust implementation would need a proper SQL tokenizer
-/// to handle semicolons inside strings, comments, etc.
+/// This implementation:
+/// 1. Removes single-line comments (lines starting with --)
+/// 2. Removes multi-line comments (/* ... */)
+/// 3. Splits on semicolons, but respects string literals and comments
+/// 4. Handles escaped quotes within strings ('' for SQL)
 fn parse_statements(script: &str) -> Vec<String> {
-    // First, remove comment lines
-    let no_comments = script
-        .lines()
-        .filter(|line| {
-            let trimmed = line.trim();
-            !trimmed.is_empty() && !trimmed.starts_with("--") && !trimmed.starts_with("/*")
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
+    let mut statements = Vec::new();
+    let mut current_statement = String::new();
+    let mut in_string = false;
+    let mut in_multiline_comment = false;
+    let mut chars = script.chars().peekable();
 
-    // Then split on semicolons
-    no_comments
-        .split(';')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string())
-        .collect()
+    while let Some(ch) = chars.next() {
+        // Handle multi-line comments
+        if !in_string && ch == '/' && chars.peek() == Some(&'*') {
+            chars.next(); // consume '*'
+            in_multiline_comment = true;
+            continue;
+        }
+
+        if in_multiline_comment {
+            if ch == '*' && chars.peek() == Some(&'/') {
+                chars.next(); // consume '/'
+                in_multiline_comment = false;
+            }
+            continue;
+        }
+
+        // Handle single-line comments
+        if !in_string && ch == '-' && chars.peek() == Some(&'-') {
+            // Skip until end of line
+            while let Some(c) = chars.next() {
+                if c == '\n' {
+                    current_statement.push(c); // preserve newline for formatting
+                    break;
+                }
+            }
+            continue;
+        }
+
+        // Handle string literals
+        if ch == '\'' {
+            current_statement.push(ch);
+            // Check for escaped quote ('' in SQL)
+            if in_string && chars.peek() == Some(&'\'') {
+                chars.next(); // consume the second quote
+                current_statement.push('\'');
+                continue;
+            }
+            in_string = !in_string;
+            continue;
+        }
+
+        // Handle statement delimiter (semicolon)
+        if !in_string && ch == ';' {
+            let trimmed = current_statement.trim();
+            if !trimmed.is_empty() {
+                statements.push(trimmed.to_string());
+            }
+            current_statement.clear();
+            continue;
+        }
+
+        // Regular character
+        current_statement.push(ch);
+    }
+
+    // Add final statement if not empty
+    let trimmed = current_statement.trim();
+    if !trimmed.is_empty() {
+        statements.push(trimmed.to_string());
+    }
+
+    statements
 }
 
 #[cfg(test)]
@@ -194,5 +243,65 @@ mod tests {
         let script = "";
         let stmts = parse_statements(script);
         assert_eq!(stmts.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_semicolon_in_string() {
+        // Issue #1804: Semicolons inside string literals should not be treated as statement delimiters
+        let script = "INSERT INTO test VALUES (1, 'Error at position 10; expected value');";
+        let stmts = parse_statements(script);
+        assert_eq!(stmts.len(), 1);
+        assert_eq!(stmts[0], "INSERT INTO test VALUES (1, 'Error at position 10; expected value')");
+    }
+
+    #[test]
+    fn test_parse_escaped_quotes_in_string() {
+        // SQL uses doubled single quotes for escaping
+        let script = "INSERT INTO test VALUES ('It''s a test');";
+        let stmts = parse_statements(script);
+        assert_eq!(stmts.len(), 1);
+        assert_eq!(stmts[0], "INSERT INTO test VALUES ('It''s a test')");
+    }
+
+    #[test]
+    fn test_parse_multiline_comment() {
+        let script = "/* This is a\nmulti-line comment */\nSELECT 1;";
+        let stmts = parse_statements(script);
+        assert_eq!(stmts.len(), 1);
+        assert_eq!(stmts[0], "SELECT 1");
+    }
+
+    #[test]
+    fn test_parse_comment_with_semicolon() {
+        let script = "-- This comment has a semicolon; but it should be ignored\nSELECT 1;";
+        let stmts = parse_statements(script);
+        assert_eq!(stmts.len(), 1);
+        assert_eq!(stmts[0], "SELECT 1");
+    }
+
+    #[test]
+    fn test_parse_complex_error_message() {
+        // Real-world test case from SQLLogicTest results
+        let script = r#"INSERT INTO test_results (error_message) VALUES ('query result mismatch: [SQL] SELECT TIMESTAMP ''2025-11-15 00:00:00'' [Diff] expected; actual');"#;
+        let stmts = parse_statements(script);
+        assert_eq!(stmts.len(), 1);
+        assert!(stmts[0].contains("TIMESTAMP"));
+        assert!(stmts[0].contains("expected; actual"));
+    }
+
+    #[test]
+    fn test_parse_multiple_with_strings_and_comments() {
+        let script = r#"
+-- First statement
+INSERT INTO logs VALUES (1, 'Error: parse failed; retry');
+/* Second statement
+   with comment */
+INSERT INTO logs VALUES (2, 'Success');
+-- Done
+"#;
+        let stmts = parse_statements(script);
+        assert_eq!(stmts.len(), 2);
+        assert!(stmts[0].contains("parse failed; retry"));
+        assert!(stmts[1].contains("Success"));
     }
 }
