@@ -1,6 +1,27 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+/* Define custom theme colors using v4's @theme directive */
+@theme {
+  --color-primary-light: #3b82f6;
+  --color-primary-dark: #60a5fa;
+  --color-surface-light: #ffffff;
+  --color-surface-dark: #1f2937;
+  --color-foreground: #111827;
+  --color-foreground-light: #111827;
+  --color-foreground-dark: #f9fafb;
+  --color-muted: #6b7280;
+  --color-muted-light: #6b7280;
+  --color-muted-dark: #9ca3af;
+  --color-background: #ffffff;
+  --color-background-light: #ffffff;
+  --color-background-dark: #1f2937;
+  --color-card: #ffffff;
+  --color-card-light: #ffffff;
+  --color-card-dark: #374151;
+  --color-border: #d1d5db;
+  --color-border-light: #d1d5db;
+  --color-border-dark: #4b5563;
+}
 
 /* Custom component classes */
 @layer components {
@@ -52,7 +73,7 @@
 
   /* Modal styles */
   .modal-overlay {
-    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50
+    @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50
            backdrop-blur-sm;
   }
 
