@@ -108,8 +108,7 @@ impl Parser {
         let view_name = self.parse_qualified_identifier()?;
 
         // Check for optional CASCADE or RESTRICT
-        // Note: SQL standard defaults to RESTRICT, but SQLite (and SQLLogicTest suite)
-        // implicitly cascade drops. For compatibility, we default to CASCADE.
+        // SQL standard defaults to RESTRICT (do not drop dependent objects)
         let cascade = if self.peek_keyword(Keyword::Cascade) {
             self.consume_keyword(Keyword::Cascade)?;
             true
@@ -117,7 +116,7 @@ impl Parser {
             self.consume_keyword(Keyword::Restrict)?;
             false
         } else {
-            true // CASCADE is the default for SQLite compatibility
+            false // RESTRICT is the SQL standard default
         };
 
         // Expect semicolon or EOF

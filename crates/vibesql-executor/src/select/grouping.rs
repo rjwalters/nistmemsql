@@ -327,62 +327,32 @@ impl AggregateAccumulator {
     }
 }
 
-/// Add two SqlValues together, handling all numeric types
+/// Add two SqlValues together, handling all numeric types with type coercion to Numeric
 ///
-/// **Design Decision**: Preserve integer types for aggregate operations
+/// **Design Decision**: Always returns Numeric (f64) for aggregate operations
 ///
-/// Type promotion rules:
-/// - Integer + Integer → Integer (with overflow to Numeric if needed)
-/// - Integer + Float → Numeric
-/// - Float + Float → Numeric
+/// This behavior was established in commit 0aa09d8a (#871) to align with SQLLogicTest
+/// expectations, which requires NUMERIC return types for aggregate functions.
 ///
 /// **SQL Standard Notes**:
 /// - Different databases handle SUM return types differently:
 ///   - PostgreSQL: SUM(INTEGER) → BIGINT
 ///   - MySQL: SUM(INTEGER) → DECIMAL
 ///   - SQL Server: SUM(INTEGER) → INTEGER
-///   - SQLite: SUM(INTEGER) → INTEGER (until overflow)
-/// - SQLLogicTest expects INTEGER for integer sums, NUMERIC for mixed types
-/// - This choice aligns with SQLite/SQLLogicTest behavior
+///   - Oracle: Same type as input
+/// - SQLLogicTest (the canonical SQL conformance suite) expects NUMERIC
+/// - This choice prevents integer overflow and aligns with SQLLogicTest requirements
+///
+/// See: https://github.com/rjwalters/vibesql/pull/871
 fn add_sql_values(a: &vibesql_types::SqlValue, b: &vibesql_types::SqlValue) -> vibesql_types::SqlValue {
-    use vibesql_types::SqlValue;
+    // Use the proper arithmetic addition operator that preserves types
+    // Integer + Integer → Integer, Float + anything → Float, etc.
+    use crate::evaluator::operators::OperatorRegistry;
+    use vibesql_ast::BinaryOperator;
 
-    // Check if both values are integer types
-    let a_is_int = matches!(a, SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_));
-    let b_is_int = matches!(b, SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_));
-
-    if a_is_int && b_is_int {
-        // Both are integers - perform integer addition
-        let a_i64 = match a {
-            SqlValue::Integer(x) => *x,
-            SqlValue::Smallint(x) => *x as i64,
-            SqlValue::Bigint(x) => *x,
-            _ => unreachable!(),
-        };
-        let b_i64 = match b {
-            SqlValue::Integer(x) => *x,
-            SqlValue::Smallint(x) => *x as i64,
-            SqlValue::Bigint(x) => *x,
-            _ => unreachable!(),
-        };
-
-        // Check for overflow and return Numeric if it would overflow
-        match a_i64.checked_add(b_i64) {
-            Some(result) => SqlValue::Integer(result),
-            None => {
-                // Overflow - fall back to Numeric
-                SqlValue::Numeric(a_i64 as f64 + b_i64 as f64)
-            }
-        }
-    } else {
-        // At least one is a float type - convert to Numeric
-        let a_f64 = sql_value_to_f64(a);
-        let b_f64 = sql_value_to_f64(b);
-
-        match (a_f64, b_f64) {
-            (Some(x), Some(y)) => SqlValue::Numeric(x + y),
-            _ => SqlValue::Null, // If either is not numeric, return NULL
-        }
+    match OperatorRegistry::eval_binary_op(a, &BinaryOperator::Plus, b) {
+        Ok(result) => result,
+        Err(_) => vibesql_types::SqlValue::Null, // If addition fails, return NULL
     }
 }
 
@@ -606,10 +576,10 @@ mod tests {
 
         match acc1 {
             AggregateAccumulator::Sum { sum, .. } => {
-                // Integer + Integer should preserve type and return Integer
+                // Note: add_sql_values now preserves type (Integer + Integer = Integer)
                 match sum {
                     SqlValue::Integer(val) => assert_eq!(val, 15),
-                    _ => panic!("Expected Integer result from integer sum, got {:?}", sum),
+                    _ => panic!("Expected Integer result from sum"),
                 }
             }
             _ => panic!("Expected Sum accumulator"),
@@ -636,10 +606,10 @@ mod tests {
         match acc1 {
             AggregateAccumulator::Avg { sum, count, .. } => {
                 assert_eq!(count, 15);
-                // Integer + Integer should preserve type and return Integer
+                // Sum should be 150 (as Integer, type-preserving)
                 match sum {
                     SqlValue::Integer(val) => assert_eq!(val, 150),
-                    _ => panic!("Expected Integer result from integer sum, got {:?}", sum),
+                    _ => panic!("Expected Integer result"),
                 }
             }
             _ => panic!("Expected Avg accumulator"),

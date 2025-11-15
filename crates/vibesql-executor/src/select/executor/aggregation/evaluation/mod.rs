@@ -115,10 +115,11 @@ impl SelectExecutor<'_> {
         rows: Vec<vibesql_storage::Row>,
         stmt: &vibesql_ast::SelectStmt,
         order_by: &[vibesql_ast::OrderByItem],
+        expanded_select_list: &[vibesql_ast::SelectItem],
     ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
-        // Build a schema from the SELECT list to enable ORDER BY column resolution
+        // Build a schema from the expanded SELECT list to enable ORDER BY column resolution
         let mut result_columns = Vec::new();
-        for (idx, item) in stmt.select_list.iter().enumerate() {
+        for (idx, item) in expanded_select_list.iter().enumerate() {
             match item {
                 vibesql_ast::SelectItem::Expression { expr, alias } => {
                     let column_name = if let Some(alias) = alias {
@@ -138,6 +139,7 @@ impl SelectExecutor<'_> {
                     ));
                 }
                 vibesql_ast::SelectItem::Wildcard { .. } | vibesql_ast::SelectItem::QualifiedWildcard { .. } => {
+                    // This should not happen after expansion, but keep for safety
                     return Err(ExecutorError::UnsupportedFeature(
                         "SELECT * and qualified wildcards not supported with aggregates"
                             .to_string(),

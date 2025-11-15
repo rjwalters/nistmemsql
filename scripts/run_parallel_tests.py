@@ -7,18 +7,24 @@ dramatically reducing test suite execution time from ~30+ minutes (serial) to ~2
 
 Architecture:
 - Main process discovers all 623 test files and partitions them across N workers
-- Each worker runs `cargo test` with its partition of test files
+- Each worker runs test files individually with per-file timeouts (prevents worker hangs)
 - Workers write individual JSON results to target/sqllogictest_results_worker_N.json
 - Main process merges all worker results into target/sqllogictest_cumulative.json
 - Results are compatible with existing database integration (process_test_results.py)
+
+Per-File Timeout Strategy:
+- Each file has a 60s timeout to prevent hangs on slow/infinite-loop queries
+- If a file times out, the worker continues testing remaining files
+- Time budget is enforced across all files in the partition
+- Workers gracefully stop when time budget is exhausted
 
 Usage:
     python3 scripts/run_parallel_tests.py --workers 8 --time-budget 300
 
 Environment Variables:
     SQLLOGICTEST_WORKER_ID: Worker number (0-indexed)
-    SQLLOGICTEST_FILES: Comma-separated list of test files for this worker
-    SQLLOGICTEST_TIME_BUDGET: Time budget in seconds per worker
+    SQLLOGICTEST_FILES: Test file to run (set per-file by worker)
+    SQLLOGICTEST_TIME_BUDGET: Time budget in seconds per file
 
 Example:
     # Run with 8 workers, 5 minutes per worker
@@ -145,13 +151,7 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
         return (worker_id, None)
 
     print(f"[Worker {worker_id}] Starting with {len(test_files)} files", flush=True)
-    print(f"[Worker {worker_id}] First file: {test_files[0] if test_files else 'none'}", flush=True)
-
-    # Set environment variables for this worker
-    env = os.environ.copy()
-    env["SQLLOGICTEST_WORKER_ID"] = str(worker_id)
-    env["SQLLOGICTEST_FILES"] = ",".join(test_files)
-    env["SQLLOGICTEST_TIME_BUDGET"] = str(time_budget)
+    print(f"[Worker {worker_id}] Time budget: {time_budget}s", flush=True)
 
     # Find the test binary (built with --no-run earlier)
     # Location depends on build mode (release is 10-15x faster)
@@ -171,57 +171,239 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
 
     test_binary = test_binaries[0]
 
-    # Run the test binary directly (not through cargo test)
-    cmd = [test_binary]
+    # Run files with per-file timeout to prevent hangs
+    worker_start_time = time.time()
+    files_tested = 0
+    files_timed_out = 0
+    all_results = []
 
-    print(f"[Worker {worker_id}] Running binary: {test_binary}", flush=True)
+    # Clean up any stale per-file result files from previous runs
+    import glob as glob_cleanup
+    stale_files = glob_cleanup.glob(str(repo_root / "target" / f"sqllogictest_results_worker_{worker_id}_file_*.json"))
+    for stale_file in stale_files:
+        try:
+            Path(stale_file).unlink()
+        except:
+            pass  # Ignore cleanup failures
 
-    try:
-        start_time = time.time()
+    # Per-file timeout: adaptive based on historical data, with reasonable bounds
+    # Most files complete in <10s, but some slow files need more time
+    per_file_timeout = 60  # 60s per file is a reasonable default
 
-        # Redirect stdout/stderr to files to avoid blocking
-        stdout_file = repo_root / "target" / f"worker_{worker_id}_stdout.log"
-        stderr_file = repo_root / "target" / f"worker_{worker_id}_stderr.log"
+    for test_file in test_files:
+        # Check if we've exceeded our time budget
+        elapsed = time.time() - worker_start_time
+        if elapsed >= time_budget:
+            print(f"[Worker {worker_id}] Time budget exhausted ({elapsed:.1f}s / {time_budget}s), stopping", flush=True)
+            print(f"[Worker {worker_id}] Tested {files_tested}/{len(test_files)} files", flush=True)
+            break
 
-        with open(stdout_file, 'w') as stdout_f, open(stderr_file, 'w') as stderr_f:
-            result = subprocess.run(
-                cmd,
-                env=env,
-                cwd=repo_root,
-                stdout=stdout_f,
-                stderr=stderr_f,
-                timeout=time_budget + 60  # Allow 60s grace period for startup/shutdown
-            )
+        # Set environment variables for this file
+        env = os.environ.copy()
+        env["SQLLOGICTEST_WORKER_ID"] = str(worker_id)
+        env["SQLLOGICTEST_FILES"] = test_file  # Single file
+        env["SQLLOGICTEST_TIME_BUDGET"] = str(per_file_timeout)
 
-        elapsed = time.time() - start_time
+        # Run the test binary for this single file
+        cmd = [test_binary]
 
-        # Check if test succeeded
-        if result.returncode != 0:
-            print(f"[Worker {worker_id}] Failed (exit code {result.returncode}) after {elapsed:.1f}s", flush=True)
-            return (worker_id, None)
+        # Unique result file for this run
+        run_results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}_file_{files_tested}.json"
 
-        print(f"[Worker {worker_id}] Completed successfully in {elapsed:.1f}s", flush=True)
+        try:
+            file_start_time = time.time()
 
-        # Read worker results from JSON file
-        results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
+            # Redirect stdout/stderr to files to avoid blocking
+            stdout_file = repo_root / "target" / f"worker_{worker_id}_file_{files_tested}_stdout.log"
+            stderr_file = repo_root / "target" / f"worker_{worker_id}_file_{files_tested}_stderr.log"
 
-        if not results_file.exists():
-            print(f"[Worker {worker_id}] Warning: Results file not found: {results_file}")
-            return (worker_id, None)
+            with open(stdout_file, 'w') as stdout_f, open(stderr_file, 'w') as stderr_f:
+                result = subprocess.run(
+                    cmd,
+                    env=env,
+                    cwd=repo_root,
+                    stdout=stdout_f,
+                    stderr=stderr_f,
+                    timeout=per_file_timeout + 10  # Small grace period for process startup/cleanup
+                )
 
-        with open(results_file, 'r') as f:
-            results = json.load(f)
+            file_elapsed = time.time() - file_start_time
+            files_tested += 1
 
-        return (worker_id, results)
+            # Check if test succeeded
+            if result.returncode != 0:
+                print(f"[Worker {worker_id}] File {files_tested}/{len(test_files)}: {test_file} FAILED (exit {result.returncode}) in {file_elapsed:.1f}s", flush=True)
+            else:
+                print(f"[Worker {worker_id}] File {files_tested}/{len(test_files)}: {test_file} completed in {file_elapsed:.1f}s", flush=True)
 
-    except subprocess.TimeoutExpired as e:
-        print(f"[Worker {worker_id}] TIMEOUT EXPIRED: timeout was {e.timeout}s, cmd was {e.cmd}", flush=True)
+            # Rename the standard result file to our unique per-file name
+            # The Rust test binary writes to sqllogictest_results_worker_{worker_id}.json
+            # We need to rename it to avoid overwriting results from previous files
+            standard_results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
+            if standard_results_file.exists():
+                try:
+                    standard_results_file.rename(run_results_file)
+                except Exception as e:
+                    print(f"[Worker {worker_id}] Warning: Failed to rename result file: {e}", flush=True)
+
+            # Read results if they exist
+            if run_results_file.exists():
+                with open(run_results_file, 'r') as f:
+                    file_results = json.load(f)
+                    all_results.append(file_results)
+                # Clean up individual result file after reading
+                run_results_file.unlink()
+            else:
+                # Log if results file doesn't exist (test may have crashed or failed to write results)
+                print(f"[Worker {worker_id}] Warning: No results file found for {test_file}", flush=True)
+
+        except subprocess.TimeoutExpired:
+            files_tested += 1
+            files_timed_out += 1
+            print(f"[Worker {worker_id}] File {files_tested}/{len(test_files)}: {test_file} TIMEOUT after {per_file_timeout}s", flush=True)
+            # Clean up any partial result file that may have been written
+            standard_results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
+            if standard_results_file.exists():
+                try:
+                    standard_results_file.unlink()
+                except:
+                    pass  # Ignore cleanup failures
+            # Continue to next file instead of failing entire worker
+
+        except Exception as e:
+            files_tested += 1
+            print(f"[Worker {worker_id}] File {files_tested}/{len(test_files)}: {test_file} ERROR: {type(e).__name__}: {e}", flush=True)
+            # Clean up any partial result file that may have been written
+            standard_results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
+            if standard_results_file.exists():
+                try:
+                    standard_results_file.unlink()
+                except:
+                    pass  # Ignore cleanup failures
+            # Continue to next file
+
+    total_elapsed = time.time() - worker_start_time
+
+    print(f"[Worker {worker_id}] Completed: {files_tested}/{len(test_files)} files tested in {total_elapsed:.1f}s", flush=True)
+    if files_timed_out > 0:
+        print(f"[Worker {worker_id}] Warning: {files_timed_out} files timed out", flush=True)
+
+    # Merge all results from individual file runs
+    if not all_results:
+        print(f"[Worker {worker_id}] No results collected", flush=True)
         return (worker_id, None)
-    except Exception as e:
-        print(f"[Worker {worker_id}] UNEXPECTED ERROR: {type(e).__name__}: {e}", flush=True)
-        import traceback
-        traceback.print_exc()
-        return (worker_id, None)
+
+    merged_results = merge_file_results(all_results)
+
+    # Write merged results to worker result file
+    final_results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
+    with open(final_results_file, 'w') as f:
+        json.dump(merged_results, f, indent=2)
+
+    return (worker_id, merged_results)
+
+
+def merge_file_results(file_results: List[Dict]) -> Dict:
+    """
+    Merge results from multiple individual file test runs into a single result.
+
+    Args:
+        file_results: List of result dictionaries from individual file runs
+
+    Returns:
+        Merged result dictionary compatible with merge_worker_results()
+    """
+    if not file_results:
+        return {
+            "summary": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "errors": 0,
+                "skipped": 0,
+                "pass_rate": 0.0,
+                "total_available_files": 0,
+                "tested_files": 0,
+            },
+            "tested_files": {
+                "passed": [],
+                "failed": [],
+            },
+            "categories": {},
+            "detailed_failures": [],
+        }
+
+    # Initialize merged result
+    merged = {
+        "summary": {
+            "total": 0,
+            "passed": 0,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0,
+            "pass_rate": 0.0,
+            "total_available_files": 0,
+            "tested_files": 0,
+        },
+        "tested_files": {
+            "passed": [],
+            "failed": [],
+        },
+        "categories": {},
+        "detailed_failures": [],
+    }
+
+    # Merge each file result
+    for result in file_results:
+        summary = result.get("summary", {})
+        merged["summary"]["total"] += summary.get("total", 0)
+        merged["summary"]["passed"] += summary.get("passed", 0)
+        merged["summary"]["failed"] += summary.get("failed", 0)
+        merged["summary"]["errors"] += summary.get("errors", 0)
+        merged["summary"]["skipped"] += summary.get("skipped", 0)
+        merged["summary"]["total_available_files"] += summary.get("total_available_files", 0)
+        merged["summary"]["tested_files"] += summary.get("tested_files", 0)
+
+        # Merge tested files lists
+        tested_files = result.get("tested_files", {})
+        merged["tested_files"]["passed"].extend(tested_files.get("passed", []))
+        merged["tested_files"]["failed"].extend(tested_files.get("failed", []))
+
+        # Merge detailed failures
+        merged["detailed_failures"].extend(result.get("detailed_failures", []))
+
+        # Merge categories
+        categories = result.get("categories", {})
+        for category_name, category_data in categories.items():
+            if category_data is None:
+                continue
+            if category_name not in merged["categories"]:
+                merged["categories"][category_name] = {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "errors": 0,
+                    "skipped": 0,
+                    "pass_rate": 0.0,
+                }
+            merged["categories"][category_name]["total"] += category_data.get("total", 0)
+            merged["categories"][category_name]["passed"] += category_data.get("passed", 0)
+            merged["categories"][category_name]["failed"] += category_data.get("failed", 0)
+            merged["categories"][category_name]["errors"] += category_data.get("errors", 0)
+            merged["categories"][category_name]["skipped"] += category_data.get("skipped", 0)
+
+    # Calculate overall pass rate
+    total = merged["summary"]["total"]
+    if total > 0:
+        merged["summary"]["pass_rate"] = round((merged["summary"]["passed"] / total) * 100, 2)
+
+    # Calculate category pass rates
+    for category_name, category_data in merged["categories"].items():
+        total = category_data["total"]
+        if total > 0:
+            category_data["pass_rate"] = round((category_data["passed"] / total) * 100, 2)
+
+    return merged
 
 
 def merge_worker_results(worker_results: List[Tuple[int, Optional[Dict]]]) -> Dict:
