@@ -7,15 +7,33 @@ use crate::{errors::ExecutorError, schema::CombinedSchema};
 /// Try to use indexes for WHERE clause filtering
 /// Returns Some(rows) if index optimization was applied, None if not applicable
 pub(in crate::select::executor) fn try_index_based_where_filtering(
-    _database: &Database,
-    _where_expr: Option<&vibesql_ast::Expression>,
-    _all_rows: &[vibesql_storage::Row],
-    _schema: &CombinedSchema,
+    database: &Database,
+    where_expr: Option<&vibesql_ast::Expression>,
+    all_rows: &[vibesql_storage::Row],
+    schema: &CombinedSchema,
 ) -> Result<Option<Vec<vibesql_storage::Row>>, ExecutorError> {
-    // TEMPORARILY DISABLED: Index-based WHERE filtering has bugs that cause
-    // rows to be dropped. Falling back to regular filtering.
-    // See issue #1744
-    Ok(None)
+    let where_expr = match where_expr {
+        Some(expr) => expr,
+        None => return Ok(None), // No WHERE clause
+    };
+
+    // Try to match different predicate patterns
+    match where_expr {
+        // AND expressions (for BETWEEN pattern) - check first before binary op
+        vibesql_ast::Expression::BinaryOp { op: vibesql_ast::BinaryOperator::And, left, right } => {
+            try_index_for_and_expr(database, left, right, all_rows, schema)
+        }
+        // Simple binary operations: column OP value
+        vibesql_ast::Expression::BinaryOp { left, op, right } => {
+            try_index_for_binary_op(database, left, op, right, all_rows, schema)
+        }
+        // IN expressions: column IN (val1, val2, ...)
+        vibesql_ast::Expression::InList { expr, values, negated: false } => {
+            try_index_for_in_expr(database, expr, values, all_rows, schema)
+        }
+        // Other expressions not supported for index optimization
+        _ => Ok(None),
+    }
 }
 
 /// Try to use indexes specifically for IN clause expressions

@@ -5,7 +5,9 @@
 //! - Reverse index traversal (ASC index used for DESC ordering)
 //! - Mixed ASC/DESC directions when index supports them
 
-use vibesql_storage::database::Database;
+use std::collections::{BTreeMap, HashMap, HashSet};
+
+use vibesql_storage::database::{Database, IndexData};
 use vibesql_types::SqlValue;
 
 use crate::{
@@ -17,17 +19,240 @@ use crate::{
 /// Try to use an index for ORDER BY optimization
 /// Returns ordered rows if an index can be used, None otherwise
 pub(in crate::select::executor) fn try_index_based_ordering(
-    _database: &Database,
-    _rows: &[RowWithSortKeys],
-    _order_by: &[vibesql_ast::OrderByItem],
-    _schema: &CombinedSchema,
+    database: &Database,
+    rows: &[RowWithSortKeys],
+    order_by: &[vibesql_ast::OrderByItem],
+    schema: &CombinedSchema,
     _from_clause: &Option<vibesql_ast::FromClause>,
-    _select_list: &[vibesql_ast::SelectItem],
+    select_list: &[vibesql_ast::SelectItem],
 ) -> Result<Option<Vec<RowWithSortKeys>>, ExecutorError> {
-    // TEMPORARILY DISABLED: Index-based ORDER BY optimization has bugs that cause
-    // rows to be dropped and incorrect ordering. Falling back to regular sorting.
-    // See issue #1744
-    Ok(None)
+    // Empty ORDER BY - nothing to optimize
+    if order_by.is_empty() {
+        return Ok(None);
+    }
+
+    // Extract column names and directions from ORDER BY
+    let mut order_columns = Vec::new();
+    let mut order_directions = Vec::new();
+
+    for order_item in order_by {
+        // Resolve ORDER BY expression (handle positional references and aliases)
+        let resolved_expr = resolve_order_by_expression(&order_item.expr, select_list)?;
+
+        // Check if resolved expression is a simple column reference
+        let column_name = match resolved_expr {
+            vibesql_ast::Expression::ColumnRef { table: None, column } => column,
+            _ => return Ok(None), // Complex expressions can't use index
+        };
+        order_columns.push(column_name.clone());
+        order_directions.push(order_item.direction.clone());
+    }
+
+    // Find the table that has the first ORDER BY column
+    let first_column = &order_columns[0];
+    let mut found_table = None;
+    for (table_name, (_start_idx, table_schema)) in &schema.table_schemas {
+        if table_schema.get_column_index(first_column).is_some() {
+            found_table = Some(table_name.clone());
+            break;
+        }
+    }
+
+    let table_name = match found_table {
+        Some(name) => name,
+        None => return Ok(None),
+    };
+
+    // Find an index that can be used for this ORDER BY
+    let result =
+        find_index_for_multi_column_ordering(database, &table_name, &order_columns, &order_directions)?;
+    let (index_name, _needs_reverse) = match result {
+        Some(r) => r,
+        None => return Ok(None),
+    };
+    // Note: We ignore needs_reverse and always sort according to target directions.
+    // This is simpler and more correct than trying to use index order with reversal.
+
+    // Get the index data
+    let index_data = if let Some(table_name) = index_name.strip_prefix("__pk_") {
+        // Primary key index
+        // Remove "__pk_" prefix
+        let qualified_table_name = format!("public.{}", table_name);
+        if let Some(table) = database.get_table(&qualified_table_name) {
+            if let Some(pk_index) = table.primary_key_index() {
+                // Convert to IndexData format (BTreeMap)
+                let data: BTreeMap<Vec<SqlValue>, Vec<usize>> =
+                    pk_index.iter().map(|(key, &row_idx)| (key.clone(), vec![row_idx])).collect();
+                IndexData::InMemory { data }
+            } else {
+                return Ok(None);
+            }
+        } else {
+            return Ok(None);
+        }
+    } else {
+        match database.get_index_data(&index_name) {
+            Some(data) => data.clone(),
+            None => return Ok(None),
+        }
+    };
+
+    // Extract ORDER BY column values from filtered rows
+    // Build a map: ORDER BY value(s) -> Vec<row position in filtered set>
+    let mut value_to_row_positions: HashMap<Vec<SqlValue>, Vec<usize>> = HashMap::new();
+
+    for (row_idx, (row, _)) in rows.iter().enumerate() {
+        // Extract the ORDER BY column values from this row
+        let mut order_values = Vec::new();
+        for col_name in &order_columns {
+            // Get column value from the row
+            // Find which table this row belongs to
+            let mut found_value = None;
+            for (start_idx, tbl_schema) in schema.table_schemas.values() {
+                if let Some(col_idx) = tbl_schema.get_column_index(col_name) {
+                    let global_col_idx = start_idx + col_idx;
+                    if global_col_idx < row.len() {
+                        found_value = Some(row.values[global_col_idx].clone());
+                        break;
+                    }
+                }
+            }
+
+            if let Some(value) = found_value {
+                order_values.push(value);
+            } else {
+                // Column not found in row, can't use index
+                return Ok(None);
+            }
+        }
+
+        value_to_row_positions.entry(order_values).or_default().push(row_idx);
+    }
+
+    // Convert index HashMap to Vec and sort for consistent ordering
+    let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> =
+        index_data.iter().map(|(k, v): (&Vec<SqlValue>, &Vec<usize>)| (k.clone(), v.clone())).collect();
+
+    // Sort by key, always respecting the desired ORDER BY directions
+    // This is simpler and more correct than trying to use vector reversal
+    data_vec.sort_by(|(a, _): &(Vec<SqlValue>, Vec<usize>), (b, _): &(Vec<SqlValue>, Vec<usize>)| {
+        for (i, (val_a, val_b)) in a.iter().zip(b.iter()).enumerate() {
+            // Get the desired direction for this column
+            let target_direction = order_directions.get(i)
+                .cloned()
+                .unwrap_or(vibesql_ast::OrderDirection::Asc);
+
+            // Handle NULLs: always sort last regardless of ASC/DESC (SQL standard behavior)
+            let ord = match (val_a.is_null(), val_b.is_null()) {
+                (true, true) => std::cmp::Ordering::Equal,
+                (true, false) => std::cmp::Ordering::Greater, // NULL always sorts last
+                (false, true) => std::cmp::Ordering::Less,    // non-NULL always sorts first
+                (false, false) => {
+                    // Compare non-NULL values according to the target direction
+                    let comparison = compare_sql_values(val_a, val_b);
+
+                    match target_direction {
+                        vibesql_ast::OrderDirection::Asc => comparison,
+                        vibesql_ast::OrderDirection::Desc => comparison.reverse(),
+                    }
+                }
+            };
+
+            if ord != std::cmp::Ordering::Equal {
+                return ord;
+            }
+        }
+        std::cmp::Ordering::Equal
+    });
+
+    // FIX FOR #1744: Track which rows we've already included to ensure ALL rows are in the result
+    let mut included_row_indices: HashSet<usize> = HashSet::new();
+    let mut ordered_rows: Vec<RowWithSortKeys> = Vec::new();
+
+    // Build ordered rows by traversing index and looking up filtered rows
+    for (index_key, _) in data_vec {
+        // Check if we have any filtered rows with this index key value
+        if let Some(row_positions) = value_to_row_positions.get(&index_key) {
+            // Add all rows with this key value (handles duplicates)
+            for &row_pos in row_positions {
+                ordered_rows.push(rows[row_pos].clone());
+                included_row_indices.insert(row_pos);
+            }
+        }
+    }
+
+    // FIX FOR #1744: Append any rows that weren't in the index (shouldn't happen with correct index,
+    // but this prevents silent row loss if index is incomplete or stale)
+    let mut missing_rows: Vec<(usize, RowWithSortKeys)> = rows.iter()
+        .enumerate()
+        .filter(|(idx, _)| !included_row_indices.contains(idx))
+        .map(|(idx, row)| (idx, row.clone()))
+        .collect();
+
+    if !missing_rows.is_empty() {
+        // Sort missing rows according to ORDER BY directions
+        missing_rows.sort_by(|(_, (row_a, _)), (_, (row_b, _))| {
+            for (col_idx, col_name) in order_columns.iter().enumerate() {
+                // Extract values for this column from both rows
+                let val_a = extract_order_value(row_a, col_name, schema);
+                let val_b = extract_order_value(row_b, col_name, schema);
+
+                if let (Some(val_a), Some(val_b)) = (val_a, val_b) {
+                    let target_direction = order_directions.get(col_idx)
+                        .cloned()
+                        .unwrap_or(vibesql_ast::OrderDirection::Asc);
+
+                    let ord = match (val_a.is_null(), val_b.is_null()) {
+                        (true, true) => std::cmp::Ordering::Equal,
+                        (true, false) => std::cmp::Ordering::Greater,
+                        (false, true) => std::cmp::Ordering::Less,
+                        (false, false) => {
+                            let comparison = compare_sql_values(&val_a, &val_b);
+                            match target_direction {
+                                vibesql_ast::OrderDirection::Asc => comparison,
+                                vibesql_ast::OrderDirection::Desc => comparison.reverse(),
+                            }
+                        }
+                    };
+
+                    if ord != std::cmp::Ordering::Equal {
+                        return ord;
+                    }
+                }
+            }
+            std::cmp::Ordering::Equal
+        });
+
+        // Append sorted missing rows
+        for (_, row) in missing_rows {
+            ordered_rows.push(row);
+        }
+    }
+
+    // VALIDATION FOR #1744: Ensure we have the same number of rows
+    if ordered_rows.len() != rows.len() {
+        // Safety check failed - fall back to regular sorting to ensure correctness
+        return Ok(None);
+    }
+
+    Ok(Some(ordered_rows))
+}
+
+/// Helper function to extract ORDER BY value from a row
+fn extract_order_value(
+    row: &vibesql_storage::Row,
+    col_name: &str,
+    schema: &CombinedSchema,
+) -> Option<SqlValue> {
+    for (start_idx, tbl_schema) in schema.table_schemas.values() {
+        if let Some(col_idx) = tbl_schema.get_column_index(col_name) {
+            let global_col_idx = start_idx + col_idx;
+            if global_col_idx < row.len() {
+                return Some(row.values[global_col_idx].clone());
+            }
+        }
+    }
+    None
 }
 
 /// Find an index that can be used for multi-column ordering
