@@ -18,16 +18,9 @@ impl super::super::Catalog {
             name.to_uppercase()
         };
 
-        // Check if view already exists (case-insensitive)
-        if self.case_sensitive_identifiers {
-            if self.views.contains_key(&key) {
-                return Err(CatalogError::ViewAlreadyExists(name));
-            }
-        } else {
-            // Case-insensitive check - view already handled by key normalization
-            if self.views.contains_key(&key) {
-                return Err(CatalogError::ViewAlreadyExists(name));
-            }
+        // Check if view already exists
+        if self.views.contains_key(&key) {
+            return Err(CatalogError::ViewAlreadyExists(name));
         }
 
         self.views.insert(key, view);
