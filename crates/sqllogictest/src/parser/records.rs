@@ -6,7 +6,7 @@ use crate::ColumnType;
 use super::location::Location;
 use super::error_parser::ExpectedError;
 use super::retry_parser::RetryConfig;
-use super::directive_parser::{Control, Condition, Connection, SortMode};
+use super::directive_parser::{Control, Condition, Connection, SortMode, ResultMode, ControlItem};
 use super::record_parser::{StatementExpect, QueryExpect};
 
 /// A single directive in a sqllogictest file.
