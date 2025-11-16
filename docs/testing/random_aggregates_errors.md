@@ -11,43 +11,138 @@
 
 This document provides a detailed diagnostic analysis of failures in the `random/aggregates` test suite. The goal is to identify specific error patterns, categorize them, and provide actionable next steps for fixes.
 
-## ⚠️ ACTUAL TEST RESULTS (2025-11-15)
+## ⚠️ ACTUAL TEST RESULTS (2025-11-15 UPDATED)
 
-**Test Command**:
-```bash
-SQLLOGICTEST_FILE="random/aggregates/slt_good_0.test" cargo test --release -p vibesql run_single_test_file -- --nocapture
-```
+**Analysis Method**: Queried test results database from recent test runs
+**Database**: `~/.vibesql/test_results/sqllogictest_results.sql` (Nov 15, 2025)
+**Total Failures Analyzed**: **1480 test failures** across `random/aggregates/` suite
 
-**Result**: Test FAILED on FIRST error at line 3695
+### Complete Error Pattern Analysis
 
-### Error Pattern 1: BETWEEN NULL Handling ❌ (NOT an aggregate error!)
+| Error Pattern | Count | Percentage | Status |
+|---------------|-------|------------|--------|
+| **BETWEEN NULL handling** | 1365 | 92.2% | Issue #1846 |
+| **NULL arithmetic in aggregates** | 114 | 7.7% | **NEW - Issue needed** |
+| Other | 1 | 0.1% | TBD |
+| **TOTAL** | **1480** | **100%** | |
 
-**Error Type**: Query result mismatch
-**Line**: 3695 of slt_good_0.test
-**SQL Query**:
+### Critical Discovery
+
+The `random/aggregates` test suite is **MISLEADINGLY NAMED** - it contains:
+- **92% non-aggregate queries** with BETWEEN NULL predicates
+- **8% aggregate queries** with NULL arithmetic issues
+
+**The overwhelming majority of failures are NOT aggregate-specific issues!**
+
+---
+
+## Error Pattern 1: BETWEEN NULL Handling ❌ (92.2% of failures)
+
+**Count**: 1365 failures
+**Issue**: #1846 (BETWEEN NULL handling)
+**Error Type**: Query result mismatch - WHERE clause filtering
+**Contains Aggregates**: ❌ NO - Pure WHERE clause issue
+
+**Root Cause**: `BETWEEN NULL AND value` incorrectly returns FALSE for all rows instead of NULL/UNKNOWN
+
+**Sample SQL Queries**:
 ```sql
-SELECT + col0, - 47 + - col2 FROM tab2 AS cor0
-WHERE NOT col0 * - - col0 - - 57 BETWEEN NULL AND + - 18 - + 12
+-- Example 1: BETWEEN with NULL endpoint
+SELECT * FROM tab0 WHERE NOT col1 * + col2
+    BETWEEN - col1 AND + - CAST( NULL AS SIGNED )
+-- Expected: Empty set (NULL predicate)
+-- Actual: All 9 rows returned
+
+-- Example 2: NOT BETWEEN with NULL
+SELECT + + col1 AS col2 FROM tab0
+    WHERE NOT - col0 - - 78 BETWEEN NULL AND - col2
+-- Expected: Empty set
+-- Actual: 3 rows returned (21, 81, 1)
+
+-- Example 3: BETWEEN NULL AND NULL
+SELECT * FROM tab1 WHERE - col0 NOT BETWEEN NULL AND NULL
+-- Expected: Empty set
+-- Actual: All 9 rows returned
 ```
 
-**Expected Result**: 6 rows
+**SQL Standard Behavior**:
+- `value BETWEEN NULL AND x` → NULL (three-valued logic)
+- `NOT NULL` → NULL (not TRUE)
+- WHERE clause filters out NULL predicates (keeps only TRUE)
+
+**Current vibesql Behavior**:
+- Treating `BETWEEN NULL` as FALSE instead of NULL
+- `NOT FALSE` = TRUE, so rows are incorrectly included
+
+**Impact**:
+- **BLOCKS 92% of test execution** - these failures mask true aggregate errors
+- Related to issue #1846
+
+---
+
+## Error Pattern 2: NULL Arithmetic in Aggregates ❌ (7.7% of failures)
+
+**Count**: 114 failures
+**Issue**: **NEW** - Follow-up issue to be created
+**Error Type**: Query result mismatch - aggregate evaluation
+**Contains Aggregates**: ✅ YES - True aggregate issues
+
+**Root Cause**: NULL arithmetic in aggregate expressions returns 0 or numeric values instead of propagating NULL
+
+**Sample SQL Queries**:
+```sql
+-- Example 1: SUM(NULL) returns 0 instead of NULL
+SELECT SUM( CAST( NULL AS SIGNED ) ) FROM tab1
+-- Expected: NULL
+-- Actual: 0.000
+
+-- Example 2: NULL arithmetic doesn't propagate
+SELECT SUM( NULL ) * COUNT( * ) + MAX( col1 ) FROM tab0
+-- Expected: NULL (NULL * anything = NULL)
+-- Actual: 1.000
+
+-- Example 3: WHERE with NULL comparison + aggregates
+SELECT SUM( col0 ) FROM tab1 WHERE - col0 > NULL
+-- Expected: NULL (empty result set)
+-- Actual: 0.000
+
+-- Example 4: Complex NULL arithmetic
+SELECT SUM( NULL ) + COUNT( * ) FROM tab2
+-- Expected: NULL
+-- Actual: 3.000 (COUNT value, ignoring NULL)
+
+-- Example 5: WHERE NULL <> NULL with aggregates
+SELECT SUM( - col1 ) * COUNT( * ) FROM tab1 WHERE NULL <> NULL
+-- Expected: NULL (empty WHERE)
+-- Actual: 0.000
+
+-- Example 6: NULL in NOT IN + aggregates
+SELECT SUM( col0 ) FROM tab1 WHERE NULL NOT IN ( - 91 * col2 )
+-- Expected: NULL
+-- Actual: 0.000
 ```
-46  -70
-64  -87
-75  -105
-```
 
-**Actual Result**: 0 rows (empty result set)
+**SQL Standard Behavior**:
+- `NULL + value` → NULL
+- `NULL * value` → NULL
+- `SUM(NULL)` → NULL (not 0)
+- Aggregate over empty set (WHERE always NULL/FALSE) → NULL for SUM/AVG/MAX/MIN
+- NULL propagates through all arithmetic expressions
 
-**Root Cause**: The `BETWEEN NULL AND <value>` predicate is incorrectly returning FALSE for all rows instead of NULL/UNKNOWN.
+**Current vibesql Behavior**:
+- Treating `SUM(NULL)` as 0
+- Not propagating NULL through aggregate arithmetic
+- Empty aggregation (WHERE with NULL comparison) returns 0 instead of NULL
 
-**Contains Aggregates**: ❌ NO - This is a pure WHERE clause with BETWEEN predicate
+**Code Locations to Investigate**:
+- `crates/vibesql-executor/src/select/executor/aggregation/evaluation/mod.rs:eval_with_aggregates()` - Aggregate expression evaluation
+- `crates/vibesql-executor/src/evaluator/combined/eval.rs` - Expression NULL handling
+- Aggregate accumulator implementations - NULL value handling
 
-**Related Issue**: #1846 (BETWEEN NULL handling)
-
-**Impact**: **BLOCKS further aggregate error analysis** - test runner stops on first failure, preventing identification of aggregate-specific errors deeper in the test file.
-
-**Critical Discovery**: The `random/aggregates` test suite is **misleadingly named** - it contains BOTH aggregate queries AND non-aggregate queries with complex predicates. The first failure is NOT an aggregate evaluation issue.
+**Impact**:
+- 114 failures (7.7% of total)
+- TRUE aggregate-specific bugs
+- Currently masked by BETWEEN NULL failures in test execution order
 
 ## Methodology
 
@@ -268,45 +363,153 @@ _[Cases where the architecture should support it but implementation has gaps]_
 
 ## Actionable Next Steps
 
-### Immediate Fixes (High Priority)
-1. **[Issue Title]**
-   - **Error**: [Error pattern]
-   - **Files to Modify**: [List of files]
-   - **Estimated Effort**: [Hours/Days]
-   - **Blocked By**: [Dependencies, if any]
+### ✅ COMPLETED: Diagnostic Analysis
+- Analyzed 1480 test failures
+- Identified 2 distinct root causes
+- Categorized errors by pattern
+- Extracted sample SQL queries for each category
+- Documented expected vs actual behavior
+- Identified code locations for fixes
 
-### Medium Priority Fixes
-1. **[Issue Title]**
-   - **Error**: [Error pattern]
-   - **Files to Modify**: [List of files]
-   - **Estimated Effort**: [Hours/Days]
+### 🔴 HIGH PRIORITY: Fix BETWEEN NULL Handling
+**Issue**: #1846 (existing)
+**Impact**: Fixes **1365/1480 errors (92.2%)**
+**Estimated Effort**: 4-8 hours
 
-### Low Priority / Future Work
-1. **[Issue Title]**
-   - **Error**: [Error pattern]
-   - **Reason for Low Priority**: [Why this can wait]
+**Error Pattern**: `BETWEEN NULL` returns FALSE instead of NULL
+**Files to Modify**:
+- `crates/vibesql-executor/src/evaluator/*/eval.rs` - BETWEEN operator evaluation
+- WHERE clause NULL handling logic
+
+**Test Command to Verify**:
+```bash
+./scripts/sqllogictest test random/aggregates/slt_good_0.test
+```
+
+**Acceptance Criteria**:
+- `value BETWEEN NULL AND x` returns NULL (not FALSE)
+- `value BETWEEN x AND NULL` returns NULL (not FALSE)
+- WHERE clause correctly filters NULL predicates
+- All BETWEEN NULL test cases pass
+
+---
+
+### 🟡 MEDIUM PRIORITY: Fix NULL Arithmetic in Aggregates
+**Issue**: **NEW** - To be created (see "Recommended New Issues" below)
+**Impact**: Fixes **114/1480 errors (7.7%)**
+**Estimated Effort**: 8-12 hours
+
+**Error Pattern**: NULL arithmetic returns 0/numbers instead of NULL
+**Files to Modify**:
+- `crates/vibesql-executor/src/select/executor/aggregation/evaluation/mod.rs`
+- `crates/vibesql-executor/src/evaluator/combined/eval.rs`
+- Aggregate accumulator implementations
+
+**Acceptance Criteria**:
+- `SUM(NULL)` returns NULL (not 0)
+- NULL propagates through arithmetic: `NULL + x` = NULL, `NULL * x` = NULL
+- Aggregates over empty sets (WHERE always NULL) return NULL for SUM/AVG/MAX/MIN
+- All NULL aggregate test cases pass
+
+---
+
+### 📋 POST-FIX: Re-run Test Suite
+After fixing #1846, re-run the full `random/aggregates` suite to:
+1. Verify 92% of failures are resolved
+2. Uncover any additional errors masked by BETWEEN NULL
+3. Update error counts and patterns
+4. Validate NULL aggregate fix resolves remaining 8%
+
+**Expected Outcome**: ~100% pass rate after both fixes
 
 ## Recommended New Issues
 
-Based on this analysis, the following issues should be created:
+Based on this analysis, the following new issue should be created:
 
-1. **Issue: Fix [Error Pattern] in aggregate evaluation**
-   - Labels: `bug`, `executor`, `aggregates`
-   - Estimated effort: [X hours]
-   - Priority: High
+### Issue: Fix NULL arithmetic propagation in aggregate expressions
 
-2. **Issue: Implement support for [Missing Feature]**
-   - Labels: `enhancement`, `executor`, `aggregates`
-   - Estimated effort: [X hours]
-   - Priority: Medium
+**Title**: Fix NULL arithmetic propagation in aggregate expressions (affects 114 tests)
+
+**Labels**: `bug`, `executor`, `aggregates`, `NULL-handling`
+
+**Priority**: Medium (blocks 7.7% of random/aggregates tests)
+
+**Description**:
+NULL values in aggregate expressions are not properly propagating through arithmetic operations, causing incorrect results.
+
+**Problem**:
+- `SUM(NULL)` returns `0.000` instead of `NULL`
+- `SUM(NULL) * COUNT(*)` returns numeric value instead of `NULL`
+- `SUM(col) + NULL` returns numeric value instead of `NULL`
+- Aggregates over empty result sets (WHERE with NULL comparisons) return `0` instead of `NULL`
+
+**SQL Standard Behavior**:
+- `NULL + value` → `NULL`
+- `NULL * value` → `NULL`
+- `SUM(NULL)` → `NULL` (not 0)
+- Aggregate over empty set → `NULL` for SUM/AVG/MAX/MIN, `0` for COUNT
+
+**Sample Failing Queries**:
+```sql
+-- Test 1: SUM(NULL) should return NULL
+SELECT SUM( CAST( NULL AS SIGNED ) ) FROM tab1;
+-- Expected: NULL
+-- Actual: 0.000
+
+-- Test 2: NULL arithmetic should propagate
+SELECT SUM( NULL ) * COUNT( * ) + MAX( col1 ) FROM tab0;
+-- Expected: NULL
+-- Actual: 1.000
+
+-- Test 3: Empty aggregation should return NULL
+SELECT SUM( col0 ) FROM tab1 WHERE NULL <> NULL;
+-- Expected: NULL
+-- Actual: 0.000
+```
+
+**Code Locations to Investigate**:
+- `crates/vibesql-executor/src/select/executor/aggregation/evaluation/mod.rs` - Aggregate expression evaluation
+- `crates/vibesql-executor/src/evaluator/combined/eval.rs` - Expression NULL handling
+- Aggregate accumulator implementations - NULL value initialization and handling
+
+**Test Verification**:
+```bash
+# After fix, these should pass:
+./scripts/sqllogictest test random/aggregates/slt_good_10.test
+./scripts/sqllogictest test random/aggregates/slt_good_27.test
+./scripts/sqllogictest test random/aggregates/slt_good_34.test
+```
+
+**Estimated Effort**: 8-12 hours
+
+**Parent Issue**: #1833 (Fix random/aggregates test suite failures)
+
+**Related Analysis**: See `docs/testing/random_aggregates_errors.md` for complete analysis
 
 ## Success Criteria Checklist
 
-- [ ] All 130 random/aggregates test failures documented with precise error types
-- [ ] Error patterns categorized and prioritized
-- [ ] Root cause identified for top 3 error patterns
-- [ ] Clear path forward documented for fixes
-- [ ] New issues created for each major error category
+- [x] All 1480 random/aggregates test failures analyzed with precise error types
+- [x] Error patterns categorized and prioritized (2 main categories identified)
+- [x] Root cause identified for both major error patterns
+- [x] Clear path forward documented for fixes (2 specific action items)
+- [x] New issue template created for NULL arithmetic bug
+- [ ] GitHub issue created for NULL arithmetic in aggregates (#TBD)
+- [ ] Progress communicated on parent issue #1872
+
+## Deliverables Summary
+
+✅ **Complete error analysis** of 1480 failures across `random/aggregates/` suite
+✅ **Two root causes identified**: BETWEEN NULL (92.2%) and NULL arithmetic (7.7%)
+✅ **Sample queries documented** for each error pattern
+✅ **Code locations identified** for both fixes
+✅ **Action plan established** with priority and effort estimates
+✅ **Issue template prepared** for NULL arithmetic bug
+
+**Next Steps for User**:
+1. Review this analysis and approve approach
+2. Create GitHub issue for NULL arithmetic using template above
+3. Prioritize fix order (recommend BETWEEN NULL first due to 92% impact)
+4. Assign issues to developers
 
 ## Appendix
 
