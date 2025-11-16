@@ -106,7 +106,7 @@ pub(crate) fn parse_multiline_error<'a>(
     ExpectedError::Multiline(parse_multiple_result(lines))
 }
 
-/// Format functions for unparsing records
+// Format functions for unparsing records
 
 /// Unparse a statement record.
 pub(crate) fn fmt_statement(
