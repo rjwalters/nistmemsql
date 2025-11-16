@@ -179,6 +179,12 @@ fn format_data_type(data_type: &vibesql_types::DataType) -> String {
         }
         vibesql_types::DataType::Interval { .. } => "interval".to_string(),
         vibesql_types::DataType::BinaryLargeObject => "bytea".to_string(),
+        vibesql_types::DataType::Bit { length } => {
+            match length {
+                Some(len) => format!("bit({})", len),
+                None => "bit".to_string(),
+            }
+        }
         vibesql_types::DataType::UserDefined { type_name } => type_name.clone(),
         vibesql_types::DataType::Null => "null".to_string(),
     }

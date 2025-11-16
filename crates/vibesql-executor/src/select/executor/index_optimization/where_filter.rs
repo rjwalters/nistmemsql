@@ -567,8 +567,10 @@ pub(in crate::select::executor) fn try_index_for_in_expr(
         return Ok(None);
     }
 
-    // Find an index on this table and column
-    let index_name = find_index_for_where(database, &table_name, column_name)?;
+    // Find an index on this table and column (supports multi-column indexes)
+    // Use find_index_with_prefix because this function can handle both single-column
+    // and multi-column indexes correctly via range scans
+    let index_name = find_index_with_prefix(database, &table_name, column_name)?;
     if index_name.is_none() {
         return Ok(None);
     }
@@ -626,19 +628,16 @@ pub(in crate::select::executor) fn try_index_for_in_expr(
     Ok(Some(result_rows))
 }
 
-/// Find an index that can be used for WHERE clause filtering
-///
-/// NOTE: This function is restricted to single-column indexes only because callers
-/// like try_index_for_binary_op() create single-element search keys (vec![value]).
-/// Multi-column indexes would require composite keys and are handled separately
-/// in try_index_for_in_expr() which uses range scans for prefix matching.
+/// Find a SINGLE-COLUMN index that can be used for WHERE clause filtering
+/// For multi-column index support, use find_index_with_prefix() instead
 pub(in crate::select::executor) fn find_index_for_where(
     database: &Database,
     table_name: &str,
     column_name: &str,
 ) -> Result<Option<String>, ExecutorError> {
-    // Look through all indexes for one on this table and column
-    // ONLY single-column indexes (multi-column indexes require special handling)
+    // Look through all indexes for a SINGLE-COLUMN index on this table and column
+    // Multi-column indexes are intentionally excluded because most index operations
+    // (equality lookups, range scans) expect single-element keys
     let all_indexes = database.list_indexes();
     for index_name in all_indexes {
         if let Some(metadata) = database.get_index(&index_name) {
@@ -646,7 +645,31 @@ pub(in crate::select::executor) fn find_index_for_where(
                 && metadata.columns.len() == 1
                 && metadata.columns[0].column_name == column_name
             {
-                // Found a single-column index on this column
+                // Found a single-column index
+                return Ok(Some(index_name));
+            }
+        }
+    }
+    Ok(None)
+}
+
+/// Find an index (single or multi-column) where the target column is the first column
+/// This supports prefix matching on composite indexes
+fn find_index_with_prefix(
+    database: &Database,
+    table_name: &str,
+    column_name: &str,
+) -> Result<Option<String>, ExecutorError> {
+    // Look through all indexes for one where the target column is the FIRST column
+    // This works for both single-column and multi-column indexes
+    let all_indexes = database.list_indexes();
+    for index_name in all_indexes {
+        if let Some(metadata) = database.get_index(&index_name) {
+            if metadata.table_name == table_name
+                && metadata.columns.len() == 1
+                && metadata.columns[0].column_name == column_name
+            {
+                // Found an index where our column is the first column
                 return Ok(Some(index_name));
             }
         }

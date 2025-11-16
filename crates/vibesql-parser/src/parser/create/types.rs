@@ -29,6 +29,34 @@ impl Parser {
             "SMALLINT" => Ok(vibesql_types::DataType::Smallint),
             "BIGINT" | "LONG" => Ok(vibesql_types::DataType::Bigint),
             "BOOLEAN" | "BOOL" => Ok(vibesql_types::DataType::Boolean),
+            "BIT" => {
+                // Parse BIT or BIT(n)
+                // MySQL BIT type - stores bit values from 1 to 64 bits
+                // Syntax: BIT[(length)]
+                // Default length is 1 if not specified
+                let length = if matches!(self.peek(), Token::LParen) {
+                    self.advance(); // consume (
+                    let len = match self.peek() {
+                        Token::Number(n) => {
+                            let parsed = n.parse::<usize>().map_err(|_| ParseError {
+                                message: "Invalid BIT length".to_string(),
+                            })?;
+                            self.advance();
+                            Some(parsed)
+                        }
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected number after BIT(".to_string(),
+                            })
+                        }
+                    };
+                    self.expect_token(Token::RParen)?;
+                    len
+                } else {
+                    None // No length specified, default to 1 (handled by storage layer)
+                };
+                Ok(vibesql_types::DataType::Bit { length })
+            }
             "FLOAT" => {
                 // Parse FLOAT(precision) or FLOAT
                 // SQL:1999 allows FLOAT with optional precision parameter

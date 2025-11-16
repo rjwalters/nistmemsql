@@ -130,8 +130,8 @@ fn test_between_boundary_values() {
 
 #[test]
 fn test_not_between_with_null_bound() {
-    // Tests issue #1797: NOT BETWEEN with NULL upper bound (SQLite behavior)
-    // SQLite: val NOT BETWEEN low AND NULL → val < low (ignores NULL upper bound)
+    // Tests NOT BETWEEN with NULL upper bound (SQL:1999 standard behavior)
+    // SQL standard: val NOT BETWEEN low AND NULL → NULL, WHERE NULL excludes all rows
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "test".to_string(),
@@ -144,7 +144,7 @@ fn test_not_between_with_null_bound() {
     let executor = SelectExecutor::new(&db);
 
     // SELECT * FROM test WHERE val NOT BETWEEN 10 AND NULL
-    // SQLite behavior: returns rows where val < 10 (i.e., val=5)
+    // SQL standard: NOT BETWEEN returns NULL, WHERE NULL excludes all rows (0 rows)
     let stmt = vibesql_ast::SelectStmt {
         with_clause: None,
         set_operation: None,
@@ -167,14 +167,13 @@ fn test_not_between_with_null_bound() {
         into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 1); // Returns val=5 (val < 10)
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(5));
+    assert_eq!(result.len(), 0); // SQL standard: NULL (excludes all rows)
 }
 
 #[test]
 fn test_between_with_null_bound() {
-    // Tests that BETWEEN with NULL bound returns FALSE (SQLite behavior)
-    // This causes WHERE clause to exclude all rows
+    // Tests that BETWEEN with NULL bound returns NULL (SQL:1999 standard behavior)
+    // WHERE NULL is treated as false, so it excludes all rows
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "test".to_string(),
@@ -187,7 +186,7 @@ fn test_between_with_null_bound() {
     let executor = SelectExecutor::new(&db);
 
     // SELECT * FROM test WHERE val BETWEEN NULL AND 20
-    // SQLite behavior: returns FALSE (0 rows)
+    // SQL standard: BETWEEN returns NULL, WHERE NULL excludes all rows (0 rows)
     let stmt = vibesql_ast::SelectStmt {
         with_clause: None,
         set_operation: None,
@@ -210,13 +209,13 @@ fn test_between_with_null_bound() {
         into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 0); // SQLite: FALSE (excludes all rows)
+    assert_eq!(result.len(), 0); // SQL standard: NULL (excludes all rows)
 }
 
 #[test]
 fn test_not_between_with_null_lower_bound() {
-    // Tests issue #1797: NOT BETWEEN with NULL lower bound (SQLite behavior)
-    // SQLite: val NOT BETWEEN NULL AND high → val > high (ignores NULL lower bound)
+    // Tests NOT BETWEEN with NULL lower bound (SQL:1999 standard behavior)
+    // SQL standard: val NOT BETWEEN NULL AND high → NULL, WHERE NULL excludes all rows
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "test".to_string(),
@@ -230,7 +229,7 @@ fn test_not_between_with_null_lower_bound() {
     let executor = SelectExecutor::new(&db);
 
     // SELECT * FROM test WHERE val NOT BETWEEN NULL AND 20
-    // SQLite behavior: returns rows where val > 20 (i.e., val=25)
+    // SQL standard: NOT BETWEEN returns NULL, WHERE NULL excludes all rows (0 rows)
     let stmt = vibesql_ast::SelectStmt {
         with_clause: None,
         set_operation: None,
@@ -253,6 +252,5 @@ fn test_not_between_with_null_lower_bound() {
         into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 1); // Returns val=25 (val > 20)
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(25));
+    assert_eq!(result.len(), 0); // SQL standard: NULL (excludes all rows)
 }

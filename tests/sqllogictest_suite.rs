@@ -125,16 +125,16 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
             Err(TestError::Timeout { file, timeout_seconds }) => {
                 eprintln!("⏱️  TIMEOUT: {} exceeded {}s", file, timeout_seconds);
                 stats.failed += 1;
-                if !detailed_failures.is_empty() {
-                    stats.detailed_failures.push((relative_path.clone(), detailed_failures));
-                }
+                // Always track failed files, even if detailed_failures is empty
+                // This ensures accurate pass/fail reporting in JSON output
+                stats.detailed_failures.push((relative_path.clone(), detailed_failures));
             }
             Err(TestError::Execution(e)) => {
                 eprintln!("✗ {} - {}", relative_path, e);
                 stats.failed += 1;
-                if !detailed_failures.is_empty() {
-                    stats.detailed_failures.push((relative_path.clone(), detailed_failures));
-                }
+                // Always track failed files, even if detailed_failures is empty
+                // This ensures accurate pass/fail reporting in JSON output
+                stats.detailed_failures.push((relative_path.clone(), detailed_failures));
             }
         }
     }
