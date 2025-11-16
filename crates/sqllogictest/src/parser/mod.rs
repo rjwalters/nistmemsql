@@ -1,7 +1,5 @@
 //! Sqllogictest parser.
 
-use std::path::Path;
-
 // Submodules
 pub mod location;
 pub mod error_parser;
@@ -19,8 +17,6 @@ pub use self::directive_parser::{Control, Condition, Connection, SortMode, Resul
 pub use self::record_parser::{StatementExpect, QueryExpect};
 pub use self::records::{Record, Injected};
 pub use self::parser_core::{parse, parse_with_name, parse_file};
-
-use crate::ColumnType;
 
 /// The error type for parsing sqllogictest.
 #[derive(thiserror::Error, Debug, PartialEq, Eq, Clone)]
@@ -87,9 +83,10 @@ impl ParseErrorKind {
 #[cfg(test)]
 mod tests {
     use std::io::Write;
+    use std::path::Path;
 
     use super::*;
-    use crate::DefaultColumnType;
+    use crate::{ColumnType, DefaultColumnType};
 
     #[test]
     fn test_trailing_comment() {

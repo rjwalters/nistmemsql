@@ -6,7 +6,7 @@ use itertools::Itertools;
 use crate::ColumnType;
 use super::location::Location;
 use super::error_parser::ExpectedError;
-use super::retry_parser::{RetryConfig, parse_retry_config};
+use super::retry_parser::parse_retry_config;
 use super::directive_parser::{Control, Condition, Connection, SortMode, ResultMode, ControlItem};
 use super::record_parser::{StatementExpect, QueryExpect, parse_lines, parse_multiple_result, parse_multiline_error};
 use super::records::{Record, Injected};

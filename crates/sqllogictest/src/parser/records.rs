@@ -4,8 +4,9 @@ use std::fmt;
 
 use crate::ColumnType;
 use super::location::Location;
-use super::error_parser::ExpectedError;
 use super::retry_parser::RetryConfig;
+// SortMode and ResultMode are used in Display impl via ControlItem trait
+#[allow(unused_imports)]
 use super::directive_parser::{Control, Condition, Connection, SortMode, ResultMode, ControlItem};
 use super::record_parser::{StatementExpect, QueryExpect};
 
