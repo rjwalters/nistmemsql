@@ -312,40 +312,6 @@ fn try_comparison_then_filter_in(
     Ok(Some(result_rows))
 }
 
-/// Apply a single predicate as a post-filter on a set of rows
-/// Used when combining index optimization with additional predicates
-fn apply_predicate_filter(
-    database: &Database,
-    rows: &[vibesql_storage::Row],
-    predicate: &vibesql_ast::Expression,
-    schema: &CombinedSchema,
-) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
-    use crate::evaluator::CombinedExpressionEvaluator;
-
-    let evaluator = CombinedExpressionEvaluator::with_database(schema, database);
-
-    let filtered_rows: Vec<vibesql_storage::Row> = rows
-        .iter()
-        .filter(|row| {
-            match evaluator.eval(predicate, row) {
-                Ok(vibesql_types::SqlValue::Boolean(true)) => true,
-                Ok(vibesql_types::SqlValue::Null) => false, // NULL in WHERE is treated as false
-                _ => false,
-            }
-        })
-        .cloned()
-        .collect();
-
-    Ok(filtered_rows)
-}
-
-/// Try to use index for AND expressions (detecting BETWEEN pattern or IN + comparison)
-pub(in crate::select::executor) fn try_index_for_and_expr(
-    database: &Database,
-    left: &vibesql_ast::Expression,
-    right: &vibesql_ast::Expression,
-    all_rows: &[vibesql_storage::Row],
-    schema: &CombinedSchema,
 /// Try to use index for IN expressions
 pub(in crate::select::executor) fn try_index_for_in_expr(
     database: &Database,
@@ -372,6 +338,22 @@ pub(in crate::select::executor) fn try_index_for_in_expr(
         Some(table) => table,
         None => return Ok(None), // Column not found
     };
+
+    // Extract literal values
+    let mut literal_values = Vec::new();
+    let mut has_null = false;
+    for val_expr in values {
+        if let vibesql_ast::Expression::Literal(val) = val_expr {
+            // Track if we encounter NULL in the list
+            if matches!(val, vibesql_types::SqlValue::Null) {
+                has_null = true;
+            }
+            literal_values.push(val.clone());
+        } else {
+            return Ok(None); // Not all values are literals
+        }
+    }
+
     // If IN list contains NULL, skip index optimization
     // Rationale: per SQL three-valued logic, when NULL is in the IN list:
     // - value IN (..., NULL) when value doesn't match → NULL (not FALSE)
