@@ -406,9 +406,8 @@ pub(crate) fn execute_index_scan(
             index_data.multi_lookup(&values)
         }
         None => {
-            // Full index scan - collect all row indices from the index
-            // Note: We do NOT sort by row index here - we preserve the order from BTreeMap iteration
-            // which gives us results sorted by index key value (the correct semantic ordering)
+            // Full index scan - collect all row indices from the index in index key order
+            // (Will be sorted by row index later if needed, see lines 425-427)
             index_data
                 .values()
                 .flatten()
@@ -416,6 +415,15 @@ pub(crate) fn execute_index_scan(
                 .collect()
         }
     };
+
+    // If we're not returning sorted results, ensure rows are in table order (by row index)
+    // This is important when the index doesn't satisfy the ORDER BY clause.
+    // Without this, rows would be returned in index key order, which would cause
+    // incorrect results when ORDER BY specifies a different column.
+    let mut matching_row_indices = matching_row_indices;
+    if sorted_columns.is_none() {
+        matching_row_indices.sort_unstable();
+    }
 
     // Fetch rows from table
     let all_rows = table.scan();
