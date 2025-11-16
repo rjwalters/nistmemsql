@@ -331,6 +331,64 @@ fn extract_index_predicate(expr: &Expression, column_name: &str) -> Option<Index
     None
 }
 
+/// Check if WHERE clause can be fully satisfied by index predicate
+///
+/// Returns true if the WHERE clause is simple enough that the index lookup
+/// already guarantees all rows satisfy it (no additional filtering needed).
+///
+/// This optimization skips redundant WHERE clause re-evaluation for queries like:
+/// - `WHERE col = 5` (exact match)
+/// - `WHERE col BETWEEN 10 AND 20` (range)
+/// - `WHERE col IN (1, 2, 3)` (multi-value)
+/// - `WHERE col > 10 AND col < 20` (combined range)
+fn where_clause_fully_satisfied_by_index(
+    where_expr: &Expression,
+    indexed_column: &str,
+) -> bool {
+    match where_expr {
+        // Simple comparison on indexed column: col = value, col > value, etc.
+        Expression::BinaryOp { left, op, right } => {
+            match op {
+                vibesql_ast::BinaryOperator::Equal
+                | vibesql_ast::BinaryOperator::GreaterThan
+                | vibesql_ast::BinaryOperator::GreaterThanOrEqual
+                | vibesql_ast::BinaryOperator::LessThan
+                | vibesql_ast::BinaryOperator::LessThanOrEqual => {
+                    // Check if this is a simple: column op literal
+                    let left_is_col = is_column_reference(left, indexed_column);
+                    let right_is_col = is_column_reference(right, indexed_column);
+                    let left_is_literal = matches!(left.as_ref(), Expression::Literal(_));
+                    let right_is_literal = matches!(right.as_ref(), Expression::Literal(_));
+
+                    // Either (col op literal) or (literal op col)
+                    (left_is_col && right_is_literal) || (left_is_literal && right_is_col)
+                }
+                // AND of range predicates on same column: col > 10 AND col < 20
+                vibesql_ast::BinaryOperator::And => {
+                    let left_satisfied = where_clause_fully_satisfied_by_index(left, indexed_column);
+                    let right_satisfied = where_clause_fully_satisfied_by_index(right, indexed_column);
+                    left_satisfied && right_satisfied
+                }
+                _ => false,
+            }
+        }
+        // BETWEEN on indexed column: col BETWEEN low AND high
+        Expression::Between { expr: col_expr, low, high, negated, .. } => {
+            !negated
+                && is_column_reference(col_expr, indexed_column)
+                && matches!(low.as_ref(), Expression::Literal(_))
+                && matches!(high.as_ref(), Expression::Literal(_))
+        }
+        // IN on indexed column: col IN (literal, literal, ...)
+        Expression::InList { expr: col_expr, values, negated } => {
+            !negated
+                && is_column_reference(col_expr, indexed_column)
+                && values.iter().all(|v| matches!(v, Expression::Literal(_)))
+        }
+        _ => false,
+    }
+}
+
 /// Execute an index scan
 ///
 /// Uses the specified index to retrieve matching rows, then fetches full rows from the table.
@@ -338,6 +396,11 @@ fn extract_index_predicate(expr: &Expression, column_name: &str) -> Option<Index
 ///
 /// If sorted_columns is provided, the function preserves index order and returns results
 /// marked as pre-sorted, allowing the caller to skip ORDER BY sorting.
+///
+/// # Performance Optimization
+/// When the WHERE clause can be fully satisfied by the index predicate (e.g., simple
+/// predicates like `WHERE col = 5` or `WHERE col BETWEEN 10 AND 20`), we skip redundant
+/// WHERE clause re-evaluation, significantly improving performance for large result sets.
 pub(crate) fn execute_index_scan(
     table_name: &str,
     index_name: &str,
@@ -368,6 +431,22 @@ pub(crate) fn execute_index_scan(
 
     // Try to extract index predicate (range or IN) for the indexed column
     let index_predicate = where_clause.and_then(|expr| extract_index_predicate(expr, indexed_column));
+
+    // Performance optimization: Check if WHERE clause is fully satisfied by index
+    // If so, we can skip re-evaluating it on every row (major speedup for large result sets)
+    let need_where_filter = if let Some(where_expr) = where_clause {
+        // Only skip filtering if we successfully pushed a predicate to the index
+        // AND the WHERE clause contains nothing else
+        if index_predicate.is_some() {
+            !where_clause_fully_satisfied_by_index(where_expr, indexed_column)
+        } else {
+            // No index predicate extracted, must filter
+            true
+        }
+    } else {
+        // No WHERE clause at all
+        false
+    };
 
     // Get row indices using the appropriate index operation
     let matching_row_indices: Vec<usize> = match index_predicate {
@@ -428,56 +507,59 @@ pub(crate) fn execute_index_scan(
     let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
     let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
 
-    // Apply WHERE clause predicates
-    // Even with index range scan, we still need to filter for:
-    // - Predicates on non-indexed columns
-    // - Complex predicates that couldn't be pushed to index
-    // - OR predicates (not yet optimized)
+    // Apply WHERE clause predicates if needed
+    // Performance optimization: Skip WHERE clause evaluation if the index already
+    // guarantees all rows satisfy the predicate (e.g., simple predicates like
+    // `WHERE col = 5` or `WHERE col BETWEEN 10 AND 20`).
     //
-    // IMPORTANT: We must apply the FULL WHERE clause here, not just table-local predicates.
-    // The table-local predicate decomposition doesn't work correctly for unqualified column
-    // references, causing predicates to be classified as "complex" and not applied at all.
-    if let Some(where_expr) = where_clause {
-        use crate::evaluator::CombinedExpressionEvaluator;
+    // We still need to filter when:
+    // - Predicates involve non-indexed columns
+    // - Complex predicates that couldn't be fully pushed to index
+    // - OR predicates (not yet optimized for index pushdown)
+    // - Multi-column predicates where only first column was indexed
+    if need_where_filter {
+        if let Some(where_expr) = where_clause {
+            use crate::evaluator::CombinedExpressionEvaluator;
 
-        // Create evaluator for filtering
-        let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
+            // Create evaluator for filtering
+            let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
 
-        // Apply full WHERE clause to each row
-        let mut filtered_rows = Vec::new();
-        for row in rows {
-            // Clear CSE cache before evaluating each row
-            evaluator.clear_cse_cache();
+            // Apply full WHERE clause to each row
+            let mut filtered_rows = Vec::new();
+            for row in rows {
+                // Clear CSE cache before evaluating each row
+                evaluator.clear_cse_cache();
 
-            let include_row = match evaluator.eval(where_expr, &row)? {
-                vibesql_types::SqlValue::Boolean(true) => true,
-                vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
-                // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
-                vibesql_types::SqlValue::Integer(0) => false,
-                vibesql_types::SqlValue::Integer(_) => true,
-                vibesql_types::SqlValue::Smallint(0) => false,
-                vibesql_types::SqlValue::Smallint(_) => true,
-                vibesql_types::SqlValue::Bigint(0) => false,
-                vibesql_types::SqlValue::Bigint(_) => true,
-                vibesql_types::SqlValue::Float(0.0) => false,
-                vibesql_types::SqlValue::Float(_) => true,
-                vibesql_types::SqlValue::Real(0.0) => false,
-                vibesql_types::SqlValue::Real(_) => true,
-                vibesql_types::SqlValue::Double(0.0) => false,
-                vibesql_types::SqlValue::Double(_) => true,
-                other => {
-                    return Err(ExecutorError::InvalidWhereClause(format!(
-                        "WHERE clause must evaluate to boolean, got: {:?}",
-                        other
-                    )))
+                let include_row = match evaluator.eval(where_expr, &row)? {
+                    vibesql_types::SqlValue::Boolean(true) => true,
+                    vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
+                    // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
+                    vibesql_types::SqlValue::Integer(0) => false,
+                    vibesql_types::SqlValue::Integer(_) => true,
+                    vibesql_types::SqlValue::Smallint(0) => false,
+                    vibesql_types::SqlValue::Smallint(_) => true,
+                    vibesql_types::SqlValue::Bigint(0) => false,
+                    vibesql_types::SqlValue::Bigint(_) => true,
+                    vibesql_types::SqlValue::Float(0.0) => false,
+                    vibesql_types::SqlValue::Float(_) => true,
+                    vibesql_types::SqlValue::Real(0.0) => false,
+                    vibesql_types::SqlValue::Real(_) => true,
+                    vibesql_types::SqlValue::Double(0.0) => false,
+                    vibesql_types::SqlValue::Double(_) => true,
+                    other => {
+                        return Err(ExecutorError::InvalidWhereClause(format!(
+                            "WHERE clause must evaluate to boolean, got: {:?}",
+                            other
+                        )))
+                    }
+                };
+
+                if include_row {
+                    filtered_rows.push(row);
                 }
-            };
-
-            if include_row {
-                filtered_rows.push(row);
             }
+            rows = filtered_rows;
         }
-        rows = filtered_rows;
     }
 
     // Return results with sorting metadata if available
@@ -661,5 +743,146 @@ mod tests {
         assert_eq!(range.start, Some(SqlValue::Integer(60)));
         assert_eq!(range.end, None);
         assert_eq!(range.inclusive_start, false);
+    }
+
+    #[test]
+    fn test_where_clause_fully_satisfied_simple_equal() {
+        use vibesql_types::SqlValue;
+
+        // col0 = 5
+        let expr = Expression::BinaryOp {
+            op: BinaryOperator::Equal,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col0".to_string(),
+            }),
+            right: Box::new(Expression::Literal(SqlValue::Integer(5))),
+        };
+
+        assert!(where_clause_fully_satisfied_by_index(&expr, "col0"));
+    }
+
+    #[test]
+    fn test_where_clause_fully_satisfied_between() {
+        use vibesql_types::SqlValue;
+
+        // col0 BETWEEN 10 AND 20
+        let expr = Expression::Between {
+            expr: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col0".to_string(),
+            }),
+            low: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            high: Box::new(Expression::Literal(SqlValue::Integer(20))),
+            negated: false,
+            symmetric: false,
+        };
+
+        assert!(where_clause_fully_satisfied_by_index(&expr, "col0"));
+    }
+
+    #[test]
+    fn test_where_clause_fully_satisfied_in_list() {
+        use vibesql_types::SqlValue;
+
+        // col0 IN (1, 2, 3)
+        let expr = Expression::InList {
+            expr: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col0".to_string(),
+            }),
+            values: vec![
+                Expression::Literal(SqlValue::Integer(1)),
+                Expression::Literal(SqlValue::Integer(2)),
+                Expression::Literal(SqlValue::Integer(3)),
+            ],
+            negated: false,
+        };
+
+        assert!(where_clause_fully_satisfied_by_index(&expr, "col0"));
+    }
+
+    #[test]
+    fn test_where_clause_fully_satisfied_combined_range() {
+        use vibesql_types::SqlValue;
+
+        // col0 > 10 AND col0 < 20
+        let expr = Expression::BinaryOp {
+            op: BinaryOperator::And,
+            left: Box::new(Expression::BinaryOp {
+                op: BinaryOperator::GreaterThan,
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col0".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            }),
+            right: Box::new(Expression::BinaryOp {
+                op: BinaryOperator::LessThan,
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col0".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Integer(20))),
+            }),
+        };
+
+        assert!(where_clause_fully_satisfied_by_index(&expr, "col0"));
+    }
+
+    #[test]
+    fn test_where_clause_not_fully_satisfied_multiple_columns() {
+        use vibesql_types::SqlValue;
+
+        // col0 = 5 AND col1 = 10 (involves non-indexed column)
+        let expr = Expression::BinaryOp {
+            op: BinaryOperator::And,
+            left: Box::new(Expression::BinaryOp {
+                op: BinaryOperator::Equal,
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col0".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Integer(5))),
+            }),
+            right: Box::new(Expression::BinaryOp {
+                op: BinaryOperator::Equal,
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col1".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            }),
+        };
+
+        assert!(!where_clause_fully_satisfied_by_index(&expr, "col0"));
+    }
+
+    #[test]
+    fn test_where_clause_not_fully_satisfied_or() {
+        use vibesql_types::SqlValue;
+
+        // col0 = 5 OR col0 = 10 (OR not optimized for index pushdown)
+        let expr = Expression::BinaryOp {
+            op: BinaryOperator::Or,
+            left: Box::new(Expression::BinaryOp {
+                op: BinaryOperator::Equal,
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col0".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Integer(5))),
+            }),
+            right: Box::new(Expression::BinaryOp {
+                op: BinaryOperator::Equal,
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col0".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            }),
+        };
+
+        assert!(!where_clause_fully_satisfied_by_index(&expr, "col0"));
     }
 }
