@@ -130,8 +130,8 @@ fn test_between_boundary_values() {
 
 #[test]
 fn test_not_between_with_null_bound() {
-    // Tests NOT BETWEEN with NULL upper bound (SQL:1999 standard behavior)
-    // SQL standard: val NOT BETWEEN low AND NULL → NULL, WHERE NULL excludes all rows
+    // Tests issue #1797: NOT BETWEEN with NULL upper bound (SQLite behavior)
+    // SQLite: val NOT BETWEEN low AND NULL → val < low (ignores NULL upper bound)
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "test".to_string(),
@@ -144,7 +144,7 @@ fn test_not_between_with_null_bound() {
     let executor = SelectExecutor::new(&db);
 
     // SELECT * FROM test WHERE val NOT BETWEEN 10 AND NULL
-    // SQL standard: NOT BETWEEN returns NULL, WHERE NULL excludes all rows (0 rows)
+    // SQLite behavior: returns rows where val < 10 (i.e., val=5)
     let stmt = vibesql_ast::SelectStmt {
         with_clause: None,
         set_operation: None,
@@ -167,13 +167,14 @@ fn test_not_between_with_null_bound() {
         into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 0); // SQL standard: NULL (excludes all rows)
+    assert_eq!(result.len(), 1); // Returns val=5 (val < 10)
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(5));
 }
 
 #[test]
 fn test_between_with_null_bound() {
-    // Tests that BETWEEN with NULL bound returns NULL (SQL:1999 standard behavior)
-    // WHERE NULL is treated as false, so it excludes all rows
+    // Tests that BETWEEN with NULL bound returns FALSE (SQLite behavior)
+    // This causes WHERE clause to exclude all rows
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "test".to_string(),
@@ -186,7 +187,7 @@ fn test_between_with_null_bound() {
     let executor = SelectExecutor::new(&db);
 
     // SELECT * FROM test WHERE val BETWEEN NULL AND 20
-    // SQL standard: BETWEEN returns NULL, WHERE NULL excludes all rows (0 rows)
+    // SQLite behavior: returns FALSE (0 rows)
     let stmt = vibesql_ast::SelectStmt {
         with_clause: None,
         set_operation: None,
@@ -209,13 +210,13 @@ fn test_between_with_null_bound() {
         into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 0); // SQL standard: NULL (excludes all rows)
+    assert_eq!(result.len(), 0); // SQLite: FALSE (excludes all rows)
 }
 
 #[test]
 fn test_not_between_with_null_lower_bound() {
-    // Tests NOT BETWEEN with NULL lower bound (SQL:1999 standard behavior)
-    // SQL standard: val NOT BETWEEN NULL AND high → NULL, WHERE NULL excludes all rows
+    // Tests issue #1797: NOT BETWEEN with NULL lower bound (SQLite behavior)
+    // SQLite: val NOT BETWEEN NULL AND high → val > high (ignores NULL lower bound)
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "test".to_string(),
@@ -229,7 +230,7 @@ fn test_not_between_with_null_lower_bound() {
     let executor = SelectExecutor::new(&db);
 
     // SELECT * FROM test WHERE val NOT BETWEEN NULL AND 20
-    // SQL standard: NOT BETWEEN returns NULL, WHERE NULL excludes all rows (0 rows)
+    // SQLite behavior: returns rows where val > 20 (i.e., val=25)
     let stmt = vibesql_ast::SelectStmt {
         with_clause: None,
         set_operation: None,
@@ -252,5 +253,54 @@ fn test_not_between_with_null_lower_bound() {
         into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 0); // SQL standard: NULL (excludes all rows)
+    assert_eq!(result.len(), 1); // Returns val=25 (val > 20)
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(25));
+}
+
+#[test]
+fn test_not_negative_literal_between_null_bounds() {
+    // Tests issue #1840: NOT -78 BETWEEN NULL AND 25
+    // This is a regression test for the specific query from index/random/10/slt_good_0.test
+    // According to SQLite behavior:
+    // - Since low bound is NULL and negated=true, should return: -78 > 25 = FALSE    // - So this should filter ALL rows (return 0 rows)
+    let mut db = vibesql_storage::Database::new();
+    let schema = vibesql_catalog::TableSchema::new(
+        "tab0".to_string(),
+        vec![vibesql_catalog::ColumnSchema::new("col0".to_string(), vibesql_types::DataType::Integer, false)],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row("tab0", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(97)])).unwrap();
+    db.insert_row("tab0", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(75)])).unwrap();
+    db.insert_row("tab0", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(61)])).unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT * FROM tab0 WHERE NOT - 78 BETWEEN NULL AND ( 25 )
+    // SQLite behavior: returns 0 rows
+    let stmt = vibesql_ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
+        from: Some(vibesql_ast::FromClause::Table { name: "tab0".to_string(), alias: None }),
+        where_clause: Some(vibesql_ast::Expression::Between {
+            expr: Box::new(vibesql_ast::Expression::UnaryOp {
+                op: vibesql_ast::UnaryOperator::Minus,
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(78))),
+            }),
+            low: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Null)),
+            high: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(25))),
+            negated: true,
+            symmetric: false,
+        }),
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+        into_variables: None,    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 0); // Should return 0 rows
 }
