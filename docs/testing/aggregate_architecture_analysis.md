@@ -4,6 +4,12 @@
 **Issue**: #1872
 **Purpose**: Document code-level findings about aggregate handling architecture
 
+## ⚠️ UPDATE: First Failure is NOT Aggregate-Related
+
+**Test Results (2025-11-15)**: The first failure in `random/aggregates/slt_good_0.test` (line 3695) is a **BETWEEN NULL handling issue** (related to #1846), NOT an aggregate evaluation error.
+
+**Impact**: The architectural analysis below remains valid and valuable for diagnosing actual aggregate errors once BETWEEN NULL issues are resolved.
+
 ## Executive Summary
 
 The aggregate handling architecture in vibesql is fundamentally sound with proper separation of concerns between:

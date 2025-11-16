@@ -11,6 +11,44 @@
 
 This document provides a detailed diagnostic analysis of failures in the `random/aggregates` test suite. The goal is to identify specific error patterns, categorize them, and provide actionable next steps for fixes.
 
+## ⚠️ ACTUAL TEST RESULTS (2025-11-15)
+
+**Test Command**:
+```bash
+SQLLOGICTEST_FILE="random/aggregates/slt_good_0.test" cargo test --release -p vibesql run_single_test_file -- --nocapture
+```
+
+**Result**: Test FAILED on FIRST error at line 3695
+
+### Error Pattern 1: BETWEEN NULL Handling ❌ (NOT an aggregate error!)
+
+**Error Type**: Query result mismatch
+**Line**: 3695 of slt_good_0.test
+**SQL Query**:
+```sql
+SELECT + col0, - 47 + - col2 FROM tab2 AS cor0
+WHERE NOT col0 * - - col0 - - 57 BETWEEN NULL AND + - 18 - + 12
+```
+
+**Expected Result**: 6 rows
+```
+46  -70
+64  -87
+75  -105
+```
+
+**Actual Result**: 0 rows (empty result set)
+
+**Root Cause**: The `BETWEEN NULL AND <value>` predicate is incorrectly returning FALSE for all rows instead of NULL/UNKNOWN.
+
+**Contains Aggregates**: ❌ NO - This is a pure WHERE clause with BETWEEN predicate
+
+**Related Issue**: #1846 (BETWEEN NULL handling)
+
+**Impact**: **BLOCKS further aggregate error analysis** - test runner stops on first failure, preventing identification of aggregate-specific errors deeper in the test file.
+
+**Critical Discovery**: The `random/aggregates` test suite is **misleadingly named** - it contains BOTH aggregate queries AND non-aggregate queries with complex predicates. The first failure is NOT an aggregate evaluation issue.
+
 ## Methodology
 
 ### Phase 1: Error Capture
