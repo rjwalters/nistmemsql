@@ -436,8 +436,8 @@ mod tests {
     #[test]
     fn test_calculate_next_value_float() {
         assert_eq!(
-            calculate_next_value(&SqlValue::Float(3.14)),
-            Some(SqlValue::Float(4.14))
+            calculate_next_value(&SqlValue::Float(3.0)),
+            Some(SqlValue::Float(4.0))
         );
         assert_eq!(
             calculate_next_value(&SqlValue::Float(-2.5)),
@@ -473,14 +473,14 @@ mod tests {
     fn test_calculate_next_value_non_numeric() {
         // Text types
         assert_eq!(calculate_next_value(&SqlValue::Varchar("abc".to_string())), None);
-        assert_eq!(calculate_next_value(&SqlValue::Text("hello".to_string())), None);
+        assert_eq!(calculate_next_value(&SqlValue::Character("hello".to_string())), None);
 
         // NULL
         assert_eq!(calculate_next_value(&SqlValue::Null), None);
 
         // Boolean
-        assert_eq!(calculate_next_value(&SqlValue::Bool(true)), None);
-        assert_eq!(calculate_next_value(&SqlValue::Bool(false)), None);
+        assert_eq!(calculate_next_value(&SqlValue::Boolean(true)), None);
+        assert_eq!(calculate_next_value(&SqlValue::Boolean(false)), None);
     }
 
     #[test]
@@ -503,7 +503,7 @@ mod tests {
             SqlValue::Double(99.0)
         );
         assert_eq!(
-            normalize_for_comparison(&SqlValue::Float(3.14)),
+            normalize_for_comparison(&SqlValue::Float(3.0)),
             SqlValue::Double(3.14f32 as f64)
         );
         assert_eq!(
@@ -529,7 +529,7 @@ mod tests {
         let null_val = SqlValue::Null;
         assert_eq!(normalize_for_comparison(&null_val), null_val);
 
-        let bool_val = SqlValue::Bool(true);
+        let bool_val = SqlValue::Boolean(true);
         assert_eq!(normalize_for_comparison(&bool_val), bool_val);
     }
 }
