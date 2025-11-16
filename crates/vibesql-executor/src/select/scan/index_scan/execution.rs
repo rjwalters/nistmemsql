@@ -52,12 +52,16 @@ pub(crate) fn execute_index_scan(
     // Try to extract index predicate (range or IN) for the indexed column
     let index_predicate = where_clause.and_then(|expr| extract_index_predicate(expr, indexed_column));
 
-    // DISABLED: Performance optimization was buggy (see issue #1867)
-    // The `where_clause_fully_satisfied_by_index()` function incorrectly determined
-    // when WHERE filtering could be skipped, causing wrong results.
-    // For now, always apply WHERE filtering when present for correctness.
-    // TODO: Reimplement this optimization correctly in a future PR
-    let need_where_filter = where_clause.is_some();
+    // Performance optimization: Determine if WHERE filtering can be skipped
+    // Check if the index predicate fully satisfies the WHERE clause
+    let need_where_filter = match (&where_clause, &index_predicate) {
+        (Some(where_expr), Some(_)) => {
+            // Only skip WHERE filtering if we're certain the index handles everything
+            !where_clause_fully_satisfied_by_index(where_expr, indexed_column, &index_predicate)
+        }
+        (Some(_), None) => true,  // WHERE present but no index predicate extracted
+        (None, _) => false,         // No WHERE clause
+    };
 
     // Get row indices using the appropriate index operation
     let matching_row_indices: Vec<usize> = match index_predicate {
@@ -203,5 +207,153 @@ pub(crate) fn execute_index_scan(
             Some(sorted) => Ok(super::super::FromResult::from_rows_sorted(schema, rows, sorted)),
             None => Ok(super::super::FromResult::from_rows(schema, rows)),
         }
+    }
+}
+
+/// Determines if the WHERE clause is fully satisfied by the index predicate
+///
+/// Returns true only when we're 100% certain that the index has already filtered
+/// rows exactly according to the WHERE clause, making WHERE re-evaluation redundant.
+///
+/// # Conservative Approach
+/// This function is intentionally conservative - it only returns true for simple cases
+/// where we can prove the index predicate exactly matches the WHERE semantics.
+/// When in doubt, we return false to ensure correctness.
+///
+/// # Safe Cases (returns true)
+/// - `WHERE col = value` with extracted equality predicate
+/// - `WHERE col BETWEEN a AND b` with extracted BETWEEN predicate
+/// - `WHERE col >= a AND col <= b` with extracted range predicate
+/// - `WHERE col > a` / `WHERE col < b` with extracted range predicate
+/// - `WHERE col IN (...)` with extracted IN predicate
+///
+/// # Unsafe Cases (returns false)
+/// - OR predicates: `WHERE col1 = 5 OR col2 = 10`
+/// - AND with multiple columns: `WHERE col1 = 5 AND col2 = 10` (only first column indexed)
+/// - Complex predicates: `WHERE col = 5 AND func(col2) = 1`
+/// - Negations: `NOT IN`, `NOT BETWEEN`, `!=`
+/// - Any case where the WHERE clause structure doesn't exactly match the extracted predicate
+fn where_clause_fully_satisfied_by_index(
+    where_expr: &Expression,
+    indexed_column: &str,
+    index_predicate: &Option<IndexPredicate>,
+) -> bool {
+    use super::super::super::scan::index_scan::selection::is_column_reference;
+    use vibesql_ast::BinaryOperator;
+
+    let Some(pred) = index_predicate else {
+        return false;  // No index predicate, can't be satisfied
+    };
+
+    match where_expr {
+        // Simple equality: WHERE col = value
+        Expression::BinaryOp { left, op: BinaryOperator::Equal, right } => {
+            // Check if this is exactly "indexed_column = literal"
+            let is_indexed_col_equals_literal =
+                (is_column_reference(left, indexed_column) && matches!(right.as_ref(), Expression::Literal(_)))
+                || (is_column_reference(right, indexed_column) && matches!(left.as_ref(), Expression::Literal(_)));
+
+            if !is_indexed_col_equals_literal {
+                return false;
+            }
+
+            // Verify the index predicate is a matching equality range
+            matches!(pred, IndexPredicate::Range(range)
+                if range.start.is_some() && range.end.is_some()
+                && range.start == range.end
+                && range.inclusive_start && range.inclusive_end)
+        }
+
+        // BETWEEN: WHERE col BETWEEN low AND high
+        Expression::Between { expr, negated: false, .. } => {
+            // Must be our indexed column
+            if !is_column_reference(expr, indexed_column) {
+                return false;
+            }
+
+            // Verify the index predicate is a BETWEEN-compatible range
+            matches!(pred, IndexPredicate::Range(range)
+                if range.start.is_some() && range.end.is_some()
+                && range.inclusive_start && range.inclusive_end)
+        }
+
+        // Simple range: WHERE col > value, WHERE col >= value, etc.
+        Expression::BinaryOp { left, op, right } => {
+            match op {
+                BinaryOperator::GreaterThan
+                | BinaryOperator::GreaterThanOrEqual
+                | BinaryOperator::LessThan
+                | BinaryOperator::LessThanOrEqual => {
+                    // Check if this is "indexed_column <op> literal" or "literal <op> indexed_column"
+                    let is_simple_range =
+                        (is_column_reference(left, indexed_column) && matches!(right.as_ref(), Expression::Literal(_)))
+                        || (is_column_reference(right, indexed_column) && matches!(left.as_ref(), Expression::Literal(_)));
+
+                    if !is_simple_range {
+                        return false;
+                    }
+
+                    // Verify the index predicate is a range (any range is fine for simple comparisons)
+                    matches!(pred, IndexPredicate::Range(_))
+                }
+
+                // AND: Only safe if it's "col >= a AND col <= b" forming a complete BETWEEN
+                BinaryOperator::And => {
+                    // This is only safe if both sides reference the same indexed column
+                    // and together form a complete range that matches our index predicate
+                    // For now, be conservative and reject AND unless it's obviously safe
+                    // The predicate extraction already handles simple "col >= a AND col <= b" cases
+
+                    // Check if this is exactly the pattern: indexed_col >= val AND indexed_col <= val
+                    match (left.as_ref(), right.as_ref()) {
+                        (
+                            Expression::BinaryOp { left: l_left, op: l_op, right: l_right },
+                            Expression::BinaryOp { left: r_left, op: r_op, right: r_right },
+                        ) => {
+                            // Both sides must reference our indexed column
+                            let left_has_col = is_column_reference(l_left, indexed_column) || is_column_reference(l_right, indexed_column);
+                            let right_has_col = is_column_reference(r_left, indexed_column) || is_column_reference(r_right, indexed_column);
+
+                            if !left_has_col || !right_has_col {
+                                return false;  // Not both sides on our column
+                            }
+
+                            // Both sides must be range operators
+                            let is_range_op = |op: &BinaryOperator| matches!(op,
+                                BinaryOperator::GreaterThan
+                                | BinaryOperator::GreaterThanOrEqual
+                                | BinaryOperator::LessThan
+                                | BinaryOperator::LessThanOrEqual
+                            );
+
+                            if !is_range_op(l_op) || !is_range_op(r_op) {
+                                return false;
+                            }
+
+                            // Must have extracted a range with both bounds
+                            matches!(pred, IndexPredicate::Range(range)
+                                if range.start.is_some() && range.end.is_some())
+                        }
+                        _ => false,  // Not the right structure
+                    }
+                }
+
+                _ => false,  // Other binary operators not handled
+            }
+        }
+
+        // IN: WHERE col IN (value1, value2, ...)
+        Expression::InList { expr, negated: false, .. } => {
+            // Must be our indexed column
+            if !is_column_reference(expr, indexed_column) {
+                return false;
+            }
+
+            // Verify the index predicate is an IN predicate
+            matches!(pred, IndexPredicate::In(_))
+        }
+
+        // Anything else is unsafe
+        _ => false,
     }
 }
