@@ -370,15 +370,22 @@ impl SelectExecutor<'_> {
         )? {
             // 2. Try IN clause index optimization (issue #1764)
             in_filtered
-        } else if let Some(index_filtered) = try_index_based_where_filtering(
-            self.database,
-            stmt.where_clause.as_ref(),
-            &rows,
-            &schema,
-        )? {
-            // 3. Try B-tree index optimization (for =, <, >, BETWEEN, etc.)
-            index_filtered
         } else {
+            // NOTE: try_index_based_where_filtering is disabled here because it causes
+            // double filtering when rows already came from execute_index_scan (which applies
+            // WHERE filtering internally). This was causing issue #1838 where rows were lost.
+            // The FROM clause (execute_index_scan) already handles B-tree index optimization
+            // correctly, so we don't need to do it again here.
+            //
+            // } else if let Some(index_filtered) = try_index_based_where_filtering(
+            //     self.database,
+            //     stmt.where_clause.as_ref(),
+            //     &rows,
+            //     &schema,
+            // )? {
+            //     // 3. Try B-tree index optimization (for =, <, >, BETWEEN, etc.)
+            //     index_filtered
+            // } else {
             // 4. Fall back to full WHERE clause evaluation
             let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
 
