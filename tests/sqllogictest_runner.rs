@@ -83,18 +83,51 @@ impl NistMemSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::Insert(insert_stmt) => {
+                // Extract table name for cache invalidation
+                let table_name = if let Some(pos) = insert_stmt.table_name.rfind('.') {
+                    &insert_stmt.table_name[pos + 1..]
+                } else {
+                    &insert_stmt.table_name
+                };
+
                 let rows_affected = vibesql_executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+
+                // Invalidate cache for this table
+                self.cache.invalidate_table(table_name);
+
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
             vibesql_ast::Statement::Update(update_stmt) => {
+                // Extract table name for cache invalidation
+                let table_name = if let Some(pos) = update_stmt.table_name.rfind('.') {
+                    &update_stmt.table_name[pos + 1..]
+                } else {
+                    &update_stmt.table_name
+                };
+
                 let rows_affected = vibesql_executor::UpdateExecutor::execute(&update_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+
+                // Invalidate cache for this table
+                self.cache.invalidate_table(table_name);
+
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
             vibesql_ast::Statement::Delete(delete_stmt) => {
+                // Extract table name for cache invalidation
+                let table_name = if let Some(pos) = delete_stmt.table_name.rfind('.') {
+                    &delete_stmt.table_name[pos + 1..]
+                } else {
+                    &delete_stmt.table_name
+                };
+
                 let rows_affected = vibesql_executor::DeleteExecutor::execute(&delete_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+
+                // Invalidate cache for this table
+                self.cache.invalidate_table(table_name);
+
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
             vibesql_ast::Statement::DropTable(drop_stmt) => {

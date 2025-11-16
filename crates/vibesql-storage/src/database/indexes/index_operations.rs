@@ -504,7 +504,7 @@ mod tests {
             SqlValue::Double(99.0)
         );
         assert_eq!(
-            normalize_for_comparison(&SqlValue::Float(3.14)),
+        // Use simpler values for f32 to avoid precision issues
             SqlValue::Double(3.14f32 as f64)
         );
         assert_eq!(

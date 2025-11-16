@@ -4,38 +4,6 @@ use vibesql_storage::database::Database;
 
 use crate::{errors::ExecutorError, schema::CombinedSchema};
 
-/// Try to use indexes for WHERE clause filtering
-/// Returns Some(rows) if index optimization was applied, None if not applicable
-pub(in crate::select::executor) fn try_index_based_where_filtering(
-    database: &Database,
-    where_expr: Option<&vibesql_ast::Expression>,
-    all_rows: &[vibesql_storage::Row],
-    schema: &CombinedSchema,
-) -> Result<Option<Vec<vibesql_storage::Row>>, ExecutorError> {
-    let where_expr = match where_expr {
-        Some(expr) => expr,
-        None => return Ok(None), // No WHERE clause
-    };
-
-    // Try to match different predicate patterns
-    match where_expr {
-        // AND expressions (for BETWEEN pattern) - check first before binary op
-        vibesql_ast::Expression::BinaryOp { op: vibesql_ast::BinaryOperator::And, left, right } => {
-            try_index_for_and_expr(database, left, right, all_rows, schema)
-        }
-        // Simple binary operations: column OP value
-        vibesql_ast::Expression::BinaryOp { left, op, right } => {
-            try_index_for_binary_op(database, left, op, right, all_rows, schema)
-        }
-        // IN expressions: column IN (val1, val2, ...)
-        vibesql_ast::Expression::InList { expr, values, negated: false } => {
-            try_index_for_in_expr(database, expr, values, all_rows, schema)
-        }
-        // Other expressions not supported for index optimization
-        _ => Ok(None),
-    }
-}
-
 /// Try to use indexes specifically for IN clause expressions
 /// This is a focused re-enablement of IN clause optimization (issue #1764)
 /// while keeping other WHERE filtering disabled due to bugs in #1744
@@ -127,8 +95,8 @@ pub(in crate::select::executor) fn try_index_for_binary_op(
         _ => return Ok(None), // Not a simple column OP literal or literal OP column
     };
 
-    // Find an index on this table and column
-    let index_name = find_index_for_where(database, &table_name, &column_name)?;
+    // Find an index on this table and column (supports multi-column indexes via prefix matching)
+    let index_name = find_index_with_prefix(database, &table_name, &column_name)?;
     if index_name.is_none() {
         return Ok(None);
     }
@@ -340,178 +308,6 @@ fn try_comparison_then_filter_in(
             }
         })
         .collect();
-
-    Ok(Some(result_rows))
-}
-
-/// Apply a single predicate as a post-filter on a set of rows
-/// Used when combining index optimization with additional predicates
-fn apply_predicate_filter(
-    database: &Database,
-    rows: &[vibesql_storage::Row],
-    predicate: &vibesql_ast::Expression,
-    schema: &CombinedSchema,
-) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
-    use crate::evaluator::CombinedExpressionEvaluator;
-
-    let evaluator = CombinedExpressionEvaluator::with_database(schema, database);
-
-    let filtered_rows: Vec<vibesql_storage::Row> = rows
-        .iter()
-        .filter(|row| {
-            match evaluator.eval(predicate, row) {
-                Ok(vibesql_types::SqlValue::Boolean(true)) => true,
-                Ok(vibesql_types::SqlValue::Null) => false, // NULL in WHERE is treated as false
-                _ => false,
-            }
-        })
-        .cloned()
-        .collect();
-
-    Ok(filtered_rows)
-}
-
-/// Try to use index for AND expressions (detecting BETWEEN pattern or IN + comparison)
-pub(in crate::select::executor) fn try_index_for_and_expr(
-    database: &Database,
-    left: &vibesql_ast::Expression,
-    right: &vibesql_ast::Expression,
-    all_rows: &[vibesql_storage::Row],
-    schema: &CombinedSchema,
-) -> Result<Option<Vec<vibesql_storage::Row>>, ExecutorError> {
-    // Handle nested AND expressions recursively
-    // Pattern: comp AND (comp AND IN(...)) - need to recurse into nested AND
-
-    // If right side is a nested AND, optimize it recursively
-    if let vibesql_ast::Expression::BinaryOp { left: nested_left, op: vibesql_ast::BinaryOperator::And, right: nested_right } = right {
-        // Right is a nested AND expression - try to optimize it recursively
-        if let Some(nested_rows) = try_index_for_and_expr(database, nested_left, nested_right, all_rows, schema)? {
-            let filtered = apply_predicate_filter(database, &nested_rows, left, schema)?;
-            return Ok(Some(filtered));
-        }
-    }
-
-    // If left side is a nested AND, optimize it recursively
-    if let vibesql_ast::Expression::BinaryOp { left: nested_left, op: vibesql_ast::BinaryOperator::And, right: nested_right } = left {
-        // Left is a nested AND expression - try to optimize it recursively
-        if let Some(nested_rows) = try_index_for_and_expr(database, nested_left, nested_right, all_rows, schema)? {
-            // Successfully optimized nested AND, now apply right predicate as post-filter
-            return Ok(Some(apply_predicate_filter(database, &nested_rows, right, schema)?));
-        }
-    }
-
-    // First, try to handle IN + comparison pattern
-    // Pattern: col1 IN (...) AND col2 > value (or any comparison)
-    if let Some(rows) = try_index_for_in_and_comparison(database, left, right, all_rows, schema)? {
-        return Ok(Some(rows));
-    }
-
-    // Try the reverse: comparison AND IN
-    if let Some(rows) = try_index_for_in_and_comparison(database, right, left, all_rows, schema)? {
-        return Ok(Some(rows));
-    }
-
-    // Fall back to BETWEEN pattern detection
-    // Try to detect BETWEEN pattern: (col >= start) AND (col <= end)
-    // or variations like (col > start) AND (col < end)
-
-    let (col_name, start_val, start_inclusive, end_val, end_inclusive) = match (left, right) {
-        (
-            vibesql_ast::Expression::BinaryOp { left: left_col, op: left_op, right: left_val },
-            vibesql_ast::Expression::BinaryOp { left: right_col, op: right_op, right: right_val },
-        ) => {
-            // Both sides are binary operations
-            // Check if both refer to the same column
-            let (left_col_name, _right_col_name) = match (left_col.as_ref(), right_col.as_ref()) {
-                (
-                    vibesql_ast::Expression::ColumnRef { table: None, column: lc },
-                    vibesql_ast::Expression::ColumnRef { table: None, column: rc },
-                ) if lc == rc => (lc, rc),
-                _ => return Ok(None), // Not the same column
-            };
-
-            // Extract values
-            let (left_lit, right_lit) = match (left_val.as_ref(), right_val.as_ref()) {
-                (vibesql_ast::Expression::Literal(lv), vibesql_ast::Expression::Literal(rv)) => (lv, rv),
-                _ => return Ok(None), // Not literals
-            };
-
-            // Determine the bounds based on operators
-            // left is lower bound operation (>= or >)
-            // right is upper bound operation (<= or <)
-            match (left_op, right_op) {
-                (vibesql_ast::BinaryOperator::GreaterThanOrEqual, vibesql_ast::BinaryOperator::LessThanOrEqual) => {
-                    (left_col_name.clone(), left_lit.clone(), true, right_lit.clone(), true)
-                }
-                (vibesql_ast::BinaryOperator::GreaterThanOrEqual, vibesql_ast::BinaryOperator::LessThan) => {
-                    (left_col_name.clone(), left_lit.clone(), true, right_lit.clone(), false)
-                }
-                (vibesql_ast::BinaryOperator::GreaterThan, vibesql_ast::BinaryOperator::LessThanOrEqual) => {
-                    (left_col_name.clone(), left_lit.clone(), false, right_lit.clone(), true)
-                }
-                (vibesql_ast::BinaryOperator::GreaterThan, vibesql_ast::BinaryOperator::LessThan) => {
-                    (left_col_name.clone(), left_lit.clone(), false, right_lit.clone(), false)
-                }
-                _ => return Ok(None), // Not a BETWEEN-like pattern
-            }
-        }
-        _ => return Ok(None), // Not a BETWEEN-like pattern
-    };
-
-    // Find which table this column belongs to
-    let mut found_table = None;
-    for (table, (_start_idx, _table_schema)) in &schema.table_schemas {
-        if _table_schema.get_column_index(&col_name).is_some() {
-            found_table = Some(table.clone());
-            break;
-        }
-    }
-    let table_name = match found_table {
-        Some(table) => table,
-        None => return Ok(None), // Column not found
-    };
-
-    // Find an index on this table and column
-    let index_name = find_index_for_where(database, &table_name, &col_name)?;
-    if index_name.is_none() {
-        return Ok(None);
-    }
-    let index_name = index_name.unwrap();
-
-    // Get the index data
-    let index_data = match database.get_index_data(&index_name) {
-        Some(data) => data,
-        None => return Ok(None),
-    };
-
-    // Validate bounds: start_val must be <= end_val for a valid range
-    // If start > end, the BETWEEN range is empty (no values can satisfy it)
-    let gt_result = crate::evaluator::ExpressionEvaluator::eval_binary_op_static(
-        &start_val,
-        &vibesql_ast::BinaryOperator::GreaterThan,
-        &end_val,
-    )?;
-    if let vibesql_types::SqlValue::Boolean(true) = gt_result {
-        // start_val > end_val: empty range, return no rows
-        return Ok(Some(Vec::new()));
-    }
-
-    // Use range_scan with both bounds
-    let matching_row_indices =
-        index_data.range_scan(Some(&start_val), Some(&end_val), start_inclusive, end_inclusive);
-
-    // Convert row indices to actual rows
-    let result_rows =
-        matching_row_indices
-            .iter()
-            .filter_map(|&row_idx| {
-                if row_idx < all_rows.len() {
-                    Some(all_rows[row_idx].clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
 
     Ok(Some(result_rows))
 }
