@@ -2,7 +2,7 @@
 
 use super::{
     builder::SelectExecutor,
-    index_optimization::{try_index_for_in_clause, try_spatial_index_optimization},
+    index_optimization::try_spatial_index_optimization,
 };
 use crate::{
     errors::ExecutorError,
@@ -326,6 +326,7 @@ impl SelectExecutor<'_> {
         // (ORDER BY, DISTINCT, window functions require full materialization)
         let schema = from_result.schema.clone();
         let sorted_by = from_result.sorted_by.clone();
+        let where_filtered = from_result.where_filtered;
         let rows = from_result.into_rows();
 
         // Track memory used by FROM clause results (JOINs, table scans, etc.)
@@ -353,40 +354,33 @@ impl SelectExecutor<'_> {
                 CombinedExpressionEvaluator::with_database(&schema, self.database)
             };
 
-        // Try index-based WHERE optimization first
-        // 1. Try spatial index optimization (for ST_Contains, ST_Intersects, etc.)
-        let mut filtered_rows = if let Some(spatial_filtered) = try_spatial_index_optimization(
+        // Skip WHERE filtering if already applied during scan (e.g., by index scan)
+        // This prevents redundant evaluation that can cause incorrect results
+        //
+        // NOTE: Index optimization has been moved to the scan level (execute_index_scan).
+        // The FROM clause now handles all index-based optimizations (B-tree, spatial, IN clauses)
+        // before returning rows, avoiding the row-index mismatch problem when predicate pushdown
+        // is enabled. This fixes issues #1807, #1895, #1896, and #1902.
+        //
+        // Previously, we tried to apply index optimization here on `rows` from FROM, but:
+        // 1. If predicate pushdown filtered rows, indices no longer match original table
+        // 2. This caused incorrect results and crashes
+        // 3. execute_index_scan() already handles this correctly at scan level
+        //
+        // Now we only do spatial optimization here as a special case, since it may not
+        // always be pushed to scan level. All other index optimizations happen in FROM.
+        let mut filtered_rows = if where_filtered {
+            rows
+        } else if let Some(spatial_filtered) = try_spatial_index_optimization(
             self.database,
             stmt.where_clause.as_ref(),
             &rows,
             &schema,
         )? {
+            // Spatial index optimization (ST_Contains, ST_Intersects, etc.)
             spatial_filtered
-        } else if let Some(in_filtered) = try_index_for_in_clause(
-            self.database,
-            stmt.where_clause.as_ref(),
-            &rows,
-            &schema,
-        )? {
-            // 2. Try IN clause index optimization (issue #1764)
-            in_filtered
         } else {
-            // NOTE: try_index_based_where_filtering is disabled here because it causes
-            // double filtering when rows already came from execute_index_scan (which applies
-            // WHERE filtering internally). This was causing issue #1838 where rows were lost.
-            // The FROM clause (execute_index_scan) already handles B-tree index optimization
-            // correctly, so we don't need to do it again here.
-            //
-            // } else if let Some(index_filtered) = try_index_based_where_filtering(
-            //     self.database,
-            //     stmt.where_clause.as_ref(),
-            //     &rows,
-            //     &schema,
-            // )? {
-            //     // 3. Try B-tree index optimization (for =, <, >, BETWEEN, etc.)
-            //     index_filtered
-            // } else {
-            // 4. Fall back to full WHERE clause evaluation
+            // Fall back to full WHERE clause evaluation
             let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
 
             match where_optimization {

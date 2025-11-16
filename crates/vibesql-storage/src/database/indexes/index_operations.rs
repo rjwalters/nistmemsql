@@ -62,6 +62,76 @@ fn calculate_next_value(value: &SqlValue) -> Option<SqlValue> {
     }
 }
 
+/// Try to increment a SqlValue by the smallest possible amount
+/// Returns None if the value is already at its maximum or increment is not supported
+///
+/// This is used to calculate upper bounds for BTreeMap ranges when doing prefix matching
+/// on multi-column indexes. For example, to find all keys where first column <= 90,
+/// we can use range(lower..Excluded([91])) instead of range(lower..Unbounded) + manual check.
+fn try_increment_sqlvalue(value: &SqlValue) -> Option<SqlValue> {
+    match value {
+        // Integer types: increment by 1, handle overflow
+        SqlValue::Integer(i) if *i < i64::MAX => Some(SqlValue::Integer(i + 1)),
+        SqlValue::Smallint(i) if *i < i16::MAX => Some(SqlValue::Smallint(i + 1)),
+        SqlValue::Bigint(i) if *i < i64::MAX => Some(SqlValue::Bigint(i + 1)),
+        SqlValue::Unsigned(u) if *u < u64::MAX => Some(SqlValue::Unsigned(u + 1)),
+
+        // Floating point: increment by smallest representable step
+        // For floats, we use nextafter functionality via adding epsilon
+        SqlValue::Float(f) if f.is_finite() => {
+            let next = f + f.abs() * f32::EPSILON;
+            if next > *f && next.is_finite() {
+                Some(SqlValue::Float(next))
+            } else {
+                None
+            }
+        }
+        SqlValue::Real(f) if f.is_finite() => {
+            let next = f + f.abs() * f32::EPSILON;
+            if next > *f && next.is_finite() {
+                Some(SqlValue::Real(next))
+            } else {
+                None
+            }
+        }
+        SqlValue::Double(f) if f.is_finite() => {
+            let next = f + f.abs() * f64::EPSILON;
+            if next > *f && next.is_finite() {
+                Some(SqlValue::Double(next))
+            } else {
+                None
+            }
+        }
+        SqlValue::Numeric(f) if f.is_finite() => {
+            let next = f + f.abs() * f64::EPSILON;
+            if next > *f && next.is_finite() {
+                Some(SqlValue::Numeric(next))
+            } else {
+                None
+            }
+        }
+
+        // String types: append a null character to get the next string
+        // This works because "\0" is the smallest character
+        SqlValue::Varchar(s) => Some(SqlValue::Varchar(format!("{}\0", s))),
+        SqlValue::Character(s) => Some(SqlValue::Character(format!("{}\0", s))),
+
+        // Boolean: false < true, so true has no next value
+        SqlValue::Boolean(false) => Some(SqlValue::Boolean(true)),
+        SqlValue::Boolean(true) => None,
+
+        // Null is always smallest, so it has a next value (any non-null)
+        // But we don't have a clear "next" value, so return None
+        SqlValue::Null => None,
+
+        // Date/Time types: for now, return None (could implement increment by smallest unit)
+        SqlValue::Date(_) | SqlValue::Time(_) | SqlValue::Timestamp(_) | SqlValue::Interval(_) => None,
+
+        // All other cases (overflow, already at max, etc.): return None
+        _ => None,
+    }
+}
+
 impl IndexData {
     /// Scan index for rows matching range predicate
     ///
@@ -162,28 +232,28 @@ impl IndexData {
                             None => Bound::Unbounded,
                         };
 
-                        // Iterate through BTreeMap, checking first column of each key
-                        for (key_values, row_indices) in data.range::<[SqlValue], _>((start_bound, Bound::Unbounded)) {
-                            if key_values.is_empty() {
-                                continue;
-                            }
-
-                            let first_col = &key_values[0];
-
-                            // Check upper bound
-                            if let Some(end_val) = &normalized_end {
-                                use std::cmp::Ordering;
-                                match first_col.cmp(end_val) {
-                                    Ordering::Greater => break, // Exceeded upper bound, stop
-                                    Ordering::Equal if !inclusive_end => break, // At upper bound but not inclusive, stop
-                                    Ordering::Less | Ordering::Equal => {
-                                        matching_row_indices.extend(row_indices);
-                                    }
-                                }
+                        // Calculate upper bound efficiently instead of using Unbounded + manual checking
+                        // For multi-column indexes, we need an upper bound that stops after all keys
+                        // starting with end_val (if inclusive) or before them (if exclusive)
+                        let end_key = normalized_end.as_ref().map(|v| {
+                            if inclusive_end {
+                                // For inclusive: try to increment the value to get next prefix
+                                // If successful, use as Excluded bound; otherwise use Unbounded
+                                try_increment_sqlvalue(v).map(|incremented| (vec![incremented], false))
                             } else {
-                                // No upper bound, collect all remaining
-                                matching_row_indices.extend(row_indices);
+                                // For exclusive: use end_val itself as Excluded bound
+                                Some((vec![v.clone()], false))
                             }
+                        }).flatten();
+
+                        let end_bound: Bound<&[SqlValue]> = match end_key.as_ref() {
+                            Some((key, _)) => Bound::Excluded(key.as_slice()),
+                            None => Bound::Unbounded,
+                        };
+
+                        // Iterate through BTreeMap with proper bounds - no manual checking needed!
+                        for (_key_values, row_indices) in data.range::<[SqlValue], _>((start_bound, end_bound)) {
+                            matching_row_indices.extend(row_indices);
                         }
                         return matching_row_indices;
                     }
@@ -565,7 +635,7 @@ mod tests {
             SqlValue::Double(99.0)
         );
         assert_eq!(
-        // Use simpler values for f32 to avoid precision issues
+            normalize_for_comparison(&SqlValue::Float(3.14)),
             SqlValue::Double(3.14f32 as f64)
         );
         assert_eq!(
