@@ -472,21 +472,12 @@ pub(crate) fn execute_index_scan(
     // Try to extract index predicate (range or IN) for the indexed column
     let index_predicate = where_clause.and_then(|expr| extract_index_predicate(expr, indexed_column));
 
-    // Performance optimization: Check if WHERE clause is fully satisfied by index
-    // If so, we can skip re-evaluating it on every row (major speedup for large result sets)
-    let need_where_filter = if let Some(where_expr) = where_clause {
-        // Only skip filtering if we successfully pushed a predicate to the index
-        // AND the WHERE clause contains nothing else
-        if index_predicate.is_some() {
-            !where_clause_fully_satisfied_by_index(where_expr, indexed_column)
-        } else {
-            // No index predicate extracted, must filter
-            true
-        }
-    } else {
-        // No WHERE clause at all
-        false
-    };
+    // DISABLED: Performance optimization was buggy (see issue #1867)
+    // The `where_clause_fully_satisfied_by_index()` function incorrectly determined
+    // when WHERE filtering could be skipped, causing wrong results.
+    // For now, always apply WHERE filtering when present for correctness.
+    // TODO: Reimplement this optimization correctly in a future PR
+    let need_where_filter = where_clause.is_some();
 
     // Get row indices using the appropriate index operation
     let matching_row_indices: Vec<usize> = match index_predicate {
