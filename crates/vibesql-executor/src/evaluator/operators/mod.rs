@@ -41,10 +41,14 @@ impl OperatorRegistry {
     ) -> Result<SqlValue, ExecutorError> {
         use vibesql_ast::BinaryOperator::*;
 
-        // Short-circuit NULL handling (SQL three-valued logic)
+        // Short-circuit NULL handling for most operators (SQL three-valued logic)
         // NULL compared/operated with anything yields NULL
+        // EXCEPT for AND/OR which have special three-valued logic (e.g., NULL OR TRUE = TRUE)
         if matches!(left, SqlValue::Null) || matches!(right, SqlValue::Null) {
-            return Ok(SqlValue::Null);
+            // Don't short-circuit for logical operators - they handle NULL specially
+            if !matches!(op, And | Or) {
+                return Ok(SqlValue::Null);
+            }
         }
 
         match op {
