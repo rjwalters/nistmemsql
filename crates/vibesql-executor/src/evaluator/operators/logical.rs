@@ -25,7 +25,19 @@ impl LogicalOps {
         use SqlValue::*;
 
         match (left, right) {
+            // Both boolean values
             (Boolean(a), Boolean(b)) => Ok(Boolean(*a && *b)),
+
+            // FALSE AND anything = FALSE (even NULL)
+            (Boolean(false), Null) | (Null, Boolean(false)) => Ok(Boolean(false)),
+
+            // TRUE AND NULL = NULL
+            (Boolean(true), Null) | (Null, Boolean(true)) => Ok(Null),
+
+            // NULL AND NULL = NULL
+            (Null, Null) => Ok(Null),
+
+            // Type mismatch for non-boolean, non-null values
             _ => Err(ExecutorError::TypeMismatch {
                 left: left.clone(),
                 op: "AND".to_string(),
@@ -49,7 +61,19 @@ impl LogicalOps {
         use SqlValue::*;
 
         match (left, right) {
+            // Both boolean values
             (Boolean(a), Boolean(b)) => Ok(Boolean(*a || *b)),
+
+            // TRUE OR anything = TRUE (even NULL)
+            (Boolean(true), Null) | (Null, Boolean(true)) => Ok(Boolean(true)),
+
+            // FALSE OR NULL = NULL
+            (Boolean(false), Null) | (Null, Boolean(false)) => Ok(Null),
+
+            // NULL OR NULL = NULL
+            (Null, Null) => Ok(Null),
+
+            // Type mismatch for non-boolean, non-null values
             _ => Err(ExecutorError::TypeMismatch {
                 left: left.clone(),
                 op: "OR".to_string(),
@@ -99,5 +123,63 @@ mod tests {
     fn test_type_error() {
         let result = LogicalOps::and(&SqlValue::Integer(1), &SqlValue::Boolean(true));
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_and_with_null() {
+        // FALSE AND NULL = FALSE
+        assert_eq!(
+            LogicalOps::and(&SqlValue::Boolean(false), &SqlValue::Null).unwrap(),
+            SqlValue::Boolean(false)
+        );
+        assert_eq!(
+            LogicalOps::and(&SqlValue::Null, &SqlValue::Boolean(false)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+
+        // TRUE AND NULL = NULL
+        assert_eq!(
+            LogicalOps::and(&SqlValue::Boolean(true), &SqlValue::Null).unwrap(),
+            SqlValue::Null
+        );
+        assert_eq!(
+            LogicalOps::and(&SqlValue::Null, &SqlValue::Boolean(true)).unwrap(),
+            SqlValue::Null
+        );
+
+        // NULL AND NULL = NULL
+        assert_eq!(
+            LogicalOps::and(&SqlValue::Null, &SqlValue::Null).unwrap(),
+            SqlValue::Null
+        );
+    }
+
+    #[test]
+    fn test_or_with_null() {
+        // TRUE OR NULL = TRUE
+        assert_eq!(
+            LogicalOps::or(&SqlValue::Boolean(true), &SqlValue::Null).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        assert_eq!(
+            LogicalOps::or(&SqlValue::Null, &SqlValue::Boolean(true)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+
+        // FALSE OR NULL = NULL
+        assert_eq!(
+            LogicalOps::or(&SqlValue::Boolean(false), &SqlValue::Null).unwrap(),
+            SqlValue::Null
+        );
+        assert_eq!(
+            LogicalOps::or(&SqlValue::Null, &SqlValue::Boolean(false)).unwrap(),
+            SqlValue::Null
+        );
+
+        // NULL OR NULL = NULL
+        assert_eq!(
+            LogicalOps::or(&SqlValue::Null, &SqlValue::Null).unwrap(),
+            SqlValue::Null
+        );
     }
 }
