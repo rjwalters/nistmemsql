@@ -1,0 +1,36 @@
+# Isolated FAILING test for issue #1929 - random/aggregates failures
+# Root cause: Division with REAL operands returns REAL instead of INTEGER when INTEGER is expected
+
+statement ok
+CREATE TABLE tab0(col0 INTEGER, col1 INTEGER, col2 INTEGER)
+
+statement ok
+CREATE TABLE tab2(col0 INTEGER, col1 INTEGER, col2 INTEGER)
+
+statement ok
+INSERT INTO tab0 VALUES(97,1,99)
+
+statement ok
+INSERT INTO tab0 VALUES(15,81,47)
+
+statement ok
+INSERT INTO tab0 VALUES(87,21,10)
+
+statement ok
+INSERT INTO tab2 VALUES(64,77,40)
+
+statement ok
+INSERT INTO tab2 VALUES(75,67,58)
+
+statement ok
+INSERT INTO tab2 VALUES(46,51,23)
+
+# This query from slt_good_108.test FAILS
+# Expected: II (two integers): -9 and 0
+# Actual: vibesql returns -9 and -0.1875 (REAL instead of INTEGER)
+# The division 9 / -48.0 should be truncated to INTEGER 0, not kept as REAL -0.1875
+query II rowsort
+SELECT DISTINCT - COUNT ( * ), COUNT ( * ) / MIN ( - CAST ( 48 AS REAL ) ) AS col0 FROM tab2 AS cor0 CROSS JOIN tab0 AS cor1
+----
+-9
+0

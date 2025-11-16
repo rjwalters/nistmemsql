@@ -258,11 +258,9 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                                         *value = format!("{}.000", value);
                                     }
                                 } else if expected_type.to_char() == 'I' && value.contains('.') {
-                                    // Real → Integer: strip ".0" or ".000"
+                                    // Real → Integer: truncate to integer (SQL standard for integer division)
                                     if let Ok(f) = value.parse::<f64>() {
-                                        if f.fract() == 0.0 {
-                                            *value = format!("{}", f as i64);
-                                        }
+                                        *value = format!("{}", f.trunc() as i64);
                                     }
                                 }
                             }
