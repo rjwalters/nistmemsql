@@ -12,6 +12,25 @@ use crate::directive_parser::{SortMode, ResultMode, ControlItem};
 
 const RESULTS_DELIMITER: &str = "----";
 
+/// Check if a line is likely a directive (not SQL content).
+/// Directives start with known keywords like "statement", "query", "include", etc.
+fn is_directive_line(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    trimmed.starts_with("statement ")
+        || trimmed.starts_with("query ")
+        || trimmed.starts_with("system ")
+        || trimmed.starts_with("include ")
+        || trimmed.starts_with("halt")
+        || trimmed.starts_with("subtest ")
+        || trimmed.starts_with("sleep ")
+        || trimmed.starts_with("skipif ")
+        || trimmed.starts_with("onlyif ")
+        || trimmed.starts_with("connection ")
+        || trimmed.starts_with("hash-threshold ")
+        || trimmed.starts_with("control ")
+        || trimmed.starts_with("#")
+}
+
 /// Expectation for a statement.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StatementExpect {
@@ -53,7 +72,7 @@ impl<T: ColumnType> QueryExpect<T> {
 
 /// Parse one or more lines until empty line or a delimiter.
 pub(crate) fn parse_lines<'a>(
-    lines: &mut impl Iterator<Item = (usize, &'a str)>,
+    lines: &mut Peekable<impl Iterator<Item = (usize, &'a str)>>,
     loc: &Location,
     delimiter: Option<&str>,
 ) -> Result<(String, bool), ParseError> {
@@ -63,16 +82,31 @@ pub(crate) fn parse_lines<'a>(
         None => Err(ParseErrorKind::UnexpectedEOF.at(loc.clone().next_line())),
     }?;
 
-    for (_, line) in lines {
-        if line.is_empty() {
+    loop {
+        // Peek at the next line without consuming it
+        let next_line = match lines.peek() {
+            Some((_, line)) => *line,
+            None => break, // End of file
+        };
+
+        if next_line.is_empty() {
             break;
         }
         if let Some(delimiter) = delimiter {
-            if line == delimiter {
+            if next_line == delimiter {
                 found_delimiter = true;
+                lines.next(); // Consume the delimiter
                 break;
             }
         }
+        // Stop if we encounter a directive line (e.g., "statement ok" without blank line separator)
+        // This prevents consuming the next directive as part of the current SQL statement
+        if is_directive_line(next_line) {
+            break; // Don't consume the directive line - leave it for the main parser
+        }
+
+        // Now consume the line since we've decided to include it
+        let (_, line) = lines.next().unwrap();
         out += "\n";
         out += line;
     }
