@@ -32,6 +32,36 @@ pub fn normalize_for_comparison(value: &SqlValue) -> SqlValue {
     }
 }
 
+/// Calculate the next value after a given SqlValue for use as an exclusive upper bound
+/// in prefix matching range scans.
+///
+/// For numeric types, this returns value + 1. For other types, returns None (unbounded).
+/// This is used in multi-column index range scans to efficiently bound the range scan.
+///
+/// # Examples
+/// - Double(10.0) → Some(Double(11.0))
+/// - Integer(42) → Some(Integer(43))
+/// - Varchar("abc") → None (no natural successor)
+fn calculate_next_value(value: &SqlValue) -> Option<SqlValue> {
+    match value {
+        SqlValue::Double(d) => {
+            // For doubles, add 1.0. Note: This works for integers represented as doubles
+            // which is the normalized form used in indexes.
+            Some(SqlValue::Double(d + 1.0))
+        }
+        SqlValue::Integer(i) => Some(SqlValue::Integer(i + 1)),
+        SqlValue::Smallint(i) => Some(SqlValue::Smallint(i + 1)),
+        SqlValue::Bigint(i) => Some(SqlValue::Bigint(i + 1)),
+        SqlValue::Unsigned(u) => Some(SqlValue::Unsigned(u + 1)),
+        SqlValue::Float(f) => Some(SqlValue::Float(f + 1.0)),
+        SqlValue::Real(r) => Some(SqlValue::Real(r + 1.0)),
+        SqlValue::Numeric(n) => Some(SqlValue::Numeric(n + 1.0)),
+        // For non-numeric types, we can't easily calculate a successor
+        // Return None to indicate unbounded end
+        _ => None,
+    }
+}
+
 impl IndexData {
     /// Scan index for rows matching range predicate
     ///
@@ -78,22 +108,84 @@ impl IndexData {
                     }
                 }
 
-                // Convert to single-element keys (for single-column indexes)
-                // For multi-column indexes, we only compare the first column
-                let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
-                let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
+                // Detect if this is a multi-column index by checking first key
+                // For multi-column indexes, we need special handling to ensure correct range matching
+                let is_multi_column = data.keys().next().map(|k| k.len() > 1).unwrap_or(false);
+
+                // For multi-column indexes with an exclusive start bound, we need to use
+                // an inclusive bound with the next value to correctly exclude all composite keys.
+                // Example: For col0 > 3 (like excluding [3, 5.6]), we use range [4.0, ...)
+                // because [3, 5.6] >= [3] but [3, 5.6] < [4] in lexicographic ordering.
+                let (start_key, adjusted_inclusive_start) = if is_multi_column && !inclusive_start {
+                    if let Some(start_val) = normalized_start.as_ref() {
+                        // Try to calculate next value for inclusive lower bound
+                        if let Some(next_val) = calculate_next_value(start_val) {
+                            (Some(vec![next_val]), true) // Use next value with inclusive bound
+                        } else {
+                            // Can't calculate next value, use original with exclusive bound
+                            (Some(vec![start_val.clone()]), false)
+                        }
+                    } else {
+                        (None, false)
+                    }
+                } else {
+                    // Single-column index or inclusive start: use value as-is
+                    (normalized_start.as_ref().map(|v| vec![v.clone()]), inclusive_start)
+                };
+
+                // For multi-column indexes with an inclusive end bound, we need to use
+                // an exclusive bound with the next value to correctly capture all composite keys.
+                // Example: To match all keys where col0=9 (like [9, 5.6]), we use range [9.0, 10.0)
+                // because [9, 5.6] < [10] but [9, 5.6] > [9] in lexicographic ordering.
+                let (end_key, adjusted_inclusive_end) = if is_multi_column && inclusive_end {
+                    if let Some(end_val) = normalized_end.as_ref() {
+                        // Try to calculate next value for exclusive upper bound
+                        if let Some(next_val) = calculate_next_value(end_val) {
+                            (Some(vec![next_val]), false) // Use next value with exclusive bound
+                        } else {
+                            // Can't calculate next value (e.g., for strings), use unbounded end
+                            (None, false)
+                        }
+                    } else {
+                        (None, false)
+                    }
+                } else {
+                    // Single-column index or non-inclusive end: use value as-is
+                    (normalized_end.as_ref().map(|v| vec![v.clone()]), inclusive_end)
+                };
+
+                // Validate adjusted bounds for multi-column indexes
+                // After adjustment, bounds might be invalid even if original bounds were valid
+                // Example: col3 > 9 AND col3 < 3 has original bounds (9 exc, 3 exc) where 9 > 3
+                // but gets adjusted to (10 inc, 3 exc) which would still trigger BTreeMap panic
+                if let (Some(start_key_val), Some(end_key_val)) = (&start_key, &end_key) {
+                    if !start_key_val.is_empty() && !end_key_val.is_empty() {
+                        let start_first = &start_key_val[0];
+                        let end_first = &end_key_val[0];
+                        // Check if adjusted bounds are valid based on inclusivity
+                        let invalid = match (adjusted_inclusive_start, adjusted_inclusive_end) {
+                            (true, true) => start_first > end_first,   // [a, b]: invalid if a > b
+                            (true, false) => start_first >= end_first, // [a, b): invalid if a >= b
+                            (false, true) => start_first >= end_first, // (a, b]: invalid if a >= b
+                            (false, false) => start_first >= end_first, // (a, b): invalid if a >= b
+                        };
+                        if invalid {
+                            return Vec::new();
+                        }
+                    }
+                }
 
                 // Build bounds for BTreeMap::range()
                 // Note: BTreeMap<Vec<SqlValue>, _> requires &[SqlValue] (slice) for range bounds
                 // Type annotation is needed to help Rust's type inference
                 let start_bound: Bound<&[SqlValue]> = match start_key.as_ref() {
-                    Some(key) if inclusive_start => Bound::Included(key.as_slice()),
+                    Some(key) if adjusted_inclusive_start => Bound::Included(key.as_slice()),
                     Some(key) => Bound::Excluded(key.as_slice()),
                     None => Bound::Unbounded,
                 };
 
                 let end_bound: Bound<&[SqlValue]> = match end_key.as_ref() {
-                    Some(key) if inclusive_end => Bound::Included(key.as_slice()),
+                    Some(key) if adjusted_inclusive_end => Bound::Included(key.as_slice()),
                     Some(key) => Bound::Excluded(key.as_slice()),
                     None => Bound::Unbounded,
                 };
