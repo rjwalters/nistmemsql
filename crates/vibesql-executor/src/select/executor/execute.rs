@@ -78,42 +78,22 @@ impl SelectExecutor<'_> {
         let mut results = if has_aggregates || has_group_by {
             self.execute_with_aggregation(stmt, cte_results)?
         } else if let Some(from_clause) = &stmt.from {
-            // Selective predicate pushdown disable for multi-column IN optimization (issue #1807)
+            // Re-enabled predicate pushdown for all queries (issue #1902)
             //
-            // Multi-column IN optimization requires access to ALL table rows to correctly
-            // use indexes. If predicate pushdown filters rows during the FROM scan, the index
-            // optimization receives an already-filtered subset with incorrect row indices.
+            // Previously, predicate pushdown was selectively disabled for multi-column IN clauses
+            // because index optimization happened in execute_without_aggregation() on row indices
+            // from the FROM result. When predicate pushdown filtered rows early, the indices no
+            // longer matched the original table, causing incorrect results.
             //
-            // We ONLY disable predicate pushdown when:
-            // - WHERE clause contains an IN expression
-            // - The column has a MULTI-column index
+            // Now that all index optimization has been moved to the scan level (execute_index_scan),
+            // it happens BEFORE predicate pushdown, avoiding the row-index mismatch problem.
+            // This allows predicate pushdown to work correctly for all queries, improving performance.
             //
-            // All other queries (single-column indexes, binary ops, etc.) retain predicate pushdown.
-            //
-            // Example requiring disabled pushdown:
-            //   SELECT * FROM test WHERE a IN (10)
-            //   Index: (a, b) ← Multi-column!
-            //
-            // Example allowing predicate pushdown:
-            //   SELECT * FROM test WHERE a IN (10)
-            //   Index: (a) ← Single-column, pushdown is safe!
-            //
-            //   SELECT * FROM test WHERE a = 10
-            //   ← Binary op, not IN, pushdown is safe!
-
-            let where_clause_for_pushdown = if super::index_optimization::requires_predicate_pushdown_disable(
-                self.database,
-                stmt.where_clause.as_ref(),
-                stmt.from.as_ref(),
-            ) {
-                None // Disable predicate pushdown for multi-column IN
-            } else {
-                stmt.where_clause.as_ref() // Enable predicate pushdown for everything else
-            };
+            // Fixes issues #1807, #1895, #1896, and #1902.
 
             // Pass WHERE and ORDER BY to execute_from for optimization
             let from_result =
-                self.execute_from_with_where(from_clause, cte_results, where_clause_for_pushdown, stmt.order_by.as_deref())?;
+                self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref(), stmt.order_by.as_deref())?;
             self.execute_without_aggregation(stmt, from_result)?
         } else {
             // SELECT without FROM - evaluate expressions as a single row
