@@ -96,11 +96,15 @@ impl IndexData {
                 let normalized_start = start.map(normalize_for_comparison);
                 let normalized_end = end.map(normalize_for_comparison);
 
-                // Special handling for prefix matching (used by multi-column IN clauses)
-                // When start == end with inclusive bounds, we're doing an equality check
-                // on the first column of a multi-column index. We need to match all keys
-                // where the first column equals the target value, regardless of other columns.
+                // Special handling for prefix matching on multi-column indexes
+                // This handles both equality queries (start == end) and range queries (start != end)
+                // on the first column of multi-column indexes.
+                //
+                // The key insight: For multi-column indexes, we can't use single-element keys
+                // like [value] because the index stores composite keys like [col1_val, col2_val].
+                // Instead, we need to iterate and check the first column of each key.
                 if let (Some(start_val), Some(end_val)) = (&normalized_start, &normalized_end) {
+                    // Equality check (prefix matching for multi-column IN clauses)
                     if start_val == end_val && inclusive_start && inclusive_end {
                         // Prefix matching using efficient BTreeMap::range() - O(log n + k) instead of O(n)
                         // Strategy: Start iteration at [target_value] and continue while first column matches
@@ -123,6 +127,63 @@ impl IndexData {
                                 break; // Stop iteration when prefix no longer matches
                             }
                             matching_row_indices.extend(row_indices);
+                        }
+                        return matching_row_indices;
+                    }
+                }
+
+                // Edge case: Check for invalid range (start == end with at least one exclusive bound)
+                // Example: col > 5 AND col < 5 (mathematically empty range, but valid SQL)
+                // This would create invalid BTreeMap bounds (both excluded at same value) → panic
+                if let (Some(start_val), Some(end_val)) = (&normalized_start, &normalized_end) {
+                    if start_val == end_val && (!inclusive_start || !inclusive_end) {
+                        // Empty range: no values can satisfy this condition
+                        return Vec::new();
+                    }
+                }
+
+                // Special handling for range queries that might use multi-column indexes
+                // If we have both start and end bounds, we need to handle multi-column indexes specially
+                // by checking if keys in the map have multiple elements (indicating multi-column index)
+                if normalized_start.is_some() || normalized_end.is_some() {
+                    // Peek at first key to determine if this is a multi-column index
+                    // Multi-column indexes have keys with > 1 element
+                    let is_multi_column = data.keys().next().map_or(false, |k| k.len() > 1);
+
+                    if is_multi_column {
+                        // Multi-column index range query: iterate and compare first column only
+                        // For example, col3 BETWEEN 24 AND 90 on index (col3, col0):
+                        //   Start at keys with col3 >= 24, continue while col3 <= 90
+
+                        let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
+                        let start_bound: Bound<&[SqlValue]> = match start_key.as_ref() {
+                            Some(key) if inclusive_start => Bound::Included(key.as_slice()),
+                            Some(key) => Bound::Excluded(key.as_slice()),
+                            None => Bound::Unbounded,
+                        };
+
+                        // Iterate through BTreeMap, checking first column of each key
+                        for (key_values, row_indices) in data.range::<[SqlValue], _>((start_bound, Bound::Unbounded)) {
+                            if key_values.is_empty() {
+                                continue;
+                            }
+
+                            let first_col = &key_values[0];
+
+                            // Check upper bound
+                            if let Some(end_val) = &normalized_end {
+                                use std::cmp::Ordering;
+                                match first_col.cmp(end_val) {
+                                    Ordering::Greater => break, // Exceeded upper bound, stop
+                                    Ordering::Equal if !inclusive_end => break, // At upper bound but not inclusive, stop
+                                    Ordering::Less | Ordering::Equal => {
+                                        matching_row_indices.extend(row_indices);
+                                    }
+                                }
+                            } else {
+                                // No upper bound, collect all remaining
+                                matching_row_indices.extend(row_indices);
+                            }
                         }
                         return matching_row_indices;
                     }
