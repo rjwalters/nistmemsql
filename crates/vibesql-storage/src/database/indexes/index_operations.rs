@@ -290,6 +290,16 @@ impl IndexData {
                     None => Bound::Unbounded,
                 };
 
+                // Edge case: Check for invalid range (both bounds excluded at same value)
+                // Example: col > 5 AND col < 5 would create Excluded([5]) .. Excluded([5]) → panic
+                // BTreeMap::range() panics on this case, so we return empty result instead
+                if let (Bound::Excluded(start_slice), Bound::Excluded(end_slice)) = (&start_bound, &end_bound) {
+                    if start_slice == end_slice {
+                        // Invalid range: no values can satisfy this condition
+                        return Vec::new();
+                    }
+                }
+
                 // Use BTreeMap's efficient range() method instead of full iteration
                 // This is O(log n + k) instead of O(n) where n = total keys, k = matching keys
                 // Explicit type parameter needed due to Borrow trait ambiguity
