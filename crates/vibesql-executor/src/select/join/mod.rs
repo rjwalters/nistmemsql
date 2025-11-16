@@ -76,12 +76,16 @@ pub(super) struct FromResult {
     /// If present, indicates that results are already sorted by the specified columns
     /// in the given order (ASC/DESC). This allows skipping ORDER BY sorting.
     pub(super) sorted_by: Option<Vec<(String, vibesql_ast::OrderDirection)>>,
+    /// If true, indicates that WHERE clause filtering has already been fully applied
+    /// during the scan (e.g., by index scan with predicate pushdown). This allows
+    /// skipping redundant WHERE clause evaluation in the executor.
+    pub(super) where_filtered: bool,
 }
 
 impl FromResult {
     /// Create a FromResult from materialized rows
     pub(super) fn from_rows(schema: CombinedSchema, rows: Vec<vibesql_storage::Row>) -> Self {
-        Self { schema, data: FromData::Materialized(rows), sorted_by: None }
+        Self { schema, data: FromData::Materialized(rows), sorted_by: None, where_filtered: false }
     }
 
     /// Create a FromResult from materialized rows with sorting metadata
@@ -90,12 +94,21 @@ impl FromResult {
         rows: Vec<vibesql_storage::Row>,
         sorted_by: Vec<(String, vibesql_ast::OrderDirection)>,
     ) -> Self {
-        Self { schema, data: FromData::Materialized(rows), sorted_by: Some(sorted_by) }
+        Self { schema, data: FromData::Materialized(rows), sorted_by: Some(sorted_by), where_filtered: false }
+    }
+
+    /// Create a FromResult from materialized rows with WHERE filtering already applied
+    pub(super) fn from_rows_where_filtered(
+        schema: CombinedSchema,
+        rows: Vec<vibesql_storage::Row>,
+        sorted_by: Option<Vec<(String, vibesql_ast::OrderDirection)>>,
+    ) -> Self {
+        Self { schema, data: FromData::Materialized(rows), sorted_by, where_filtered: true }
     }
 
     /// Create a FromResult from an iterator
     pub(super) fn from_iterator(schema: CombinedSchema, iterator: FromIterator) -> Self {
-        Self { schema, data: FromData::Iterator(iterator), sorted_by: None }
+        Self { schema, data: FromData::Iterator(iterator), sorted_by: None, where_filtered: false }
     }
 
     /// Get the rows, materializing if needed

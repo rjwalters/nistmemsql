@@ -202,6 +202,32 @@ fn extract_range_predicate(expr: &Expression, column_name: &str) -> Option<Range
     match expr {
         Expression::BinaryOp { left, op, right } => {
             match op {
+                // Handle equality: col = value
+                BinaryOperator::Equal => {
+                    // Check if left side is our column and right side is a literal
+                    if is_column_reference(left, column_name) {
+                        if let Expression::Literal(value) = right.as_ref() {
+                            // Equal is a range with same start and end, both inclusive
+                            return Some(RangePredicate {
+                                start: Some(value.clone()),
+                                end: Some(value.clone()),
+                                inclusive_start: true,
+                                inclusive_end: true,
+                            });
+                        }
+                    }
+                    // Also handle reverse: value = col
+                    if is_column_reference(right, column_name) {
+                        if let Expression::Literal(value) = left.as_ref() {
+                            return Some(RangePredicate {
+                                start: Some(value.clone()),
+                                end: Some(value.clone()),
+                                inclusive_start: true,
+                                inclusive_end: true,
+                            });
+                        }
+                    }
+                }
                 // Handle simple comparisons: col > value, col < value, etc.
                 BinaryOperator::GreaterThan
                 | BinaryOperator::GreaterThanOrEqual
@@ -472,21 +498,12 @@ pub(crate) fn execute_index_scan(
     // Try to extract index predicate (range or IN) for the indexed column
     let index_predicate = where_clause.and_then(|expr| extract_index_predicate(expr, indexed_column));
 
-    // Performance optimization: Check if WHERE clause is fully satisfied by index
-    // If so, we can skip re-evaluating it on every row (major speedup for large result sets)
-    let need_where_filter = if let Some(where_expr) = where_clause {
-        // Only skip filtering if we successfully pushed a predicate to the index
-        // AND the WHERE clause contains nothing else
-        if index_predicate.is_some() {
-            !where_clause_fully_satisfied_by_index(where_expr, indexed_column)
-        } else {
-            // No index predicate extracted, must filter
-            true
-        }
-    } else {
-        // No WHERE clause at all
-        false
-    };
+    // DISABLED: Performance optimization was buggy (see issue #1867)
+    // The `where_clause_fully_satisfied_by_index()` function incorrectly determined
+    // when WHERE filtering could be skipped, causing wrong results.
+    // For now, always apply WHERE filtering when present for correctness.
+    // TODO: Reimplement this optimization correctly in a future PR
+    let need_where_filter = where_clause.is_some();
 
     // Get row indices using the appropriate index operation
     let matching_row_indices: Vec<usize> = match index_predicate {
@@ -589,7 +606,8 @@ pub(crate) fn execute_index_scan(
                 // Clear CSE cache before evaluating each row
                 evaluator.clear_cse_cache();
 
-                let include_row = match evaluator.eval(where_expr, &row)? {
+                let eval_result = evaluator.eval(where_expr, &row)?;
+                let include_row = match eval_result {
                     vibesql_types::SqlValue::Boolean(true) => true,
                     vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
                     // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
@@ -622,9 +640,15 @@ pub(crate) fn execute_index_scan(
     }
 
     // Return results with sorting metadata if available
-    match sorted_columns {
-        Some(sorted) => Ok(super::FromResult::from_rows_sorted(schema, rows, sorted)),
-        None => Ok(super::FromResult::from_rows(schema, rows)),
+    // If WHERE clause was fully handled by index (!need_where_filter), indicate this
+    // so the executor doesn't redundantly re-apply WHERE filtering
+    if !need_where_filter {
+        Ok(super::FromResult::from_rows_where_filtered(schema, rows, sorted_columns))
+    } else {
+        match sorted_columns {
+            Some(sorted) => Ok(super::FromResult::from_rows_sorted(schema, rows, sorted)),
+            None => Ok(super::FromResult::from_rows(schema, rows)),
+        }
     }
 }
 

@@ -326,6 +326,7 @@ impl SelectExecutor<'_> {
         // (ORDER BY, DISTINCT, window functions require full materialization)
         let schema = from_result.schema.clone();
         let sorted_by = from_result.sorted_by.clone();
+        let where_filtered = from_result.where_filtered;
         let rows = from_result.into_rows();
 
         // Track memory used by FROM clause results (JOINs, table scans, etc.)
@@ -353,7 +354,9 @@ impl SelectExecutor<'_> {
                 CombinedExpressionEvaluator::with_database(&schema, self.database)
             };
 
-        // Apply WHERE clause filtering
+        // Skip WHERE filtering if already applied during scan (e.g., by index scan)
+        // This prevents redundant evaluation that can cause incorrect results
+        //
         // NOTE: Index optimization has been moved to the scan level (execute_index_scan).
         // The FROM clause now handles all index-based optimizations (B-tree, spatial, IN clauses)
         // before returning rows, avoiding the row-index mismatch problem when predicate pushdown
@@ -366,7 +369,9 @@ impl SelectExecutor<'_> {
         //
         // Now we only do spatial optimization here as a special case, since it may not
         // always be pushed to scan level. All other index optimizations happen in FROM.
-        let mut filtered_rows = if let Some(spatial_filtered) = try_spatial_index_optimization(
+        let mut filtered_rows = if where_filtered {
+            rows
+        } else if let Some(spatial_filtered) = try_spatial_index_optimization(
             self.database,
             stmt.where_clause.as_ref(),
             &rows,
