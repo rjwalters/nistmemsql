@@ -49,13 +49,41 @@ pub(crate) fn execute_table_scan(
         // Check SELECT privilege on the view
         PrivilegeChecker::check_select(database, table_name)?;
 
+        // Optimize: Push down WHERE clause predicates into the view's query
+        // to avoid materializing all rows before filtering
+        let view_query = if let Some(where_expr) = where_clause {
+            // Clone the view's query and merge the WHERE clause
+            let mut modified_query = view.query.clone();
+
+            // Merge the outer WHERE clause with the view's existing WHERE clause
+            modified_query.where_clause = match modified_query.where_clause {
+                Some(view_where) => {
+                    // View has WHERE clause - combine with AND
+                    Some(vibesql_ast::Expression::BinaryOp {
+                        left: Box::new(view_where),
+                        op: vibesql_ast::BinaryOperator::And,
+                        right: Box::new(where_expr.clone()),
+                    })
+                }
+                None => {
+                    // View has no WHERE clause - use the outer one
+                    Some(where_expr.clone())
+                }
+            };
+
+            modified_query
+        } else {
+            // No WHERE clause to push down - use view query as-is
+            view.query.clone()
+        };
+
         // Execute the view's query to get the result
         // We need to execute the entire SELECT statement, not just the FROM clause
         use crate::select::SelectExecutor;
         let executor = SelectExecutor::new(database);
 
         // Get both rows and column metadata
-        let select_result = executor.execute_with_columns(&view.query)?;
+        let select_result = executor.execute_with_columns(&view_query)?;
 
         // Build a schema from the column names
         // Apply view's explicit column aliases if provided
@@ -99,20 +127,9 @@ pub(crate) fn execute_table_scan(
         let view_schema = vibesql_catalog::TableSchema::new(table_name.to_string(), columns);
         let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
         let schema = CombinedSchema::from_table(effective_name, view_schema);
-        let mut rows = select_result.rows;
 
-        // Apply table-local predicates from WHERE clause
-        if let Some(where_expr) = where_clause {
-            rows = apply_table_local_predicates(
-                rows,
-                schema.clone(),
-                where_expr,
-                table_name,
-                database,
-            )?;
-        }
-
-        return Ok(super::FromResult::from_rows(schema, rows));
+        // No need to apply predicates here - they were already pushed down into the view query
+        return Ok(super::FromResult::from_rows(schema, select_result.rows));
     }
 
     // Check SELECT privilege on the table
