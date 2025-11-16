@@ -36,7 +36,7 @@ pub fn normalize_for_comparison(value: &SqlValue) -> SqlValue {
 /// in prefix matching range scans.
 ///
 /// For numeric types, this returns value + 1. For other types, returns None (unbounded).
-/// This is used in multi-column index range scans to efficiently bound the range scan.
+/// This is used in DiskBacked index prefix matching to efficiently bound the range scan.
 ///
 /// # Examples
 /// - Double(10.0) → Some(Double(11.0))
@@ -96,96 +96,54 @@ impl IndexData {
                 let normalized_start = start.map(normalize_for_comparison);
                 let normalized_end = end.map(normalize_for_comparison);
 
-                // Validate normalized bounds: if start > end, range is empty (SQL standard behavior)
-                // This must happen AFTER normalization because comparisons between different numeric
-                // types (e.g., Real vs Integer) might change after normalization to a common type (Double).
-                // Example: col BETWEEN 10.5 AND 10 is empty because 10.5 > 10 after normalization.
+                // Special handling for prefix matching (used by multi-column IN clauses)
+                // When start == end with inclusive bounds, we're doing an equality check
+                // on the first column of a multi-column index. We need to match all keys
+                // where the first column equals the target value, regardless of other columns.
                 if let (Some(start_val), Some(end_val)) = (&normalized_start, &normalized_end) {
-                    // Compare normalized values using Ord trait (SqlValue implements Ord via Comparison trait)
-                    // If start > end, the range is empty and we should return no rows
-                    if start_val > end_val {
-                        return Vec::new();
+                    if start_val == end_val && inclusive_start && inclusive_end {
+                        // Prefix matching using efficient BTreeMap::range() - O(log n + k) instead of O(n)
+                        // Strategy: Start iteration at [target_value] and continue while first column matches
+                        //
+                        // For example, to find all rows where column `a` = 10 in index (a, b):
+                        //   Start: Bound::Included([10])
+                        //   Continue iterating while key[0] == 10
+                        //   Stop when key[0] != 10
+                        //
+                        // This works because BTreeMap orders Vec<SqlValue> lexicographically:
+                        //   [10] < [10, 1] < [10, 2] < [10, 99] < [11] < [11, 1]
+
+                        let start_key = vec![start_val.clone()];
+                        let start_bound: Bound<&[SqlValue]> = Bound::Included(start_key.as_slice());
+
+                        // Iterate from start_key to end of map, stopping when first column changes
+                        for (key_values, row_indices) in data.range::<[SqlValue], _>((start_bound, Bound::Unbounded)) {
+                            // Check if first column still matches target
+                            if key_values.is_empty() || &key_values[0] != start_val {
+                                break; // Stop iteration when prefix no longer matches
+                            }
+                            matching_row_indices.extend(row_indices);
+                        }
+                        return matching_row_indices;
                     }
                 }
 
-                // Detect if this is a multi-column index by checking first key
-                // For multi-column indexes, we need special handling to ensure correct range matching
-                let is_multi_column = data.keys().next().map(|k| k.len() > 1).unwrap_or(false);
-
-                // For multi-column indexes with an exclusive start bound, we need to use
-                // an inclusive bound with the next value to correctly exclude all composite keys.
-                // Example: For col0 > 3 (like excluding [3, 5.6]), we use range [4.0, ...)
-                // because [3, 5.6] >= [3] but [3, 5.6] < [4] in lexicographic ordering.
-                let (start_key, adjusted_inclusive_start) = if is_multi_column && !inclusive_start {
-                    if let Some(start_val) = normalized_start.as_ref() {
-                        // Try to calculate next value for inclusive lower bound
-                        if let Some(next_val) = calculate_next_value(start_val) {
-                            (Some(vec![next_val]), true) // Use next value with inclusive bound
-                        } else {
-                            // Can't calculate next value, use original with exclusive bound
-                            (Some(vec![start_val.clone()]), false)
-                        }
-                    } else {
-                        (None, false)
-                    }
-                } else {
-                    // Single-column index or inclusive start: use value as-is
-                    (normalized_start.as_ref().map(|v| vec![v.clone()]), inclusive_start)
-                };
-
-                // For multi-column indexes with an inclusive end bound, we need to use
-                // an exclusive bound with the next value to correctly capture all composite keys.
-                // Example: To match all keys where col0=9 (like [9, 5.6]), we use range [9.0, 10.0)
-                // because [9, 5.6] < [10] but [9, 5.6] > [9] in lexicographic ordering.
-                let (end_key, adjusted_inclusive_end) = if is_multi_column && inclusive_end {
-                    if let Some(end_val) = normalized_end.as_ref() {
-                        // Try to calculate next value for exclusive upper bound
-                        if let Some(next_val) = calculate_next_value(end_val) {
-                            (Some(vec![next_val]), false) // Use next value with exclusive bound
-                        } else {
-                            // Can't calculate next value (e.g., for strings), use unbounded end
-                            (None, false)
-                        }
-                    } else {
-                        (None, false)
-                    }
-                } else {
-                    // Single-column index or non-inclusive end: use value as-is
-                    (normalized_end.as_ref().map(|v| vec![v.clone()]), inclusive_end)
-                };
-
-                // Validate adjusted bounds for multi-column indexes
-                // After adjustment, bounds might be invalid even if original bounds were valid
-                // Example: col3 > 9 AND col3 < 3 has original bounds (9 exc, 3 exc) where 9 > 3
-                // but gets adjusted to (10 inc, 3 exc) which would still trigger BTreeMap panic
-                if let (Some(start_key_val), Some(end_key_val)) = (&start_key, &end_key) {
-                    if !start_key_val.is_empty() && !end_key_val.is_empty() {
-                        let start_first = &start_key_val[0];
-                        let end_first = &end_key_val[0];
-                        // Check if adjusted bounds are valid based on inclusivity
-                        let invalid = match (adjusted_inclusive_start, adjusted_inclusive_end) {
-                            (true, true) => start_first > end_first,   // [a, b]: invalid if a > b
-                            (true, false) => start_first >= end_first, // [a, b): invalid if a >= b
-                            (false, true) => start_first >= end_first, // (a, b]: invalid if a >= b
-                            (false, false) => start_first >= end_first, // (a, b): invalid if a >= b
-                        };
-                        if invalid {
-                            return Vec::new();
-                        }
-                    }
-                }
+                // Standard range scan for single-column indexes or actual range queries
+                // Convert to single-element keys (for single-column indexes)
+                let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
+                let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
 
                 // Build bounds for BTreeMap::range()
                 // Note: BTreeMap<Vec<SqlValue>, _> requires &[SqlValue] (slice) for range bounds
                 // Type annotation is needed to help Rust's type inference
                 let start_bound: Bound<&[SqlValue]> = match start_key.as_ref() {
-                    Some(key) if adjusted_inclusive_start => Bound::Included(key.as_slice()),
+                    Some(key) if inclusive_start => Bound::Included(key.as_slice()),
                     Some(key) => Bound::Excluded(key.as_slice()),
                     None => Bound::Unbounded,
                 };
 
                 let end_bound: Bound<&[SqlValue]> = match end_key.as_ref() {
-                    Some(key) if adjusted_inclusive_end => Bound::Included(key.as_slice()),
+                    Some(key) if inclusive_end => Bound::Included(key.as_slice()),
                     Some(key) => Bound::Excluded(key.as_slice()),
                     None => Bound::Unbounded,
                 };
@@ -209,37 +167,69 @@ impl IndexData {
                 let normalized_start = start.map(normalize_for_comparison);
                 let normalized_end = end.map(normalize_for_comparison);
 
-                // Validate normalized bounds: if start > end, range is empty (SQL standard behavior)
-                // This must happen AFTER normalization because comparisons between different numeric
-                // types (e.g., Real vs Integer) might change after normalization to a common type (Double).
-                if let (Some(start_val), Some(end_val)) = (&normalized_start, &normalized_end) {
-                    // Compare normalized values using Ord trait
-                    // If start > end, the range is empty and we should return no rows
-                    if start_val > end_val {
-                        return Vec::new();
+                // Special handling for prefix matching (multi-column IN clauses) - same as InMemory
+                // When start == end with inclusive bounds, we're doing an equality check on the
+                // first column of a multi-column index.
+                let is_prefix_match = if let (Some(start_val), Some(end_val)) = (&normalized_start, &normalized_end) {
+                    start_val == end_val && inclusive_start && inclusive_end
+                } else {
+                    false
+                };
+
+                if is_prefix_match {
+                    // Prefix matching for DiskBacked - optimized using calculated upper bound
+                    // Strategy: Calculate the next value to use as exclusive upper bound
+                    //
+                    // For example, to find all rows where column `a` = 10 in index (a, b):
+                    //   Range: [10] (inclusive) to [11] (exclusive)
+                    //   This captures all keys like [10, 1], [10, 2], ... [10, 999]
+                    //   But excludes [11, x] for any x
+                    //
+                    // This works because BTreeMap orders Vec<SqlValue> lexicographically:
+                    //   [10] < [10, 1] < [10, 2] < [10, 99] < [11] < [11, 1]
+
+                    let target_value = normalized_start.as_ref().unwrap(); // Safe: checked above
+                    let start_key = vec![target_value.clone()];
+
+                    // Calculate upper bound: next value after target
+                    // For numeric types, we can increment; for others, use unbounded
+                    let end_key = calculate_next_value(target_value).map(|next_val| vec![next_val]);
+
+                    // Range scan from [target] to [next_value) exclusive
+                    match acquire_btree_lock(btree) {
+                        Ok(guard) => guard
+                            .range_scan(
+                                Some(&start_key),
+                                end_key.as_ref(), // Bounded end (or unbounded if can't increment)
+                                true,  // Inclusive start
+                                false, // Exclusive end
+                            )
+                            .unwrap_or_else(|_| vec![]),
+                        Err(e) => {
+                            log::warn!("BTreeIndex lock acquisition failed in range_scan: {}", e);
+                            vec![]
+                        }
                     }
-                }
+                } else {
+                    // Standard range scan for single-column indexes or actual range queries
+                    let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
+                    let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
 
-                // Convert SqlValue bounds to Key (Vec<SqlValue>) bounds
-                // For single-column indexes, wrap in vec
-                // For multi-column indexes, only first column is compared (same as InMemory)
-                let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
-                let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
-
-                // Safely acquire lock and call BTreeIndex::range_scan
-                match acquire_btree_lock(btree) {
-                    Ok(guard) => guard
-                        .range_scan(
-                            start_key.as_ref(),
-                            end_key.as_ref(),
-                            inclusive_start,
-                            inclusive_end,
-                        )
-                        .unwrap_or_else(|_| vec![]),
-                    Err(e) => {
-                        // Log error and return empty result set
-                        log::warn!("BTreeIndex lock acquisition failed in range_scan: {}", e);
-                        vec![]
+                    // Safely acquire lock and call BTreeIndex::range_scan
+                    match acquire_btree_lock(btree) {
+                        Ok(guard) => guard
+                            .range_scan(
+                                start_key.as_ref(),
+                                end_key.as_ref(),
+                                inclusive_start,
+                                inclusive_end,
+                            )
+                            .unwrap_or_else(|_| vec![]),
+                        Err(e) => {
+                            // Log error and return empty result set
+                            log::warn!("BTreeIndex lock acquisition failed in range_scan: {}", e);
+                            vec![]
+                        }
                     }
                 }
             }
@@ -368,5 +358,179 @@ impl IndexData {
                 unimplemented!("DiskBacked values iteration not yet implemented")
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_next_value_double() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Double(10.0)),
+            Some(SqlValue::Double(11.0))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Double(-5.5)),
+            Some(SqlValue::Double(-4.5))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Double(0.0)),
+            Some(SqlValue::Double(1.0))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_integer() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Integer(42)),
+            Some(SqlValue::Integer(43))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Integer(-10)),
+            Some(SqlValue::Integer(-9))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Integer(0)),
+            Some(SqlValue::Integer(1))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_smallint() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Smallint(100)),
+            Some(SqlValue::Smallint(101))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Smallint(-1)),
+            Some(SqlValue::Smallint(0))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_bigint() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Bigint(1_000_000_000)),
+            Some(SqlValue::Bigint(1_000_000_001))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Bigint(-999)),
+            Some(SqlValue::Bigint(-998))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_unsigned() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Unsigned(0)),
+            Some(SqlValue::Unsigned(1))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Unsigned(999)),
+            Some(SqlValue::Unsigned(1000))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_float() {
+        // Use simpler values for f32 to avoid precision issues
+        assert_eq!(
+            calculate_next_value(&SqlValue::Float(3.0)),
+            Some(SqlValue::Float(4.0))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Float(-2.5)),
+            Some(SqlValue::Float(-1.5))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_real() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Real(7.5)),
+            Some(SqlValue::Real(8.5))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Real(0.0)),
+            Some(SqlValue::Real(1.0))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_numeric() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Numeric(99.99)),
+            Some(SqlValue::Numeric(100.99))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Numeric(-10.5)),
+            Some(SqlValue::Numeric(-9.5))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_non_numeric() {
+        // Text types
+        assert_eq!(calculate_next_value(&SqlValue::Varchar("abc".to_string())), None);
+        assert_eq!(calculate_next_value(&SqlValue::Character("hello".to_string())), None);
+
+        // NULL
+        assert_eq!(calculate_next_value(&SqlValue::Null), None);
+
+        // Boolean
+        assert_eq!(calculate_next_value(&SqlValue::Boolean(true)), None);
+        assert_eq!(calculate_next_value(&SqlValue::Boolean(false)), None);
+    }
+
+    #[test]
+    fn test_normalize_for_comparison_numeric_types() {
+        // All numeric types should normalize to Double
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Integer(42)),
+            SqlValue::Double(42.0)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Smallint(10)),
+            SqlValue::Double(10.0)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Bigint(1000)),
+            SqlValue::Double(1000.0)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Unsigned(99)),
+            SqlValue::Double(99.0)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Float(3.14)),
+            SqlValue::Double(3.14f32 as f64)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Real(2.5)),
+            SqlValue::Double(2.5)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Numeric(123.45)),
+            SqlValue::Double(123.45)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Double(7.89)),
+            SqlValue::Double(7.89)
+        );
+    }
+
+    #[test]
+    fn test_normalize_for_comparison_non_numeric() {
+        // Non-numeric types should be returned as-is
+        let text_val = SqlValue::Varchar("test".to_string());
+        assert_eq!(normalize_for_comparison(&text_val), text_val);
+
+        let null_val = SqlValue::Null;
+        assert_eq!(normalize_for_comparison(&null_val), null_val);
+
+        let bool_val = SqlValue::Boolean(true);
+        assert_eq!(normalize_for_comparison(&bool_val), bool_val);
     }
 }
