@@ -1,191 +1,24 @@
-//! Index scan execution
+//! Index predicate extraction
 //!
-//! This module provides index-based table scanning for improved query performance.
-//! It integrates with the index catalog to use user-defined indexes when beneficial.
+//! Extracts range and IN predicates from WHERE clauses for index optimization.
 
 use vibesql_ast::{BinaryOperator, Expression};
-use vibesql_storage::{Database, Row};
 use vibesql_types::SqlValue;
 
-use crate::{errors::ExecutorError, schema::CombinedSchema};
-
-/// Determines if an index scan is beneficial for the given query
-///
-/// Returns Some((index_name, sorted_columns)) if an index should be used, None otherwise.
-/// The sorted_columns vector indicates which columns are pre-sorted by the index scan.
-pub(crate) fn should_use_index_scan(
-    table_name: &str,
-    where_clause: Option<&Expression>,
-    order_by: Option<&[vibesql_ast::OrderByItem]>,
-    database: &Database,
-) -> Option<(String, Option<Vec<(String, vibesql_ast::OrderDirection)>>)> {
-    // We use indexes in three scenarios:
-    // 1. WHERE clause references an indexed column (with or without ORDER BY)
-    // 2. ORDER BY references an indexed column (even without WHERE)
-    // 3. Both WHERE and ORDER BY use the same index
-    //
-    // Note: Index scans can provide partial optimization even for complex
-    // predicates (including OR expressions). The full WHERE clause is always
-    // applied as a post-filter in execute_index_scan() to ensure correctness.
-
-    // Get all indexes for this table
-    let _table = database.get_table(table_name)?;
-    let indexes = database.list_indexes_for_table(table_name);
-
-    if indexes.is_empty() {
-        return None;
-    }
-
-    // Try to find an index that satisfies both WHERE and ORDER BY (if present)
-    for index_name in &indexes {
-        if let Some(index_metadata) = database.get_index(index_name) {
-            let first_indexed_column = index_metadata.columns.first()?;
-
-            // Check if this index can be used for WHERE clause
-            let can_use_for_where = where_clause
-                .map(|expr| expression_filters_column(expr, &first_indexed_column.column_name))
-                .unwrap_or(false);
-
-            // Check if this index can be used for ORDER BY clause
-            let can_use_for_order = if let Some(order_items) = order_by {
-                // Check if ORDER BY columns match the index columns
-                // Support multi-column ORDER BY matching
-                can_use_index_for_order_by(order_items, &index_metadata.columns)
-            } else {
-                false
-            };
-
-            // Use this index if it satisfies WHERE, ORDER BY, or both
-            if can_use_for_where || can_use_for_order {
-                // Build sorted_columns metadata if ORDER BY can be satisfied
-                let sorted_columns = if can_use_for_order {
-                    // Build sorted_columns from all ORDER BY columns that match the index
-                    let order_items = order_by.unwrap();
-                    Some(
-                        order_items
-                            .iter()
-                            .map(|item| {
-                                let col_name = match &item.expr {
-                                    Expression::ColumnRef { column, .. } => column.clone(),
-                                    _ => unreachable!("can_use_index_for_order_by ensures simple column refs"),
-                                };
-                                (col_name, item.direction.clone())
-                            })
-                            .collect(),
-                    )
-                } else {
-                    None
-                };
-
-                return Some((index_name.clone(), sorted_columns));
-            }
-        }
-    }
-
-    None
-}
-
-/// Check if an expression filters a specific column
-///
-/// Returns true if the expression contains a predicate on the given column
-/// For example: "WHERE age = 25" filters column "age"
-fn expression_filters_column(expr: &Expression, column_name: &str) -> bool {
-    match expr {
-        Expression::BinaryOp { left, op, right } => {
-            // Check for comparison operators
-            match op {
-                vibesql_ast::BinaryOperator::Equal
-                | vibesql_ast::BinaryOperator::GreaterThan
-                | vibesql_ast::BinaryOperator::GreaterThanOrEqual
-                | vibesql_ast::BinaryOperator::LessThan
-                | vibesql_ast::BinaryOperator::LessThanOrEqual => {
-                    // Check if either side is our column
-                    if is_column_reference(left, column_name) || is_column_reference(right, column_name)
-                    {
-                        return true;
-                    }
-                }
-                vibesql_ast::BinaryOperator::And | vibesql_ast::BinaryOperator::Or => {
-                    // Recursively check sub-expressions for AND/OR
-                    return expression_filters_column(left, column_name)
-                        || expression_filters_column(right, column_name);
-                }
-                _ => {}
-            }
-            false
-        }
-        // IN with value list: col IN (1, 2, 3)
-        Expression::InList { expr, .. } => is_column_reference(expr, column_name),
-        // IN with subquery: col IN (SELECT ...)
-        Expression::In { expr, .. } => is_column_reference(expr, column_name),
-        // BETWEEN: col BETWEEN low AND high
-        Expression::Between { expr, .. } => is_column_reference(expr, column_name),
-        _ => false,
-    }
-}
-
-/// Check if an expression is a reference to a specific column
-fn is_column_reference(expr: &Expression, column_name: &str) -> bool {
-    match expr {
-        Expression::ColumnRef { column, .. } => column == column_name,
-        _ => false,
-    }
-}
-
-/// Check if an index can be used to satisfy an ORDER BY clause
-///
-/// Returns true if the ORDER BY columns match a prefix of the index columns
-/// and the sort directions are compatible (considering ASC/DESC on both sides).
-///
-/// Examples:
-/// - ORDER BY col0 ASC can use index (col0 ASC)
-/// - ORDER BY col0 DESC can use index (col0 DESC)
-/// - ORDER BY col0, col1 can use index (col0, col1)
-/// - ORDER BY col0 cannot use index (col0 DESC) - wrong direction
-fn can_use_index_for_order_by(
-    order_items: &[vibesql_ast::OrderByItem],
-    index_columns: &[vibesql_ast::IndexColumn],
-) -> bool {
-    // ORDER BY must not have more columns than the index
-    if order_items.len() > index_columns.len() {
-        return false;
-    }
-
-    // Check each ORDER BY column against corresponding index column
-    for (order_item, index_col) in order_items.iter().zip(index_columns.iter()) {
-        // ORDER BY expression must be a simple column reference
-        let order_col_name = match &order_item.expr {
-            Expression::ColumnRef { table: None, column } => column,
-            _ => return false, // Complex expressions not supported
-        };
-
-        // Column names must match
-        if order_col_name != &index_col.column_name {
-            return false;
-        }
-
-        // Sort directions must be compatible
-        // Note: IndexColumn uses OrderDirection enum, same as OrderByItem
-        if order_item.direction != index_col.direction {
-            return false;
-        }
-    }
-
-    true
-}
+use super::selection::is_column_reference;
 
 /// Range predicate information extracted from WHERE clause
 #[derive(Debug)]
-struct RangePredicate {
-    start: Option<SqlValue>,
-    end: Option<SqlValue>,
-    inclusive_start: bool,
-    inclusive_end: bool,
+pub(super) struct RangePredicate {
+    pub start: Option<SqlValue>,
+    pub end: Option<SqlValue>,
+    pub inclusive_start: bool,
+    pub inclusive_end: bool,
 }
 
 /// Index predicate types that can be pushed down to storage layer
 #[derive(Debug)]
-enum IndexPredicate {
+pub(super) enum IndexPredicate {
     /// Range scan with optional bounds (>, <, >=, <=, BETWEEN)
     Range(RangePredicate),
     /// Multi-value lookup (IN predicate)
@@ -354,7 +187,7 @@ fn extract_range_predicate(expr: &Expression, column_name: &str) -> Option<Range
 /// - IN predicates: IN (value1, value2, ...)
 ///
 /// Returns None if no suitable predicate found for the column.
-fn extract_index_predicate(expr: &Expression, column_name: &str) -> Option<IndexPredicate> {
+pub(super) fn extract_index_predicate(expr: &Expression, column_name: &str) -> Option<IndexPredicate> {
     // First try to extract a range predicate
     if let Some(range) = extract_range_predicate(expr, column_name) {
         return Some(IndexPredicate::Range(range));
@@ -407,7 +240,7 @@ fn extract_index_predicate(expr: &Expression, column_name: &str) -> Option<Index
 /// - `WHERE col BETWEEN 10 AND 20` (range)
 /// - `WHERE col IN (1, 2, 3)` (multi-value)
 /// - `WHERE col > 10 AND col < 20` (combined range)
-fn where_clause_fully_satisfied_by_index(
+pub(super) fn where_clause_fully_satisfied_by_index(
     where_expr: &Expression,
     indexed_column: &str,
 ) -> bool {
@@ -455,271 +288,14 @@ fn where_clause_fully_satisfied_by_index(
     }
 }
 
-/// Execute an index scan
-///
-/// Uses the specified index to retrieve matching rows, then fetches full rows from the table.
-/// This implements the "index scan + fetch" strategy with optimized range scans.
-///
-/// If sorted_columns is provided, the function preserves index order and returns results
-/// marked as pre-sorted, allowing the caller to skip ORDER BY sorting.
-///
-/// # Performance Optimization
-/// When the WHERE clause can be fully satisfied by the index predicate (e.g., simple
-/// predicates like `WHERE col = 5` or `WHERE col BETWEEN 10 AND 20`), we skip redundant
-/// WHERE clause re-evaluation, significantly improving performance for large result sets.
-pub(crate) fn execute_index_scan(
-    table_name: &str,
-    index_name: &str,
-    alias: Option<&String>,
-    where_clause: Option<&Expression>,
-    sorted_columns: Option<Vec<(String, vibesql_ast::OrderDirection)>>,
-    database: &Database,
-) -> Result<super::FromResult, ExecutorError> {
-    // Get table and index
-    let table = database
-        .get_table(table_name)
-        .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?;
-
-    let index_metadata = database
-        .get_index(index_name)
-        .ok_or_else(|| ExecutorError::IndexNotFound(index_name.to_string()))?;
-
-    let index_data = database
-        .get_index_data(index_name)
-        .ok_or_else(|| ExecutorError::IndexNotFound(index_name.to_string()))?;
-
-    // Get the first indexed column (for predicate extraction)
-    let indexed_column = index_metadata
-        .columns
-        .first()
-        .map(|col| col.column_name.as_str())
-        .unwrap_or("");
-
-    // Try to extract index predicate (range or IN) for the indexed column
-    let index_predicate = where_clause.and_then(|expr| extract_index_predicate(expr, indexed_column));
-
-    // DISABLED: Performance optimization was buggy (see issue #1867)
-    // The `where_clause_fully_satisfied_by_index()` function incorrectly determined
-    // when WHERE filtering could be skipped, causing wrong results.
-    // For now, always apply WHERE filtering when present for correctness.
-    // TODO: Reimplement this optimization correctly in a future PR
-    let need_where_filter = where_clause.is_some();
-
-    // Get row indices using the appropriate index operation
-    let matching_row_indices: Vec<usize> = match index_predicate {
-        Some(IndexPredicate::Range(range)) => {
-            // Validate bounds: if start > end, the range is empty
-            if let (Some(start_val), Some(end_val)) = (&range.start, &range.end) {
-                let gt_result = crate::evaluator::ExpressionEvaluator::eval_binary_op_static(
-                    start_val,
-                    &vibesql_ast::BinaryOperator::GreaterThan,
-                    end_val,
-                )?;
-                if let vibesql_types::SqlValue::Boolean(true) = gt_result {
-                    // start_val > end_val: empty range, return no rows
-                    Vec::new()
-                } else {
-                    // Valid range, use storage layer's optimized range_scan
-                    index_data.range_scan(
-                        range.start.as_ref(),
-                        range.end.as_ref(),
-                        range.inclusive_start,
-                        range.inclusive_end,
-                    )
-                }
-            } else {
-                // Use storage layer's optimized range_scan for >, <, >=, <=, BETWEEN
-                index_data.range_scan(
-                    range.start.as_ref(),
-                    range.end.as_ref(),
-                    range.inclusive_start,
-                    range.inclusive_end,
-                )
-            }
-        }
-        Some(IndexPredicate::In(values)) => {
-            // Use storage layer's multi_lookup for IN predicates
-            index_data.multi_lookup(&values)
-        }
-        None => {
-            // Full index scan - collect all row indices from the index in index key order
-            // (Will be sorted by row index later if needed, see lines 425-427)
-            index_data
-                .values()
-                .flatten()
-                .copied()
-                .collect()
-        }
-    };
-
-    // If we're not returning sorted results, ensure rows are in table order (by row index)
-    // This is important when the index doesn't satisfy the ORDER BY clause.
-    // Without this, rows would be returned in index key order, which would cause
-    // incorrect results when ORDER BY specifies a different column.
-    let mut matching_row_indices = matching_row_indices;
-    if sorted_columns.is_none() {
-        matching_row_indices.sort_unstable();
-    }
-
-    // Fetch rows from table
-    let all_rows = table.scan();
-    let mut rows: Vec<Row> = matching_row_indices
-        .into_iter()
-        .filter_map(|idx| all_rows.get(idx).cloned())
-        .collect();
-
-    // Reverse rows if needed for DESC index ordering
-    // BTreeMap iteration is always ascending, but for DESC indexes we need descending order
-    // Check if we're using this index for ORDER BY and if the first column is DESC
-    if sorted_columns.is_some() {
-        if let Some(first_index_col) = index_metadata.columns.first() {
-            if first_index_col.direction == vibesql_ast::OrderDirection::Desc {
-                rows.reverse();
-            }
-        }
-    }
-
-    // Build schema
-    let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
-    let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
-
-    // Apply WHERE clause predicates if needed
-    // Performance optimization: Skip WHERE clause evaluation if the index already
-    // guarantees all rows satisfy the predicate (e.g., simple predicates like
-    // `WHERE col = 5` or `WHERE col BETWEEN 10 AND 20`).
-    //
-    // We still need to filter when:
-    // - Predicates involve non-indexed columns
-    // - Complex predicates that couldn't be fully pushed to index
-    // - OR predicates (not yet optimized for index pushdown)
-    // - Multi-column predicates where only first column was indexed
-    if need_where_filter {
-        if let Some(where_expr) = where_clause {
-            use crate::evaluator::CombinedExpressionEvaluator;
-
-            // Create evaluator for filtering
-            let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
-
-            // Apply full WHERE clause to each row
-            let mut filtered_rows = Vec::new();
-            for row in rows {
-                // Clear CSE cache before evaluating each row
-                evaluator.clear_cse_cache();
-
-                let eval_result = evaluator.eval(where_expr, &row)?;
-                let include_row = match eval_result {
-                    vibesql_types::SqlValue::Boolean(true) => true,
-                    vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
-                    // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
-                    vibesql_types::SqlValue::Integer(0) => false,
-                    vibesql_types::SqlValue::Integer(_) => true,
-                    vibesql_types::SqlValue::Smallint(0) => false,
-                    vibesql_types::SqlValue::Smallint(_) => true,
-                    vibesql_types::SqlValue::Bigint(0) => false,
-                    vibesql_types::SqlValue::Bigint(_) => true,
-                    vibesql_types::SqlValue::Float(0.0) => false,
-                    vibesql_types::SqlValue::Float(_) => true,
-                    vibesql_types::SqlValue::Real(0.0) => false,
-                    vibesql_types::SqlValue::Real(_) => true,
-                    vibesql_types::SqlValue::Double(0.0) => false,
-                    vibesql_types::SqlValue::Double(_) => true,
-                    other => {
-                        return Err(ExecutorError::InvalidWhereClause(format!(
-                            "WHERE clause must evaluate to boolean, got: {:?}",
-                            other
-                        )))
-                    }
-                };
-
-                if include_row {
-                    filtered_rows.push(row);
-                }
-            }
-            rows = filtered_rows;
-        }
-    }
-
-    // Return results with sorting metadata if available
-    // If WHERE clause was fully handled by index (!need_where_filter), indicate this
-    // so the executor doesn't redundantly re-apply WHERE filtering
-    if !need_where_filter {
-        Ok(super::FromResult::from_rows_where_filtered(schema, rows, sorted_columns))
-    } else {
-        match sorted_columns {
-            Some(sorted) => Ok(super::FromResult::from_rows_sorted(schema, rows, sorted)),
-            None => Ok(super::FromResult::from_rows(schema, rows)),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vibesql_ast::{BinaryOperator, Expression};
-
-    #[test]
-    fn test_expression_filters_column_simple() {
-        use vibesql_ast::BinaryOperator;
-        use vibesql_types::SqlValue;
-
-        let expr = Expression::BinaryOp {
-            op: BinaryOperator::Equal,
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "age".to_string(),
-            }),
-            right: Box::new(Expression::Literal(SqlValue::Integer(25))),
-        };
-
-        assert!(expression_filters_column(&expr, "age"));
-        assert!(!expression_filters_column(&expr, "name"));
-    }
-
-    #[test]
-    fn test_expression_filters_column_and() {
-        use vibesql_ast::BinaryOperator;
-        use vibesql_types::SqlValue;
-
-        let expr = Expression::BinaryOp {
-            op: BinaryOperator::And,
-            left: Box::new(Expression::BinaryOp {
-                op: BinaryOperator::GreaterThan,
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "age".to_string(),
-                }),
-                right: Box::new(Expression::Literal(SqlValue::Integer(18))),
-            }),
-            right: Box::new(Expression::BinaryOp {
-                op: BinaryOperator::Equal,
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "city".to_string(),
-                }),
-                right: Box::new(Expression::Literal(SqlValue::Varchar("Boston".to_string()))),
-            }),
-        };
-
-        assert!(expression_filters_column(&expr, "age"));
-        assert!(expression_filters_column(&expr, "city"));
-        assert!(!expression_filters_column(&expr, "name"));
-    }
-
-    #[test]
-    fn test_is_column_reference() {
-        let expr = Expression::ColumnRef {
-            table: None,
-            column: "age".to_string(),
-        };
-
-        assert!(is_column_reference(&expr, "age"));
-        assert!(!is_column_reference(&expr, "name"));
-    }
+    use vibesql_ast::BinaryOperator;
+    use vibesql_types::SqlValue;
 
     #[test]
     fn test_extract_range_predicate_greater_than() {
-        use vibesql_types::SqlValue;
-
         let expr = Expression::BinaryOp {
             op: BinaryOperator::GreaterThan,
             left: Box::new(Expression::ColumnRef {
@@ -737,8 +313,6 @@ mod tests {
 
     #[test]
     fn test_extract_range_predicate_less_than_or_equal() {
-        use vibesql_types::SqlValue;
-
         let expr = Expression::BinaryOp {
             op: BinaryOperator::LessThanOrEqual,
             left: Box::new(Expression::ColumnRef {
@@ -756,8 +330,6 @@ mod tests {
 
     #[test]
     fn test_extract_range_predicate_between() {
-        use vibesql_types::SqlValue;
-
         let expr = Expression::Between {
             expr: Box::new(Expression::ColumnRef {
                 table: None,
@@ -778,8 +350,6 @@ mod tests {
 
     #[test]
     fn test_extract_range_predicate_combined_and() {
-        use vibesql_types::SqlValue;
-
         // col0 > 10 AND col0 < 20
         let expr = Expression::BinaryOp {
             op: BinaryOperator::And,
@@ -810,8 +380,6 @@ mod tests {
 
     #[test]
     fn test_extract_range_predicate_flipped_comparison() {
-        use vibesql_types::SqlValue;
-
         // 60 < col0 (same as col0 > 60)
         let expr = Expression::BinaryOp {
             op: BinaryOperator::LessThan,
@@ -830,8 +398,6 @@ mod tests {
 
     #[test]
     fn test_where_clause_fully_satisfied_simple_equal() {
-        use vibesql_types::SqlValue;
-
         // col0 = 5
         let expr = Expression::BinaryOp {
             op: BinaryOperator::Equal,
@@ -847,8 +413,6 @@ mod tests {
 
     #[test]
     fn test_where_clause_fully_satisfied_between() {
-        use vibesql_types::SqlValue;
-
         // col0 BETWEEN 10 AND 20
         let expr = Expression::Between {
             expr: Box::new(Expression::ColumnRef {
@@ -866,8 +430,6 @@ mod tests {
 
     #[test]
     fn test_where_clause_fully_satisfied_in_list() {
-        use vibesql_types::SqlValue;
-
         // col0 IN (1, 2, 3)
         let expr = Expression::InList {
             expr: Box::new(Expression::ColumnRef {
@@ -887,8 +449,6 @@ mod tests {
 
     #[test]
     fn test_where_clause_fully_satisfied_combined_range() {
-        use vibesql_types::SqlValue;
-
         // col0 > 10 AND col0 < 20
         let expr = Expression::BinaryOp {
             op: BinaryOperator::And,
@@ -915,8 +475,6 @@ mod tests {
 
     #[test]
     fn test_where_clause_not_fully_satisfied_multiple_columns() {
-        use vibesql_types::SqlValue;
-
         // col0 = 5 AND col1 = 10 (involves non-indexed column)
         let expr = Expression::BinaryOp {
             op: BinaryOperator::And,
@@ -943,8 +501,6 @@ mod tests {
 
     #[test]
     fn test_where_clause_not_fully_satisfied_or() {
-        use vibesql_types::SqlValue;
-
         // col0 = 5 OR col0 = 10 (OR not optimized for index pushdown)
         let expr = Expression::BinaryOp {
             op: BinaryOperator::Or,
