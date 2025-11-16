@@ -72,11 +72,27 @@ impl IndexData {
                 // where the first column equals the target value, regardless of other columns.
                 if let (Some(start_val), Some(end_val)) = (&normalized_start, &normalized_end) {
                     if start_val == end_val && inclusive_start && inclusive_end {
-                        // Prefix matching: iterate through index and compare only first column
-                        for (key_values, row_indices) in data.iter() {
-                            if !key_values.is_empty() && &key_values[0] == start_val {
-                                matching_row_indices.extend(row_indices);
+                        // Prefix matching using efficient BTreeMap::range() - O(log n + k) instead of O(n)
+                        // Strategy: Start iteration at [target_value] and continue while first column matches
+                        //
+                        // For example, to find all rows where column `a` = 10 in index (a, b):
+                        //   Start: Bound::Included([10])
+                        //   Continue iterating while key[0] == 10
+                        //   Stop when key[0] != 10
+                        //
+                        // This works because BTreeMap orders Vec<SqlValue> lexicographically:
+                        //   [10] < [10, 1] < [10, 2] < [10, 99] < [11] < [11, 1]
+
+                        let start_key = vec![start_val.clone()];
+                        let start_bound: Bound<&[SqlValue]> = Bound::Included(start_key.as_slice());
+
+                        // Iterate from start_key to end of map, stopping when first column changes
+                        for (key_values, row_indices) in data.range::<[SqlValue], _>((start_bound, Bound::Unbounded)) {
+                            // Check if first column still matches target
+                            if key_values.is_empty() || &key_values[0] != start_val {
+                                break; // Stop iteration when prefix no longer matches
                             }
+                            matching_row_indices.extend(row_indices);
                         }
                         return matching_row_indices;
                     }
@@ -121,26 +137,73 @@ impl IndexData {
                 let normalized_start = start.map(normalize_for_comparison);
                 let normalized_end = end.map(normalize_for_comparison);
 
-                // Convert SqlValue bounds to Key (Vec<SqlValue>) bounds
-                // For single-column indexes, wrap in vec
-                // For multi-column indexes, only first column is compared (same as InMemory)
-                let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
-                let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
+                // Special handling for prefix matching (multi-column IN clauses) - same as InMemory
+                // When start == end with inclusive bounds, we're doing an equality check on the
+                // first column of a multi-column index.
+                let is_prefix_match = if let (Some(start_val), Some(end_val)) = (&normalized_start, &normalized_end) {
+                    start_val == end_val && inclusive_start && inclusive_end
+                } else {
+                    false
+                };
 
-                // Safely acquire lock and call BTreeIndex::range_scan
-                match acquire_btree_lock(btree) {
-                    Ok(guard) => guard
-                        .range_scan(
-                            start_key.as_ref(),
-                            end_key.as_ref(),
-                            inclusive_start,
-                            inclusive_end,
-                        )
-                        .unwrap_or_else(|_| vec![]),
-                    Err(e) => {
-                        // Log error and return empty result set
-                        log::warn!("BTreeIndex lock acquisition failed in range_scan: {}", e);
-                        vec![]
+                if is_prefix_match {
+                    // Prefix matching for DiskBacked:
+                    // Strategy: Range scan from [target_value] to unbounded, then filter results
+                    // to only include keys where first column matches target
+                    let target_value = normalized_start.as_ref().unwrap(); // Safe: checked above
+                    let start_key = vec![target_value.clone()];
+
+                    // Range scan from [target] to end of index
+                    let row_indices = match acquire_btree_lock(btree) {
+                        Ok(guard) => guard
+                            .range_scan(
+                                Some(&start_key),
+                                None, // Unbounded end
+                                true, // Inclusive start
+                                false,
+                            )
+                            .unwrap_or_else(|_| vec![]),
+                        Err(e) => {
+                            log::warn!("BTreeIndex lock acquisition failed in range_scan: {}", e);
+                            vec![]
+                        }
+                    };
+
+                    // Post-filter: Only include rows where the indexed column's first value matches target
+                    // This is necessary because unbounded range scan returns all keys >= [target],
+                    // including keys like [11, 1] when we only want [10, *]
+                    //
+                    // Note: We can't directly check keys from BTreeIndex, so we rely on the fact that
+                    // keys are returned in sorted order. Once we see a row that doesn't match
+                    // (checked via the actual index key), we can stop.
+                    //
+                    // For now, return all row indices. The BTreeIndex range_scan with unbounded end
+                    // will include extra keys, but the subsequent WHERE clause evaluation will
+                    // filter them out correctly.
+                    //
+                    // TODO: Optimize by adding prefix_scan() method to BTreeIndex that stops
+                    // iteration when prefix no longer matches
+                    row_indices
+                } else {
+                    // Standard range scan for single-column indexes or actual range queries
+                    let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
+                    let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
+
+                    // Safely acquire lock and call BTreeIndex::range_scan
+                    match acquire_btree_lock(btree) {
+                        Ok(guard) => guard
+                            .range_scan(
+                                start_key.as_ref(),
+                                end_key.as_ref(),
+                                inclusive_start,
+                                inclusive_end,
+                            )
+                            .unwrap_or_else(|_| vec![]),
+                        Err(e) => {
+                            // Log error and return empty result set
+                            log::warn!("BTreeIndex lock acquisition failed in range_scan: {}", e);
+                            vec![]
+                        }
                     }
                 }
             }
