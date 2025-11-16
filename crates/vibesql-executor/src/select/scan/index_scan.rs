@@ -48,20 +48,9 @@ pub(crate) fn should_use_index_scan(
 
             // Check if this index can be used for ORDER BY clause
             let can_use_for_order = if let Some(order_items) = order_by {
-                // For now, only optimize if:
-                // 1. ORDER BY has exactly one column
-                // 2. That column matches the first column of the index
-                // 3. It's a simple column reference (not an expression)
-                if order_items.len() == 1 {
-                    match &order_items[0].expr {
-                        Expression::ColumnRef { table: None, column } => {
-                            column == &first_indexed_column.column_name
-                        }
-                        _ => false,
-                    }
-                } else {
-                    false
-                }
+                // Check if ORDER BY columns match the index columns
+                // Support multi-column ORDER BY matching
+                can_use_index_for_order_by(order_items, &index_metadata.columns)
             } else {
                 false
             };
@@ -70,11 +59,20 @@ pub(crate) fn should_use_index_scan(
             if can_use_for_where || can_use_for_order {
                 // Build sorted_columns metadata if ORDER BY can be satisfied
                 let sorted_columns = if can_use_for_order {
-                    let order_item = &order_by.unwrap()[0];
-                    Some(vec![(
-                        first_indexed_column.column_name.clone(),
-                        order_item.direction.clone(),
-                    )])
+                    // Build sorted_columns from all ORDER BY columns that match the index
+                    let order_items = order_by.unwrap();
+                    Some(
+                        order_items
+                            .iter()
+                            .map(|item| {
+                                let col_name = match &item.expr {
+                                    Expression::ColumnRef { column, .. } => column.clone(),
+                                    _ => unreachable!("can_use_index_for_order_by ensures simple column refs"),
+                                };
+                                (col_name, item.direction.clone())
+                            })
+                            .collect(),
+                    )
                 } else {
                     None
                 };
@@ -132,6 +130,48 @@ fn is_column_reference(expr: &Expression, column_name: &str) -> bool {
         Expression::ColumnRef { column, .. } => column == column_name,
         _ => false,
     }
+}
+
+/// Check if an index can be used to satisfy an ORDER BY clause
+///
+/// Returns true if the ORDER BY columns match a prefix of the index columns
+/// and the sort directions are compatible (considering ASC/DESC on both sides).
+///
+/// Examples:
+/// - ORDER BY col0 ASC can use index (col0 ASC)
+/// - ORDER BY col0 DESC can use index (col0 DESC)
+/// - ORDER BY col0, col1 can use index (col0, col1)
+/// - ORDER BY col0 cannot use index (col0 DESC) - wrong direction
+fn can_use_index_for_order_by(
+    order_items: &[vibesql_ast::OrderByItem],
+    index_columns: &[vibesql_ast::IndexColumn],
+) -> bool {
+    // ORDER BY must not have more columns than the index
+    if order_items.len() > index_columns.len() {
+        return false;
+    }
+
+    // Check each ORDER BY column against corresponding index column
+    for (order_item, index_col) in order_items.iter().zip(index_columns.iter()) {
+        // ORDER BY expression must be a simple column reference
+        let order_col_name = match &order_item.expr {
+            Expression::ColumnRef { table: None, column } => column,
+            _ => return false, // Complex expressions not supported
+        };
+
+        // Column names must match
+        if order_col_name != &index_col.column_name {
+            return false;
+        }
+
+        // Sort directions must be compatible
+        // Note: IndexColumn uses OrderDirection enum, same as OrderByItem
+        if order_item.direction != index_col.direction {
+            return false;
+        }
+    }
+
+    true
 }
 
 /// Range predicate information extracted from WHERE clause
@@ -510,6 +550,17 @@ pub(crate) fn execute_index_scan(
         .into_iter()
         .filter_map(|idx| all_rows.get(idx).cloned())
         .collect();
+
+    // Reverse rows if needed for DESC index ordering
+    // BTreeMap iteration is always ascending, but for DESC indexes we need descending order
+    // Check if we're using this index for ORDER BY and if the first column is DESC
+    if sorted_columns.is_some() {
+        if let Some(first_index_col) = index_metadata.columns.first() {
+            if first_index_col.direction == vibesql_ast::OrderDirection::Desc {
+                rows.reverse();
+            }
+        }
+    }
 
     // Build schema
     let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
