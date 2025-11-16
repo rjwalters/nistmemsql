@@ -346,37 +346,13 @@ impl NistMemSqlDB {
         value: &SqlValue,
         expected_type: Option<&DefaultColumnType>,
     ) -> String {
-        match value {
-            // Integer types - check if expected type is Real for MySQL compatibility
-            // When test expects Real type but we return Integer, format as ".000"
-            SqlValue::Integer(i) => {
-                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                    format!("{}.000", i)
-                } else {
-                    i.to_string()
-                }
-            }
-            SqlValue::Smallint(i) => {
-                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                    format!("{}.000", i)
-                } else {
-                    i.to_string()
-                }
-            }
-            SqlValue::Bigint(i) => {
-                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                    format!("{}.000", i)
-                } else {
-                    i.to_string()
-                }
-            }
-            SqlValue::Unsigned(i) => {
-                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                    format!("{}.000", i)
-                } else {
-                    i.to_string()
-                }
-            }
+        let result = match value {
+            // Integer types - return plain strings, let sqllogictest record_processor
+            // add ".000" when test expects Real type
+            SqlValue::Integer(i) => i.to_string(),
+            SqlValue::Smallint(i) => i.to_string(),
+            SqlValue::Bigint(i) => i.to_string(),
+            SqlValue::Unsigned(i) => i.to_string(),
             SqlValue::Numeric(_) => value.to_string(), /* Use Display trait for consistent */
             // formatting
             SqlValue::Float(f) | SqlValue::Real(f) => {
@@ -400,7 +376,9 @@ impl NistMemSqlDB {
             SqlValue::Time(d) => d.to_string(),
             SqlValue::Timestamp(d) => d.to_string(),
             SqlValue::Interval(d) => d.to_string(),
-        }
+        };
+
+        result
     }
 }
 

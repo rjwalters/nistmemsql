@@ -102,6 +102,12 @@ pub(crate) fn serialize_datatype(data_type: &DataType, buffer: &mut [u8]) -> Res
             buffer[offset] = 19;
             1
         }
+        DataType::Bit { length } => {
+            buffer[offset] = 22;
+            let len = length.unwrap_or(1) as u16;
+            buffer[offset + 1..offset + 3].copy_from_slice(&len.to_le_bytes());
+            3
+        }
         DataType::UserDefined { type_name } => {
             buffer[offset] = 20;
             let name_bytes = type_name.as_bytes();
@@ -184,6 +190,12 @@ pub(crate) fn deserialize_datatype(buffer: &[u8]) -> Result<(DataType, usize), S
             DataType::Interval { start_field, end_field }
         }
         19 => DataType::BinaryLargeObject,
+        22 => {
+            let len_bytes: [u8; 2] = buffer[offset..offset + 2].try_into().unwrap();
+            let length_value = u16::from_le_bytes(len_bytes) as usize;
+            offset += 2;
+            DataType::Bit { length: Some(length_value) }
+        }
         20 => {
             let len = buffer[offset] as usize;
             offset += 1;
