@@ -34,7 +34,7 @@ CREATE TABLE test_files (
     file_path VARCHAR(500) PRIMARY KEY,
     category VARCHAR(50) NOT NULL,
     subcategory VARCHAR(50),
-    status VARCHAR(20) NOT NULL,  -- 'PASS', 'FAIL', 'UNTESTED'
+    status VARCHAR(20) NOT NULL,  -- 'PASS', 'FAIL', 'TIMEOUT', 'UNTESTED'
     last_tested TIMESTAMP,
     last_passed TIMESTAMP
 );
@@ -268,7 +268,7 @@ SELECT
     END as error_pattern,
     tr.run_id
 FROM test_results tr
-WHERE tr.status = 'FAIL'
+WHERE tr.status IN ('FAIL', 'TIMEOUT')
 GROUP BY tr.run_id, error_type, error_pattern
 ORDER BY failure_count DESC;
 
@@ -370,7 +370,7 @@ FROM (
             END
         ORDER BY tr.file_path) as rn
     FROM test_results tr
-    WHERE tr.status = 'FAIL'
+    WHERE tr.status IN ('FAIL', 'TIMEOUT')
     AND tr.run_id = (SELECT MAX(run_id) FROM test_runs)
 ) AS ranked
 WHERE rn <= 3;

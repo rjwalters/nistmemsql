@@ -20,10 +20,12 @@ pub struct TestStats {
     pub total: usize,
     pub passed: usize,
     pub failed: usize,
+    pub timed_out: usize,  // Tests that exceeded time limit
     pub errors: usize,
     pub skipped: usize,
     pub tested_files: HashSet<String>, // Files that were actually tested this run
     pub detailed_failures: Vec<(String, Vec<TestFailure>)>, // (file_path, failures) pairs
+    pub timed_out_files: Vec<String>, // Files that timed out
 }
 
 impl TestStats {

@@ -223,6 +223,24 @@ INSERT INTO test_results (result_id, run_id, file_path, status, tested_at, durat
 VALUES ({abs(hash(f'{run_id}_{file_path}'))}, {run_id}, {sql_escape(file_path)}, 'FAIL', TIMESTAMP '{timestamp}', NULL, {sql_escape(error_message)});
 """)
 
+    # Process timed out files
+    timed_out_files = tested_files.get('timed_out', [])
+    for file_path in timed_out_files:
+        category, subcategory = categorize_test_file(file_path)
+
+        # Upsert into test_files using INSERT OR REPLACE (idempotent, works with append-only dumps)
+        # This handles both new files and updates to existing files
+        statements.append(f"""
+INSERT OR REPLACE INTO test_files (file_path, category, subcategory, status, last_tested, last_passed)
+VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory)}, 'TIMEOUT', TIMESTAMP '{timestamp}', NULL);
+""")
+
+        # Insert into test_results (references test_files.file_path FK)
+        statements.append(f"""
+INSERT INTO test_results (result_id, run_id, file_path, status, tested_at, duration_ms, error_message)
+VALUES ({abs(hash(f'{run_id}_{file_path}'))}, {run_id}, {sql_escape(file_path)}, 'TIMEOUT', TIMESTAMP '{timestamp}', NULL, 'Test exceeded time limit');
+""")
+
     return statements
 
 

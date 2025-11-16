@@ -124,10 +124,9 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
             }
             Err(TestError::Timeout { file, timeout_seconds }) => {
                 eprintln!("⏱️  TIMEOUT: {} exceeded {}s", file, timeout_seconds);
-                stats.failed += 1;
-                // Always track failed files, even if detailed_failures is empty
-                // This ensures accurate pass/fail reporting in JSON output
-                stats.detailed_failures.push((relative_path.clone(), detailed_failures));
+                stats.timed_out += 1;
+                // Track timed out files separately
+                stats.timed_out_files.push(relative_path.clone());
             }
             Err(TestError::Execution(e)) => {
                 eprintln!("✗ {} - {}", relative_path, e);
@@ -190,10 +189,10 @@ fn main() {
     // Print summary
     println!("\n=== Test Results Summary ===");
     println!(
-        "{:<20} {:>8} {:>8} {:>8} {:>8} {:>8} {:>10}",
-        "Category", "Total", "Passed", "Failed", "Errors", "Skipped", "Pass Rate"
+        "{:<20} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>10}",
+        "Category", "Total", "Passed", "Failed", "Timeout", "Errors", "Skipped", "Pass Rate"
     );
-    println!("{}", "-".repeat(80));
+    println!("{}", "-".repeat(90));
 
     let mut grand_total = TestStats::default();
     let mut all_tested_files = HashSet::new();
@@ -201,11 +200,12 @@ fn main() {
     for category in ["select", "evidence", "index", "random", "ddl", "other"] {
         if let Some(stats) = results.get(category) {
             println!(
-                "{:<20} {:>8} {:>8} {:>8} {:>8} {:>8} {:>9.1}%",
+                "{:<20} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>9.1}%",
                 category,
                 stats.total,
                 stats.passed,
                 stats.failed,
+                stats.timed_out,
                 stats.errors,
                 stats.skipped,
                 stats.pass_rate()
@@ -213,19 +213,21 @@ fn main() {
             grand_total.total += stats.total;
             grand_total.passed += stats.passed;
             grand_total.failed += stats.failed;
+            grand_total.timed_out += stats.timed_out;
             grand_total.errors += stats.errors;
             grand_total.skipped += stats.skipped;
             all_tested_files.extend(stats.tested_files.clone());
         }
     }
 
-    println!("{}", "-".repeat(80));
+    println!("{}", "-".repeat(90));
     println!(
-        "{:<20} {:>8} {:>8} {:>8} {:>8} {:>8} {:>9.1}%",
+        "{:<20} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>9.1}%",
         "TOTAL",
         grand_total.total,
         grand_total.passed,
         grand_total.failed,
+        grand_total.timed_out,
         grand_total.errors,
         grand_total.skipped,
         grand_total.pass_rate()
@@ -246,11 +248,18 @@ fn main() {
         all_detailed_failures.extend(stats.detailed_failures.clone());
     }
 
+    // Collect all timed out files
+    let all_timed_out_files: Vec<String> = results.values()
+        .flat_map(|s| &s.timed_out_files)
+        .cloned()
+        .collect();
+
     let results_json = serde_json::json!({
         "summary": {
             "total": grand_total.total,
             "passed": grand_total.passed,
             "failed": grand_total.failed,
+            "timed_out": grand_total.timed_out,
             "errors": grand_total.errors,
             "skipped": grand_total.skipped,
             "pass_rate": grand_total.pass_rate(),
@@ -259,19 +268,23 @@ fn main() {
         },
         "tested_files": {
             "passed": results.values().flat_map(|s| &s.tested_files).filter(|f| {
-                // Check if this file passed (not in detailed_failures)
-                !all_detailed_failures.iter().any(|(path, _)| path == *f)
+                // Check if this file passed (not in detailed_failures or timed_out)
+                !all_detailed_failures.iter().any(|(path, _)| path == *f) &&
+                !all_timed_out_files.contains(f)
             }).collect::<Vec<_>>(),
             "failed": results.values().flat_map(|s| &s.tested_files).filter(|f| {
-                // Check if this file failed (in detailed_failures)
-                all_detailed_failures.iter().any(|(path, _)| path == *f)
+                // Check if this file failed (in detailed_failures, not timed out)
+                all_detailed_failures.iter().any(|(path, _)| path == *f) &&
+                !all_timed_out_files.contains(f)
             }).collect::<Vec<_>>(),
+            "timed_out": all_timed_out_files.clone(),
         },
         "categories": {
             "select": results.get("select").map(|s| serde_json::json!({
                 "total": s.total,
                 "passed": s.passed,
                 "failed": s.failed,
+                "timed_out": s.timed_out,
                 "errors": s.errors,
                 "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
@@ -280,6 +293,7 @@ fn main() {
                 "total": s.total,
                 "passed": s.passed,
                 "failed": s.failed,
+                "timed_out": s.timed_out,
                 "errors": s.errors,
                 "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
@@ -288,6 +302,7 @@ fn main() {
                 "total": s.total,
                 "passed": s.passed,
                 "failed": s.failed,
+                "timed_out": s.timed_out,
                 "errors": s.errors,
                 "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
@@ -296,6 +311,7 @@ fn main() {
                 "total": s.total,
                 "passed": s.passed,
                 "failed": s.failed,
+                "timed_out": s.timed_out,
                 "errors": s.errors,
                 "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
@@ -304,6 +320,7 @@ fn main() {
                 "total": s.total,
                 "passed": s.passed,
                 "failed": s.failed,
+                "timed_out": s.timed_out,
                 "errors": s.errors,
                 "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
@@ -312,6 +329,7 @@ fn main() {
                 "total": s.total,
                 "passed": s.passed,
                 "failed": s.failed,
+                "timed_out": s.timed_out,
                 "errors": s.errors,
                 "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
