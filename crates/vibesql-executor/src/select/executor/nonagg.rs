@@ -2,7 +2,7 @@
 
 use super::{
     builder::SelectExecutor,
-    index_optimization::{try_index_based_where_filtering, try_index_for_in_clause, try_spatial_index_optimization},
+    index_optimization::{try_index_for_in_clause, try_spatial_index_optimization},
 };
 use crate::{
     errors::ExecutorError,
