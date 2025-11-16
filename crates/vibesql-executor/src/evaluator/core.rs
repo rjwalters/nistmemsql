@@ -196,16 +196,17 @@ impl<'a> ExpressionEvaluator<'a> {
         self.cse_cache.borrow_mut().clear();
     }
 
-    /// Compare two SQL values for equality (NULL-safe for simple CASE)
-    /// Uses IS NOT DISTINCT FROM semantics where NULL = NULL is TRUE
+    /// Compare two SQL values for equality in simple CASE expressions
+    /// Uses regular = comparison semantics where NULL = anything is UNKNOWN (false)
     pub(crate) fn values_are_equal(left: &vibesql_types::SqlValue, right: &vibesql_types::SqlValue) -> bool {
         use vibesql_types::SqlValue::*;
 
-        // SQL:1999 semantics for CASE equality:
-        // - NULL = NULL is TRUE (different from WHERE clause behavior!)
-        // - This is "IS NOT DISTINCT FROM" semantics
+        // SQL standard semantics for simple CASE equality:
+        // - Uses regular = comparison, not IS NOT DISTINCT FROM
+        // - NULL = anything is UNKNOWN, so no match occurs
+        // - CASE operand falls through to ELSE or returns NULL
         match (left, right) {
-            (Null, Null) => true,
+            // NULL never matches anything in simple CASE (including NULL)
             (Null, _) | (_, Null) => false,
 
             // Exact type matches
