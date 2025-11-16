@@ -471,3 +471,129 @@ fn test_cross_join_with_condition_fails() {
 
     let _ = executor.execute(&stmt).unwrap(); // Should panic
 }
+
+/// Test that NULL values in join columns do NOT match each other (issue #1877)
+/// According to SQL semantics, NULL = NULL evaluates to NULL (not TRUE),
+/// so rows with NULL in join columns should be excluded from INNER JOIN results.
+#[test]
+fn test_inner_join_null_values_dont_match() {
+    let mut db = vibesql_storage::Database::new();
+
+    // Create t1 with one matching row and one NULL
+    let t1_schema = vibesql_catalog::TableSchema::new(
+        "t1".to_string(),
+        vec![
+            vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, true),
+            vibesql_catalog::ColumnSchema::new(
+                "name".to_string(),
+                vibesql_types::DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
+        ],
+    );
+    db.create_table(t1_schema).unwrap();
+    db.insert_row(
+        "t1",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Varchar("one".to_string()),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "t1",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Null,
+            vibesql_types::SqlValue::Varchar("null-left".to_string()),
+        ]),
+    )
+    .unwrap();
+
+    // Create t2 with one matching row and one NULL
+    let t2_schema = vibesql_catalog::TableSchema::new(
+        "t2".to_string(),
+        vec![
+            vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, true),
+            vibesql_catalog::ColumnSchema::new(
+                "value".to_string(),
+                vibesql_types::DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
+        ],
+    );
+    db.create_table(t2_schema).unwrap();
+    db.insert_row(
+        "t2",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Varchar("matched".to_string()),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "t2",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Null,
+            vibesql_types::SqlValue::Varchar("null-right".to_string()),
+        ]),
+    )
+    .unwrap();
+
+    // INNER JOIN t1.x = t2.y should only match on x=1, y=1
+    // NULL values should NOT match (NULL = NULL is NULL, not TRUE)
+    let executor = SelectExecutor::new(&db);
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        into_variables: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![
+            vibesql_ast::SelectItem::Expression {
+                expr: vibesql_ast::Expression::ColumnRef {
+                    table: Some("t1".to_string()),
+                    column: "name".to_string(),
+                },
+                alias: None,
+            },
+            vibesql_ast::SelectItem::Expression {
+                expr: vibesql_ast::Expression::ColumnRef {
+                    table: Some("t2".to_string()),
+                    column: "value".to_string(),
+                },
+                alias: None,
+            },
+        ],
+        from: Some(vibesql_ast::FromClause::Join {
+            left: Box::new(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
+            right: Box::new(vibesql_ast::FromClause::Table { name: "t2".to_string(), alias: None }),
+            join_type: vibesql_ast::JoinType::Inner,
+            condition: Some(vibesql_ast::Expression::BinaryOp {
+                left: Box::new(vibesql_ast::Expression::ColumnRef {
+                    table: Some("t1".to_string()),
+                    column: "x".to_string(),
+                }),
+                op: vibesql_ast::BinaryOperator::Equal,
+                right: Box::new(vibesql_ast::Expression::ColumnRef {
+                    table: Some("t2".to_string()),
+                    column: "y".to_string(),
+                }),
+            }),
+            natural: false,
+        }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+
+    // Should only have ONE row: the match between (1, "one") and (1, "matched")
+    // NULL rows should NOT match each other
+    assert_eq!(result.len(), 1, "INNER JOIN should only match non-NULL values");
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Varchar("one".to_string()));
+    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Varchar("matched".to_string()));
+}
