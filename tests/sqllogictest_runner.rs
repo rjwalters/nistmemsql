@@ -679,6 +679,9 @@ async fn run_single_test_file() {
 
     let full_path = if Path::new(&test_file).is_absolute() {
         test_file.clone()
+    } else if test_file.starts_with("third_party/sqllogictest/test/") {
+        // Path already includes the prefix, use as-is
+        test_file.clone()
     } else {
         format!("third_party/sqllogictest/test/{}", test_file)
     };
