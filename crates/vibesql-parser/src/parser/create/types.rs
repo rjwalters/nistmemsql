@@ -16,6 +16,7 @@ impl Parser {
             // MySQL-specific types that are keywords
             Token::Keyword(Keyword::Set) => "SET".to_string(),
             Token::Keyword(Keyword::Year) => "YEAR".to_string(),
+            Token::Keyword(Keyword::Fixed) => "FIXED".to_string(),
             _ => return Err(ParseError { message: "Expected data type".to_string() }),
         };
         self.advance();
@@ -626,7 +627,7 @@ impl Parser {
             // Collection types (SQL/MM standard)
             "GEOMETRY" | "GEOMETRYCOLLECTION" |
             // MySQL numeric types
-            "TINYINT" | "MEDIUMINT" | "SERIAL" |
+            "TINYINT" | "MEDIUMINT" | "SERIAL" | "FIXED" |
             // MySQL temporal types
             "YEAR" |
             // MySQL string types
