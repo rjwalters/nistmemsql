@@ -1,0 +1,61 @@
+# Test for issue #1870: CASE WHEN incorrectly matches NULL conditions
+# CASE WHEN should only match TRUE, not NULL or FALSE
+
+# Test 1: Direct NULL in WHEN condition
+# Expected: 'ELSE' (NULL is not TRUE)
+query T
+SELECT CASE WHEN NULL THEN 'MATCHED' ELSE 'ELSE' END;
+----
+ELSE
+
+# Test 2: FALSE in WHEN condition
+# Expected: 'ELSE' (FALSE is not TRUE)
+query T
+SELECT CASE WHEN FALSE THEN 'MATCHED' ELSE 'ELSE' END;
+----
+ELSE
+
+# Test 3: TRUE in WHEN condition
+# Expected: 'MATCHED' (TRUE matches)
+query T
+SELECT CASE WHEN TRUE THEN 'MATCHED' ELSE 'ELSE' END;
+----
+MATCHED
+
+# Test 4: NOT NULL operator
+# Expected: NULL (NOT NULL returns NULL per SQL three-valued logic)
+query T
+SELECT NOT NULL;
+----
+NULL
+
+# Test 5: NULL NOT IN with literal list
+# Expected: NULL (left operand is NULL, so result is NULL)
+query T
+SELECT NULL NOT IN (32);
+----
+NULL
+
+# Test 6: CASE with NULL NOT IN
+# Expected: 'ELSE' (NULL NOT IN returns NULL, which is not TRUE)
+query T
+SELECT CASE WHEN NULL NOT IN (32) THEN 'MATCHED' ELSE 'ELSE' END;
+----
+ELSE
+
+# Test 7: Complex case from issue description
+statement ok
+CREATE TABLE t1 (x INTEGER);
+
+statement ok
+INSERT INTO t1 VALUES (NULL);
+
+query I
+SELECT DISTINCT
+  CASE
+    WHEN NULL NOT IN (32) THEN NULL
+    ELSE 46
+  END
+FROM t1;
+----
+46

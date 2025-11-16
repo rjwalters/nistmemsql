@@ -12,5 +12,6 @@ mod predicates;
 mod special;
 mod subqueries;
 
+
 // Note: The CombinedExpressionEvaluator struct is defined in core.rs
 // This module only contains the implementation methods

@@ -174,3 +174,11 @@ impl CombinedExpressionEvaluator<'_> {
         super::super::expressions::operators::eval_unary_op(op, &val)
     }
 }
+
+// NOTE: Unit tests for CASE WHEN behavior are documented in tests/issue-1870/case_null_basic.test
+// The implementation at line 47 correctly handles SQL three-valued logic:
+// - CASE WHEN NULL  → does not match (falls through to ELSE)
+// - CASE WHEN FALSE → does not match (falls through to ELSE)
+// - CASE WHEN TRUE  → matches and returns THEN result
+//
+// Per SQL-92 standard (Section 6.11), CASE expressions must only match TRUE values.
