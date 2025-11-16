@@ -1,0 +1,293 @@
+//! Index predicate extraction
+//!
+//! Extracts range and IN predicates from WHERE clauses for index optimization.
+
+use vibesql_ast::{BinaryOperator, Expression};
+use vibesql_types::SqlValue;
+
+use super::selection::is_column_reference;
+
+/// Range predicate information extracted from WHERE clause
+#[derive(Debug)]
+pub(super) struct RangePredicate {
+    pub start: Option<SqlValue>,
+    pub end: Option<SqlValue>,
+    pub inclusive_start: bool,
+    pub inclusive_end: bool,
+}
+
+/// Index predicate types that can be pushed down to storage layer
+#[derive(Debug)]
+pub(super) enum IndexPredicate {
+    /// Range scan with optional bounds (>, <, >=, <=, BETWEEN)
+    Range(RangePredicate),
+    /// Multi-value lookup (IN predicate)
+    In(Vec<SqlValue>),
+}
+
+/// Extract range predicate bounds for an indexed column from WHERE clause
+///
+/// This extracts comparison operators (>, <, >=, <=, BETWEEN) that can be
+/// pushed down to the storage layer's range_scan() method.
+///
+/// Returns None if no suitable range predicate found for the column.
+fn extract_range_predicate(expr: &Expression, column_name: &str) -> Option<RangePredicate> {
+    match expr {
+        Expression::BinaryOp { left, op, right } => {
+            match op {
+                // Handle equality: col = value
+                BinaryOperator::Equal => {
+                    // Check if left side is our column and right side is a literal
+                    if is_column_reference(left, column_name) {
+                        if let Expression::Literal(value) = right.as_ref() {
+                            // Equal is a range with same start and end, both inclusive
+                            return Some(RangePredicate {
+                                start: Some(value.clone()),
+                                end: Some(value.clone()),
+                                inclusive_start: true,
+                                inclusive_end: true,
+                            });
+                        }
+                    }
+                    // Also handle reverse: value = col
+                    if is_column_reference(right, column_name) {
+                        if let Expression::Literal(value) = left.as_ref() {
+                            return Some(RangePredicate {
+                                start: Some(value.clone()),
+                                end: Some(value.clone()),
+                                inclusive_start: true,
+                                inclusive_end: true,
+                            });
+                        }
+                    }
+                }
+                // Handle simple comparisons: col > value, col < value, etc.
+                BinaryOperator::GreaterThan
+                | BinaryOperator::GreaterThanOrEqual
+                | BinaryOperator::LessThan
+                | BinaryOperator::LessThanOrEqual => {
+                    // Check if left side is our column and right side is a literal
+                    if is_column_reference(left, column_name) {
+                        if let Expression::Literal(value) = right.as_ref() {
+                            return Some(match op {
+                                BinaryOperator::GreaterThan => RangePredicate {
+                                    start: Some(value.clone()),
+                                    end: None,
+                                    inclusive_start: false,
+                                    inclusive_end: false,
+                                },
+                                BinaryOperator::GreaterThanOrEqual => RangePredicate {
+                                    start: Some(value.clone()),
+                                    end: None,
+                                    inclusive_start: true,
+                                    inclusive_end: false,
+                                },
+                                BinaryOperator::LessThan => RangePredicate {
+                                    start: None,
+                                    end: Some(value.clone()),
+                                    inclusive_start: false,
+                                    inclusive_end: false,
+                                },
+                                BinaryOperator::LessThanOrEqual => RangePredicate {
+                                    start: None,
+                                    end: Some(value.clone()),
+                                    inclusive_start: false,
+                                    inclusive_end: true,
+                                },
+                                _ => unreachable!(),
+                            });
+                        }
+                    }
+                    // Check if right side is our column and left side is a literal (flipped comparison)
+                    else if is_column_reference(right, column_name) {
+                        if let Expression::Literal(value) = left.as_ref() {
+                            return Some(match op {
+                                // Flip the comparison: value > col means col < value
+                                BinaryOperator::GreaterThan => RangePredicate {
+                                    start: None,
+                                    end: Some(value.clone()),
+                                    inclusive_start: false,
+                                    inclusive_end: false,
+                                },
+                                BinaryOperator::GreaterThanOrEqual => RangePredicate {
+                                    start: None,
+                                    end: Some(value.clone()),
+                                    inclusive_start: false,
+                                    inclusive_end: true,
+                                },
+                                BinaryOperator::LessThan => RangePredicate {
+                                    start: Some(value.clone()),
+                                    end: None,
+                                    inclusive_start: false,
+                                    inclusive_end: false,
+                                },
+                                BinaryOperator::LessThanOrEqual => RangePredicate {
+                                    start: Some(value.clone()),
+                                    end: None,
+                                    inclusive_start: true,
+                                    inclusive_end: false,
+                                },
+                                _ => unreachable!(),
+                            });
+                        }
+                    }
+                }
+                // Handle AND: can combine range predicates (e.g., col > 10 AND col < 20)
+                BinaryOperator::And => {
+                    let left_range = extract_range_predicate(left, column_name);
+                    let right_range = extract_range_predicate(right, column_name);
+
+                    // Merge ranges if both sides have predicates on our column
+                    match (left_range, right_range) {
+                        (Some(mut l), Some(r)) => {
+                            // Merge the bounds
+                            if l.start.is_none() {
+                                l.start = r.start;
+                                l.inclusive_start = r.inclusive_start;
+                            }
+                            if l.end.is_none() {
+                                l.end = r.end;
+                                l.inclusive_end = r.inclusive_end;
+                            }
+                            return Some(l);
+                        }
+                        (Some(l), None) => return Some(l),
+                        (None, Some(r)) => return Some(r),
+                        (None, None) => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+        // Handle BETWEEN: col BETWEEN low AND high
+        Expression::Between { expr: col_expr, low, high, negated, .. } => {
+            if !negated && is_column_reference(col_expr, column_name) {
+                if let (Expression::Literal(low_val), Expression::Literal(high_val)) =
+                    (low.as_ref(), high.as_ref())
+                {
+                    return Some(RangePredicate {
+                        start: Some(low_val.clone()),
+                        end: Some(high_val.clone()),
+                        inclusive_start: true,
+                        inclusive_end: true,
+                    });
+                }
+            }
+        }
+        _ => {}
+    }
+
+    None
+}
+
+/// Extract index predicate (range or IN) for an indexed column from WHERE clause
+///
+/// This extracts predicates that can be pushed down to the storage layer:
+/// - Range predicates: >, <, >=, <=, BETWEEN
+/// - IN predicates: IN (value1, value2, ...)
+///
+/// Returns None if no suitable predicate found for the column.
+pub(super) fn extract_index_predicate(expr: &Expression, column_name: &str) -> Option<IndexPredicate> {
+    // First try to extract a range predicate
+    if let Some(range) = extract_range_predicate(expr, column_name) {
+        return Some(IndexPredicate::Range(range));
+    }
+
+    // Then try to extract an IN predicate
+    match expr {
+        // Handle IN with value list: col IN (1, 2, 3)
+        Expression::InList { expr: col_expr, values: value_list, negated } => {
+            if !negated && is_column_reference(col_expr, column_name) {
+                // Extract literal values from the IN list
+                let mut values = Vec::new();
+                for item in value_list {
+                    if let Expression::Literal(value) = item {
+                        values.push(value.clone());
+                    } else {
+                        // If any item is not a literal, we can't optimize
+                        return None;
+                    }
+                }
+                if !values.is_empty() {
+                    return Some(IndexPredicate::In(values));
+                }
+            }
+        }
+        // Handle AND: try both sides
+        Expression::BinaryOp { left, op: BinaryOperator::And, right } => {
+            // Try left side first
+            if let Some(pred) = extract_index_predicate(left, column_name) {
+                return Some(pred);
+            }
+            // Then try right side
+            if let Some(pred) = extract_index_predicate(right, column_name) {
+                return Some(pred);
+            }
+        }
+        _ => {}
+    }
+
+    None
+}
+
+/// Check if WHERE clause can be fully satisfied by index predicate
+///
+/// Returns true if the WHERE clause is simple enough that the index lookup
+/// already guarantees all rows satisfy it (no additional filtering needed).
+///
+/// This optimization skips redundant WHERE clause re-evaluation for queries like:
+/// - `WHERE col = 5` (exact match)
+/// - `WHERE col BETWEEN 10 AND 20` (range)
+/// - `WHERE col IN (1, 2, 3)` (multi-value)
+/// - `WHERE col > 10 AND col < 20` (combined range)
+pub(super) fn where_clause_fully_satisfied_by_index(
+    where_expr: &Expression,
+    indexed_column: &str,
+) -> bool {
+    match where_expr {
+        // Simple comparison on indexed column: col = value, col > value, etc.
+        Expression::BinaryOp { left, op, right } => {
+            match op {
+                vibesql_ast::BinaryOperator::Equal
+                | vibesql_ast::BinaryOperator::GreaterThan
+                | vibesql_ast::BinaryOperator::GreaterThanOrEqual
+                | vibesql_ast::BinaryOperator::LessThan
+                | vibesql_ast::BinaryOperator::LessThanOrEqual => {
+                    // Check if this is a simple: column op literal
+                    let left_is_col = is_column_reference(left, indexed_column);
+                    let right_is_col = is_column_reference(right, indexed_column);
+                    let left_is_literal = matches!(left.as_ref(), Expression::Literal(_));
+                    let right_is_literal = matches!(right.as_ref(), Expression::Literal(_));
+
+                    // Either (col op literal) or (literal op col)
+                    (left_is_col && right_is_literal) || (left_is_literal && right_is_col)
+                }
+                // AND of range predicates on same column: col > 10 AND col < 20
+                vibesql_ast::BinaryOperator::And => {
+                    let left_satisfied = where_clause_fully_satisfied_by_index(left, indexed_column);
+                    let right_satisfied = where_clause_fully_satisfied_by_index(right, indexed_column);
+                    left_satisfied && right_satisfied
+                }
+                _ => false,
+            }
+        }
+        // BETWEEN on indexed column: col BETWEEN low AND high
+        Expression::Between { expr: col_expr, low, high, negated, .. } => {
+            !negated
+                && is_column_reference(col_expr, indexed_column)
+                && matches!(low.as_ref(), Expression::Literal(_))
+                && matches!(high.as_ref(), Expression::Literal(_))
+        }
+        // IN on indexed column: col IN (literal, literal, ...)
+        Expression::InList { expr: col_expr, values, negated } => {
+            !negated
+                && is_column_reference(col_expr, indexed_column)
+                && values.iter().all(|v| matches!(v, Expression::Literal(_)))
+        }
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+#[path = "predicate_tests.rs"]
+mod predicate_tests;
