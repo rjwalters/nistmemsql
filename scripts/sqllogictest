@@ -175,7 +175,7 @@ EOF
 cmd_run() {
     local parallel=false
     local workers=""
-    local time_budget="${SQLLOGICTEST_TIME_BUDGET:-600}"
+    local time_budget="${SQLLOGICTEST_TIME_BUDGET:-1200}"
     local force=false
     local debug_mode=false
 
