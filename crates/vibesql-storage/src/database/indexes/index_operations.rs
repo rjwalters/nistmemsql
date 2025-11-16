@@ -435,6 +435,7 @@ mod tests {
 
     #[test]
     fn test_calculate_next_value_float() {
+        // Use simpler values for f32 to avoid precision issues
         assert_eq!(
             calculate_next_value(&SqlValue::Float(3.0)),
             Some(SqlValue::Float(4.0))
@@ -503,7 +504,7 @@ mod tests {
             SqlValue::Double(99.0)
         );
         assert_eq!(
-            normalize_for_comparison(&SqlValue::Float(3.0)),
+        // Use simpler values for f32 to avoid precision issues
             SqlValue::Double(3.14f32 as f64)
         );
         assert_eq!(

@@ -4,9 +4,17 @@ use super::super::{casting::cast_value, core::ExpressionEvaluator, pattern::like
 use crate::errors::ExecutorError;
 
 impl ExpressionEvaluator<'_> {
-    /// Evaluate BETWEEN predicate
+    /// Evaluate BETWEEN predicate: expr BETWEEN low AND high
     /// Standard BETWEEN: returns false if low > high (per SQLite behavior)
     /// BETWEEN SYMMETRIC: swaps low and high if low > high before evaluation
+    /// If negated: expr < low OR expr > high
+    ///
+    /// NULL handling (SQLite behavior, not standard SQL three-valued logic):
+    /// - expr is NULL: returns NULL (standard behavior)
+    /// - BETWEEN with NULL bound(s): returns FALSE (all rows filtered)
+    /// - NOT BETWEEN with NULL lower bound: returns expr > high (ignores NULL)
+    /// - NOT BETWEEN with NULL upper bound: returns expr < low (ignores NULL)
+    /// - NOT BETWEEN with both NULL bounds: returns TRUE
     pub(super) fn eval_between(
         &self,
         expr: &vibesql_ast::Expression,
@@ -20,13 +28,49 @@ impl ExpressionEvaluator<'_> {
         let mut low_val = self.eval(low, row)?;
         let mut high_val = self.eval(high, row)?;
 
-        // Per SQL:1999 standard: any NULL operand makes entire predicate NULL
-        // This applies to both BETWEEN and NOT BETWEEN
-        if matches!(expr_val, vibesql_types::SqlValue::Null)
-            || matches!(low_val, vibesql_types::SqlValue::Null)
-            || matches!(high_val, vibesql_types::SqlValue::Null)
-        {
+        // If the expression itself is NULL, return NULL (standard three-valued logic)
+        if matches!(expr_val, vibesql_types::SqlValue::Null) {
             return Ok(vibesql_types::SqlValue::Null);
+        }
+
+        // SQLite-specific NULL handling for bounds (NOT standard SQL three-valued logic)
+        let low_is_null = matches!(low_val, vibesql_types::SqlValue::Null);
+        let high_is_null = matches!(high_val, vibesql_types::SqlValue::Null);
+
+        if low_is_null || high_is_null {
+            // Handle NULL bounds according to SQLite behavior
+            if low_is_null && high_is_null {
+                // Both bounds are NULL:
+                // - BETWEEN: FALSE (no rows match)
+                // - NOT BETWEEN: TRUE (all rows match)
+                return Ok(vibesql_types::SqlValue::Boolean(negated));
+            } else if low_is_null {
+                // Only lower bound is NULL:
+                // - BETWEEN: FALSE (no rows match)
+                // - NOT BETWEEN: expr > high (ignores NULL lower bound)
+                if negated {
+                    return Self::eval_binary_op_static(
+                        &expr_val,
+                        &vibesql_ast::BinaryOperator::GreaterThan,
+                        &high_val,
+                    );
+                } else {
+                    return Ok(vibesql_types::SqlValue::Boolean(false));
+                }
+            } else {
+                // Only upper bound is NULL (high_is_null is true)
+                // - BETWEEN: FALSE (no rows match)
+                // - NOT BETWEEN: expr < low (ignores NULL upper bound)
+                if negated {
+                    return Self::eval_binary_op_static(
+                        &expr_val,
+                        &vibesql_ast::BinaryOperator::LessThan,
+                        &low_val,
+                    );
+                } else {
+                    return Ok(vibesql_types::SqlValue::Boolean(false));
+                }
+            }
         }
 
         // Check if bounds are reversed (low > high)
