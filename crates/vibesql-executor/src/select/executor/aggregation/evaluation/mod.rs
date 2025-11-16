@@ -113,7 +113,7 @@ impl SelectExecutor<'_> {
     pub(in crate::select::executor) fn apply_order_by_to_aggregates(
         &self,
         rows: Vec<vibesql_storage::Row>,
-        stmt: &vibesql_ast::SelectStmt,
+        _stmt: &vibesql_ast::SelectStmt,
         order_by: &[vibesql_ast::OrderByItem],
         expanded_select_list: &[vibesql_ast::SelectItem],
     ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {

@@ -666,7 +666,7 @@ fn find_index_with_prefix(
     for index_name in all_indexes {
         if let Some(metadata) = database.get_index(&index_name) {
             if metadata.table_name == table_name
-                && metadata.columns.len() == 1
+                && !metadata.columns.is_empty()
                 && metadata.columns[0].column_name == column_name
             {
                 // Found an index where our column is the first column
@@ -675,4 +675,60 @@ fn find_index_with_prefix(
         }
     }
     Ok(None)
+}
+
+/// Check if WHERE clause would use multi-column IN optimization, requiring predicate pushdown to be disabled
+///
+/// Returns true if:
+/// - WHERE contains an IN expression
+/// - The column has a MULTI-column index (> 1 columns)
+/// - This indicates we need ALL rows for correct index-based filtering
+///
+/// For single-column indexes or non-IN predicates, predicate pushdown can safely be enabled.
+pub(in crate::select::executor) fn requires_predicate_pushdown_disable(
+    database: &Database,
+    where_expr: Option<&vibesql_ast::Expression>,
+    from_clause: Option<&vibesql_ast::FromClause>,
+) -> bool {
+    let where_expr = match where_expr {
+        Some(expr) => expr,
+        None => return false, // No WHERE clause, predicate pushdown doesn't matter
+    };
+
+    // Check if this is an IN expression
+    if let vibesql_ast::Expression::InList { expr, negated: false, .. } = where_expr {
+        // Extract table and column name from the IN expression
+        if let vibesql_ast::Expression::ColumnRef { table, column } = expr.as_ref() {
+            // Get table name: either from the column ref or from FROM clause
+            let table_name = if let Some(tbl) = table {
+                tbl.clone()
+            } else {
+                // Extract first table from FROM clause
+                match from_clause {
+                    Some(vibesql_ast::FromClause::Table { name, .. }) => name.clone(),
+                    Some(vibesql_ast::FromClause::Join { left, .. }) => {
+                        // For joins, check the left table
+                        if let vibesql_ast::FromClause::Table { name, .. } = left.as_ref() {
+                            name.clone()
+                        } else {
+                            return false; // Complex FROM, can't determine table
+                        }
+                    }
+                    _ => { return false }, // Can't determine table name
+                }
+            };
+
+            // Check if there's a MULTI-column index on this column
+            if let Ok(Some(index_name)) = find_index_with_prefix(database, &table_name, column) {
+                if let Some(metadata) = database.get_index(&index_name) {
+                    // Only disable predicate pushdown for MULTI-column indexes
+                    // Single-column indexes work fine with predicate pushdown
+                    return metadata.columns.len() > 1;
+                }
+            }
+        }
+    }
+
+    // For all other cases (binary ops, AND, OR, etc.), predicate pushdown is safe
+    false
 }
