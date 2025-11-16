@@ -484,6 +484,18 @@ pub(in crate::select::executor) fn try_index_for_and_expr(
         None => return Ok(None),
     };
 
+    // Validate bounds: start_val must be <= end_val for a valid range
+    // If start > end, the BETWEEN range is empty (no values can satisfy it)
+    let gt_result = crate::evaluator::ExpressionEvaluator::eval_binary_op_static(
+        &start_val,
+        &vibesql_ast::BinaryOperator::GreaterThan,
+        &end_val,
+    )?;
+    if let vibesql_types::SqlValue::Boolean(true) = gt_result {
+        // start_val > end_val: empty range, return no rows
+        return Ok(Some(Vec::new()));
+    }
+
     // Use range_scan with both bounds
     let matching_row_indices =
         index_data.range_scan(Some(&start_val), Some(&end_val), start_inclusive, end_inclusive);
@@ -654,7 +666,7 @@ fn find_index_with_prefix(
     for index_name in all_indexes {
         if let Some(metadata) = database.get_index(&index_name) {
             if metadata.table_name == table_name
-                && !metadata.columns.is_empty()
+                && metadata.columns.len() == 1
                 && metadata.columns[0].column_name == column_name
             {
                 // Found an index where our column is the first column
