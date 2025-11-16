@@ -251,6 +251,17 @@ impl IndexData {
                             None => Bound::Unbounded,
                         };
 
+                        // Edge case: Check for invalid range (both bounds excluded at same value)
+                        // This can happen with multi-column indexes when start == end and both exclusive
+                        // Example: col > 5 AND col < 5 would create Excluded([5]) .. Excluded([5]) → panic
+                        // BTreeMap::range() panics on this case, so we return empty result instead
+                        if let (Bound::Excluded(start_slice), Bound::Excluded(end_slice)) = (&start_bound, &end_bound) {
+                            if start_slice == end_slice {
+                                // Invalid range: no values can satisfy this condition
+                                return Vec::new();
+                            }
+                        }
+
                         // Iterate through BTreeMap with proper bounds - no manual checking needed!
                         for (_key_values, row_indices) in data.range::<[SqlValue], _>((start_bound, end_bound)) {
                             matching_row_indices.extend(row_indices);
