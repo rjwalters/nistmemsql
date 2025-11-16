@@ -111,9 +111,10 @@ pub(in crate::select::executor) fn try_index_for_binary_op(
     // Get matching row indices based on normalized operator
     let matching_row_indices = match normalized_op {
         vibesql_ast::BinaryOperator::Equal => {
-            // Equality: exact lookup
-            let search_key = vec![value];
-            index_data.get(&search_key).cloned().unwrap_or_else(Vec::new)
+            // Equality: use range_scan for prefix matching on multi-column indexes
+            // For multi-column indexes like (col3, col0), keys are stored as [col3_val, col0_val]
+            // Using range_scan with start=end=value triggers prefix matching in index_operations.rs
+            index_data.range_scan(Some(&value), Some(&value), true, true)
         }
         vibesql_ast::BinaryOperator::GreaterThan => {
             // col > value: use range_scan(Some(value), None, false, false)
