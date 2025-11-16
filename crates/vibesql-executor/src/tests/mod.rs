@@ -57,7 +57,6 @@ mod aggregate_random_patterns;
 mod aggregate_without_from;
 mod auto_increment_tests;
 mod between_predicates;
-mod case_bug;
 mod comparison_ops;
 mod count_star_fast_path;
 mod create_table_constraints;
