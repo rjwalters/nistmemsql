@@ -417,6 +417,15 @@ pub(crate) fn execute_index_scan(
         }
     };
 
+    // If we're not returning sorted results, ensure rows are in table order (by row index)
+    // This is important when the index doesn't satisfy the ORDER BY clause.
+    // Without this, rows would be returned in index key order, which would cause
+    // incorrect results when ORDER BY specifies a different column.
+    let mut matching_row_indices = matching_row_indices;
+    if sorted_columns.is_none() {
+        matching_row_indices.sort_unstable();
+    }
+
     // Fetch rows from table
     let all_rows = table.scan();
     let mut rows: Vec<Row> = matching_row_indices
