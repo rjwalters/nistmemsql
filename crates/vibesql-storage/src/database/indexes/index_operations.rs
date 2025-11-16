@@ -32,6 +32,36 @@ pub fn normalize_for_comparison(value: &SqlValue) -> SqlValue {
     }
 }
 
+/// Calculate the next value after a given SqlValue for use as an exclusive upper bound
+/// in prefix matching range scans.
+///
+/// For numeric types, this returns value + 1. For other types, returns None (unbounded).
+/// This is used in DiskBacked index prefix matching to efficiently bound the range scan.
+///
+/// # Examples
+/// - Double(10.0) → Some(Double(11.0))
+/// - Integer(42) → Some(Integer(43))
+/// - Varchar("abc") → None (no natural successor)
+fn calculate_next_value(value: &SqlValue) -> Option<SqlValue> {
+    match value {
+        SqlValue::Double(d) => {
+            // For doubles, add 1.0. Note: This works for integers represented as doubles
+            // which is the normalized form used in indexes.
+            Some(SqlValue::Double(d + 1.0))
+        }
+        SqlValue::Integer(i) => Some(SqlValue::Integer(i + 1)),
+        SqlValue::Smallint(i) => Some(SqlValue::Smallint(i + 1)),
+        SqlValue::Bigint(i) => Some(SqlValue::Bigint(i + 1)),
+        SqlValue::Unsigned(u) => Some(SqlValue::Unsigned(u + 1)),
+        SqlValue::Float(f) => Some(SqlValue::Float(f + 1.0)),
+        SqlValue::Real(r) => Some(SqlValue::Real(r + 1.0)),
+        SqlValue::Numeric(n) => Some(SqlValue::Numeric(n + 1.0)),
+        // For non-numeric types, we can't easily calculate a successor
+        // Return None to indicate unbounded end
+        _ => None,
+    }
+}
+
 impl IndexData {
     /// Scan index for rows matching range predicate
     ///
@@ -147,43 +177,39 @@ impl IndexData {
                 };
 
                 if is_prefix_match {
-                    // Prefix matching for DiskBacked:
-                    // Strategy: Range scan from [target_value] to unbounded, then filter results
-                    // to only include keys where first column matches target
+                    // Prefix matching for DiskBacked - optimized using calculated upper bound
+                    // Strategy: Calculate the next value to use as exclusive upper bound
+                    //
+                    // For example, to find all rows where column `a` = 10 in index (a, b):
+                    //   Range: [10] (inclusive) to [11] (exclusive)
+                    //   This captures all keys like [10, 1], [10, 2], ... [10, 999]
+                    //   But excludes [11, x] for any x
+                    //
+                    // This works because BTreeMap orders Vec<SqlValue> lexicographically:
+                    //   [10] < [10, 1] < [10, 2] < [10, 99] < [11] < [11, 1]
+
                     let target_value = normalized_start.as_ref().unwrap(); // Safe: checked above
                     let start_key = vec![target_value.clone()];
 
-                    // Range scan from [target] to end of index
-                    let row_indices = match acquire_btree_lock(btree) {
+                    // Calculate upper bound: next value after target
+                    // For numeric types, we can increment; for others, use unbounded
+                    let end_key = calculate_next_value(target_value).map(|next_val| vec![next_val]);
+
+                    // Range scan from [target] to [next_value) exclusive
+                    match acquire_btree_lock(btree) {
                         Ok(guard) => guard
                             .range_scan(
                                 Some(&start_key),
-                                None, // Unbounded end
-                                true, // Inclusive start
-                                false,
+                                end_key.as_ref(), // Bounded end (or unbounded if can't increment)
+                                true,  // Inclusive start
+                                false, // Exclusive end
                             )
                             .unwrap_or_else(|_| vec![]),
                         Err(e) => {
                             log::warn!("BTreeIndex lock acquisition failed in range_scan: {}", e);
                             vec![]
                         }
-                    };
-
-                    // Post-filter: Only include rows where the indexed column's first value matches target
-                    // This is necessary because unbounded range scan returns all keys >= [target],
-                    // including keys like [11, 1] when we only want [10, *]
-                    //
-                    // Note: We can't directly check keys from BTreeIndex, so we rely on the fact that
-                    // keys are returned in sorted order. Once we see a row that doesn't match
-                    // (checked via the actual index key), we can stop.
-                    //
-                    // For now, return all row indices. The BTreeIndex range_scan with unbounded end
-                    // will include extra keys, but the subsequent WHERE clause evaluation will
-                    // filter them out correctly.
-                    //
-                    // TODO: Optimize by adding prefix_scan() method to BTreeIndex that stops
-                    // iteration when prefix no longer matches
-                    row_indices
+                    }
                 } else {
                     // Standard range scan for single-column indexes or actual range queries
                     let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);

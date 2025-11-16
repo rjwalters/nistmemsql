@@ -78,35 +78,41 @@ impl SelectExecutor<'_> {
         let mut results = if has_aggregates || has_group_by {
             self.execute_with_aggregation(stmt, cte_results)?
         } else if let Some(from_clause) = &stmt.from {
-            // TEMPORARY WORKAROUND (issue #1807): Predicate pushdown disabled
+            // Selective predicate pushdown disable for multi-column IN optimization (issue #1807)
             //
-            // Index optimization (in execute_without_aggregation) needs access to ALL table rows
-            // to correctly use indexes. However, if predicate pushdown filters rows during the
-            // FROM scan, the index optimization receives an already-filtered subset and can't
-            // leverage the index properly.
+            // Multi-column IN optimization requires access to ALL table rows to correctly
+            // use indexes. If predicate pushdown filters rows during the FROM scan, the index
+            // optimization receives an already-filtered subset with incorrect row indices.
             //
-            // Example problem case:
+            // We ONLY disable predicate pushdown when:
+            // - WHERE clause contains an IN expression
+            // - The column has a MULTI-column index
+            //
+            // All other queries (single-column indexes, binary ops, etc.) retain predicate pushdown.
+            //
+            // Example requiring disabled pushdown:
             //   SELECT * FROM test WHERE a IN (10)
-            //   Index: (a, b)
+            //   Index: (a, b) ← Multi-column!
             //
-            //   With predicate pushdown:
-            //     1. FROM scan filters rows → only rows matching a=10 remain
-            //     2. Index optimization runs on filtered rows → can't use index (row indices don't match)
+            // Example allowing predicate pushdown:
+            //   SELECT * FROM test WHERE a IN (10)
+            //   Index: (a) ← Single-column, pushdown is safe!
             //
-            //   Without predicate pushdown (current):
-            //     1. FROM scan returns ALL rows
-            //     2. Index optimization uses index to find rows where a=10 → efficient!
-            //     3. WHERE clause applied via index (no redundant filtering)
-            //
-            // This is an architectural issue: index optimization happens AFTER FROM scan,
-            // but needs access to the full table. Proper fix would be to move index optimization
-            // to the FROM/scan level (see README).
-            //
-            // Impact: Performance regression for queries that don't use multi-column indexes with IN.
-            // TODO: Move index optimization to scan level OR make index optimization smarter about
-            //       accessing full table data independently of FROM result.
+            //   SELECT * FROM test WHERE a = 10
+            //   ← Binary op, not IN, pushdown is safe!
+
+            let where_clause_for_pushdown = if super::index_optimization::requires_predicate_pushdown_disable(
+                self.database,
+                stmt.where_clause.as_ref(),
+                stmt.from.as_ref(),
+            ) {
+                None // Disable predicate pushdown for multi-column IN
+            } else {
+                stmt.where_clause.as_ref() // Enable predicate pushdown for everything else
+            };
+
             let from_result =
-                self.execute_from_with_where(from_clause, cte_results, None)?;
+                self.execute_from_with_where(from_clause, cte_results, where_clause_for_pushdown)?;
             self.execute_without_aggregation(stmt, from_result)?
         } else {
             // SELECT without FROM - evaluate expressions as a single row
