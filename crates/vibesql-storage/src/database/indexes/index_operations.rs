@@ -132,6 +132,16 @@ impl IndexData {
                     }
                 }
 
+                // Edge case: Check for invalid range (start == end with at least one exclusive bound)
+                // Example: col > 5 AND col < 5 (mathematically empty range, but valid SQL)
+                // This would create invalid BTreeMap bounds (both excluded at same value) → panic
+                if let (Some(start_val), Some(end_val)) = (&normalized_start, &normalized_end) {
+                    if start_val == end_val && (!inclusive_start || !inclusive_end) {
+                        // Empty range: no values can satisfy this condition
+                        return Vec::new();
+                    }
+                }
+
                 // Special handling for range queries that might use multi-column indexes
                 // If we have both start and end bounds, we need to handle multi-column indexes specially
                 // by checking if keys in the map have multiple elements (indicating multi-column index)
