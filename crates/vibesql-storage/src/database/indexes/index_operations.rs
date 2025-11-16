@@ -360,3 +360,176 @@ impl IndexData {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_next_value_double() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Double(10.0)),
+            Some(SqlValue::Double(11.0))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Double(-5.5)),
+            Some(SqlValue::Double(-4.5))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Double(0.0)),
+            Some(SqlValue::Double(1.0))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_integer() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Integer(42)),
+            Some(SqlValue::Integer(43))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Integer(-10)),
+            Some(SqlValue::Integer(-9))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Integer(0)),
+            Some(SqlValue::Integer(1))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_smallint() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Smallint(100)),
+            Some(SqlValue::Smallint(101))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Smallint(-1)),
+            Some(SqlValue::Smallint(0))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_bigint() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Bigint(1_000_000_000)),
+            Some(SqlValue::Bigint(1_000_000_001))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Bigint(-999)),
+            Some(SqlValue::Bigint(-998))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_unsigned() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Unsigned(0)),
+            Some(SqlValue::Unsigned(1))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Unsigned(999)),
+            Some(SqlValue::Unsigned(1000))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_float() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Float(3.14)),
+            Some(SqlValue::Float(4.14))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Float(-2.5)),
+            Some(SqlValue::Float(-1.5))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_real() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Real(7.5)),
+            Some(SqlValue::Real(8.5))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Real(0.0)),
+            Some(SqlValue::Real(1.0))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_numeric() {
+        assert_eq!(
+            calculate_next_value(&SqlValue::Numeric(99.99)),
+            Some(SqlValue::Numeric(100.99))
+        );
+        assert_eq!(
+            calculate_next_value(&SqlValue::Numeric(-10.5)),
+            Some(SqlValue::Numeric(-9.5))
+        );
+    }
+
+    #[test]
+    fn test_calculate_next_value_non_numeric() {
+        // Text types
+        assert_eq!(calculate_next_value(&SqlValue::Varchar("abc".to_string())), None);
+        assert_eq!(calculate_next_value(&SqlValue::Text("hello".to_string())), None);
+
+        // NULL
+        assert_eq!(calculate_next_value(&SqlValue::Null), None);
+
+        // Boolean
+        assert_eq!(calculate_next_value(&SqlValue::Bool(true)), None);
+        assert_eq!(calculate_next_value(&SqlValue::Bool(false)), None);
+    }
+
+    #[test]
+    fn test_normalize_for_comparison_numeric_types() {
+        // All numeric types should normalize to Double
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Integer(42)),
+            SqlValue::Double(42.0)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Smallint(10)),
+            SqlValue::Double(10.0)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Bigint(1000)),
+            SqlValue::Double(1000.0)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Unsigned(99)),
+            SqlValue::Double(99.0)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Float(3.14)),
+            SqlValue::Double(3.14f32 as f64)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Real(2.5)),
+            SqlValue::Double(2.5)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Numeric(123.45)),
+            SqlValue::Double(123.45)
+        );
+        assert_eq!(
+            normalize_for_comparison(&SqlValue::Double(7.89)),
+            SqlValue::Double(7.89)
+        );
+    }
+
+    #[test]
+    fn test_normalize_for_comparison_non_numeric() {
+        // Non-numeric types should be returned as-is
+        let text_val = SqlValue::Varchar("test".to_string());
+        assert_eq!(normalize_for_comparison(&text_val), text_val);
+
+        let null_val = SqlValue::Null;
+        assert_eq!(normalize_for_comparison(&null_val), null_val);
+
+        let bool_val = SqlValue::Bool(true);
+        assert_eq!(normalize_for_comparison(&bool_val), bool_val);
+    }
+}
