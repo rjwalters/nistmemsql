@@ -248,13 +248,21 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
 
                         // Reformat string values to match expected types (MySQL normalization)
                         // When test expects Real but we returned Integer, append ".000"
+                        // When test expects Integer but we returned Real, strip decimal if whole number
                         for row in &mut rows {
                             for (col_idx, value) in row.iter_mut().enumerate() {
                                 let expected_type = &types[col_idx % types.len()];
                                 if expected_type.to_char() == 'R' && !value.contains('.') {
-                                    // Check if it's an integer value
+                                    // Integer → Real: add ".000"
                                     if value.parse::<i64>().is_ok() {
                                         *value = format!("{}.000", value);
+                                    }
+                                } else if expected_type.to_char() == 'I' && value.contains('.') {
+                                    // Real → Integer: strip ".0" or ".000"
+                                    if let Ok(f) = value.parse::<f64>() {
+                                        if f.fract() == 0.0 {
+                                            *value = format!("{}", f as i64);
+                                        }
                                     }
                                 }
                             }
