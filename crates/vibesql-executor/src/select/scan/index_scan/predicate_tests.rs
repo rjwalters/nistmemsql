@@ -1,0 +1,236 @@
+//! Tests for predicate extraction logic
+
+use super::*;
+use vibesql_ast::BinaryOperator;
+use vibesql_types::SqlValue;
+
+#[test]
+fn test_extract_range_predicate_greater_than() {
+    let expr = Expression::BinaryOp {
+        op: BinaryOperator::GreaterThan,
+        left: Box::new(Expression::ColumnRef {
+            table: None,
+            column: "col0".to_string(),
+        }),
+        right: Box::new(Expression::Literal(SqlValue::Integer(60))),
+    };
+
+    let range = extract_range_predicate(&expr, "col0").unwrap();
+    assert_eq!(range.start, Some(SqlValue::Integer(60)));
+    assert_eq!(range.end, None);
+    assert_eq!(range.inclusive_start, false);
+}
+
+#[test]
+fn test_extract_range_predicate_less_than_or_equal() {
+    let expr = Expression::BinaryOp {
+        op: BinaryOperator::LessThanOrEqual,
+        left: Box::new(Expression::ColumnRef {
+            table: None,
+            column: "col0".to_string(),
+        }),
+        right: Box::new(Expression::Literal(SqlValue::Integer(43))),
+    };
+
+    let range = extract_range_predicate(&expr, "col0").unwrap();
+    assert_eq!(range.start, None);
+    assert_eq!(range.end, Some(SqlValue::Integer(43)));
+    assert_eq!(range.inclusive_end, true);
+}
+
+#[test]
+fn test_extract_range_predicate_between() {
+    let expr = Expression::Between {
+        expr: Box::new(Expression::ColumnRef {
+            table: None,
+            column: "col0".to_string(),
+        }),
+        low: Box::new(Expression::Literal(SqlValue::Integer(10))),
+        high: Box::new(Expression::Literal(SqlValue::Integer(20))),
+        negated: false,
+        symmetric: false,
+    };
+
+    let range = extract_range_predicate(&expr, "col0").unwrap();
+    assert_eq!(range.start, Some(SqlValue::Integer(10)));
+    assert_eq!(range.end, Some(SqlValue::Integer(20)));
+    assert_eq!(range.inclusive_start, true);
+    assert_eq!(range.inclusive_end, true);
+}
+
+#[test]
+fn test_extract_range_predicate_combined_and() {
+    // col0 > 10 AND col0 < 20
+    let expr = Expression::BinaryOp {
+        op: BinaryOperator::And,
+        left: Box::new(Expression::BinaryOp {
+            op: BinaryOperator::GreaterThan,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col0".to_string(),
+            }),
+            right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+        }),
+        right: Box::new(Expression::BinaryOp {
+            op: BinaryOperator::LessThan,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col0".to_string(),
+            }),
+            right: Box::new(Expression::Literal(SqlValue::Integer(20))),
+        }),
+    };
+
+    let range = extract_range_predicate(&expr, "col0").unwrap();
+    assert_eq!(range.start, Some(SqlValue::Integer(10)));
+    assert_eq!(range.end, Some(SqlValue::Integer(20)));
+    assert_eq!(range.inclusive_start, false);
+    assert_eq!(range.inclusive_end, false);
+}
+
+#[test]
+fn test_extract_range_predicate_flipped_comparison() {
+    // 60 < col0 (same as col0 > 60)
+    let expr = Expression::BinaryOp {
+        op: BinaryOperator::LessThan,
+        left: Box::new(Expression::Literal(SqlValue::Integer(60))),
+        right: Box::new(Expression::ColumnRef {
+            table: None,
+            column: "col0".to_string(),
+        }),
+    };
+
+    let range = extract_range_predicate(&expr, "col0").unwrap();
+    assert_eq!(range.start, Some(SqlValue::Integer(60)));
+    assert_eq!(range.end, None);
+    assert_eq!(range.inclusive_start, false);
+}
+
+#[test]
+fn test_where_clause_fully_satisfied_simple_equal() {
+    // col0 = 5
+    let expr = Expression::BinaryOp {
+        op: BinaryOperator::Equal,
+        left: Box::new(Expression::ColumnRef {
+            table: None,
+            column: "col0".to_string(),
+        }),
+        right: Box::new(Expression::Literal(SqlValue::Integer(5))),
+    };
+
+    assert!(where_clause_fully_satisfied_by_index(&expr, "col0"));
+}
+
+#[test]
+fn test_where_clause_fully_satisfied_between() {
+    // col0 BETWEEN 10 AND 20
+    let expr = Expression::Between {
+        expr: Box::new(Expression::ColumnRef {
+            table: None,
+            column: "col0".to_string(),
+        }),
+        low: Box::new(Expression::Literal(SqlValue::Integer(10))),
+        high: Box::new(Expression::Literal(SqlValue::Integer(20))),
+        negated: false,
+        symmetric: false,
+    };
+
+    assert!(where_clause_fully_satisfied_by_index(&expr, "col0"));
+}
+
+#[test]
+fn test_where_clause_fully_satisfied_in_list() {
+    // col0 IN (1, 2, 3)
+    let expr = Expression::InList {
+        expr: Box::new(Expression::ColumnRef {
+            table: None,
+            column: "col0".to_string(),
+        }),
+        values: vec![
+            Expression::Literal(SqlValue::Integer(1)),
+            Expression::Literal(SqlValue::Integer(2)),
+            Expression::Literal(SqlValue::Integer(3)),
+        ],
+        negated: false,
+    };
+
+    assert!(where_clause_fully_satisfied_by_index(&expr, "col0"));
+}
+
+#[test]
+fn test_where_clause_fully_satisfied_combined_range() {
+    // col0 > 10 AND col0 < 20
+    let expr = Expression::BinaryOp {
+        op: BinaryOperator::And,
+        left: Box::new(Expression::BinaryOp {
+            op: BinaryOperator::GreaterThan,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col0".to_string(),
+            }),
+            right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+        }),
+        right: Box::new(Expression::BinaryOp {
+            op: BinaryOperator::LessThan,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col0".to_string(),
+            }),
+            right: Box::new(Expression::Literal(SqlValue::Integer(20))),
+        }),
+    };
+
+    assert!(where_clause_fully_satisfied_by_index(&expr, "col0"));
+}
+
+#[test]
+fn test_where_clause_not_fully_satisfied_multiple_columns() {
+    // col0 = 5 AND col1 = 10 (involves non-indexed column)
+    let expr = Expression::BinaryOp {
+        op: BinaryOperator::And,
+        left: Box::new(Expression::BinaryOp {
+            op: BinaryOperator::Equal,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col0".to_string(),
+            }),
+            right: Box::new(Expression::Literal(SqlValue::Integer(5))),
+        }),
+        right: Box::new(Expression::BinaryOp {
+            op: BinaryOperator::Equal,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col1".to_string(),
+            }),
+            right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+        }),
+    };
+
+    assert!(!where_clause_fully_satisfied_by_index(&expr, "col0"));
+}
+
+#[test]
+fn test_where_clause_not_fully_satisfied_or() {
+    // col0 = 5 OR col0 = 10 (OR not optimized for index pushdown)
+    let expr = Expression::BinaryOp {
+        op: BinaryOperator::Or,
+        left: Box::new(Expression::BinaryOp {
+            op: BinaryOperator::Equal,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col0".to_string(),
+            }),
+            right: Box::new(Expression::Literal(SqlValue::Integer(5))),
+        }),
+        right: Box::new(Expression::BinaryOp {
+            op: BinaryOperator::Equal,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col0".to_string(),
+            }),
+            right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+        }),
+    };
+
+    assert!(!where_clause_fully_satisfied_by_index(&expr, "col0"));
+}
