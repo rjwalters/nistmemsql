@@ -152,40 +152,23 @@ EOF
     print_info "Testing: $test_file"
     echo ""
 
-    # Create a temporary test that runs just this file
-    local temp_test="/tmp/test_single_sqllogictest_$$.rs"
-    cat > "$temp_test" << TESTEOF
-#[test]
-fn test_single_file() {
-    use std::fs;
-    let contents = fs::read_to_string("$full_path")
-        .expect("Failed to read test file");
-
-    // Run the test using the same infrastructure as the suite
-    // This assumes we have the test runner infrastructure available
-    let mut tester = sqllogictest::Runner::new(|| async {
-        Ok(crate::NistMemSqlDB::new())
-    });
-
-    // Set hash threshold to 8 (SQLLogicTest default) - results with more than 8 values will be hashed
-    tester.with_hash_threshold(8);
-
-    tester.run_script(&contents).expect("Test should pass");
-}
-TESTEOF
-
-    # Run the test
+    # Run the test using SQLLOGICTEST_FILES environment variable
     local start_time=$(date +%s)
-    if cargo test --test sqllogictest_runner -- --nocapture 2>&1 | grep -q "test result: ok"; then
+    local output_log="/tmp/sqllogictest_test_output_$$.log"
+
+    if SQLLOGICTEST_FILES="$full_path" cargo test --release run_sqllogictest_file 2>&1 | tee "$output_log" | grep -q "test result: ok"; then
         local end_time=$(date +%s)
         local elapsed=$((end_time - start_time))
         print_success "Passed (${elapsed}s)"
+        rm -f "$output_log"
     else
-        print_error "Failed"
+        local end_time=$(date +%s)
+        local elapsed=$((end_time - start_time))
+        print_error "Failed (${elapsed}s)"
+        echo ""
+        echo "Full output saved to: $output_log"
         exit 1
     fi
-
-    rm -f "$temp_test"
 }
 
 # Run command: execute test suite
