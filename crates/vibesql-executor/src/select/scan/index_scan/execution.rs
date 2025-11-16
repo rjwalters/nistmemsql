@@ -59,6 +59,9 @@ pub(crate) fn execute_index_scan(
     // TODO: Reimplement this optimization correctly in a future PR
     let need_where_filter = where_clause.is_some();
 
+    // Determine if this is a multi-column index
+    let is_multi_column_index = index_metadata.columns.len() > 1;
+
     // Get row indices using the appropriate index operation
     let matching_row_indices: Vec<usize> = match index_predicate {
         Some(IndexPredicate::Range(range)) => {
@@ -92,8 +95,16 @@ pub(crate) fn execute_index_scan(
             }
         }
         Some(IndexPredicate::In(values)) => {
-            // Use storage layer's multi_lookup for IN predicates
-            index_data.multi_lookup(&values)
+            // For multi-column indexes, use prefix matching to find all rows
+            // where the first column matches any of the IN values
+            if is_multi_column_index {
+                // Use prefix_multi_lookup which performs range scans to match
+                // partial keys (e.g., [10] matches [10, 20], [10, 30], etc.)
+                index_data.prefix_multi_lookup(&values)
+            } else {
+                // For single-column indexes, use regular exact match lookup
+                index_data.multi_lookup(&values)
+            }
         }
         None => {
             // Full index scan - collect all row indices from the index in index key order

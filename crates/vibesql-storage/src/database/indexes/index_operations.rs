@@ -426,6 +426,45 @@ impl IndexData {
         }
     }
 
+    /// Lookup multiple values using prefix matching for multi-column indexes
+    ///
+    /// This method is designed for multi-column indexes where we want to match on the
+    /// first column only. For example, with index on (a, b) and query `WHERE a IN (10, 20)`,
+    /// this will find all rows where `a=10` OR `a=20`, regardless of the value of `b`.
+    ///
+    /// # Arguments
+    /// * `values` - List of values for the first indexed column
+    ///
+    /// # Returns
+    /// Vector of row indices where the first column matches any of the values
+    ///
+    /// # Implementation Notes
+    /// This uses the existing `range_scan()` method with start==end (equality check),
+    /// which already has built-in prefix matching support for multi-column indexes.
+    /// See `range_scan()` lines 176-202 for the prefix matching implementation.
+    ///
+    /// This solves the issue where `multi_lookup([10])` would fail to match index keys
+    /// like `[10, 20]` because BTreeMap requires exact key matches.
+    pub fn prefix_multi_lookup(&self, values: &[SqlValue]) -> Vec<usize> {
+        let mut matching_row_indices = Vec::new();
+
+        for value in values {
+            // Use range_scan with start==end (both inclusive) to trigger prefix matching
+            // The range_scan() implementation automatically handles multi-column indexes
+            // by iterating through all keys where the first column matches 'value'
+            let range_indices = self.range_scan(
+                Some(value),  // start
+                Some(value),  // end (same as start for equality/prefix matching)
+                true,         // inclusive_start
+                true,         // inclusive_end
+            );
+
+            matching_row_indices.extend(range_indices);
+        }
+
+        matching_row_indices
+    }
+
     /// Get an iterator over all key-value pairs in the index
     ///
     /// # Returns
