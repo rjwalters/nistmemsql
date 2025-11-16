@@ -256,3 +256,51 @@ fn test_not_between_with_null_lower_bound() {
     assert_eq!(result.len(), 1); // Returns val=25 (val > 20)
     assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(25));
 }
+
+#[test]
+fn test_not_negative_literal_between_null_bounds() {
+    // Tests issue #1840: NOT -78 BETWEEN NULL AND 25
+    // This is a regression test for the specific query from index/random/10/slt_good_0.test
+    // According to SQLite behavior:
+    // - Since low bound is NULL and negated=true, should return: -78 > 25 = FALSE    // - So this should filter ALL rows (return 0 rows)
+    let mut db = vibesql_storage::Database::new();
+    let schema = vibesql_catalog::TableSchema::new(
+        "tab0".to_string(),
+        vec![vibesql_catalog::ColumnSchema::new("col0".to_string(), vibesql_types::DataType::Integer, false)],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row("tab0", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(97)])).unwrap();
+    db.insert_row("tab0", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(75)])).unwrap();
+    db.insert_row("tab0", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(61)])).unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT * FROM tab0 WHERE NOT - 78 BETWEEN NULL AND ( 25 )
+    // SQLite behavior: returns 0 rows
+    let stmt = vibesql_ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
+        from: Some(vibesql_ast::FromClause::Table { name: "tab0".to_string(), alias: None }),
+        where_clause: Some(vibesql_ast::Expression::Between {
+            expr: Box::new(vibesql_ast::Expression::UnaryOp {
+                op: vibesql_ast::UnaryOperator::Minus,
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(78))),
+            }),
+            low: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Null)),
+            high: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(25))),
+            negated: true,
+            symmetric: false,
+        }),
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+        into_variables: None,    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 0); // Should return 0 rows
+}
