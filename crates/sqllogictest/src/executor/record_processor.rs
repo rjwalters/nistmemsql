@@ -314,6 +314,20 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                                 } else {
                                     value.clone()
                                 }
+                            } else if col_type.to_char() == 'I' {
+                                // SQLite numeric affinity: coerce to integer when type is Integer
+                                // Preserve NULL values
+                                if value == "NULL" {
+                                    value.clone()
+                                } else if let Ok(n) = value.trim().parse::<i64>() {
+                                    n.to_string()
+                                } else if let Ok(f) = value.trim().parse::<f64>() {
+                                    // Truncate to integer
+                                    (f as i64).to_string()
+                                } else {
+                                    // Non-numeric text becomes 0
+                                    "0".to_string()
+                                }
                             } else {
                                 value.clone()
                             };

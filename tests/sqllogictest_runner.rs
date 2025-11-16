@@ -377,9 +377,9 @@ impl NistMemSqlDB {
     fn format_sql_value(
         &self,
         value: &SqlValue,
-        expected_type: Option<&DefaultColumnType>,
+        _expected_type: Option<&DefaultColumnType>,
     ) -> String {
-        let result = match value {
+        match value {
             // Integer types - return plain strings, let sqllogictest record_processor
             // add ".000" when test expects Real type
             SqlValue::Integer(i) => i.to_string(),
@@ -409,9 +409,7 @@ impl NistMemSqlDB {
             SqlValue::Time(d) => d.to_string(),
             SqlValue::Timestamp(d) => d.to_string(),
             SqlValue::Interval(d) => d.to_string(),
-        };
-
-        result
+        }
     }
 }
 
