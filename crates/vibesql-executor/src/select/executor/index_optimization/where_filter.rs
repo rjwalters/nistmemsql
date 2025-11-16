@@ -597,31 +597,6 @@ pub(in crate::select::executor) fn try_index_for_in_expr(
     Ok(Some(result_rows))
 }
 
-/// Find a SINGLE-COLUMN index that can be used for WHERE clause filtering
-/// For multi-column index support, use find_index_with_prefix() instead
-pub(in crate::select::executor) fn find_index_for_where(
-    database: &Database,
-    table_name: &str,
-    column_name: &str,
-) -> Result<Option<String>, ExecutorError> {
-    // Look through all indexes for a SINGLE-COLUMN index on this table and column
-    // Multi-column indexes are intentionally excluded because most index operations
-    // (equality lookups, range scans) expect single-element keys
-    let all_indexes = database.list_indexes();
-    for index_name in all_indexes {
-        if let Some(metadata) = database.get_index(&index_name) {
-            if metadata.table_name == table_name
-                && metadata.columns.len() == 1
-                && metadata.columns[0].column_name == column_name
-            {
-                // Found a single-column index
-                return Ok(Some(index_name));
-            }
-        }
-    }
-    Ok(None)
-}
-
 /// Find an index (single or multi-column) where the target column is the first column
 /// This supports prefix matching on composite indexes
 fn find_index_with_prefix(
