@@ -66,6 +66,18 @@ impl IndexData {
                 let normalized_start = start.map(normalize_for_comparison);
                 let normalized_end = end.map(normalize_for_comparison);
 
+                // Validate normalized bounds: if start > end, range is empty (SQL standard behavior)
+                // This must happen AFTER normalization because comparisons between different numeric
+                // types (e.g., Real vs Integer) might change after normalization to a common type (Double).
+                // Example: col BETWEEN 10.5 AND 10 is empty because 10.5 > 10 after normalization.
+                if let (Some(start_val), Some(end_val)) = (&normalized_start, &normalized_end) {
+                    // Compare normalized values using Ord trait (SqlValue implements Ord via Comparison trait)
+                    // If start > end, the range is empty and we should return no rows
+                    if start_val > end_val {
+                        return Vec::new();
+                    }
+                }
+
                 // Convert to single-element keys (for single-column indexes)
                 // For multi-column indexes, we only compare the first column
                 let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
@@ -104,6 +116,17 @@ impl IndexData {
                 // This ensures Real, Numeric, Integer, etc. can be compared correctly
                 let normalized_start = start.map(normalize_for_comparison);
                 let normalized_end = end.map(normalize_for_comparison);
+
+                // Validate normalized bounds: if start > end, range is empty (SQL standard behavior)
+                // This must happen AFTER normalization because comparisons between different numeric
+                // types (e.g., Real vs Integer) might change after normalization to a common type (Double).
+                if let (Some(start_val), Some(end_val)) = (&normalized_start, &normalized_end) {
+                    // Compare normalized values using Ord trait
+                    // If start > end, the range is empty and we should return no rows
+                    if start_val > end_val {
+                        return Vec::new();
+                    }
+                }
 
                 // Convert SqlValue bounds to Key (Vec<SqlValue>) bounds
                 // For single-column indexes, wrap in vec
