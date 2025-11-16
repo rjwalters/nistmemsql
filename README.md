@@ -1077,6 +1077,85 @@ vibesql -c "\save production.sql"
 
 ---
 
+## 🔧 Troubleshooting
+
+### Build Errors and Compilation Issues
+
+If you encounter unexplained compilation errors, especially after switching branches or pulling updates, the issue may be caused by **stale build cache**.
+
+#### Symptoms of Stale Build Cache
+
+- Compilation errors about missing imports or functions that clearly exist
+- Errors like `unresolved import` for functions that are properly exported
+- Build failures that don't match the actual code state
+- Inconsistent build behavior across different worktrees
+
+#### Quick Fix: Clean Build
+
+The fastest way to resolve stale cache issues:
+
+```bash
+# Clean and rebuild (debug mode)
+cargo clean && cargo build
+
+# Clean and rebuild (release mode)
+cargo clean && cargo build --release
+
+# Or use the convenience script
+./scripts/clean-build.sh --release
+```
+
+#### Using the Clean Build Script
+
+The `scripts/clean-build.sh` script provides a user-friendly way to perform clean builds:
+
+```bash
+# Basic usage - clean and build in debug mode
+./scripts/clean-build.sh
+
+# Clean and build in release mode
+./scripts/clean-build.sh --release
+
+# Clean, build, and run tests
+./scripts/clean-build.sh --release --test
+
+# Verbose output for debugging
+./scripts/clean-build.sh --release --verbose
+
+# Show help and all options
+./scripts/clean-build.sh --help
+```
+
+**Script Features**:
+- Color-coded progress output
+- Multiple build modes (debug/release)
+- Optional test execution
+- Verbose mode for detailed cargo output
+- Clear error reporting
+
+#### When to Clean Build
+
+Consider running a clean build when:
+- Switching between feature branches with significant changes
+- After pulling major updates from main
+- When encountering unexplained compilation errors
+- After updating dependencies in Cargo.toml
+- Working with git worktrees (cache conflicts between worktrees)
+
+#### CI/CD Considerations
+
+CI builds should periodically use clean builds to avoid cache-related failures:
+
+```yaml
+# GitHub Actions example
+- name: Clean build
+  run: cargo clean && cargo build --release
+```
+
+For more troubleshooting help, see the [issue tracker](https://github.com/rjwalters/vibesql/issues).
+
+---
+
 ## 📖 Documentation
 
 **User Guides**:
