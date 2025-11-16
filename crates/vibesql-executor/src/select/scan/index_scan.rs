@@ -406,9 +406,8 @@ pub(crate) fn execute_index_scan(
             index_data.multi_lookup(&values)
         }
         None => {
-            // Full index scan - collect all row indices from the index
-            // Note: We do NOT sort by row index here - we preserve the order from BTreeMap iteration
-            // which gives us results sorted by index key value (the correct semantic ordering)
+            // Full index scan - collect all row indices from the index in index key order
+            // (Will be sorted by row index later if needed, see lines 425-427)
             index_data
                 .values()
                 .flatten()
