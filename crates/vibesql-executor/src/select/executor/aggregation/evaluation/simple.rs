@@ -105,6 +105,15 @@ pub(super) fn evaluate(
 
             let test_val = executor.evaluate_with_aggregates(test_expr, group_rows, group_key, evaluator)?;
 
+            // SQL standard behavior for NULL IN (list):
+            // - NULL IN (empty list) → FALSE (already handled above)
+            // - NULL IN (non-empty list) → NULL (three-valued logic)
+            // The IN operator returns NULL when comparing NULL to any value
+            // Fix for issue #1863: CASE expressions with aggregates must return NULL correctly
+            if matches!(test_val, vibesql_types::SqlValue::Null) {
+                return Ok(vibesql_types::SqlValue::Null);
+            }
+
             // Evaluate all values in the list
             let mut list_values = Vec::new();
             for value_expr in values {
@@ -113,7 +122,14 @@ pub(super) fn evaluate(
 
             // Check if test_val is in the list
             let mut found = false;
+            let mut found_null = false;
             for list_val in &list_values {
+                // Track if we encounter NULL in the list
+                if matches!(list_val, vibesql_types::SqlValue::Null) {
+                    found_null = true;
+                    continue;
+                }
+
                 let eq_result = ExpressionEvaluator::eval_binary_op_static(
                     &test_val,
                     &vibesql_ast::BinaryOperator::Equal,
@@ -126,7 +142,17 @@ pub(super) fn evaluate(
                 }
             }
 
-            Ok(vibesql_types::SqlValue::Boolean(if *negated { !found } else { found }))
+            // SQL three-valued logic:
+            // - If found a match: return TRUE (or FALSE if negated)
+            // - If not found but list contains NULL: return NULL
+            // - If not found and no NULL: return FALSE (or TRUE if negated)
+            if found {
+                Ok(vibesql_types::SqlValue::Boolean(!negated))
+            } else if found_null {
+                Ok(vibesql_types::SqlValue::Null)
+            } else {
+                Ok(vibesql_types::SqlValue::Boolean(*negated))
+            }
         }
 
         // LIKE: expr LIKE pattern
