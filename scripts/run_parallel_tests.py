@@ -188,8 +188,8 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
 
     # Per-file timeout: adaptive based on historical data, with reasonable bounds
     # Most files complete in <10s, but high-volume index tests (10,000+ queries) need more time
-    # Increased from 60s to 120s to accommodate index/* tests with complex query patterns (issue #1921)
-    per_file_timeout = 120  # 120s per file accommodates high-volume tests
+    # Increased from 60s to 120s (issue #1921), then to 300s to handle slow */1000/* tests (issue #1932)
+    per_file_timeout = 300  # 300s per file accommodates large-scale tests with 1000+ rows
 
     for test_file in test_files:
         # Check if we've exceeded our time budget
