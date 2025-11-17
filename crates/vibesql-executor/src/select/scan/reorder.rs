@@ -60,38 +60,6 @@ pub(crate) fn all_joins_are_cross(from: &vibesql_ast::FromClause) -> bool {
     }
 }
 
-/// Check if all joins in the tree are CROSS or INNER joins
-///
-/// Join reordering is only safe for CROSS and INNER joins. LEFT/RIGHT/FULL OUTER
-/// joins have specific semantics that must be preserved.
-pub(crate) fn all_joins_are_inner_or_cross(from: &vibesql_ast::FromClause) -> bool {
-    match from {
-        vibesql_ast::FromClause::Table { .. } | vibesql_ast::FromClause::Subquery { .. } => true,
-        vibesql_ast::FromClause::Join { left, right, join_type, .. } => {
-            let is_inner_or_cross = matches!(join_type, vibesql_ast::JoinType::Inner | vibesql_ast::JoinType::Cross);
-            is_inner_or_cross
-                && all_joins_are_inner_or_cross(left)
-                && all_joins_are_inner_or_cross(right)
-        }
-    }
-}
-
-/// Check if all joins have NO explicit ON conditions (comma-list style)
-///
-/// Join reordering changes column ordering in results. We only apply it to comma-list
-/// style queries (FROM t1, t2, t3) which have implicit CROSS joins without ON clauses.
-/// Explicit JOINs with ON clauses should preserve their declared ordering.
-pub(crate) fn all_joins_have_no_on_clause(from: &vibesql_ast::FromClause) -> bool {
-    match from {
-        vibesql_ast::FromClause::Table { .. } | vibesql_ast::FromClause::Subquery { .. } => true,
-        vibesql_ast::FromClause::Join { left, right, condition, .. } => {
-            condition.is_none()
-                && all_joins_have_no_on_clause(left)
-                && all_joins_have_no_on_clause(right)
-        }
-    }
-}
-
 /// Information about a table extracted from a FROM clause
 #[derive(Debug, Clone)]
 struct TableRef {
