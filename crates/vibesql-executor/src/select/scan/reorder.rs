@@ -164,8 +164,8 @@ where
         analyzer.analyze_predicate(where_expr, &table_set);
     }
 
-    // Step 6: Use search to find optimal join order
-    let search = JoinOrderSearch::from_analyzer(&analyzer);
+    // Step 6: Use search to find optimal join order (with real statistics)
+    let search = JoinOrderSearch::from_analyzer(&analyzer, database);
     let optimal_order = search.find_optimal_order();
 
     // Log the reordering decision (optional, for debugging)

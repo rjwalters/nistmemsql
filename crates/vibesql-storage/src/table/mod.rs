@@ -118,6 +118,12 @@ pub struct Table {
     /// Append mode optimization tracking (managed by AppendModeTracker)
     /// Detects sequential primary key inserts for executor-level optimizations
     append_tracker: AppendModeTracker,
+
+    /// Cached statistics for query optimization (computed lazily)
+    statistics: Option<crate::statistics::TableStatistics>,
+
+    /// Counter for modifications since last statistics update
+    modifications_since_stats: usize,
 }
 
 impl Table {
@@ -125,7 +131,14 @@ impl Table {
     pub fn new(schema: vibesql_catalog::TableSchema) -> Self {
         let indexes = IndexManager::new(&schema);
 
-        Table { schema, rows: Vec::new(), indexes, append_tracker: AppendModeTracker::new() }
+        Table {
+            schema,
+            rows: Vec::new(),
+            indexes,
+            append_tracker: AppendModeTracker::new(),
+            statistics: None,
+            modifications_since_stats: 0,
+        }
     }
 
     /// Insert a row into the table
@@ -149,6 +162,16 @@ impl Table {
         // Update indexes (delegate to IndexManager)
         self.indexes.update_for_insert(&self.schema, &normalized_row, row_index);
 
+        // Track modifications for statistics staleness
+        self.modifications_since_stats += 1;
+
+        // Mark stats stale if significant changes (> 10% of table)
+        if let Some(stats) = &mut self.statistics {
+            if self.modifications_since_stats > stats.row_count / 10 {
+                stats.mark_stale();
+            }
+        }
+
         Ok(())
     }
 
@@ -160,6 +183,29 @@ impl Table {
     /// Get number of rows
     pub fn row_count(&self) -> usize {
         self.rows.len()
+    }
+
+    /// Get table statistics, computing if necessary
+    ///
+    /// Statistics are computed lazily on first access and cached.
+    /// They are marked stale after significant data changes (> 10% of rows).
+    pub fn statistics(&mut self) -> &crate::statistics::TableStatistics {
+        if self.statistics.is_none()
+            || self.statistics.as_ref().unwrap().needs_refresh()
+        {
+            self.statistics =
+                Some(crate::statistics::TableStatistics::compute(&self.rows, &self.schema));
+            self.modifications_since_stats = 0;
+        }
+
+        self.statistics.as_ref().unwrap()
+    }
+
+    /// Force recomputation of statistics (ANALYZE command)
+    pub fn analyze(&mut self) {
+        self.statistics =
+            Some(crate::statistics::TableStatistics::compute(&self.rows, &self.schema));
+        self.modifications_since_stats = 0;
     }
 
     /// Check if table is in append mode (sequential inserts detected)

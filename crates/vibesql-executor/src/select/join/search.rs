@@ -82,27 +82,36 @@ pub struct JoinOrderSearch {
 }
 
 impl JoinOrderSearch {
-    /// Create a new join order search from an analyzer
-    pub fn from_analyzer(analyzer: &JoinOrderAnalyzer) -> Self {
+    /// Create a new join order search from an analyzer with real table statistics
+    pub fn from_analyzer(
+        analyzer: &JoinOrderAnalyzer,
+        database: &vibesql_storage::Database,
+    ) -> Self {
         Self {
             all_tables: analyzer.tables().clone(),
             edges: analyzer.edges().to_vec(),
-            table_cardinalities: Self::extract_cardinalities(analyzer),
+            table_cardinalities: Self::extract_cardinalities(analyzer, database),
         }
     }
 
-    /// Extract table cardinalities from analyzer
-    /// (currently uses defaults, should integrate with statistics in future)
+    /// Extract table cardinalities from actual table statistics
+    ///
+    /// Uses real row counts from database tables instead of hardcoded estimates.
+    /// This enables effective pruning in the search algorithm.
     fn extract_cardinalities(
         analyzer: &JoinOrderAnalyzer,
+        database: &vibesql_storage::Database,
     ) -> std::collections::HashMap<String, usize> {
         let mut cardinalities = std::collections::HashMap::new();
 
         for table_name in analyzer.tables() {
-            // Start with default estimate
-            // Tables with local filters typically have lower cardinality
-            // This is a placeholder - should use actual statistics
-            cardinalities.insert(table_name, 10000);
+            // Get actual table row count from database
+            let actual_rows = database
+                .get_table(table_name.as_str())
+                .map(|t| t.row_count())
+                .unwrap_or(10000); // Fallback for CTEs/subqueries
+
+            cardinalities.insert(table_name.clone(), actual_rows);
         }
 
         cardinalities
