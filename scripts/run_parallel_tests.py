@@ -50,8 +50,13 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+# Import shared configuration for test results storage
+sys.path.insert(0, str(Path(__file__).parent))
+from test_results_config import get_default_database_path
 
 
 def get_repo_root() -> Path:
@@ -156,6 +161,122 @@ class WorkQueue:
                 fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
 
 
+class StreamingDatabaseWriter:
+    """
+    Thread-safe streaming database writer for test results.
+
+    Workers write test results to the database incrementally as they complete,
+    rather than waiting for all tests to finish. Uses file locking for safe
+    concurrent writes.
+    """
+
+    def __init__(self, db_path: Path, run_id: int, git_commit: Optional[str]):
+        """
+        Initialize streaming database writer.
+
+        Args:
+            db_path: Path to SQL database file
+            run_id: Unique ID for this test run
+            git_commit: Git commit hash for this run
+        """
+        self.db_path = db_path
+        self.lock_file = db_path.with_suffix('.lock')
+        self.run_id = run_id
+        self.git_commit = git_commit
+
+        # Ensure database and lock file exist
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.lock_file.exists():
+            self.lock_file.touch()
+
+    def write_test_result(self, file_path: str, status: str, duration_ms: Optional[int], error_message: Optional[str] = None):
+        """
+        Write a single test result to the database.
+
+        Args:
+            file_path: Test file path
+            status: Test status ('PASS', 'FAIL', 'TIMEOUT')
+            duration_ms: Test duration in milliseconds
+            error_message: Error message if test failed
+        """
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+
+        # Categorize test file
+        category, subcategory = self._categorize_test_file(file_path)
+
+        # Generate SQL statements
+        statements = []
+
+        # 1. Upsert into test_files
+        last_passed = f"TIMESTAMP '{timestamp}'" if status == 'PASS' else "NULL"
+        statements.append(f"""
+INSERT OR REPLACE INTO test_files (file_path, category, subcategory, status, last_tested, last_passed)
+VALUES ({self._sql_escape(file_path)}, {self._sql_escape(category)}, {self._sql_escape(subcategory)}, '{status}', TIMESTAMP '{timestamp}', {last_passed});
+""")
+
+        # 2. Insert into test_results
+        result_id = abs(hash(f'{self.run_id}_{file_path}_{timestamp}'))
+        duration_val = duration_ms if duration_ms is not None else "NULL"
+        error_val = self._sql_escape(error_message)
+
+        statements.append(f"""
+INSERT INTO test_results (result_id, run_id, file_path, status, tested_at, duration_ms, error_message)
+VALUES ({result_id}, {self.run_id}, {self._sql_escape(file_path)}, '{status}', TIMESTAMP '{timestamp}', {duration_val}, {error_val});
+""")
+
+        # Write to database with locking
+        with open(self.lock_file, 'r') as lock_fd:
+            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
+
+            try:
+                with open(self.db_path, 'a') as f:
+                    for stmt in statements:
+                        f.write(stmt)
+                        f.write("\n")
+            finally:
+                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+
+    def _categorize_test_file(self, file_path: str) -> tuple:
+        """Categorize test file by path."""
+        parts = Path(file_path).parts
+
+        if len(parts) == 0:
+            return "other", "root"
+
+        category = parts[0] if parts[0] in ["index", "random", "evidence", "select", "ddl"] else "other"
+        subcategory = parts[1] if len(parts) >= 2 else "root"
+
+        return category, subcategory
+
+    def _sql_escape(self, value: Optional[str]) -> str:
+        """Escape a value for SQL, handling NULL and special characters."""
+        if value is None:
+            return "NULL"
+
+        value = str(value)
+
+        # Escape backslashes first
+        escaped = value.replace('\\', '\\\\')
+
+        # Escape single quotes
+        escaped = escaped.replace("'", "''")
+
+        # Replace control characters
+        escaped = escaped.replace('\n', ' ')
+        escaped = escaped.replace('\r', ' ')
+        escaped = escaped.replace('\t', ' ')
+        escaped = escaped.replace('\x00', '')
+
+        # Collapse multiple spaces
+        escaped = ' '.join(escaped.split())
+
+        # Truncate to 2000 chars for error messages
+        if len(escaped) > 2000:
+            escaped = escaped[:2000]
+
+        return f"'{escaped}'"
+
+
 def discover_test_files(repo_root: Path) -> List[str]:
     """
     Discover all SQLLogicTest files in the repository.
@@ -210,13 +331,14 @@ def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
     return len(test_files)
 
 
-def run_worker(worker_id: int, work_queue: WorkQueue, time_budget: int, repo_root: Path, release_mode: bool = True) -> Tuple[int, Optional[Dict]]:
+def run_worker(worker_id: int, work_queue: WorkQueue, db_writer: Optional[StreamingDatabaseWriter], time_budget: int, repo_root: Path, release_mode: bool = True) -> Tuple[int, Optional[Dict]]:
     """
     Run a single worker process, pulling test files from queue until empty.
 
     Args:
         worker_id: Worker number (0-indexed)
         work_queue: Shared work queue to pull test files from
+        db_writer: Optional database writer for streaming results
         time_budget: Time budget in seconds
         repo_root: Repository root directory
         release_mode: Whether to use release binary (default: True for performance)
@@ -226,6 +348,8 @@ def run_worker(worker_id: int, work_queue: WorkQueue, time_budget: int, repo_roo
     """
     print(f"[Worker {worker_id}] Starting (pulling from shared queue)", flush=True)
     print(f"[Worker {worker_id}] Time budget: {time_budget}s", flush=True)
+    if db_writer:
+        print(f"[Worker {worker_id}] Streaming results to database", flush=True)
 
     # Find the test binary (built with --no-run earlier)
     # Location depends on build mode (release is 10-15x faster)
@@ -264,7 +388,7 @@ def run_worker(worker_id: int, work_queue: WorkQueue, time_budget: int, repo_roo
     # Most files complete in <10s, but high-volume index tests (10,000+ queries) need more time
     # Increased from 60s to 120s (issue #1921), then 300s, 600s, now 1200s for extreme */1000/* tests
     # This separates correctness (tests pass/fail) from performance (tests are slow)
-    per_file_timeout = 1200  # 1200s (20 min) per file - prioritize correctness over speed
+    per_file_timeout = 300  # 300s (5 min) per file - balance between speed and correctness
 
     # Pull files from queue until empty or time budget exhausted
     while True:
@@ -317,6 +441,17 @@ def run_worker(worker_id: int, work_queue: WorkQueue, time_budget: int, repo_roo
             # Get remaining queue size for progress tracking
             queue_remaining = work_queue.size()
 
+            # Determine test status
+            test_status = "PASS" if result.returncode == 0 else "FAIL"
+            duration_ms = int(file_elapsed * 1000)
+
+            # Write to database immediately
+            if db_writer:
+                try:
+                    db_writer.write_test_result(test_file, test_status, duration_ms)
+                except Exception as e:
+                    print(f"[Worker {worker_id}] Warning: Failed to write to database: {e}", flush=True)
+
             # Check if test succeeded
             if result.returncode != 0:
                 print(f"[Worker {worker_id}] File {files_tested} (queue: {queue_remaining} remaining): {test_file} FAILED (exit {result.returncode}) in {file_elapsed:.1f}s", flush=True)
@@ -348,6 +483,14 @@ def run_worker(worker_id: int, work_queue: WorkQueue, time_budget: int, repo_roo
             files_tested += 1
             files_timed_out += 1
             queue_remaining = work_queue.size()
+
+            # Write timeout to database
+            if db_writer:
+                try:
+                    db_writer.write_test_result(test_file, "TIMEOUT", int(per_file_timeout * 1000), "Test exceeded time limit")
+                except Exception as e:
+                    print(f"[Worker {worker_id}] Warning: Failed to write timeout to database: {e}", flush=True)
+
             print(f"[Worker {worker_id}] File {files_tested} (queue: {queue_remaining} remaining): {test_file} TIMEOUT after {per_file_timeout}s", flush=True)
             # Clean up any partial result file that may have been written
             standard_results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
@@ -597,6 +740,21 @@ def merge_worker_results(worker_results: List[Tuple[int, Optional[Dict]]]) -> Di
     return cumulative
 
 
+def get_git_commit(repo_root: Path) -> Optional[str]:
+    """Get current git commit hash."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
 def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path, release_mode: bool = True) -> bool:
     """
     Run SQLLogicTest suite in parallel across multiple workers.
@@ -680,14 +838,50 @@ def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path, rele
     print(f"✓ Work queue initialized")
     print()
 
+    # Initialize streaming database writer
+    db_path = get_default_database_path()
+    git_commit = get_git_commit(repo_root)
+    run_id = int(datetime.now().timestamp())
+
+    print(f"Initializing database writer...")
+    print(f"  Database: {db_path}")
+    print(f"  Run ID: {run_id}")
+    print(f"  Git commit: {git_commit or 'unknown'}")
+
+    # Ensure schema exists
+    schema_path = repo_root / "scripts" / "schema" / "test_results.sql"
+    if not db_path.exists() and schema_path.exists():
+        print(f"  Creating database from schema...")
+        import shutil
+        shutil.copy(schema_path, db_path)
+        print(f"  ✓ Database created from schema")
+
+    # Create database writer
+    db_writer = StreamingDatabaseWriter(db_path, run_id, git_commit)
+
+    # Write test_runs record
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+    git_commit_escaped = f"'{git_commit}'" if git_commit else "NULL"
+    test_run_stmt = f"""
+-- Test run started at {timestamp}
+INSERT INTO test_runs (run_id, started_at, completed_at, total_files, passed, failed, untested, git_commit)
+VALUES ({run_id}, TIMESTAMP '{timestamp}', NULL, {len(test_files)}, 0, 0, {len(test_files)}, {git_commit_escaped});
+"""
+    with open(db_path, 'a') as f:
+        f.write(test_run_stmt)
+        f.write("\n")
+
+    print(f"✓ Database initialized - results will stream as tests complete")
+    print()
+
     # Run workers in parallel (all pulling from same queue)
     print(f"Starting {num_workers} workers (dynamic load balancing via shared queue)...")
     worker_results = []
 
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        # Submit all workers (they all share the same work queue)
+        # Submit all workers (they all share the same work queue and database writer)
         futures = {
-            executor.submit(run_worker, i, work_queue, time_budget, repo_root, release_mode): i
+            executor.submit(run_worker, i, work_queue, db_writer, time_budget, repo_root, release_mode): i
             for i in range(num_workers)
         }
 
