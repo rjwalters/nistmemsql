@@ -418,11 +418,25 @@ impl IndexData {
                     }
                 } else {
                     // Standard range scan for single-column indexes or actual range queries
-                    // NOTE: We don't currently have a way to detect multi-column indexes in DiskBacked
-                    // without peeking at the B+ tree structure. For now, we apply the smart increment
-                    // fix conservatively for exclusive bounds to handle potential multi-column cases.
-                    // This should be safe for single-column indexes too.
-                    let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
+                    // NOTE: We apply the smart increment fix conservatively for exclusive start bounds
+                    // to handle potential multi-column cases. This is safe for single-column indexes too.
+
+                    // For exclusive start bounds with multi-column indexes, we need to increment the value
+                    // to avoid missing rows. Apply smart_increment_value to choose the right strategy.
+                    let (start_key, final_inclusive_start) = if let Some(start_val) = normalized_start.as_ref() {
+                        if inclusive_start {
+                            (Some(vec![start_val.clone()]), true)
+                        } else {
+                            // Apply smart increment for exclusive start bounds
+                            match smart_increment_value(start_val) {
+                                Some(incremented) => (Some(vec![incremented]), true),
+                                None => (Some(vec![start_val.clone()]), false),
+                            }
+                        }
+                    } else {
+                        (None, inclusive_start)
+                    };
+
                     let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
 
                     // Safely acquire lock and call BTreeIndex::range_scan
@@ -431,7 +445,7 @@ impl IndexData {
                             .range_scan(
                                 start_key.as_ref(),
                                 end_key.as_ref(),
-                                inclusive_start,
+                                final_inclusive_start,
                                 inclusive_end,
                             )
                             .unwrap_or_else(|_| vec![]),
