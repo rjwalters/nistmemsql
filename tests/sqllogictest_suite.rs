@@ -33,9 +33,7 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
 
     // Blocklist of test files to skip (typically due to memory issues)
     let blocklist: HashSet<String> = vec![
-        // Large select test files (memory intensive)
-        "select4.test",
-        "select5.test",
+        // Blocklist is now empty - select4.test and select5.test pass after fixes in #1036 and #1689
     ]
     .into_iter()
     .map(|s| s.to_string())
