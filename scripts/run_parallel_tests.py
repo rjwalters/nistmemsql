@@ -6,11 +6,18 @@ This script orchestrates multiple worker processes to run SQLLogicTest files in 
 dramatically reducing test suite execution time from ~30+ minutes (serial) to ~2 minutes (parallel).
 
 Architecture:
-- Main process discovers all 623 test files and partitions them across N workers
+- Main process discovers all 623 test files and initializes a shared work queue
+- Workers dynamically pull test files from the queue one at a time (dynamic load balancing)
 - Each worker runs test files individually with per-file timeouts (prevents worker hangs)
 - Workers write individual JSON results to target/sqllogictest_results_worker_N.json
 - Main process merges all worker results into target/sqllogictest_cumulative.json
 - Results are compatible with existing database integration (process_test_results.py)
+
+Work Queue Strategy:
+- File-based queue with fcntl locking for thread-safe dequeue operations
+- Workers pull files round-robin until queue is empty
+- Ensures balanced load even when test files have varying execution times
+- Fast workers process more files; slow workers don't hold up the suite
 
 Per-File Timeout Strategy:
 - Each file has a 60s timeout to prevent hangs on slow/infinite-loop queries
@@ -35,6 +42,7 @@ Example:
 """
 
 import argparse
+import fcntl
 import json
 import multiprocessing
 import os
@@ -54,6 +62,98 @@ def get_repo_root() -> Path:
             return current
         current = current.parent
     raise RuntimeError("Could not find git repository root")
+
+
+class WorkQueue:
+    """
+    Thread-safe work queue using file-based locking.
+
+    Workers pull test files one at a time from the queue, ensuring balanced
+    load distribution even when test files have varying execution times.
+    """
+
+    def __init__(self, queue_file: Path):
+        """
+        Initialize work queue.
+
+        Args:
+            queue_file: Path to queue file (will be created/overwritten)
+        """
+        self.queue_file = queue_file
+        self.lock_file = queue_file.with_suffix('.lock')
+
+    def initialize(self, test_files: List[str]):
+        """
+        Initialize queue with test files.
+
+        Args:
+            test_files: List of test file paths to add to queue
+        """
+        # Create queue file with all test files (one per line)
+        self.queue_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.queue_file, 'w') as f:
+            for test_file in test_files:
+                f.write(f"{test_file}\n")
+
+        # Create lock file
+        self.lock_file.touch()
+
+    def dequeue(self) -> Optional[str]:
+        """
+        Atomically dequeue next test file from queue.
+
+        Returns:
+            Next test file path, or None if queue is empty
+        """
+        # Open lock file for exclusive locking
+        with open(self.lock_file, 'r') as lock_fd:
+            # Acquire exclusive lock
+            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
+
+            try:
+                # Read all remaining files
+                if not self.queue_file.exists():
+                    return None
+
+                with open(self.queue_file, 'r') as f:
+                    lines = f.readlines()
+
+                if not lines:
+                    return None
+
+                # Pop first file
+                next_file = lines[0].strip()
+                remaining_files = lines[1:]
+
+                # Write remaining files back
+                with open(self.queue_file, 'w') as f:
+                    f.writelines(remaining_files)
+
+                return next_file
+
+            finally:
+                # Release lock (automatically released when lock_fd closes)
+                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+
+    def size(self) -> int:
+        """
+        Get current queue size (number of remaining test files).
+
+        Returns:
+            Number of files remaining in queue
+        """
+        with open(self.lock_file, 'r') as lock_fd:
+            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
+
+            try:
+                if not self.queue_file.exists():
+                    return 0
+
+                with open(self.queue_file, 'r') as f:
+                    return sum(1 for line in f if line.strip())
+
+            finally:
+                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
 
 
 def discover_test_files(repo_root: Path) -> List[str]:
@@ -110,35 +210,13 @@ def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
     return len(test_files)
 
 
-def partition_test_files(test_files: List[str], num_workers: int) -> List[List[str]]:
+def run_worker(worker_id: int, work_queue: WorkQueue, time_budget: int, repo_root: Path, release_mode: bool = True) -> Tuple[int, Optional[Dict]]:
     """
-    Partition test files across workers for balanced distribution.
-
-    Args:
-        test_files: List of all test file paths
-        num_workers: Number of worker processes
-
-    Returns:
-        List of partitions, one per worker
-    """
-    partitions = [[] for _ in range(num_workers)]
-
-    # Simple round-robin distribution
-    # Could be improved with smarter load balancing based on file size or historical runtime
-    for i, test_file in enumerate(test_files):
-        worker_id = i % num_workers
-        partitions[worker_id].append(test_file)
-
-    return partitions
-
-
-def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_root: Path, release_mode: bool = True) -> Tuple[int, Optional[Dict]]:
-    """
-    Run a single worker process to test its partition of files.
+    Run a single worker process, pulling test files from queue until empty.
 
     Args:
         worker_id: Worker number (0-indexed)
-        test_files: List of test files for this worker
+        work_queue: Shared work queue to pull test files from
         time_budget: Time budget in seconds
         repo_root: Repository root directory
         release_mode: Whether to use release binary (default: True for performance)
@@ -146,11 +224,7 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
     Returns:
         (worker_id, results_dict) or (worker_id, None) on failure
     """
-    if not test_files:
-        print(f"[Worker {worker_id}] No files assigned, skipping")
-        return (worker_id, None)
-
-    print(f"[Worker {worker_id}] Starting with {len(test_files)} files", flush=True)
+    print(f"[Worker {worker_id}] Starting (pulling from shared queue)", flush=True)
     print(f"[Worker {worker_id}] Time budget: {time_budget}s", flush=True)
 
     # Find the test binary (built with --no-run earlier)
@@ -192,12 +266,20 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
     # This separates correctness (tests pass/fail) from performance (tests are slow)
     per_file_timeout = 1200  # 1200s (20 min) per file - prioritize correctness over speed
 
-    for test_file in test_files:
+    # Pull files from queue until empty or time budget exhausted
+    while True:
         # Check if we've exceeded our time budget
         elapsed = time.time() - worker_start_time
         if elapsed >= time_budget:
             print(f"[Worker {worker_id}] Time budget exhausted ({elapsed:.1f}s / {time_budget}s), stopping", flush=True)
-            print(f"[Worker {worker_id}] Tested {files_tested}/{len(test_files)} files", flush=True)
+            print(f"[Worker {worker_id}] Tested {files_tested} files", flush=True)
+            break
+
+        # Dequeue next test file
+        test_file = work_queue.dequeue()
+        if test_file is None:
+            print(f"[Worker {worker_id}] Queue empty, all work complete", flush=True)
+            print(f"[Worker {worker_id}] Tested {files_tested} files", flush=True)
             break
 
         # Set environment variables for this file
@@ -232,11 +314,14 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
             file_elapsed = time.time() - file_start_time
             files_tested += 1
 
+            # Get remaining queue size for progress tracking
+            queue_remaining = work_queue.size()
+
             # Check if test succeeded
             if result.returncode != 0:
-                print(f"[Worker {worker_id}] File {files_tested}/{len(test_files)}: {test_file} FAILED (exit {result.returncode}) in {file_elapsed:.1f}s", flush=True)
+                print(f"[Worker {worker_id}] File {files_tested} (queue: {queue_remaining} remaining): {test_file} FAILED (exit {result.returncode}) in {file_elapsed:.1f}s", flush=True)
             else:
-                print(f"[Worker {worker_id}] File {files_tested}/{len(test_files)}: {test_file} completed in {file_elapsed:.1f}s", flush=True)
+                print(f"[Worker {worker_id}] File {files_tested} (queue: {queue_remaining} remaining): {test_file} completed in {file_elapsed:.1f}s", flush=True)
 
             # Rename the standard result file to our unique per-file name
             # The Rust test binary writes to sqllogictest_results_worker_{worker_id}.json
@@ -262,7 +347,8 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
         except subprocess.TimeoutExpired:
             files_tested += 1
             files_timed_out += 1
-            print(f"[Worker {worker_id}] File {files_tested}/{len(test_files)}: {test_file} TIMEOUT after {per_file_timeout}s", flush=True)
+            queue_remaining = work_queue.size()
+            print(f"[Worker {worker_id}] File {files_tested} (queue: {queue_remaining} remaining): {test_file} TIMEOUT after {per_file_timeout}s", flush=True)
             # Clean up any partial result file that may have been written
             standard_results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
             if standard_results_file.exists():
@@ -274,7 +360,8 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
 
         except Exception as e:
             files_tested += 1
-            print(f"[Worker {worker_id}] File {files_tested}/{len(test_files)}: {test_file} ERROR: {type(e).__name__}: {e}", flush=True)
+            queue_remaining = work_queue.size()
+            print(f"[Worker {worker_id}] File {files_tested} (queue: {queue_remaining} remaining): {test_file} ERROR: {type(e).__name__}: {e}", flush=True)
             # Clean up any partial result file that may have been written
             standard_results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
             if standard_results_file.exists():
@@ -286,7 +373,7 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
 
     total_elapsed = time.time() - worker_start_time
 
-    print(f"[Worker {worker_id}] Completed: {files_tested}/{len(test_files)} files tested in {total_elapsed:.1f}s", flush=True)
+    print(f"[Worker {worker_id}] Completed: {files_tested} files tested in {total_elapsed:.1f}s", flush=True)
     if files_timed_out > 0:
         print(f"[Worker {worker_id}] Warning: {files_timed_out} files timed out", flush=True)
 
@@ -585,24 +672,23 @@ def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path, rele
 
     print(f"Found {len(test_files)} test files")
 
-    # Partition test files across workers
-    print(f"Partitioning across {num_workers} workers...")
-    partitions = partition_test_files(test_files, num_workers)
-
-    for i, partition in enumerate(partitions):
-        print(f"  Worker {i}: {len(partition)} files")
-
+    # Initialize work queue with all test files
+    print(f"Initializing work queue with {len(test_files)} files...")
+    queue_file = repo_root / "target" / "test_work_queue.txt"
+    work_queue = WorkQueue(queue_file)
+    work_queue.initialize(test_files)
+    print(f"✓ Work queue initialized")
     print()
 
-    # Run workers in parallel
-    print("Starting workers...")
+    # Run workers in parallel (all pulling from same queue)
+    print(f"Starting {num_workers} workers (dynamic load balancing via shared queue)...")
     worker_results = []
 
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        # Submit all workers
+        # Submit all workers (they all share the same work queue)
         futures = {
-            executor.submit(run_worker, i, partition, time_budget, repo_root, release_mode): i
-            for i, partition in enumerate(partitions)
+            executor.submit(run_worker, i, work_queue, time_budget, repo_root, release_mode): i
+            for i in range(num_workers)
         }
 
         # Collect results as they complete
