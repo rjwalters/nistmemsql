@@ -73,6 +73,12 @@ where
 {
     use SqlValue::*;
 
+    // NULL handling - SQL three-valued logic
+    // Any comparison with NULL returns NULL
+    if matches!(left, Null) || matches!(right, Null) {
+        return Ok(Null);
+    }
+
     // Boolean coercion for comparisons
     // If either operand is Boolean and the other is numeric, coerce boolean to i64
     match (left, right) {
