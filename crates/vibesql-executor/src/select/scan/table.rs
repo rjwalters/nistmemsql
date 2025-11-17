@@ -118,8 +118,8 @@ pub(crate) fn execute_table_scan(
     // Check SELECT privilege on the table
     PrivilegeChecker::check_select(database, table_name)?;
 
-    // Check if we should use an index scan
-    if let Some((index_name, sorted_columns)) = super::index_scan::should_use_index_scan(table_name, where_clause, order_by, database) {
+    // Check if we should use an index scan (with cost-based selection)
+    if let Some((index_name, sorted_columns)) = super::index_scan::cost_based_index_selection(table_name, where_clause, order_by, database) {
         // Use index scan for potentially better performance
         return super::index_scan::execute_index_scan(table_name, &index_name, alias, where_clause, sorted_columns, database);
     }
