@@ -26,8 +26,10 @@ impl Division {
             if *b == 0 {
                 return Ok(SqlValue::Null);
             }
-            // Standard SQL integer division - always returns INTEGER
-            return Ok(Integer(a / b));
+            // Standard SQL integer division - truncates toward zero (not floor division)
+            // Rust's / operator does floor division, so we need to truncate explicitly
+            let result = ((*a as f64) / (*b as f64)).trunc() as i64;
+            return Ok(Integer(result));
         }
 
         // Use helper for type coercion
@@ -50,8 +52,9 @@ impl Division {
         // - Numeric: NUMERIC / NUMERIC → NUMERIC
         match coerced {
             super::CoercedValues::ExactNumeric(a, b) => {
-                // Standard SQL integer division - always returns INTEGER
-                Ok(Integer(a / b))
+                // Standard SQL integer division - truncates toward zero (not floor division)
+                let result = ((a as f64) / (b as f64)).trunc() as i64;
+                Ok(Integer(result))
             }
             super::CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a / b) as f32)),
             super::CoercedValues::Numeric(a, b) => Ok(Numeric(a / b)),
@@ -74,7 +77,9 @@ impl Division {
             if *b == 0 {
                 return Ok(SqlValue::Null);
             }
-            return Ok(Integer(a / b));
+            // Integer division truncates toward zero (not floor division)
+            let result = ((*a as f64) / (*b as f64)).trunc() as i64;
+            return Ok(Integer(result));
         }
 
         // Use helper for type coercion
@@ -93,7 +98,10 @@ impl Division {
 
         // Integer division truncates toward zero
         match coerced {
-            super::CoercedValues::ExactNumeric(a, b) => Ok(Integer(a / b)),
+            super::CoercedValues::ExactNumeric(a, b) => {
+                let result = ((a as f64) / (b as f64)).trunc() as i64;
+                Ok(Integer(result))
+            }
             super::CoercedValues::ApproximateNumeric(a, b) => Ok(Integer((a / b).trunc() as i64)),
             super::CoercedValues::Numeric(a, b) => Ok(Integer((a / b).trunc() as i64)),
         }
