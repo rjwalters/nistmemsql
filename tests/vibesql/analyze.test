@@ -1,0 +1,69 @@
+# Test ANALYZE statement (Phase 4: SQL Interface for Statistics)
+# Issue #1995
+
+# Test basic table creation and population
+statement ok
+CREATE TABLE t1 (
+    id INTEGER,
+    name VARCHAR(100),
+    age INTEGER
+);
+
+statement ok
+INSERT INTO t1 VALUES (1, 'Alice', 30);
+
+statement ok
+INSERT INTO t1 VALUES (2, 'Bob', 25);
+
+statement ok
+INSERT INTO t1 VALUES (3, 'Charlie', 35);
+
+# Test ANALYZE on specific table
+statement ok
+ANALYZE t1;
+
+# Test ANALYZE with column list (advisory - currently analyzes all columns)
+statement ok
+ANALYZE t1 (id, name);
+
+# Create another table
+statement ok
+CREATE TABLE t2 (
+    x INTEGER,
+    y TEXT
+);
+
+statement ok
+INSERT INTO t2 VALUES (1, 'foo');
+
+statement ok
+INSERT INTO t2 VALUES (2, 'bar');
+
+# Test ANALYZE all tables (no table specified)
+statement ok
+ANALYZE;
+
+# Test ANALYZE on empty table
+statement ok
+CREATE TABLE t3 (a INTEGER, b TEXT);
+
+statement ok
+ANALYZE t3;
+
+# Test ANALYZE with single column
+statement ok
+ANALYZE t1 (age);
+
+# Test error: ANALYZE non-existent table
+statement error
+ANALYZE nonexistent_table;
+
+# Clean up
+statement ok
+DROP TABLE t1;
+
+statement ok
+DROP TABLE t2;
+
+statement ok
+DROP TABLE t3;

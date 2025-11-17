@@ -171,6 +171,24 @@ impl SqlExecutor {
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
             }
+            vibesql_ast::Statement::Reindex(reindex_stmt) => {
+                match vibesql_executor::ReindexExecutor::execute(&reindex_stmt, &self.db) {
+                    Ok(msg) => {
+                        println!("{}", msg);
+                        result.row_count = 0; // DDL doesn't return rows
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
+            vibesql_ast::Statement::Analyze(analyze_stmt) => {
+                match vibesql_executor::AnalyzeExecutor::execute(&analyze_stmt, &mut self.db) {
+                    Ok(msg) => {
+                        println!("{}", msg);
+                        result.row_count = 0; // DDL doesn't return rows
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
             _ => {
                 return Err(anyhow::anyhow!("Statement type not yet supported in CLI"));
             }

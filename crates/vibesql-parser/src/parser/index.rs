@@ -195,4 +195,44 @@ impl Parser {
 
         Ok(vibesql_ast::ReindexStmt { target })
     }
+
+    pub(super) fn parse_analyze_statement(&mut self) -> Result<vibesql_ast::AnalyzeStmt, ParseError> {
+        // Expect ANALYZE keyword
+        self.expect_keyword(Keyword::Analyze)?;
+
+        // Check for optional table name
+        let table_name = if self.peek() == &Token::Semicolon || self.peek() == &Token::Eof {
+            // No table specified - analyze all tables
+            None
+        } else {
+            // Parse table name
+            Some(self.parse_identifier()?)
+        };
+
+        // Check for optional column list (only if table name is present)
+        let columns = if table_name.is_some() && self.peek() == &Token::LParen {
+            self.advance(); // consume '('
+
+            let mut cols = Vec::new();
+            loop {
+                cols.push(self.parse_identifier()?);
+
+                if self.peek() == &Token::Comma {
+                    self.advance(); // consume ','
+                } else {
+                    break;
+                }
+            }
+
+            self.expect_token(Token::RParen)?;
+            Some(cols)
+        } else {
+            None
+        };
+
+        Ok(vibesql_ast::AnalyzeStmt {
+            table_name,
+            columns,
+        })
+    }
 }
