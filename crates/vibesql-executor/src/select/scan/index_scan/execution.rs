@@ -164,47 +164,16 @@ pub(crate) fn execute_index_scan(
     // - Multi-column predicates where only first column was indexed
     if need_where_filter {
         if let Some(where_expr) = where_clause {
-            use crate::evaluator::CombinedExpressionEvaluator;
-
-            // Create evaluator for filtering
-            let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
-
-            // Apply full WHERE clause to each row
-            let mut filtered_rows = Vec::new();
-            for row in rows {
-                // Clear CSE cache before evaluating each row
-                evaluator.clear_cse_cache();
-
-                let eval_result = evaluator.eval(where_expr, &row)?;
-                let include_row = match eval_result {
-                    vibesql_types::SqlValue::Boolean(true) => true,
-                    vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
-                    // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
-                    vibesql_types::SqlValue::Integer(0) => false,
-                    vibesql_types::SqlValue::Integer(_) => true,
-                    vibesql_types::SqlValue::Smallint(0) => false,
-                    vibesql_types::SqlValue::Smallint(_) => true,
-                    vibesql_types::SqlValue::Bigint(0) => false,
-                    vibesql_types::SqlValue::Bigint(_) => true,
-                    vibesql_types::SqlValue::Float(0.0) => false,
-                    vibesql_types::SqlValue::Float(_) => true,
-                    vibesql_types::SqlValue::Real(0.0) => false,
-                    vibesql_types::SqlValue::Real(_) => true,
-                    vibesql_types::SqlValue::Double(0.0) => false,
-                    vibesql_types::SqlValue::Double(_) => true,
-                    other => {
-                        return Err(ExecutorError::InvalidWhereClause(format!(
-                            "WHERE clause must evaluate to boolean, got: {:?}",
-                            other
-                        )))
-                    }
-                };
-
-                if include_row {
-                    filtered_rows.push(row);
-                }
-            }
-            rows = filtered_rows;
+            // Apply table-local predicates using predicate pushdown
+            // This ensures we only evaluate predicates that reference this table,
+            // avoiding ColumnNotFound errors for predicates referencing other tables
+            rows = crate::select::scan::predicates::apply_table_local_predicates(
+                rows,
+                schema.clone(),
+                where_expr,
+                table_name,
+                database,
+            )?;
         }
     }
 
