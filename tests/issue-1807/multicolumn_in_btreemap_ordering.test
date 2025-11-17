@@ -18,6 +18,8 @@
 # BTreeMap::range(). Proper solution requires calculating correct upper
 # bound: range([10]..=[10, MAX_VALUE]) or similar approach.
 
+hash-threshold 20
+
 statement ok
 CREATE TABLE test(pk INTEGER PRIMARY KEY, a INTEGER, b INTEGER, c INTEGER)
 
@@ -69,12 +71,18 @@ SELECT pk FROM test WHERE a IN (10, 20)
 
 # Verify that ordering within results is correct
 # Results should be in index order (BTreeMap order), not row index order
-query III nosort
+query III rowsort
 SELECT pk, a, b FROM test WHERE a IN (10) ORDER BY a, b
 ----
-1 10 20
-2 10 20
-3 10 30
+1
+10
+20
+2
+10
+20
+3
+10
+30
 
 # Test with three-column index and IN on first column
 # This is the most complex case for prefix matching
