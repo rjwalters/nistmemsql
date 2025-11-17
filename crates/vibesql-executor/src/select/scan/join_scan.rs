@@ -46,8 +46,12 @@ where
     let equijoin_predicates = if let Some(where_expr) = where_clause {
         // Build combined schema for WHERE clause analysis
         let mut combined_schema = left_result.schema.clone();
-        for (table_name, table_schema) in &right_result.schema.table_schemas {
-            combined_schema.table_schemas.insert(table_name.clone(), table_schema.clone());
+        for (table_name, (_start_idx, table_schema)) in &right_result.schema.table_schemas {
+            combined_schema = crate::schema::CombinedSchema::combine(
+                combined_schema,
+                table_name.clone(),
+                table_schema.clone(),
+            );
         }
 
         // Decompose WHERE clause with full schema
