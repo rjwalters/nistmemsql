@@ -41,10 +41,9 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     .map(|s| s.to_string())
     .collect();
 
-    // Blocklist patterns for very large test files (1000+ rows)
+    // Blocklist patterns for very large test files (10000+ rows)
     let blocklist_patterns: Vec<&str> = vec![
-        "/1000/",   // All 1000-row test files (memory intensive, slow)
-        "/10000/",  // All 10000-row test files
+        "/10000/",  // All 10000-row test files (extremely memory intensive)
     ];
 
     // Check if we're filtering to specific files (for parallel workers)
