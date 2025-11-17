@@ -225,11 +225,32 @@ impl IndexData {
                         // For example, col3 BETWEEN 24 AND 90 on index (col3, col0):
                         //   Start at keys with col3 >= 24, continue while col3 <= 90
 
-                        let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
-                        let start_bound: Bound<&[SqlValue]> = match start_key.as_ref() {
-                            Some(key) if inclusive_start => Bound::Included(key.as_slice()),
-                            Some(key) => Bound::Excluded(key.as_slice()),
-                            None => Bound::Unbounded,
+                        // For multi-column indexes, Bound::Excluded([X]) on start bounds has a problem:
+                        // Since [X] < [X, anything] lexicographically, Excluded([X]) still includes [X, Y].
+                        // Fix: For exclusive start bounds, increment X and use Included([X+1]) instead.
+                        // Use calculate_next_value (adds 1.0 for doubles) instead of try_increment_sqlvalue (adds epsilon)
+                        let start_key = normalized_start.as_ref().map(|v| {
+                            if inclusive_start {
+                                vec![v.clone()]
+                            } else {
+                                // Exclusive start: try to increment and use as inclusive
+                                // Use calculate_next_value which adds 1.0 for numeric types (suitable for index keys)
+                                // If we can't increment (e.g., non-numeric types), keep original value
+                                calculate_next_value(v).map(|incremented| vec![incremented]).unwrap_or_else(|| vec![v.clone()])
+                            }
+                        });
+
+                        let start_bound: Bound<&[SqlValue]> = match (start_key.as_ref(), normalized_start.as_ref()) {
+                            (Some(key), Some(orig)) if !inclusive_start && calculate_next_value(orig).is_some() => {
+                                // Successfully incremented: use Included bound
+                                Bound::Included(key.as_slice())
+                            }
+                            (Some(key), Some(_)) if !inclusive_start => {
+                                // Couldn't increment (non-numeric or at max value): use Excluded as fallback
+                                Bound::Excluded(key.as_slice())
+                            }
+                            (Some(key), _) => Bound::Included(key.as_slice()),
+                            (None, _) => Bound::Unbounded,
                         };
 
                         // Calculate upper bound efficiently instead of using Unbounded + manual checking
