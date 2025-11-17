@@ -61,6 +61,7 @@ CREATE TABLE test_runs (
     failed INTEGER,
     untested INTEGER,
     git_commit VARCHAR(40),
+    branch_name VARCHAR(200),
     ci_run_id VARCHAR(100)
 );
 

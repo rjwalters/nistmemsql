@@ -9,11 +9,13 @@ impl ExpressionEvaluator<'_> {
     /// BETWEEN SYMMETRIC: swaps low and high if low > high before evaluation
     /// If negated: expr < low OR expr > high
     ///
-    /// NULL handling (SQL:1999 standard):
-    /// - If ANY operand (expr, low, or high) is NULL, returns NULL immediately
-    /// - This is required because three-valued logic doesn't handle NOT (FALSE AND NULL) correctly
-    /// - NOT (FALSE AND NULL) = NOT FALSE = TRUE (incorrect)
-    /// - But SQL standard requires: expr NOT BETWEEN NULL AND x → NULL (not TRUE)
+    /// NULL handling (SQLite/SQL:1999 three-valued logic):
+    /// - NULL propagates through comparisons naturally (x < NULL → NULL, x > NULL → NULL)
+    /// - For BETWEEN: (expr >= low) AND (expr <= high)
+    ///   - If any comparison is NULL: NULL AND ... → NULL or FALSE (per three-valued AND)
+    /// - For NOT BETWEEN: (expr < low) OR (expr > high)
+    ///   - If any comparison is NULL: NULL OR ... → TRUE or NULL (per three-valued OR)
+    ///   - Example: 93 NOT BETWEEN NULL AND 10 = (NULL) OR (TRUE) = TRUE
     pub(super) fn eval_between(
         &self,
         expr: &vibesql_ast::Expression,
@@ -26,17 +28,6 @@ impl ExpressionEvaluator<'_> {
         let expr_val = self.eval(expr, row)?;
         let mut low_val = self.eval(low, row)?;
         let mut high_val = self.eval(high, row)?;
-
-        // NULL handling: Per SQL standard, if ANY operand (expr, low, or high) is NULL,
-        // BETWEEN returns NULL. This must be checked explicitly because three-valued logic
-        // doesn't correctly handle: NOT (FALSE AND NULL) which evaluates to TRUE instead of NULL.
-        // SQL:1999 standard: val BETWEEN NULL AND x → NULL, val BETWEEN x AND NULL → NULL
-        if matches!(expr_val, vibesql_types::SqlValue::Null)
-            || matches!(low_val, vibesql_types::SqlValue::Null)
-            || matches!(high_val, vibesql_types::SqlValue::Null)
-        {
-            return Ok(vibesql_types::SqlValue::Null);
-        }
 
         // Check if bounds are reversed (low > high)
         let gt_result =

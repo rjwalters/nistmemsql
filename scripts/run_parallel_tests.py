@@ -755,6 +755,21 @@ def get_git_commit(repo_root: Path) -> Optional[str]:
         return None
 
 
+def get_git_branch(repo_root: Path) -> Optional[str]:
+    """Get current git branch name."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
 def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path, release_mode: bool = True) -> bool:
     """
     Run SQLLogicTest suite in parallel across multiple workers.
@@ -841,12 +856,14 @@ def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path, rele
     # Initialize streaming database writer
     db_path = get_default_database_path()
     git_commit = get_git_commit(repo_root)
+    git_branch = get_git_branch(repo_root)
     run_id = int(datetime.now().timestamp())
 
     print(f"Initializing database writer...")
     print(f"  Database: {db_path}")
     print(f"  Run ID: {run_id}")
     print(f"  Git commit: {git_commit or 'unknown'}")
+    print(f"  Git branch: {git_branch or 'unknown'}")
 
     # Ensure schema exists
     schema_path = repo_root / "scripts" / "schema" / "test_results.sql"
@@ -862,10 +879,11 @@ def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path, rele
     # Write test_runs record
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     git_commit_escaped = f"'{git_commit}'" if git_commit else "NULL"
+    git_branch_escaped = f"'{git_branch}'" if git_branch else "NULL"
     test_run_stmt = f"""
 -- Test run started at {timestamp}
-INSERT INTO test_runs (run_id, started_at, completed_at, total_files, passed, failed, untested, git_commit)
-VALUES ({run_id}, TIMESTAMP '{timestamp}', NULL, {len(test_files)}, 0, 0, {len(test_files)}, {git_commit_escaped});
+INSERT INTO test_runs (run_id, started_at, completed_at, total_files, passed, failed, untested, git_commit, branch_name)
+VALUES ({run_id}, TIMESTAMP '{timestamp}', NULL, {len(test_files)}, 0, 0, {len(test_files)}, {git_commit_escaped}, {git_branch_escaped});
 """
     with open(db_path, 'a') as f:
         f.write(test_run_stmt)
