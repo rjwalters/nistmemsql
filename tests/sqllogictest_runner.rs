@@ -377,9 +377,9 @@ impl NistMemSqlDB {
     fn format_sql_value(
         &self,
         value: &SqlValue,
-        expected_type: Option<&DefaultColumnType>,
+        _expected_type: Option<&DefaultColumnType>,
     ) -> String {
-        let result = match value {
+        match value {
             // Integer types - return plain strings, let sqllogictest record_processor
             // add ".000" when test expects Real type
             SqlValue::Integer(i) => i.to_string(),
@@ -409,9 +409,7 @@ impl NistMemSqlDB {
             SqlValue::Time(d) => d.to_string(),
             SqlValue::Timestamp(d) => d.to_string(),
             SqlValue::Interval(d) => d.to_string(),
-        };
-
-        result
+        }
     }
 }
 
@@ -693,6 +691,10 @@ async fn run_single_test_file() {
 
     // Set hash threshold to 8 (SQLLogicTest default) - results with more than 8 values will be hashed
     tester.with_hash_threshold(8);
+
+    // Add "mysql" label for skipif/onlyif directives
+    // vibesql uses MySQL-compatible division (returns REAL/DECIMAL for integer division)
+    tester.add_label("mysql");
 
     tester.run_script(&contents)
         .unwrap_or_else(|e| panic!("Test failed for {}: {}", test_file, e));
