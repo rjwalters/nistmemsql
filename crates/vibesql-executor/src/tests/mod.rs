@@ -73,6 +73,7 @@ mod lazy_evaluation_tests;
 mod limit_offset;
 mod natural_join;
 mod non_unique_disk_index_tests;
+mod not_operator_tests;
 mod operator_edge_cases;
 mod order_by_index_optimization_tests;
 mod phase3_join_optimization;
