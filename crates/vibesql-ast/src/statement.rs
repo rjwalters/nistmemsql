@@ -3,19 +3,19 @@
 //! This module defines the Statement enum that represents all possible SQL statements.
 
 use crate::{
-    AlterSequenceStmt, AlterTableStmt, BeginStmt, CallStmt, CloseCursorStmt, CommitStmt,
-    CreateAssertionStmt, CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt,
-    CreateFunctionStmt, CreateIndexStmt, CreateProcedureStmt, CreateRoleStmt, CreateSchemaStmt,
-    CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt, CreateTriggerStmt, CreateTypeStmt,
-    CreateViewStmt, DeclareCursorStmt, DeleteStmt, DescribeStmt, DropAssertionStmt,
-    DropCharacterSetStmt, DropCollationStmt, DropDomainStmt, DropFunctionStmt, DropIndexStmt,
-    DropProcedureStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt,
-    DropTranslationStmt, DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchStmt, GrantStmt,
-    InsertStmt, OpenCursorStmt, ReindexStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt,
-    RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetCatalogStmt, SetNamesStmt,
-    SetSchemaStmt, SetTimeZoneStmt, SetTransactionStmt, SetVariableStmt, ShowColumnsStmt,
-    ShowCreateTableStmt, ShowDatabasesStmt, ShowIndexStmt, ShowTablesStmt, TruncateTableStmt,
-    UpdateStmt,
+    AlterSequenceStmt, AlterTableStmt, AnalyzeStmt, BeginStmt, CallStmt, CloseCursorStmt,
+    CommitStmt, CreateAssertionStmt, CreateCharacterSetStmt, CreateCollationStmt,
+    CreateDomainStmt, CreateFunctionStmt, CreateIndexStmt, CreateProcedureStmt, CreateRoleStmt,
+    CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt,
+    CreateTriggerStmt, CreateTypeStmt, CreateViewStmt, DeclareCursorStmt, DeleteStmt,
+    DescribeStmt, DropAssertionStmt, DropCharacterSetStmt, DropCollationStmt, DropDomainStmt,
+    DropFunctionStmt, DropIndexStmt, DropProcedureStmt, DropRoleStmt, DropSchemaStmt,
+    DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTriggerStmt, DropTypeStmt,
+    DropViewStmt, FetchStmt, GrantStmt, InsertStmt, OpenCursorStmt, ReindexStmt,
+    ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
+    SelectStmt, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
+    SetTransactionStmt, SetVariableStmt, ShowColumnsStmt, ShowCreateTableStmt, ShowDatabasesStmt,
+    ShowIndexStmt, ShowTablesStmt, TruncateTableStmt, UpdateStmt,
 };
 
 // ============================================================================
@@ -72,6 +72,7 @@ pub enum Statement {
     CreateIndex(CreateIndexStmt),
     DropIndex(DropIndexStmt),
     Reindex(ReindexStmt),
+    Analyze(AnalyzeStmt),
     CreateAssertion(CreateAssertionStmt),
     DropAssertion(DropAssertionStmt),
     // Cursor operations (SQL:1999 Feature E121)

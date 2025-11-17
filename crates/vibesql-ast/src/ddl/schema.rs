@@ -209,3 +209,18 @@ pub struct ReindexStmt {
     /// Optional target: database name, table name, or index name
     pub target: Option<String>,
 }
+
+/// ANALYZE statement
+///
+/// Computes table and column statistics to improve query plan optimization.
+/// Syntax:
+/// - ANALYZE;                          -- All tables
+/// - ANALYZE table_name;               -- Specific table
+/// - ANALYZE table_name (col1, col2);  -- Specific columns
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnalyzeStmt {
+    /// Optional table name
+    pub table_name: Option<String>,
+    /// Optional column names (only valid when table_name is specified)
+    pub columns: Option<Vec<String>>,
+}

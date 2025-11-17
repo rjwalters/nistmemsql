@@ -1,18 +1,21 @@
-//! CREATE INDEX, DROP INDEX, and REINDEX statement execution
+//! CREATE INDEX, DROP INDEX, REINDEX, and ANALYZE statement execution
 //!
-//! This module provides executors for index DDL operations.
+//! This module provides executors for index DDL and statistics operations.
 //!
 //! # Structure
 //!
 //! - `create_index.rs` - CREATE INDEX executor
 //! - `drop_index.rs` - DROP INDEX executor
 //! - `reindex.rs` - REINDEX executor
+//! - `analyze.rs` - ANALYZE executor
 
+pub mod analyze;
 pub mod create_index;
 pub mod drop_index;
 pub mod reindex;
 
-use vibesql_ast::{CreateIndexStmt, DropIndexStmt, ReindexStmt};
+use vibesql_ast::{AnalyzeStmt, CreateIndexStmt, DropIndexStmt, ReindexStmt};
+pub use analyze::AnalyzeExecutor;
 pub use create_index::CreateIndexExecutor;
 pub use drop_index::DropIndexExecutor;
 pub use reindex::ReindexExecutor;
