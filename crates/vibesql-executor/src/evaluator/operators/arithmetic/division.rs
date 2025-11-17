@@ -19,23 +19,15 @@ impl Division {
             return Ok(Null);
         }
 
-        // Fast path for integers - use smart type selection for MySQL compatibility
-        // - If division has no fractional part → return Integer (for DISTINCT correctness)
-        // - If division has fractional part → return Numeric (for precision)
-        // This matches MySQL behavior where integer division can return DECIMAL
+        // Fast path for integers - SQL:1999 standard integer division
+        // INTEGER / INTEGER → INTEGER (truncates toward zero)
+        // This matches SQLLogicTest expectations and SQL:1999 semantics
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
                 return Ok(SqlValue::Null);
             }
-            // Use integer arithmetic to check for remainder (avoids f64 precision issues)
-            let int_result = a / b;
-            if int_result * b == *a {
-                // Exact division, no remainder - return as Integer for DISTINCT correctness
-                return Ok(Integer(int_result));
-            } else {
-                // Has remainder - return as Numeric for precision
-                return Ok(Numeric(*a as f64 / *b as f64));
-            }
+            // Standard SQL integer division - always returns INTEGER
+            return Ok(Integer(a / b));
         }
 
         // Use helper for type coercion
@@ -52,19 +44,14 @@ impl Division {
             return Ok(SqlValue::Null);
         }
 
-        // Division with smart type selection for MySQL compatibility
-        // - ExactNumeric: Apply same logic as Integer+Integer (smart type selection)
-        // - ApproximateNumeric: Always returns Float
-        // - Numeric: Preserves Numeric type
+        // Division with type preservation
+        // - ExactNumeric: INTEGER / INTEGER → INTEGER (SQL:1999 standard)
+        // - ApproximateNumeric: FLOAT / FLOAT → FLOAT
+        // - Numeric: NUMERIC / NUMERIC → NUMERIC
         match coerced {
             super::CoercedValues::ExactNumeric(a, b) => {
-                // Smart type selection: Integer if no remainder, Numeric if fractional
-                let int_result = a / b;
-                if int_result * b == a {
-                    Ok(Integer(int_result))
-                } else {
-                    Ok(Numeric(a as f64 / b as f64))
-                }
+                // Standard SQL integer division - always returns INTEGER
+                Ok(Integer(a / b))
             }
             super::CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a / b) as f32)),
             super::CoercedValues::Numeric(a, b) => Ok(Numeric(a / b)),
