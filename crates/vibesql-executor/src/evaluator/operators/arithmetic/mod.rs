@@ -175,9 +175,9 @@ mod tests {
 
     #[test]
     fn test_integer_division() {
-        // Division returns Float for integer operands (SQLLogicTest behavior)
+        // Division returns Integer for integer operands (SQLite/SQLLogicTest behavior)
         let result = ArithmeticOps::divide(&SqlValue::Integer(15), &SqlValue::Integer(3)).unwrap();
-        assert_eq!(result, SqlValue::Float(5.0));
+        assert_eq!(result, SqlValue::Integer(5));
     }
 
     #[test]
@@ -261,15 +261,15 @@ mod tests {
 
     #[test]
     fn test_boolean_division() {
-        // 10 / TRUE = 10.0 (booleans coerce to integers, then division returns float)
+        // 10 / TRUE = 10 (booleans coerce to integers, then division returns integer)
         let result =
             ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
-        assert_eq!(result, SqlValue::Float(10.0));
+        assert_eq!(result, SqlValue::Integer(10));
 
-        // TRUE / TRUE = 1.0
+        // TRUE / TRUE = 1
         let result =
             ArithmeticOps::divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
-        assert_eq!(result, SqlValue::Float(1.0));
+        assert_eq!(result, SqlValue::Integer(1));
     }
 
     #[test]

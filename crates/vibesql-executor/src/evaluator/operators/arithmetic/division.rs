@@ -19,16 +19,16 @@ impl Division {
             return Ok(Null);
         }
 
-        // Fast path for integers - SQLLogicTest expects floating-point results
-        // INTEGER / INTEGER → FLOAT (floating-point division)
-        // This matches SQLLogicTest expectations for standard division operator
+        // Fast path for integers - SQLLogicTest expects integer division results
+        // INTEGER / INTEGER → INTEGER (integer division, truncates toward zero)
+        // This matches SQLite and SQLLogicTest behavior
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
                 return Ok(SqlValue::Null);
             }
-            // Perform floating-point division
-            let result = (*a as f64) / (*b as f64);
-            return Ok(Float(result as f32));
+            // Perform integer division (truncate toward zero)
+            let result = ((*a as f64) / (*b as f64)).trunc() as i64;
+            return Ok(Integer(result));
         }
 
         // Use helper for type coercion
@@ -45,15 +45,15 @@ impl Division {
             return Ok(SqlValue::Null);
         }
 
-        // Division returns floating-point results
-        // - ExactNumeric: INTEGER / INTEGER → FLOAT (floating-point division)
+        // Division returns type-appropriate results
+        // - ExactNumeric: INTEGER / INTEGER → INTEGER (integer division, truncates toward zero)
         // - ApproximateNumeric: FLOAT / FLOAT → FLOAT
         // - Numeric: NUMERIC / NUMERIC → NUMERIC
         match coerced {
             super::CoercedValues::ExactNumeric(a, b) => {
-                // Perform floating-point division for integers
-                let result = (a as f64) / (b as f64);
-                Ok(Float(result as f32))
+                // Perform integer division for integers (truncate toward zero)
+                let result = ((a as f64) / (b as f64)).trunc() as i64;
+                Ok(Integer(result))
             }
             super::CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a / b) as f32)),
             super::CoercedValues::Numeric(a, b) => Ok(Numeric(a / b)),
