@@ -110,7 +110,8 @@ impl JoinOrderSearch {
 
     /// Find optimal join order by exploring search space
     ///
-    /// Returns list of table names in the order they should be joined
+    /// Returns list of table names in the order they should be joined.
+    /// If search space is too large, returns left-to-right ordering as fallback.
     pub fn find_optimal_order(&self) -> Vec<String> {
         if self.all_tables.is_empty() {
             return Vec::new();
@@ -124,8 +125,26 @@ impl JoinOrderSearch {
 
         let mut best_cost = u64::MAX;
         let mut best_order = vec![];
+        let mut iterations = 0;
 
-        self.search_recursive(initial_state, &mut best_cost, &mut best_order);
+        // Maximum iterations to prevent pathological cases
+        // For n tables, factorial complexity means:
+        // 3 tables: 6 iterations, 4 tables: 24, 5 tables: 120, 6 tables: 720
+        // Cap at 1000 to limit worst-case overhead while still exploring reasonable spaces
+        let max_iterations = 1000;
+
+        self.search_recursive(
+            initial_state,
+            &mut best_cost,
+            &mut best_order,
+            &mut iterations,
+            max_iterations,
+        );
+
+        // If we hit iteration limit without finding a complete ordering, return left-to-right
+        if best_order.is_empty() {
+            return self.all_tables.iter().cloned().collect();
+        }
 
         best_order
     }
@@ -136,7 +155,15 @@ impl JoinOrderSearch {
         state: SearchState,
         best_cost: &mut u64,
         best_order: &mut Vec<String>,
+        iterations: &mut u32,
+        max_iterations: u32,
     ) {
+        // Early termination: check iteration limit
+        *iterations += 1;
+        if *iterations > max_iterations {
+            return;
+        }
+
         // Base case: all tables joined
         if state.joined_tables.len() == self.all_tables.len() {
             let total_cost = state.cost_so_far.total();
@@ -171,7 +198,7 @@ impl JoinOrderSearch {
             next_state.order.push(next_table.clone());
 
             // Recursively search from this state
-            self.search_recursive(next_state, best_cost, best_order);
+            self.search_recursive(next_state, best_cost, best_order, iterations, max_iterations);
         }
     }
 
