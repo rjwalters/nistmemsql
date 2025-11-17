@@ -1,10 +1,10 @@
 # SQLLogicTest Suite Status & Testing Guide
 
-**Last Updated**: 2025-11-08 (current run)
-**Current Status**: 0% pass rate (0/403 files tested) - REGRESSION DETECTED
-**Previous Status**: 13.5% pass rate (83/613 files) as of 2025-11-06
-**Coverage**: 64.7% (403/623 files tested in current run)
-**Note**: All tests timing out after 60 seconds - timeout regression (#1012, fixed in #1013 and #1018)
+**Last Updated**: 2025-11-16
+**Current Status**: 51.0% pass rate (321/629 files passing) ✅
+**Test Infrastructure**: Stable parallel execution with 8 workers
+**Memory Management**: Successfully running with blocklist for memory-intensive tests
+**Root Cause of Failures**: Systematic aggregate function handling issues (130/130 aggregate tests failing)
 
 ## Quick Start
 
@@ -311,91 +311,116 @@ python3 scripts/query_test_results.py \
 
 ---
 
-## Current Test Results (as of 2025-11-08)
+## Current Test Results (as of 2025-11-16)
 
-### ⚠️ REGRESSION ALERT
+### ✅ Major Progress: 51.0% Pass Rate Achieved
 
-All tests are timing out after 60 seconds, causing 100% failure rate. This is a critical issue that prevents accurate metrics.
-
-- **Root Cause**: Infinite loop in test execution (identified in SQLLOGICTEST_ISSUES.md)
-- **Last Good Run**: 2025-11-06 with 13.5% pass rate
-- **Action Required**: Debug and fix infinite loop before tests can progress
-
-### Overall Statistics (Current Run - INVALID)
+**Overall Statistics**
 
 | Metric | Value |
 |--------|-------|
-| Total Files | 623 |
-| Tested | 403 (64.7%) |
-| Passing | 0 (0%) - TIMEOUT |
-| Failing | 403 (100%) - TIMEOUT |
-| Untested | 220 (35.3%) |
+| Total Files | 629 |
+| Passing | 321 (51.0%) |
+| Failing | 308 (49.0%) |
+| Blocklisted | 4 (memory-intensive) |
 
-### Previous Good Statistics (2025-11-06)
+### Pass Rate by Category
 
-| Metric | Value |
-|--------|-------|
-| Total Files | 623 |
-| Tested | 613 (98.4%) |
-| Passing | 83 (13.5%) |
-| Failing | 530 (86.5%) |
-| Untested | 10 (1.6%) |
+| Category | Total | Passed | Failed | Pass Rate | Status |
+|----------|-------|--------|--------|-----------|--------|
+| **ddl** | 1 | 1 | 0 | 100.0% | ✅ Perfect |
+| **evidence** | 12 | 12 | 0 | 100.0% | ✅ Perfect |
+| **index** | 214 | 203 | 11 | 94.9% | ✅ Excellent |
+| **other** | 11 | 3 | 8 | 27.3% | 🔴 Needs work |
+| **random** | 391 | 102 | 289 | 26.1% | 🔴 Needs work |
 
-### Pass Rate by Category (from 2025-11-06)
+### Index Tests: Detailed Breakdown (94.9% pass rate)
 
-| Category | Pass Rate | Status |
-|----------|-----------|--------|
-| index/commute | 95%+ | ✅ Strong |
-| index/between | 90%+ | ✅ Strong |
-| index/in | 85%+ | ✅ Good |
-| evidence | 40%+ | ⚠️ Needs work |
-| random | 2-5% | ❌ Weak |
+| Subcategory | Total | Passed | Failed | Pass Rate |
+|-------------|-------|--------|--------|-----------|
+| view | 16 | 16 | 0 | 100% ✅ |
+| delete | 14 | 14 | 0 | 100% ✅ |
+| between | 13 | 13 | 0 | 100% ✅ |
+| in | 13 | 13 | 0 | 100% ✅ |
+| orderby_nosort | 49 | 48 | 1 | 98.0% ✅ |
+| orderby | 31 | 30 | 1 | 96.8% ✅ |
+| commute | 52 | 50 | 2 | 96.2% ✅ |
+| random | 26 | 19 | 7 | 73.1% ⚠️ |
 
-**Note**: Current run shows 0% across all categories due to timeout issue
+### Random Tests: Detailed Breakdown (26.1% pass rate)
 
-### Top Failure Categories
+| Subcategory | Total | Passed | Failed | Pass Rate |
+|-------------|-------|--------|--------|-----------|
+| **expr** | 120 | 99 | 21 | 82.5% 🟡 |
+| **select** | 127 | 2 | 125 | 1.6% 🔴 |
+| **groupby** | 14 | 1 | 13 | 7.1% 🔴 |
+| **aggregates** | 130 | 0 | 130 | 0.0% 🔴 |
 
-| Issue | Tests Affected | Effort | Priority |
-|-------|----------------|--------|----------|
-| Result hash mismatches | 138 (27.6%) | Medium | P0 |
-| Result formatting | 112 (22.4%) | Medium | P0 |
-| Decimal formatting | 56 (11.2%) | Low | P0 |
-| Parse errors | 42 (8.4%) | High | P1 |
-| Column resolution | 39 (7.8%) | Medium | P1 |
-| Type mismatches | 29 (5.8%) | High | P2 |
-| Multi-row formatting | 19 (3.8%) | Low | P0 |
-| Missing functions | 13 (2.6%) | Low | P2 |
+### Root Cause Analysis
+
+The failure pattern clearly indicates **systematic aggregate function handling issues**:
+
+1. ✅ **Index lookups work excellently** (94.9%) - B-tree implementation solid
+2. ✅ **Simple expressions work well** (82.5%) - Expression evaluator functional
+3. 🔴 **ALL aggregate tests fail** (0% for 130 tests) - Aggregate bug systematic
+4. 🔴 **Groupby nearly all fail** (7.1%) - Likely related to aggregate handling
+5. 🔴 **Complex SELECT nearly all fail** (1.6%) - Likely uses aggregates
+
+**Key Insight**: This is NOT a random bug or memory issue. It's a **specific, systematic problem with aggregate function handling** affecting ~289 tests.
+
+### Blocklist Strategy
+
+Successfully managing memory by blocklisting memory-intensive tests:
+- `select4.test`, `select5.test` - Very large SELECT tests
+- All `/10000/` pattern files - Tests with 10,000+ rows
+
+**Result**: Stable test execution with 8 parallel workers, no memory crashes.
 
 ---
 
 ## Recommended Next Steps
 
-### Short Term: Quick Wins
+### Priority 1: Fix Aggregate Function Handling
 
-According to [SQLLOGICTEST_ROADMAP.md](./SQLLOGICTEST_ROADMAP.md), the top 2 quick wins are:
+**Impact**: Would unlock ~130 tests (21% improvement)
 
-1. **Issue #956**: Decimal formatting (affects 56 tests, low effort)
-   - Expected improvement: +8-10% pass rate
+The single biggest issue preventing higher pass rates is aggregate function handling:
+- All 130 random/aggregates tests fail (0%)
+- Nearly all groupby tests fail (7.1%)
+- Many SELECT tests likely fail due to aggregate issues (1.6%)
 
-2. **Issue #957**: Multi-row formatting (affects 19 tests, low effort)
-   - Expected improvement: +3-5% pass rate
+**Action Items**:
+1. Investigate aggregate function implementation in query executor
+2. Debug specific failing test to identify root cause
+3. Fix aggregate computation/result formatting
+4. Verify with random/aggregates test suite
 
-Together: 14% → 25% pass rate (+75 passing tests)
+### Priority 2: Fix Complex SELECT Queries
 
-### Medium Term: High-Impact Fixes
+**Impact**: Would unlock ~125 tests (20% improvement)
 
-Issues #959, #960, #958 could take us from 25% to 87% pass rate:
+After aggregates are fixed, focus on complex SELECT:
+- random/select: 2/127 passing (1.6%)
+- Likely involves JOINs, subqueries, or complex expressions
 
-- **#959**: Hash mismatches (138 tests)
-- **#960**: General result mismatches (112 tests)
-- **#958**: Column alias resolution (39 tests)
+### Priority 3: Polish Index Edge Cases
 
-### Long Term: Full Compliance
+**Impact**: Would unlock ~11 tests (2% improvement)
 
-Remaining issues for 87% → 100%:
-- Parse error handling
-- Missing SQL functions (NULLIF, COALESCE)
-- Type coercion edge cases
+Index tests are already excellent (94.9%), remaining failures:
+- index/random: 7 failures
+- index/commute/1000: 2 failures
+- index/orderby/1000: 1 failure
+- index/orderby_nosort/1000: 1 failure
+
+### Priority 4: Fix "Other" Category
+
+**Impact**: Would unlock ~8 tests (1% improvement)
+
+Small category with mixed issues:
+- select4.test, select5.test - Blocklisted for memory
+- Custom vibesql/ tests - Multicolumn IN issues
+- tests/issue-1929 - Known aggregate bug
 
 ---
 
@@ -580,13 +605,14 @@ rm target/sqllogictest_results.sql
 
 ## Status History
 
-| Date | Pass Rate | Tests | Coverage | Notes |
-|------|-----------|-------|----------|-------|
-| 2025-11-08 | 0% | 0/403 | 64.7% | ⚠️ All tests timeout at 60s - REGRESSION |
-| 2025-11-06 | 13.5% | 83/613 | 98.4% | Baseline - infinite loop identified |
+| Date | Pass Rate | Tests | Notes |
+|------|-----------|-------|-------|
+| 2025-11-16 | 51.0% | 321/629 | ✅ Stable infrastructure, aggregate bug identified |
+| 2025-11-08 | 0% | 0/403 | ⚠️ All tests timeout (REGRESSION) |
+| 2025-11-06 | 13.5% | 83/613 | Baseline measurement |
 
 ---
 
-**Last Updated**: 2025-11-08
+**Last Updated**: 2025-11-16
 **Maintainer**: VibeSQL Team
-**Status**: RESOLVED - Timeout regression fixed (#1013, #1018)
+**Status**: STABLE - Infrastructure solid, aggregate functions are primary blocker (#1841 closed)

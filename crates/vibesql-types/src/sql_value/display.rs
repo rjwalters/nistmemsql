@@ -28,9 +28,52 @@ impl fmt::Display for SqlValue {
                     write!(f, "{:.3}", n)
                 }
             }
-            SqlValue::Float(n) => write!(f, "{}", n),
-            SqlValue::Real(n) => write!(f, "{}", n),
-            SqlValue::Double(n) => write!(f, "{}", n),
+            // Format Float, Real, Double - SQLLogicTest compatibility
+            // Same formatting as Numeric: 3 decimal places for consistency
+            SqlValue::Float(n) => {
+                let n64 = *n as f64;
+                if n64.is_nan() {
+                    write!(f, "NaN")
+                } else if n64.is_infinite() {
+                    if n64 > 0.0 {
+                        write!(f, "Infinity")
+                    } else {
+                        write!(f, "-Infinity")
+                    }
+                } else {
+                    // Always show 3 decimal places for SQLLogicTest compatibility
+                    write!(f, "{:.3}", n64)
+                }
+            }
+            SqlValue::Real(n) => {
+                let n64 = *n as f64;
+                if n64.is_nan() {
+                    write!(f, "NaN")
+                } else if n64.is_infinite() {
+                    if n64 > 0.0 {
+                        write!(f, "Infinity")
+                    } else {
+                        write!(f, "-Infinity")
+                    }
+                } else {
+                    // Always show 3 decimal places for SQLLogicTest compatibility
+                    write!(f, "{:.3}", n64)
+                }
+            }
+            SqlValue::Double(n) => {
+                if n.is_nan() {
+                    write!(f, "NaN")
+                } else if n.is_infinite() {
+                    if *n > 0.0 {
+                        write!(f, "Infinity")
+                    } else {
+                        write!(f, "-Infinity")
+                    }
+                } else {
+                    // Always show 3 decimal places for SQLLogicTest compatibility
+                    write!(f, "{:.3}", n)
+                }
+            }
             SqlValue::Character(s) => write!(f, "{}", s),
             SqlValue::Varchar(s) => write!(f, "{}", s),
             SqlValue::Boolean(true) => write!(f, "TRUE"),
@@ -71,5 +114,31 @@ mod tests {
         assert_eq!(format!("{}", SqlValue::Numeric(f64::NAN)), "NaN");
         assert_eq!(format!("{}", SqlValue::Numeric(f64::INFINITY)), "Infinity");
         assert_eq!(format!("{}", SqlValue::Numeric(f64::NEG_INFINITY)), "-Infinity");
+    }
+
+    #[test]
+    fn test_float_display_whole_numbers() {
+        // SQLLogicTest compatibility: Float type also displays with 3 decimal places
+        assert_eq!(format!("{}", SqlValue::Float(32.0)), "32.000");
+        assert_eq!(format!("{}", SqlValue::Float(-4373.0)), "-4373.000");
+        assert_eq!(format!("{}", SqlValue::Float(0.0)), "0.000");
+        assert_eq!(format!("{}", SqlValue::Float(127.75)), "127.750");
+    }
+
+    #[test]
+    fn test_real_display_fractional() {
+        // Real type also displays with 3 decimal places
+        assert_eq!(format!("{}", SqlValue::Real(32.5)), "32.500");
+        assert_eq!(format!("{}", SqlValue::Real(-4373.123)), "-4373.123");
+        assert_eq!(format!("{}", SqlValue::Real(0.5)), "0.500");
+    }
+
+    #[test]
+    fn test_double_display_special_values() {
+        // Double type handles special values
+        assert_eq!(format!("{}", SqlValue::Double(f64::NAN)), "NaN");
+        assert_eq!(format!("{}", SqlValue::Double(f64::INFINITY)), "Infinity");
+        assert_eq!(format!("{}", SqlValue::Double(f64::NEG_INFINITY)), "-Infinity");
+        assert_eq!(format!("{}", SqlValue::Double(123.45)), "123.450");
     }
 }
