@@ -60,18 +60,12 @@ pub fn format_sql_value(value: &SqlValue, expected_type: Option<&DefaultColumnTy
             }
         }
         SqlValue::Float(f) | SqlValue::Real(f) => {
-            if f.fract() == 0.0 {
-                format!("{:.1}", f)
-            } else {
-                f.to_string()
-            }
+            // SQLLogicTest expects 3 decimal places for all floating point values
+            format!("{:.3}", f)
         }
         SqlValue::Double(f) => {
-            if f.fract() == 0.0 {
-                format!("{:.1}", f)
-            } else {
-                f.to_string()
-            }
+            // SQLLogicTest expects 3 decimal places for all floating point values
+            format!("{:.3}", f)
         }
         SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
         SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
@@ -138,18 +132,12 @@ pub fn format_sql_value_canonical(
             }
         }
         SqlValue::Float(f) | SqlValue::Real(f) => {
-            if f.fract() == 0.0 {
-                format!("{:.1}", f)
-            } else {
-                f.to_string()
-            }
+            // SQLLogicTest expects 3 decimal places for all floating point values
+            format!("{:.3}", f)
         }
         SqlValue::Double(f) => {
-            if f.fract() == 0.0 {
-                format!("{:.1}", f)
-            } else {
-                f.to_string()
-            }
+            // SQLLogicTest expects 3 decimal places for all floating point values
+            format!("{:.3}", f)
         }
         SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
         SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
