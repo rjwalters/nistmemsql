@@ -434,6 +434,41 @@ END;
 "
 ```
 
+**Analyzing Results (Database-First Workflow)**:
+
+After running tests, **always use the database to analyze results** - don't parse JSON files manually!
+
+```bash
+# View all failures
+./scripts/sqllogictest query --query "
+    SELECT file_path, category
+    FROM test_files
+    WHERE status = 'FAIL'
+    ORDER BY category, file_path
+"
+
+# Get pass rate by category
+./scripts/sqllogictest query --query "
+    SELECT category,
+           COUNT(*) as total,
+           SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) as passed,
+           ROUND(SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as pass_pct
+    FROM test_files
+    GROUP BY category
+"
+
+# Use preset queries for common analyses
+./scripts/sqllogictest query --preset failed-files
+./scripts/sqllogictest query --preset progress
+./scripts/sqllogictest query --preset flaky-tests
+```
+
+**Why database-first?**
+- ✅ Single source of truth for test results
+- ✅ Historical tracking across runs
+- ✅ Powerful SQL for complex analysis
+- ✅ Dogfooding VibeSQL with real data
+
 **Features**:
 - 📊 **3 tables**: test_files, test_runs, test_results
 - 🔍 **9 preset queries**: failed-files, by-category, progress, flaky-tests, etc.
