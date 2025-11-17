@@ -66,9 +66,6 @@ pub(crate) fn execute_index_scan(
     // Determine if this is a multi-column index
     let is_multi_column_index = index_metadata.columns.len() > 1;
 
-    // Determine if this is a multi-column index
-    let is_multi_column_index = index_metadata.columns.len() > 1;
-
     // Get row indices using the appropriate index operation
     let matching_row_indices: Vec<usize> = match index_predicate {
         Some(IndexPredicate::Range(range)) => {

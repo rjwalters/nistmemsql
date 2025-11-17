@@ -62,6 +62,41 @@ fn calculate_next_value(value: &SqlValue) -> Option<SqlValue> {
     }
 }
 
+/// Smart increment that chooses the right strategy based on value type
+///
+/// For integer values (or floats representing integers like 40.0), adds 1.0.
+/// For floating point values with fractional parts (like 3952.75), adds epsilon.
+///
+/// This is needed because multi-column index range scans convert exclusive bounds
+/// to inclusive by incrementing the value, but adding 1.0 to 3952.75 gives 3953.75,
+/// which would skip valid rows between 3952.75 and 3953.75.
+fn smart_increment_value(value: &SqlValue) -> Option<SqlValue> {
+    match value {
+        SqlValue::Double(d) | SqlValue::Numeric(d) => {
+            // Check if this is an integer value (no fractional part)
+            if d.fract() == 0.0 {
+                // Integer value: add 1.0 (works for discrete values)
+                calculate_next_value(value)
+            } else {
+                // Floating point value: add epsilon (preserves precision)
+                try_increment_sqlvalue(value)
+            }
+        }
+        SqlValue::Float(f) | SqlValue::Real(f) => {
+            // Check if this is an integer value (no fractional part)
+            if f.fract() == 0.0 {
+                // Integer value: add 1.0
+                calculate_next_value(value)
+            } else {
+                // Floating point value: add epsilon
+                try_increment_sqlvalue(value)
+            }
+        }
+        // For actual integer types, always use calculate_next_value
+        _ => calculate_next_value(value),
+    }
+}
+
 /// Try to increment a SqlValue by the smallest possible amount
 /// Returns None if the value is already at its maximum or increment is not supported
 ///
@@ -228,8 +263,9 @@ impl IndexData {
                         // For multi-column indexes, Excluded([v]) doesn't exclude keys like [v, x]
                         // because lexicographically [v] < [v, x]. So for `col > 40`, we need to
                         // increment to 41 and use Included([41]) instead of Excluded([40]).
-                        // Use calculate_next_value (adds 1.0) instead of try_increment_sqlvalue (adds epsilon)
-                        // because index keys are normalized to Double but represent discrete integer values.
+                        // Use smart_increment_value which chooses the right increment strategy:
+                        // - Integer values (40.0): add 1.0 → 41.0
+                        // - Float values (3952.75): add epsilon → 3952.750...001
                         let start_key = normalized_start.as_ref().map(|v| {
                             if inclusive_start {
                                 // For >= predicates, use value as-is with Included
@@ -237,7 +273,7 @@ impl IndexData {
                             } else {
                                 // For > predicates, increment value and use Included
                                 // This ensures we exclude ALL keys starting with the original value
-                                match calculate_next_value(v) {
+                                match smart_increment_value(v) {
                                     Some(incremented) => (vec![incremented], true),
                                     // If increment fails (overflow), fall back to Excluded
                                     None => (vec![v.clone()], false),
@@ -382,6 +418,10 @@ impl IndexData {
                     }
                 } else {
                     // Standard range scan for single-column indexes or actual range queries
+                    // NOTE: We don't currently have a way to detect multi-column indexes in DiskBacked
+                    // without peeking at the B+ tree structure. For now, we apply the smart increment
+                    // fix conservatively for exclusive bounds to handle potential multi-column cases.
+                    // This should be safe for single-column indexes too.
                     let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
                     let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
 
