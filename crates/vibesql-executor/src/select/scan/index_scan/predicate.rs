@@ -40,6 +40,10 @@ fn extract_range_predicate(expr: &Expression, column_name: &str) -> Option<Range
                     // Check if left side is our column and right side is a literal
                     if is_column_reference(left, column_name) {
                         if let Expression::Literal(value) = right.as_ref() {
+                            // NULL comparisons always return no rows - can't optimize with index
+                            if matches!(value, SqlValue::Null) {
+                                return None;
+                            }
                             // Equal is a range with same start and end, both inclusive
                             return Some(RangePredicate {
                                 start: Some(value.clone()),
@@ -52,6 +56,10 @@ fn extract_range_predicate(expr: &Expression, column_name: &str) -> Option<Range
                     // Also handle reverse: value = col
                     if is_column_reference(right, column_name) {
                         if let Expression::Literal(value) = left.as_ref() {
+                            // NULL comparisons always return no rows - can't optimize with index
+                            if matches!(value, SqlValue::Null) {
+                                return None;
+                            }
                             return Some(RangePredicate {
                                 start: Some(value.clone()),
                                 end: Some(value.clone()),
@@ -69,6 +77,10 @@ fn extract_range_predicate(expr: &Expression, column_name: &str) -> Option<Range
                     // Check if left side is our column and right side is a literal
                     if is_column_reference(left, column_name) {
                         if let Expression::Literal(value) = right.as_ref() {
+                            // NULL comparisons always return no rows - can't optimize with index
+                            if matches!(value, SqlValue::Null) {
+                                return None;
+                            }
                             return Some(match op {
                                 BinaryOperator::GreaterThan => RangePredicate {
                                     start: Some(value.clone()),
@@ -101,6 +113,10 @@ fn extract_range_predicate(expr: &Expression, column_name: &str) -> Option<Range
                     // Check if right side is our column and left side is a literal (flipped comparison)
                     else if is_column_reference(right, column_name) {
                         if let Expression::Literal(value) = left.as_ref() {
+                            // NULL comparisons always return no rows - can't optimize with index
+                            if matches!(value, SqlValue::Null) {
+                                return None;
+                            }
                             return Some(match op {
                                 // Flip the comparison: value > col means col < value
                                 BinaryOperator::GreaterThan => RangePredicate {
@@ -165,6 +181,10 @@ fn extract_range_predicate(expr: &Expression, column_name: &str) -> Option<Range
                 if let (Expression::Literal(low_val), Expression::Literal(high_val)) =
                     (low.as_ref(), high.as_ref())
                 {
+                    // NULL comparisons always return no rows - can't optimize with index
+                    if matches!(low_val, SqlValue::Null) || matches!(high_val, SqlValue::Null) {
+                        return None;
+                    }
                     return Some(RangePredicate {
                         start: Some(low_val.clone()),
                         end: Some(high_val.clone()),
