@@ -235,7 +235,7 @@ where
         }
     }
 
-    let mut result = result.ok_or_else(|| ExecutorError::UnsupportedFeature("No tables in join".to_string()))?;
+    let result = result.ok_or_else(|| ExecutorError::UnsupportedFeature("No tables in join".to_string()))?;
 
     // Step 10: Restore original column ordering if needed
     // Build column permutation: map from current position to target position
