@@ -241,7 +241,8 @@ mod tests {
         let mut analyzer = JoinOrderAnalyzer::new();
         analyzer.register_tables(vec!["t1".to_string()]);
 
-        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
         let order = search.find_optimal_order();
 
         assert_eq!(order.len(), 1);
@@ -261,7 +262,8 @@ mod tests {
             right_column: "id".to_string(),
         });
 
-        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
         let order = search.find_optimal_order();
 
         assert_eq!(order.len(), 2);
@@ -289,7 +291,8 @@ mod tests {
             right_column: "id".to_string(),
         });
 
-        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
         let order = search.find_optimal_order();
 
         assert_eq!(order.len(), 3);
@@ -327,7 +330,8 @@ mod tests {
             right_column: "id".to_string(),
         });
 
-        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
         let order = search.find_optimal_order();
 
         // Verify we get a valid ordering (all tables present)
@@ -341,7 +345,8 @@ mod tests {
         analyzer.register_tables(vec!["t1".to_string(), "t2".to_string(), "t3".to_string()]);
 
         // No edges - will use cross product
-        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
         let order = search.find_optimal_order();
 
         // Still should return all tables in some order
@@ -384,7 +389,8 @@ mod tests {
             right_column: "id".to_string(),
         });
 
-        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
         let order = search.find_optimal_order();
 
         // Should return all 4 tables
