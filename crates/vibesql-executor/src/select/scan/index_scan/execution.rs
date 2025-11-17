@@ -137,12 +137,12 @@ pub(crate) fn execute_index_scan(
         .filter_map(|idx| all_rows.get(idx).cloned())
         .collect();
 
-    // Reverse rows if needed for DESC index ordering
-    // BTreeMap iteration is always ascending, but for DESC indexes we need descending order
-    // Check if we're using this index for ORDER BY and if the first column is DESC
-    if sorted_columns.is_some() {
-        if let Some(first_index_col) = index_metadata.columns.first() {
-            if first_index_col.direction == vibesql_ast::OrderDirection::Desc {
+    // Reverse rows if needed for DESC ORDER BY
+    // BTreeMap iteration is always ascending, but for DESC ORDER BY we need descending order
+    // Check if we're using this index for ORDER BY and if the first ORDER BY column is DESC
+    if let Some(ref sorted_cols) = sorted_columns {
+        if let Some((_, first_order_direction)) = sorted_cols.first() {
+            if *first_order_direction == vibesql_ast::OrderDirection::Desc {
                 rows.reverse();
             }
         }

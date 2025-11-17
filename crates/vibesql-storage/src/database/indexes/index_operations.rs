@@ -225,10 +225,28 @@ impl IndexData {
                         // For example, col3 BETWEEN 24 AND 90 on index (col3, col0):
                         //   Start at keys with col3 >= 24, continue while col3 <= 90
 
-                        let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
+                        // For multi-column indexes, Excluded([v]) doesn't exclude keys like [v, x]
+                        // because lexicographically [v] < [v, x]. So for `col > 40`, we need to
+                        // increment to 41 and use Included([41]) instead of Excluded([40]).
+                        // Use calculate_next_value (adds 1.0) instead of try_increment_sqlvalue (adds epsilon)
+                        // because index keys are normalized to Double but represent discrete integer values.
+                        let start_key = normalized_start.as_ref().map(|v| {
+                            if inclusive_start {
+                                // For >= predicates, use value as-is with Included
+                                (vec![v.clone()], true)
+                            } else {
+                                // For > predicates, increment value and use Included
+                                // This ensures we exclude ALL keys starting with the original value
+                                match calculate_next_value(v) {
+                                    Some(incremented) => (vec![incremented], true),
+                                    // If increment fails (overflow), fall back to Excluded
+                                    None => (vec![v.clone()], false),
+                                }
+                            }
+                        });
                         let start_bound: Bound<&[SqlValue]> = match start_key.as_ref() {
-                            Some(key) if inclusive_start => Bound::Included(key.as_slice()),
-                            Some(key) => Bound::Excluded(key.as_slice()),
+                            Some((key, true)) => Bound::Included(key.as_slice()),
+                            Some((key, false)) => Bound::Excluded(key.as_slice()),
                             None => Bound::Unbounded,
                         };
 
@@ -398,9 +416,15 @@ impl IndexData {
     pub fn multi_lookup(&self, values: &[SqlValue]) -> Vec<usize> {
         match self {
             IndexData::InMemory { data } => {
+                // Deduplicate values to avoid returning duplicate rows
+                // For example, WHERE a IN (10, 10, 20) should only look up 10 once
+                let mut unique_values: Vec<&SqlValue> = values.iter().collect();
+                unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                unique_values.dedup();
+
                 let mut matching_row_indices = Vec::new();
 
-                for value in values {
+                for value in unique_values {
                     // Normalize value for consistent lookup (matches insertion-time normalization)
                     let normalized_value = normalize_for_comparison(value);
                     let search_key = vec![normalized_value];
@@ -416,9 +440,14 @@ impl IndexData {
                 matching_row_indices
             }
             IndexData::DiskBacked { btree, .. } => {
+                // Deduplicate values to avoid returning duplicate rows
+                let mut unique_values: Vec<&SqlValue> = values.iter().collect();
+                unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                unique_values.dedup();
+
                 // Normalize values for consistent lookup (matches insertion-time normalization)
                 // Convert SqlValue values to Key (Vec<SqlValue>) format
-                let keys: Vec<Vec<SqlValue>> = values
+                let keys: Vec<Vec<SqlValue>> = unique_values
                     .iter()
                     .map(|v| vec![normalize_for_comparison(v)])
                     .collect();
@@ -456,9 +485,15 @@ impl IndexData {
     /// This solves the issue where `multi_lookup([10])` would fail to match index keys
     /// like `[10, 20]` because BTreeMap requires exact key matches.
     pub fn prefix_multi_lookup(&self, values: &[SqlValue]) -> Vec<usize> {
+        // Deduplicate values to avoid returning duplicate rows
+        // For example, WHERE a IN (10, 10, 20) should only look up 10 once
+        let mut unique_values: Vec<&SqlValue> = values.iter().collect();
+        unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        unique_values.dedup();
+
         let mut matching_row_indices = Vec::new();
 
-        for value in values {
+        for value in unique_values {
             // Use range_scan with start==end (both inclusive) to trigger prefix matching
             // The range_scan() implementation automatically handles multi-column indexes
             // by iterating through all keys where the first column matches 'value'
