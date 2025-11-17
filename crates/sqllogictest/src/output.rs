@@ -109,14 +109,29 @@ pub fn default_validator(
 
     let expected_results = expected.iter().map(normalizer).collect_vec();
     // Default, we compare normalized results. Whitespace characters are ignored.
-    // Join each row's columns with spaces to match expected format
-    let normalized_rows: Vec<String> = actual
-        .iter()
-        .map(|row_cols| {
-            let joined = row_cols.iter().map(|s| normalizer(s)).collect::<Vec<_>>().join(" ");
-            normalizer(&joined)
-        })
-        .collect_vec();
+
+    // Determine if expected format is flattened (one value per line) or joined (one row per line)
+    // by checking if the number of expected entries matches the total number of column values
+    let row_width = actual.first().map(|row| row.len()).unwrap_or(0);
+    let total_values = actual.len() * row_width;
+    let is_flattened = expected.len() == total_values && row_width > 1;
+
+    let normalized_rows: Vec<String> = if is_flattened {
+        // Expected format is flattened: each column value on its own line
+        actual
+            .iter()
+            .flat_map(|strs| strs.iter().map(normalizer))
+            .collect_vec()
+    } else {
+        // Expected format is joined: each row with space-separated columns
+        actual
+            .iter()
+            .map(|row_cols| {
+                let joined = row_cols.iter().map(|s| normalizer(s)).collect::<Vec<_>>().join(" ");
+                normalizer(&joined)
+            })
+            .collect_vec()
+    };
 
     normalized_rows == expected_results
 }
