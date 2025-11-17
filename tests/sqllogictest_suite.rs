@@ -36,7 +36,7 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
         // Blocklist is now empty - select4.test and select5.test pass after fixes in #1036 and #1689
     ]
     .into_iter()
-    .map(|s| s.to_string())
+    .map(|s: &str| s.to_string())
     .collect();
 
     // Blocklist patterns for very large test files (10000+ rows)
