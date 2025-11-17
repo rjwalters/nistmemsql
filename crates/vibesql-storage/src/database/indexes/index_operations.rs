@@ -62,37 +62,29 @@ fn calculate_next_value(value: &SqlValue) -> Option<SqlValue> {
     }
 }
 
-/// Smart increment that chooses the right strategy based on value type
+/// Smart increment that chooses the right strategy based on SQL type
 ///
-/// For integer values (or floats representing integers like 40.0), adds 1.0.
-/// For floating point values with fractional parts (like 3952.75), adds epsilon.
+/// For actual integer SQL types (Integer, Smallint, Bigint, Unsigned), adds 1.
+/// For floating-point SQL types (Float, Real, Double, Numeric), adds epsilon.
 ///
 /// This is needed because multi-column index range scans convert exclusive bounds
-/// to inclusive by incrementing the value, but adding 1.0 to 3952.75 gives 3953.75,
-/// which would skip valid rows between 3952.75 and 3953.75.
+/// to inclusive by incrementing the value. For floating-point types, we must add
+/// epsilon (not 1.0) because fractional values can exist between any two integers.
+/// For example, with FLOAT column: 114.0 < 114.5 < 114.86 < 115.0
+/// If we add 1.0 to 114.0 → 115.0, we'd miss rows with values like 114.5, 114.86.
 fn smart_increment_value(value: &SqlValue) -> Option<SqlValue> {
     match value {
-        SqlValue::Double(d) | SqlValue::Numeric(d) => {
-            // Check if this is an integer value (no fractional part)
-            if d.fract() == 0.0 {
-                // Integer value: add 1.0 (works for discrete values)
-                calculate_next_value(value)
-            } else {
-                // Floating point value: add epsilon (preserves precision)
-                try_increment_sqlvalue(value)
-            }
+        // Floating-point SQL types: always use epsilon increment
+        // Even if the value looks like an integer (114.0), the column type
+        // allows fractional values, so we can't skip to the next integer
+        SqlValue::Double(_) | SqlValue::Numeric(_) | SqlValue::Float(_) | SqlValue::Real(_) => {
+            try_increment_sqlvalue(value)
         }
-        SqlValue::Float(f) | SqlValue::Real(f) => {
-            // Check if this is an integer value (no fractional part)
-            if f.fract() == 0.0 {
-                // Integer value: add 1.0
-                calculate_next_value(value)
-            } else {
-                // Floating point value: add epsilon
-                try_increment_sqlvalue(value)
-            }
+        // Integer SQL types: use +1 increment (only integers are possible)
+        SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) | SqlValue::Unsigned(_) => {
+            calculate_next_value(value)
         }
-        // For actual integer types, always use calculate_next_value
+        // For other types, use calculate_next_value as fallback
         _ => calculate_next_value(value),
     }
 }
