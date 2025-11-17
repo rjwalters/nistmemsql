@@ -19,15 +19,16 @@ impl Division {
             return Ok(Null);
         }
 
-        // Fast path for integers - SQL:1999 standard integer division
-        // INTEGER / INTEGER → INTEGER (truncates toward zero)
-        // This matches SQLLogicTest expectations and SQL:1999 semantics
+        // Fast path for integers - SQLLogicTest expects floating-point results
+        // INTEGER / INTEGER → FLOAT (floating-point division)
+        // This matches SQLLogicTest expectations for standard division operator
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
                 return Ok(SqlValue::Null);
             }
-            // Standard SQL integer division - always returns INTEGER
-            return Ok(Integer(a / b));
+            // Perform floating-point division
+            let result = (*a as f64) / (*b as f64);
+            return Ok(Float(result as f32));
         }
 
         // Use helper for type coercion
@@ -44,14 +45,15 @@ impl Division {
             return Ok(SqlValue::Null);
         }
 
-        // Division with type preservation
-        // - ExactNumeric: INTEGER / INTEGER → INTEGER (SQL:1999 standard)
+        // Division returns floating-point results
+        // - ExactNumeric: INTEGER / INTEGER → FLOAT (floating-point division)
         // - ApproximateNumeric: FLOAT / FLOAT → FLOAT
         // - Numeric: NUMERIC / NUMERIC → NUMERIC
         match coerced {
             super::CoercedValues::ExactNumeric(a, b) => {
-                // Standard SQL integer division - always returns INTEGER
-                Ok(Integer(a / b))
+                // Perform floating-point division for integers
+                let result = (a as f64) / (b as f64);
+                Ok(Float(result as f32))
             }
             super::CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a / b) as f32)),
             super::CoercedValues::Numeric(a, b) => Ok(Numeric(a / b)),
@@ -74,7 +76,9 @@ impl Division {
             if *b == 0 {
                 return Ok(SqlValue::Null);
             }
-            return Ok(Integer(a / b));
+            // Integer division truncates toward zero (not floor division)
+            let result = ((*a as f64) / (*b as f64)).trunc() as i64;
+            return Ok(Integer(result));
         }
 
         // Use helper for type coercion
@@ -93,7 +97,10 @@ impl Division {
 
         // Integer division truncates toward zero
         match coerced {
-            super::CoercedValues::ExactNumeric(a, b) => Ok(Integer(a / b)),
+            super::CoercedValues::ExactNumeric(a, b) => {
+                let result = ((a as f64) / (b as f64)).trunc() as i64;
+                Ok(Integer(result))
+            }
             super::CoercedValues::ApproximateNumeric(a, b) => Ok(Integer((a / b).trunc() as i64)),
             super::CoercedValues::Numeric(a, b) => Ok(Integer((a / b).trunc() as i64)),
         }

@@ -5,7 +5,8 @@
 //! - Uses exhaustive search with pruning to find optimal join order
 //! - Minimizes intermediate result sizes
 //!
-//! This optimization is enabled by default for 3+ table INNER/CROSS joins.
+//! This optimization is enabled by default for 3-5 table INNER/CROSS joins.
+//! Disabled for 6+ tables to prevent factorial explosion (6! = 720, 7! = 5040).
 //! Can be disabled via JOIN_REORDER_DISABLED environment variable.
 
 use std::collections::{HashMap, HashSet};
@@ -23,10 +24,22 @@ use crate::{
 
 /// Check if join reordering optimization should be applied
 ///
-/// Enabled by default for 3+ table joins. Can be disabled via JOIN_REORDER_DISABLED env var.
+/// Enabled by default for 3-5 table joins. Can be disabled via JOIN_REORDER_DISABLED env var.
+///
+/// Table count limits:
+/// - < 3 tables: Not beneficial (simple join)
+/// - 3-5 tables: Optimal range (6 to 120 orderings to explore)
+/// - > 5 tables: Disabled (factorial explosion: 6! = 720, 7! = 5040, etc.)
 pub(crate) fn should_apply_join_reordering(table_count: usize) -> bool {
     // Must have at least 3 tables for reordering to be beneficial
     if table_count < 3 {
+        return false;
+    }
+
+    // Limit to 5 tables maximum to prevent factorial explosion
+    // With 6+ tables, the search space becomes too large (6! = 720, 7! = 5040)
+    // Even with pruning, the overhead on large datasets causes severe slowdowns
+    if table_count > 5 {
         return false;
     }
 
@@ -164,8 +177,8 @@ where
         analyzer.analyze_predicate(where_expr, &table_set);
     }
 
-    // Step 6: Use search to find optimal join order
-    let search = JoinOrderSearch::from_analyzer(&analyzer);
+    // Step 6: Use search to find optimal join order (with real statistics)
+    let search = JoinOrderSearch::from_analyzer(&analyzer, database);
     let optimal_order = search.find_optimal_order();
 
     // Log the reordering decision (optional, for debugging)

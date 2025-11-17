@@ -126,7 +126,10 @@ pub fn find_optimal_join_order(
     }
 
     // Search for optimal order
-    let search = JoinOrderSearch::from_analyzer(&analyzer);
+    // Note: This wrapper doesn't have access to database, so we use a dummy database
+    // In production, use the version in reorder.rs which has real statistics
+    let dummy_db = vibesql_storage::Database::new();
+    let search = JoinOrderSearch::from_analyzer(&analyzer, &dummy_db);
     let optimal_order = search.find_optimal_order();
 
     // Check if it differs from left-to-right

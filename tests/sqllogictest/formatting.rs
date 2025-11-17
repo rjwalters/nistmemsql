@@ -44,12 +44,8 @@ pub fn format_sql_value(value: &SqlValue, expected_type: Option<&DefaultColumnTy
                     n.to_string()
                 }
             } else if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                // Test expects floating point format - add decimals for whole numbers
-                if n.fract() == 0.0 {
-                    format!("{:.3}", n)
-                } else {
-                    n.to_string()
-                }
+                // Test expects floating point format - always use 3 decimal places
+                format!("{:.3}", n)
             } else {
                 // No type hint - use simple integer format for whole numbers (MySQL default)
                 if n.fract() == 0.0 && n.abs() < 1e15 {
@@ -60,18 +56,12 @@ pub fn format_sql_value(value: &SqlValue, expected_type: Option<&DefaultColumnTy
             }
         }
         SqlValue::Float(f) | SqlValue::Real(f) => {
-            if f.fract() == 0.0 {
-                format!("{:.1}", f)
-            } else {
-                f.to_string()
-            }
+            // Always format with 3 decimal places for SQLLogicTest compatibility
+            format!("{:.3}", f)
         }
         SqlValue::Double(f) => {
-            if f.fract() == 0.0 {
-                format!("{:.1}", f)
-            } else {
-                f.to_string()
-            }
+            // Always format with 3 decimal places for SQLLogicTest compatibility
+            format!("{:.3}", f)
         }
         SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
         SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
@@ -122,12 +112,8 @@ pub fn format_sql_value_canonical(
                     n.to_string()
                 }
             } else if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                // Test expects floating point format - add decimals for whole numbers
-                if n.fract() == 0.0 {
-                    format!("{:.3}", n)
-                } else {
-                    n.to_string()
-                }
+                // Test expects floating point format - always use 3 decimal places
+                format!("{:.3}", n)
             } else {
                 // No type hint - use simple integer format for whole numbers (MySQL default)
                 if n.fract() == 0.0 && n.abs() < 1e15 {
@@ -138,18 +124,12 @@ pub fn format_sql_value_canonical(
             }
         }
         SqlValue::Float(f) | SqlValue::Real(f) => {
-            if f.fract() == 0.0 {
-                format!("{:.1}", f)
-            } else {
-                f.to_string()
-            }
+            // Always format with 3 decimal places for SQLLogicTest compatibility
+            format!("{:.3}", f)
         }
         SqlValue::Double(f) => {
-            if f.fract() == 0.0 {
-                format!("{:.1}", f)
-            } else {
-                f.to_string()
-            }
+            // Always format with 3 decimal places for SQLLogicTest compatibility
+            format!("{:.3}", f)
         }
         SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
         SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),

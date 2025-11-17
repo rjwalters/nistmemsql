@@ -11,6 +11,7 @@ pub mod index;
 pub mod page;
 pub mod persistence;
 pub mod row;
+pub mod statistics;
 pub mod table;
 
 pub use backend::{StorageBackend, StorageFile};
@@ -23,6 +24,7 @@ pub use error::StorageError;
 pub use index::{extract_mbr_from_sql_value, SpatialIndex, SpatialIndexEntry};
 pub use persistence::load::{parse_sql_statements, read_sql_dump};
 pub use row::Row;
+pub use statistics::{ColumnStatistics, TableStatistics};
 pub use table::Table;
 
 // Platform-specific exports

@@ -82,27 +82,36 @@ pub struct JoinOrderSearch {
 }
 
 impl JoinOrderSearch {
-    /// Create a new join order search from an analyzer
-    pub fn from_analyzer(analyzer: &JoinOrderAnalyzer) -> Self {
+    /// Create a new join order search from an analyzer with real table statistics
+    pub fn from_analyzer(
+        analyzer: &JoinOrderAnalyzer,
+        database: &vibesql_storage::Database,
+    ) -> Self {
         Self {
             all_tables: analyzer.tables().clone(),
             edges: analyzer.edges().to_vec(),
-            table_cardinalities: Self::extract_cardinalities(analyzer),
+            table_cardinalities: Self::extract_cardinalities(analyzer, database),
         }
     }
 
-    /// Extract table cardinalities from analyzer
-    /// (currently uses defaults, should integrate with statistics in future)
+    /// Extract table cardinalities from actual table statistics
+    ///
+    /// Uses real row counts from database tables instead of hardcoded estimates.
+    /// This enables effective pruning in the search algorithm.
     fn extract_cardinalities(
         analyzer: &JoinOrderAnalyzer,
+        database: &vibesql_storage::Database,
     ) -> std::collections::HashMap<String, usize> {
         let mut cardinalities = std::collections::HashMap::new();
 
         for table_name in analyzer.tables() {
-            // Start with default estimate
-            // Tables with local filters typically have lower cardinality
-            // This is a placeholder - should use actual statistics
-            cardinalities.insert(table_name, 10000);
+            // Get actual table row count from database
+            let actual_rows = database
+                .get_table(table_name.as_str())
+                .map(|t| t.row_count())
+                .unwrap_or(10000); // Fallback for CTEs/subqueries
+
+            cardinalities.insert(table_name.clone(), actual_rows);
         }
 
         cardinalities
@@ -110,7 +119,8 @@ impl JoinOrderSearch {
 
     /// Find optimal join order by exploring search space
     ///
-    /// Returns list of table names in the order they should be joined
+    /// Returns list of table names in the order they should be joined.
+    /// If search space is too large, returns left-to-right ordering as fallback.
     pub fn find_optimal_order(&self) -> Vec<String> {
         if self.all_tables.is_empty() {
             return Vec::new();
@@ -124,8 +134,26 @@ impl JoinOrderSearch {
 
         let mut best_cost = u64::MAX;
         let mut best_order = vec![];
+        let mut iterations = 0;
 
-        self.search_recursive(initial_state, &mut best_cost, &mut best_order);
+        // Maximum iterations to prevent pathological cases
+        // For n tables, factorial complexity means:
+        // 3 tables: 6 iterations, 4 tables: 24, 5 tables: 120, 6 tables: 720
+        // Cap at 1000 to limit worst-case overhead while still exploring reasonable spaces
+        let max_iterations = 1000;
+
+        self.search_recursive(
+            initial_state,
+            &mut best_cost,
+            &mut best_order,
+            &mut iterations,
+            max_iterations,
+        );
+
+        // If we hit iteration limit without finding a complete ordering, return left-to-right
+        if best_order.is_empty() {
+            return self.all_tables.iter().cloned().collect();
+        }
 
         best_order
     }
@@ -136,7 +164,15 @@ impl JoinOrderSearch {
         state: SearchState,
         best_cost: &mut u64,
         best_order: &mut Vec<String>,
+        iterations: &mut u32,
+        max_iterations: u32,
     ) {
+        // Early termination: check iteration limit
+        *iterations += 1;
+        if *iterations > max_iterations {
+            return;
+        }
+
         // Base case: all tables joined
         if state.joined_tables.len() == self.all_tables.len() {
             let total_cost = state.cost_so_far.total();
@@ -171,7 +207,7 @@ impl JoinOrderSearch {
             next_state.order.push(next_table.clone());
 
             // Recursively search from this state
-            self.search_recursive(next_state, best_cost, best_order);
+            self.search_recursive(next_state, best_cost, best_order, iterations, max_iterations);
         }
     }
 
@@ -232,7 +268,8 @@ mod tests {
         let mut analyzer = JoinOrderAnalyzer::new();
         analyzer.register_tables(vec!["t1".to_string()]);
 
-        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
         let order = search.find_optimal_order();
 
         assert_eq!(order.len(), 1);
@@ -252,7 +289,8 @@ mod tests {
             right_column: "id".to_string(),
         });
 
-        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
         let order = search.find_optimal_order();
 
         assert_eq!(order.len(), 2);
@@ -280,7 +318,8 @@ mod tests {
             right_column: "id".to_string(),
         });
 
-        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
         let order = search.find_optimal_order();
 
         assert_eq!(order.len(), 3);
@@ -318,7 +357,8 @@ mod tests {
             right_column: "id".to_string(),
         });
 
-        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
         let order = search.find_optimal_order();
 
         // Verify we get a valid ordering (all tables present)
@@ -332,7 +372,8 @@ mod tests {
         analyzer.register_tables(vec!["t1".to_string(), "t2".to_string(), "t3".to_string()]);
 
         // No edges - will use cross product
-        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
         let order = search.find_optimal_order();
 
         // Still should return all tables in some order
@@ -375,7 +416,8 @@ mod tests {
             right_column: "id".to_string(),
         });
 
-        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
         let order = search.find_optimal_order();
 
         // Should return all 4 tables
