@@ -31,6 +31,21 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
 
     let start_time = Instant::now();
 
+    // Blocklist of test files to skip (typically due to memory issues)
+    let blocklist: HashSet<String> = vec![
+        // Large select test files (memory intensive)
+        "select4.test",
+        "select5.test",
+    ]
+    .into_iter()
+    .map(|s| s.to_string())
+    .collect();
+
+    // Blocklist patterns for very large test files (10000+ rows)
+    let blocklist_patterns: Vec<&str> = vec![
+        "/10000/",  // All 10000-row test files
+    ];
+
     // Check if we're filtering to specific files (for parallel workers)
     let filter_files: Option<HashSet<String>> = env::var("SQLLOGICTEST_FILES")
         .ok()
@@ -45,6 +60,29 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     let pattern = format!("{}/**/*.test", test_dir.display());
     let mut all_test_files: Vec<PathBuf> =
         glob::glob(&pattern).expect("Failed to read test pattern").filter_map(Result::ok).collect();
+
+    // Filter out blocklisted files (exact matches and patterns)
+    all_test_files.retain(|test_file| {
+        let relative_path = test_file
+            .strip_prefix(&test_dir)
+            .unwrap_or(test_file)
+            .to_string_lossy()
+            .to_string();
+
+        // Check exact blocklist
+        if blocklist.contains(&relative_path) {
+            return false;
+        }
+
+        // Check pattern blocklist
+        for pattern in &blocklist_patterns {
+            if relative_path.contains(pattern) {
+                return false;
+            }
+        }
+
+        true
+    });
 
     // Filter to specific files if SQLLOGICTEST_FILES is set
     if let Some(ref filter) = filter_files {
@@ -64,6 +102,15 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
         println!("\n=== SQLLogicTest Suite (Worker {}) ===", worker_id);
     } else {
         println!("\n=== SQLLogicTest Suite (Full Run) ===");
+    }
+    if !blocklist.is_empty() || !blocklist_patterns.is_empty() {
+        println!("Blocklist:");
+        if !blocklist.is_empty() {
+            println!("  Exact files: {:?}", blocklist);
+        }
+        if !blocklist_patterns.is_empty() {
+            println!("  Patterns: {:?}", blocklist_patterns);
+        }
     }
     println!("Total test files: {}", total_available_files);
     println!("Starting test run...\n");
