@@ -2,7 +2,8 @@
 
 use std::collections::HashMap;
 use std::time::SystemTime;
-use super::ColumnStatistics;
+use super::{ColumnStatistics, SamplingConfig, SampleMetadata};
+use super::histogram::BucketStrategy;
 
 /// Statistics for an entire table
 #[derive(Debug, Clone)]
@@ -18,6 +19,10 @@ pub struct TableStatistics {
 
     /// Whether stats are stale (need recomputation)
     pub is_stale: bool,
+
+    /// Sampling metadata (Phase 5.2)
+    /// None if no sampling was used (small table)
+    pub sample_metadata: Option<SampleMetadata>,
 }
 
 impl TableStatistics {
@@ -26,20 +31,110 @@ impl TableStatistics {
         rows: &[crate::Row],
         schema: &vibesql_catalog::TableSchema,
     ) -> Self {
-        let row_count = rows.len();
-        let mut columns = HashMap::new();
+        Self::compute_with_config(rows, schema, None, false, 100, BucketStrategy::EqualDepth)
+    }
 
+    /// Compute statistics with sampling (Phase 5.2) and histogram support (Phase 5.1)
+    ///
+    /// # Arguments
+    /// * `rows` - All table rows
+    /// * `schema` - Table schema
+    /// * `sampling_config` - Optional sampling configuration (None = adaptive)
+    /// * `enable_histograms` - Whether to build histograms
+    /// * `histogram_buckets` - Number of histogram buckets
+    /// * `bucket_strategy` - Histogram bucketing strategy
+    pub fn compute_with_config(
+        rows: &[crate::Row],
+        schema: &vibesql_catalog::TableSchema,
+        sampling_config: Option<SamplingConfig>,
+        enable_histograms: bool,
+        histogram_buckets: usize,
+        bucket_strategy: BucketStrategy,
+    ) -> Self {
+        use super::sampling::{sample_rows};
+        use rand::SeedableRng;
+
+        let total_rows = rows.len();
+        let config = sampling_config.unwrap_or_else(|| SamplingConfig::adaptive());
+
+        // Determine if sampling is needed
+        let (sample_size, should_sample) = config.determine_sample_size(total_rows);
+
+        // Sample rows if needed (Phase 5.2)
+        let mut rng = rand::rngs::StdRng::from_entropy();
+        let sampled_rows = if should_sample {
+            sample_rows(rows, &config, &mut rng)
+        } else {
+            rows.to_vec()
+        };
+
+        // Create sample metadata
+        let sample_metadata = if should_sample {
+            Some(SampleMetadata::new(
+                total_rows,
+                sample_size,
+                true,
+                config.confidence_level,
+            ))
+        } else {
+            None
+        };
+
+        // Compute column statistics on the sample
+        let mut columns = HashMap::new();
         for (idx, column) in schema.columns.iter().enumerate() {
-            let col_stats = ColumnStatistics::compute(rows, idx);
+            let col_stats = ColumnStatistics::compute_with_histogram(
+                &sampled_rows,
+                idx,
+                enable_histograms,
+                histogram_buckets,
+                bucket_strategy.clone(),
+            );
             columns.insert(column.name.clone(), col_stats);
         }
 
         TableStatistics {
-            row_count,
+            row_count: total_rows,
             columns,
             last_updated: SystemTime::now(),
             is_stale: false,
+            sample_metadata,
         }
+    }
+
+    /// Compute statistics using adaptive sampling (Phase 5.2 convenience method)
+    ///
+    /// This automatically:
+    /// - Uses full scan for small tables (< 1000 rows)
+    /// - Uses 10% sample for medium tables (1K-100K rows)
+    /// - Uses fixed 10K sample for large tables (> 100K rows)
+    pub fn compute_sampled(
+        rows: &[crate::Row],
+        schema: &vibesql_catalog::TableSchema,
+    ) -> Self {
+        Self::compute_with_config(
+            rows,
+            schema,
+            Some(SamplingConfig::adaptive()),
+            false,
+            100,
+            BucketStrategy::EqualDepth,
+        )
+    }
+
+    /// Compute statistics with both sampling and histograms enabled
+    pub fn compute_full_featured(
+        rows: &[crate::Row],
+        schema: &vibesql_catalog::TableSchema,
+    ) -> Self {
+        Self::compute_with_config(
+            rows,
+            schema,
+            Some(SamplingConfig::adaptive()),
+            true,  // Enable histograms
+            100,   // 100 buckets
+            BucketStrategy::EqualDepth,
+        )
     }
 
     /// Mark statistics as stale after significant data changes

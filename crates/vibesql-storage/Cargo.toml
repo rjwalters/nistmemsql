@@ -21,6 +21,7 @@ rstar = "0.12"
 lru = "0.12"
 parking_lot = "0.12"
 log = "0.4"
+rand = "0.8"  # For statistical sampling (Phase 5.2)
 
 # WASM-specific dependencies for browser storage
 [target.'cfg(target_arch = "wasm32")'.dependencies]
