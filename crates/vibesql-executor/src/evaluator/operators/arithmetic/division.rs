@@ -27,13 +27,14 @@ impl Division {
             if *b == 0 {
                 return Ok(SqlValue::Null);
             }
-            let result = *a as f64 / *b as f64;
-            if result.fract() == 0.0 {
-                // No fractional part - return as Integer for DISTINCT correctness
-                return Ok(Integer(result as i64));
+            // Use integer arithmetic to check for remainder (avoids f64 precision issues)
+            let int_result = a / b;
+            if int_result * b == *a {
+                // Exact division, no remainder - return as Integer for DISTINCT correctness
+                return Ok(Integer(int_result));
             } else {
-                // Has fractional part - return as Numeric for precision
-                return Ok(Numeric(result));
+                // Has remainder - return as Numeric for precision
+                return Ok(Numeric(*a as f64 / *b as f64));
             }
         }
 
@@ -51,10 +52,20 @@ impl Division {
             return Ok(SqlValue::Null);
         }
 
-        // Division returns Integer for exact numerics (integer division - SQL:1999/SQLite behavior)
-        // Float for approximate numerics, and preserves Numeric type
+        // Division with smart type selection for MySQL compatibility
+        // - ExactNumeric: Apply same logic as Integer+Integer (smart type selection)
+        // - ApproximateNumeric: Always returns Float
+        // - Numeric: Preserves Numeric type
         match coerced {
-            super::CoercedValues::ExactNumeric(a, b) => Ok(Integer(a / b)),
+            super::CoercedValues::ExactNumeric(a, b) => {
+                // Smart type selection: Integer if no remainder, Numeric if fractional
+                let int_result = a / b;
+                if int_result * b == a {
+                    Ok(Integer(int_result))
+                } else {
+                    Ok(Numeric(a as f64 / b as f64))
+                }
+            }
             super::CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a / b) as f32)),
             super::CoercedValues::Numeric(a, b) => Ok(Numeric(a / b)),
         }
