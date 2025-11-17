@@ -287,7 +287,26 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                 match sort_mode {
                     None | Some(SortMode::NoSort) => {}
                     Some(SortMode::RowSort) => {
-                        rows.sort_unstable();
+                        // Sort rows using type-aware comparison (numeric for integers, lexicographic for others)
+                        let types_ref = &types;
+                        rows.sort_unstable_by(|a, b| {
+                            for (idx, (val_a, val_b)) in a.iter().zip(b.iter()).enumerate() {
+                                let col_type = &types_ref[idx % types_ref.len()];
+                                let cmp = if col_type.to_char() == 'I' || col_type.to_char() == 'R' {
+                                    // Numeric comparison for Integer and Real types
+                                    let num_a = val_a.parse::<f64>().unwrap_or(0.0);
+                                    let num_b = val_b.parse::<f64>().unwrap_or(0.0);
+                                    num_a.partial_cmp(&num_b).unwrap_or(std::cmp::Ordering::Equal)
+                                } else {
+                                    // Lexicographic comparison for Text types
+                                    val_a.cmp(val_b)
+                                };
+                                if cmp != std::cmp::Ordering::Equal {
+                                    return cmp;
+                                }
+                            }
+                            std::cmp::Ordering::Equal
+                        });
                     }
                     Some(SortMode::ValueSort) => {
                         rows = rows

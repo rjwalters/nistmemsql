@@ -109,10 +109,13 @@ pub fn default_validator(
 
     let expected_results = expected.iter().map(normalizer).collect_vec();
     // Default, we compare normalized results. Whitespace characters are ignored.
-    // Flatten the rows so each column value becomes its own line
+    // Join each row's columns with spaces to match expected format
     let normalized_rows: Vec<String> = actual
         .iter()
-        .flat_map(|strs| strs.iter().map(normalizer))
+        .map(|row_cols| {
+            let joined = row_cols.iter().map(|s| normalizer(s)).collect::<Vec<_>>().join(" ");
+            normalizer(&joined)
+        })
         .collect_vec();
 
     normalized_rows == expected_results
