@@ -225,10 +225,26 @@ impl IndexData {
                         // For example, col3 BETWEEN 24 AND 90 on index (col3, col0):
                         //   Start at keys with col3 >= 24, continue while col3 <= 90
 
-                        let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
+                        // For multi-column indexes, Excluded([v]) doesn't exclude keys like [v, x]
+                        // because lexicographically [v] < [v, x]. So for `col > 40`, we need to
+                        // increment to 41 and use Included([41]) instead of Excluded([40]).
+                        let start_key = normalized_start.as_ref().map(|v| {
+                            if inclusive_start {
+                                // For >= predicates, use value as-is with Included
+                                (vec![v.clone()], true)
+                            } else {
+                                // For > predicates, increment value and use Included
+                                // This ensures we exclude ALL keys starting with the original value
+                                match try_increment_sqlvalue(v) {
+                                    Some(incremented) => (vec![incremented], true),
+                                    // If increment fails (overflow), fall back to Excluded
+                                    None => (vec![v.clone()], false),
+                                }
+                            }
+                        });
                         let start_bound: Bound<&[SqlValue]> = match start_key.as_ref() {
-                            Some(key) if inclusive_start => Bound::Included(key.as_slice()),
-                            Some(key) => Bound::Excluded(key.as_slice()),
+                            Some((key, true)) => Bound::Included(key.as_slice()),
+                            Some((key, false)) => Bound::Excluded(key.as_slice()),
                             None => Bound::Unbounded,
                         };
 
