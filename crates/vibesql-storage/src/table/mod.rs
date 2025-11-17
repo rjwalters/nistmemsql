@@ -201,6 +201,14 @@ impl Table {
         self.statistics.as_ref().unwrap()
     }
 
+    /// Get cached table statistics without computing
+    ///
+    /// Returns None if statistics have never been computed or are stale.
+    /// Use `statistics()` if you want to compute/refresh statistics.
+    pub fn get_statistics(&self) -> Option<&crate::statistics::TableStatistics> {
+        self.statistics.as_ref()
+    }
+
     /// Force recomputation of statistics (ANALYZE command)
     pub fn analyze(&mut self) {
         self.statistics =

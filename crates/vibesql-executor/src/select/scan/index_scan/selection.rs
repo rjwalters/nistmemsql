@@ -1,9 +1,10 @@
 //! Index selection logic
 //!
 //! Determines when and which index to use for query optimization.
+//! Supports both rule-based (simple) and cost-based (statistics-aware) selection.
 
 use vibesql_ast::Expression;
-use vibesql_storage::Database;
+use vibesql_storage::{Database, statistics::{CostEstimator, AccessMethod}};
 
 /// Determines if an index scan is beneficial for the given query
 ///
@@ -168,6 +169,211 @@ fn can_use_index_for_order_by(
     }
 
     true
+}
+
+/// Cost-based index selection using statistics
+///
+/// This function uses table and column statistics to make intelligent decisions
+/// about whether to use an index scan or a table scan. It estimates the cost of
+/// both access methods and chooses the cheaper one.
+///
+/// # Arguments
+/// * `table_name` - Name of the table being queried
+/// * `where_clause` - Optional WHERE clause predicate
+/// * `order_by` - Optional ORDER BY clause
+/// * `database` - Database reference for accessing statistics and indexes
+///
+/// # Returns
+/// - `Some((index_name, sorted_columns))` if cost-based analysis suggests using an index
+/// - `None` if table scan is cheaper or no statistics are available
+///
+/// # Fallback Behavior
+/// If statistics are not available or stale, falls back to rule-based selection
+/// using `should_use_index_scan()`.
+pub(crate) fn cost_based_index_selection(
+    table_name: &str,
+    where_clause: Option<&Expression>,
+    order_by: Option<&[vibesql_ast::OrderByItem]>,
+    database: &Database,
+) -> Option<(String, Option<Vec<(String, vibesql_ast::OrderDirection)>>)> {
+    // Get table statistics
+    let table = database.get_table(table_name)?;
+    let table_stats = table.get_statistics();
+
+    // If no statistics or stale, fall back to rule-based selection
+    if table_stats.is_none() || table_stats.as_ref().map(|s| s.needs_refresh()).unwrap_or(false) {
+        return should_use_index_scan(table_name, where_clause, order_by, database);
+    }
+
+    let table_stats = table_stats.unwrap();
+    let cost_estimator = CostEstimator::default();
+
+    // Get all indexes for this table
+    let indexes = database.list_indexes_for_table(table_name);
+    if indexes.is_empty() {
+        return None; // No indexes available
+    }
+
+    // Try each index and find the one with lowest cost
+    let mut best_index: Option<(String, AccessMethod, Option<Vec<(String, vibesql_ast::OrderDirection)>>)> = None;
+
+    for index_name in &indexes {
+        if let Some(index_metadata) = database.get_index(index_name) {
+            let first_indexed_column = index_metadata.columns.first()?;
+            let column_name = &first_indexed_column.column_name;
+
+            // Check if this index can be used for WHERE or ORDER BY
+            let can_use_for_where = where_clause
+                .map(|expr| expression_filters_column(expr, column_name))
+                .unwrap_or(false);
+
+            let can_use_for_order = if let Some(order_items) = order_by {
+                can_use_index_for_order_by(order_items, &index_metadata.columns)
+            } else {
+                false
+            };
+
+            // Skip this index if it can't help with WHERE or ORDER BY
+            if !can_use_for_where && !can_use_for_order {
+                continue;
+            }
+
+            // Get column statistics for the indexed column
+            let col_stats = table_stats.columns.get(column_name);
+            if col_stats.is_none() {
+                continue; // No stats for this column
+            }
+            let col_stats = col_stats.unwrap();
+
+            // Estimate selectivity based on WHERE clause
+            let selectivity = if let Some(where_expr) = where_clause {
+                estimate_selectivity(where_expr, column_name, col_stats)
+            } else {
+                1.0 // No WHERE clause means all rows
+            };
+
+            // Use cost estimator to decide
+            let access_method = cost_estimator.choose_access_method(
+                table_stats,
+                Some(col_stats),
+                selectivity,
+            );
+
+            // Build sorted_columns metadata if ORDER BY can be satisfied
+            let sorted_columns = if can_use_for_order {
+                let order_items = order_by.unwrap();
+                Some(
+                    order_items
+                        .iter()
+                        .map(|item| {
+                            let col_name = match &item.expr {
+                                Expression::ColumnRef { column, .. } => column.clone(),
+                                _ => unreachable!("can_use_index_for_order_by ensures simple column refs"),
+                            };
+                            (col_name, item.direction.clone())
+                        })
+                        .collect(),
+                )
+            } else {
+                None
+            };
+
+            // Track the best index (lowest cost)
+            if access_method.is_index_scan() {
+                match &best_index {
+                    None => {
+                        best_index = Some((index_name.clone(), access_method, sorted_columns));
+                    }
+                    Some((_, best_method, _)) => {
+                        if access_method.cost() < best_method.cost() {
+                            best_index = Some((index_name.clone(), access_method, sorted_columns));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Return the best index if we found one
+    best_index.map(|(index_name, _, sorted_columns)| (index_name, sorted_columns))
+}
+
+/// Estimate selectivity of a predicate on a specific column
+///
+/// Uses column statistics to estimate what fraction of rows will match the predicate.
+/// Returns a value between 0.0 (no rows) and 1.0 (all rows).
+fn estimate_selectivity(
+    expr: &Expression,
+    column_name: &str,
+    col_stats: &vibesql_storage::statistics::ColumnStatistics,
+) -> f64 {
+    match expr {
+        Expression::BinaryOp { left, op, right } => {
+            match op {
+                vibesql_ast::BinaryOperator::Equal => {
+                    // Check if this is a predicate on our column
+                    if let (Expression::ColumnRef { column, .. }, Expression::Literal(value)) = (&**left, &**right) {
+                        if column == column_name {
+                            return col_stats.estimate_eq_selectivity(value);
+                        }
+                    }
+                    if let (Expression::Literal(value), Expression::ColumnRef { column, .. }) = (&**left, &**right) {
+                        if column == column_name {
+                            return col_stats.estimate_eq_selectivity(value);
+                        }
+                    }
+                    0.33 // Default fallback
+                }
+                vibesql_ast::BinaryOperator::GreaterThan
+                | vibesql_ast::BinaryOperator::GreaterThanOrEqual
+                | vibesql_ast::BinaryOperator::LessThan
+                | vibesql_ast::BinaryOperator::LessThanOrEqual => {
+                    // Range predicates
+                    if let (Expression::ColumnRef { column, .. }, Expression::Literal(value)) = (&**left, &**right) {
+                        if column == column_name {
+                            let op_str = match op {
+                                vibesql_ast::BinaryOperator::GreaterThan => ">",
+                                vibesql_ast::BinaryOperator::GreaterThanOrEqual => ">=",
+                                vibesql_ast::BinaryOperator::LessThan => "<",
+                                vibesql_ast::BinaryOperator::LessThanOrEqual => "<=",
+                                _ => unreachable!(),
+                            };
+                            return col_stats.estimate_range_selectivity(value, op_str);
+                        }
+                    }
+                    0.33 // Default fallback
+                }
+                vibesql_ast::BinaryOperator::And => {
+                    // For AND, multiply selectivities (assuming independence)
+                    let left_sel = estimate_selectivity(left, column_name, col_stats);
+                    let right_sel = estimate_selectivity(right, column_name, col_stats);
+                    left_sel * right_sel
+                }
+                vibesql_ast::BinaryOperator::Or => {
+                    // For OR, use formula: P(A OR B) = P(A) + P(B) - P(A AND B)
+                    // Assuming independence: P(A OR B) = P(A) + P(B) - P(A)*P(B)
+                    let left_sel = estimate_selectivity(left, column_name, col_stats);
+                    let right_sel = estimate_selectivity(right, column_name, col_stats);
+                    left_sel + right_sel - (left_sel * right_sel)
+                }
+                _ => 0.33, // Default fallback for other operators
+            }
+        }
+        Expression::Between { expr, low, high, negated: _, symmetric: _ } => {
+            if let Expression::ColumnRef { column, .. } = &**expr {
+                if column == column_name {
+                    // Estimate BETWEEN as: P(col >= low AND col <= high)
+                    if let (Expression::Literal(low_val), Expression::Literal(high_val)) = (&**low, &**high) {
+                        let low_sel = col_stats.estimate_range_selectivity(low_val, ">=");
+                        let high_sel = col_stats.estimate_range_selectivity(high_val, "<=");
+                        return low_sel * high_sel; // Assuming independence
+                    }
+                }
+            }
+            0.33 // Default fallback
+        }
+        _ => 0.33, // Default fallback for unsupported expressions
+    }
 }
 
 #[cfg(test)]

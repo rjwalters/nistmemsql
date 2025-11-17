@@ -20,5 +20,5 @@ mod predicate;
 mod execution;
 
 // Re-export public APIs
-pub(crate) use selection::should_use_index_scan;
+pub(crate) use selection::{should_use_index_scan, cost_based_index_selection};
 pub(crate) use execution::execute_index_scan;
