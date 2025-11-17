@@ -386,21 +386,9 @@ impl NistMemSqlDB {
             SqlValue::Smallint(i) => i.to_string(),
             SqlValue::Bigint(i) => i.to_string(),
             SqlValue::Unsigned(i) => i.to_string(),
-            SqlValue::Numeric(_) => value.to_string(), /* Use Display trait for consistent */
-            // formatting
-            SqlValue::Float(f) | SqlValue::Real(f) => {
-                if f.fract() == 0.0 {
-                    format!("{:.1}", f)
-                } else {
-                    f.to_string()
-                }
-            }
-            SqlValue::Double(f) => {
-                if f.fract() == 0.0 {
-                    format!("{:.1}", f)
-                } else {
-                    f.to_string()
-                }
+            // Use Display trait for consistent formatting (3 decimal places for SQLLogicTest)
+            SqlValue::Numeric(_) | SqlValue::Float(_) | SqlValue::Real(_) | SqlValue::Double(_) => {
+                value.to_string()
             }
             SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
             SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
