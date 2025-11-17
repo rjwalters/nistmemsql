@@ -252,8 +252,8 @@ fn test_eval_division() {
         right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(4))),
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    // Integer division returns Integer (SQLite/SQL:1999 behavior)
-    assert_eq!(result, vibesql_types::SqlValue::Integer(5));
+    // Division returns Float for integer operands (SQLLogicTest behavior)
+    assert_eq!(result, vibesql_types::SqlValue::Float(5.0));
 }
 
 #[test]
