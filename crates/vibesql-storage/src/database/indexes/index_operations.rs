@@ -62,6 +62,33 @@ fn calculate_next_value(value: &SqlValue) -> Option<SqlValue> {
     }
 }
 
+/// Smart increment that chooses the right strategy based on SQL type
+///
+/// For actual integer SQL types (Integer, Smallint, Bigint, Unsigned), adds 1.
+/// For floating-point SQL types (Float, Real, Double, Numeric), adds epsilon.
+///
+/// This is needed because multi-column index range scans convert exclusive bounds
+/// to inclusive by incrementing the value. For floating-point types, we must add
+/// epsilon (not 1.0) because fractional values can exist between any two integers.
+/// For example, with FLOAT column: 114.0 < 114.5 < 114.86 < 115.0
+/// If we add 1.0 to 114.0 → 115.0, we'd miss rows with values like 114.5, 114.86.
+fn smart_increment_value(value: &SqlValue) -> Option<SqlValue> {
+    match value {
+        // Floating-point SQL types: always use epsilon increment
+        // Even if the value looks like an integer (114.0), the column type
+        // allows fractional values, so we can't skip to the next integer
+        SqlValue::Double(_) | SqlValue::Numeric(_) | SqlValue::Float(_) | SqlValue::Real(_) => {
+            try_increment_sqlvalue(value)
+        }
+        // Integer SQL types: use +1 increment (only integers are possible)
+        SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) | SqlValue::Unsigned(_) => {
+            calculate_next_value(value)
+        }
+        // For other types, use calculate_next_value as fallback
+        _ => calculate_next_value(value),
+    }
+}
+
 /// Try to increment a SqlValue by the smallest possible amount
 /// Returns None if the value is already at its maximum or increment is not supported
 ///
@@ -228,8 +255,9 @@ impl IndexData {
                         // For multi-column indexes, Excluded([v]) doesn't exclude keys like [v, x]
                         // because lexicographically [v] < [v, x]. So for `col > 40`, we need to
                         // increment to 41 and use Included([41]) instead of Excluded([40]).
-                        // Use calculate_next_value (adds 1.0) instead of try_increment_sqlvalue (adds epsilon)
-                        // because index keys are normalized to Double but represent discrete integer values.
+                        // Use smart_increment_value which chooses the right increment strategy:
+                        // - Integer values (40.0): add 1.0 → 41.0
+                        // - Float values (3952.75): add epsilon → 3952.750...001
                         let start_key = normalized_start.as_ref().map(|v| {
                             if inclusive_start {
                                 // For >= predicates, use value as-is with Included
@@ -237,7 +265,7 @@ impl IndexData {
                             } else {
                                 // For > predicates, increment value and use Included
                                 // This ensures we exclude ALL keys starting with the original value
-                                match calculate_next_value(v) {
+                                match smart_increment_value(v) {
                                     Some(incremented) => (vec![incremented], true),
                                     // If increment fails (overflow), fall back to Excluded
                                     None => (vec![v.clone()], false),
@@ -382,7 +410,25 @@ impl IndexData {
                     }
                 } else {
                     // Standard range scan for single-column indexes or actual range queries
-                    let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
+                    // NOTE: We apply the smart increment fix conservatively for exclusive start bounds
+                    // to handle potential multi-column cases. This is safe for single-column indexes too.
+
+                    // For exclusive start bounds with multi-column indexes, we need to increment the value
+                    // to avoid missing rows. Apply smart_increment_value to choose the right strategy.
+                    let (start_key, final_inclusive_start) = if let Some(start_val) = normalized_start.as_ref() {
+                        if inclusive_start {
+                            (Some(vec![start_val.clone()]), true)
+                        } else {
+                            // Apply smart increment for exclusive start bounds
+                            match smart_increment_value(start_val) {
+                                Some(incremented) => (Some(vec![incremented]), true),
+                                None => (Some(vec![start_val.clone()]), false),
+                            }
+                        }
+                    } else {
+                        (None, inclusive_start)
+                    };
+
                     let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
 
                     // Safely acquire lock and call BTreeIndex::range_scan
@@ -391,7 +437,7 @@ impl IndexData {
                             .range_scan(
                                 start_key.as_ref(),
                                 end_key.as_ref(),
-                                inclusive_start,
+                                final_inclusive_start,
                                 inclusive_end,
                             )
                             .unwrap_or_else(|_| vec![]),

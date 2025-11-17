@@ -1,11 +1,12 @@
-//! Join reordering optimization (experimental)
+//! Join reordering optimization
 //!
 //! Provides cost-based join reordering for multi-table queries:
 //! - Analyzes join conditions and WHERE predicates
-//! - Uses greedy search to find optimal join order
+//! - Uses exhaustive search with pruning to find optimal join order
 //! - Minimizes intermediate result sizes
 //!
-//! This optimization is opt-in via JOIN_REORDER_ENABLED environment variable.
+//! This optimization is enabled by default for 3+ table INNER/CROSS joins.
+//! Can be disabled via JOIN_REORDER_DISABLED environment variable.
 
 use std::collections::{HashMap, HashSet};
 
@@ -21,15 +22,15 @@ use crate::{
 
 /// Check if join reordering optimization should be applied
 ///
-/// Controlled by JOIN_REORDER_ENABLED environment variable (opt-in for safety)
+/// Enabled by default for 3+ table joins. Can be disabled via JOIN_REORDER_DISABLED env var.
 pub(crate) fn should_apply_join_reordering(table_count: usize) -> bool {
     // Must have at least 3 tables for reordering to be beneficial
     if table_count < 3 {
         return false;
     }
 
-    // Check environment variable (opt-in)
-    std::env::var("JOIN_REORDER_ENABLED").is_ok()
+    // Allow opt-out via environment variable if needed
+    std::env::var("JOIN_REORDER_DISABLED").is_err()
 }
 
 /// Count the number of tables in a FROM clause (including nested joins)
@@ -43,18 +44,18 @@ pub(crate) fn count_tables_in_from(from: &vibesql_ast::FromClause) -> usize {
     }
 }
 
-/// Check if all joins in the tree are CROSS or INNER joins
+/// Check if all joins in the tree are CROSS joins (comma-list syntax)
 ///
-/// Join reordering is only safe for CROSS and INNER joins. LEFT/RIGHT/FULL OUTER
-/// joins have specific semantics that must be preserved.
-pub(crate) fn all_joins_are_inner_or_cross(from: &vibesql_ast::FromClause) -> bool {
+/// Join reordering changes column ordering, so we only apply it to implicit CROSS joins
+/// from comma-list syntax (FROM t1, t2, t3). Explicit INNER/LEFT/RIGHT joins must
+/// preserve their declared ordering.
+pub(crate) fn all_joins_are_cross(from: &vibesql_ast::FromClause) -> bool {
     match from {
         vibesql_ast::FromClause::Table { .. } | vibesql_ast::FromClause::Subquery { .. } => true,
         vibesql_ast::FromClause::Join { left, right, join_type, .. } => {
-            let is_inner_or_cross = matches!(join_type, vibesql_ast::JoinType::Inner | vibesql_ast::JoinType::Cross);
-            is_inner_or_cross
-                && all_joins_are_inner_or_cross(left)
-                && all_joins_are_inner_or_cross(right)
+            matches!(join_type, vibesql_ast::JoinType::Cross)
+                && all_joins_are_cross(left)
+                && all_joins_are_cross(right)
         }
     }
 }
@@ -172,10 +173,11 @@ where
     }
 
     // Step 7: Build a map from table name to TableRef for easy lookup
+    // IMPORTANT: Normalize keys to lowercase to match analyzer's normalization
     let table_map: HashMap<String, TableRef> = table_refs
         .into_iter()
         .map(|t| {
-            let key = t.alias.clone().unwrap_or_else(|| t.name.clone());
+            let key = t.alias.clone().unwrap_or_else(|| t.name.clone()).to_lowercase();
             (key, t)
         })
         .collect();
