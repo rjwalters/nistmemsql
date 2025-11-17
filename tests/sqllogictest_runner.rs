@@ -186,6 +186,11 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            vibesql_ast::Statement::Analyze(analyze_stmt) => {
+                vibesql_executor::AnalyzeExecutor::execute(&analyze_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             vibesql_ast::Statement::SetNames(set_stmt) => {
                 vibesql_executor::SchemaExecutor::execute_set_names(&set_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
