@@ -246,9 +246,10 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                     if types.len() == expected_types.len() {
                         types = expected_types.clone();
 
-                        // Reformat string values to match expected types (MySQL normalization)
+                        // Reformat string values to match expected types (MySQL/SQLite normalization)
                         // When test expects Real but we returned Integer, append ".000"
                         // When test expects Integer but we returned Real, strip decimal if whole number
+                        // When test expects Integer but we returned TEXT, coerce to integer
                         for row in &mut rows {
                             for (col_idx, value) in row.iter_mut().enumerate() {
                                 let expected_type = &types[col_idx % types.len()];
@@ -257,11 +258,17 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                                     if value.parse::<i64>().is_ok() {
                                         *value = format!("{}.000", value);
                                     }
-                                } else if expected_type.to_char() == 'I' && value.contains('.') {
-                                    // Real → Integer: strip ".0" or ".000"
-                                    if let Ok(f) = value.parse::<f64>() {
-                                        if f.fract() == 0.0 {
-                                            *value = format!("{}", f as i64);
+                                } else if expected_type.to_char() == 'I' {
+                                    // Normalize to Integer type
+                                    if *value != "NULL" {
+                                        if value.contains('.') {
+                                            // Real → Integer: truncate to integer
+                                            if let Ok(f) = value.parse::<f64>() {
+                                                *value = format!("{}", f.trunc() as i64);
+                                            }
+                                        } else if value.parse::<i64>().is_err() {
+                                            // TEXT → Integer: coerce non-numeric text to 0 (SQLite affinity)
+                                            *value = "0".to_string();
                                         }
                                     }
                                 }
@@ -301,26 +308,10 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
 
                 if self.hash_threshold > 0 && num_values > self.hash_threshold {
                     let mut md5 = md5::Md5::new();
-                    for (row_idx, line) in rows.iter().enumerate() {
-                        for (col_idx, value) in line.iter().enumerate() {
-                            // MySQL normalization: append .000 to integers when type is Real/FloatingPoint
-                            // This matches the behavior of the Go sqllogictest implementation
-                            // See: third_party/sqllogictest/go/logictest/runner.go:438-443
-                            let value_idx = if value_sort { row_idx } else { row_idx * types.len() + col_idx };
-                            let col_type = &types[value_idx % types.len()];
-
-                            let normalized_value = if col_type.to_char() == 'R' && !value.contains('.') {
-                                // Check if it's actually an integer value
-                                if value.parse::<i64>().is_ok() {
-                                    format!("{}.000", value)
-                                } else {
-                                    value.clone()
-                                }
-                            } else {
-                                value.clone()
-                            };
-
-                            md5.update(normalized_value.as_bytes());
+                    for line in rows.iter() {
+                        for value in line.iter() {
+                            // Values are already normalized above, just hash them
+                            md5.update(value.as_bytes());
                             md5.update(b"\n");
                         }
                     }

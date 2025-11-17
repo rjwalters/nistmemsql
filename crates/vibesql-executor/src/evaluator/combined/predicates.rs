@@ -58,6 +58,13 @@ impl CombinedExpressionEvaluator<'_> {
                 // Per SQLite behavior: BETWEEN 57.93 AND 43.23 returns no rows
                 // - BETWEEN with reversed bounds returns false
                 // - NOT BETWEEN with reversed bounds returns true
+                //
+                // However, if expr is NULL, we must preserve NULL semantics:
+                // - NULL BETWEEN reversed_bounds = NULL (not FALSE)
+                // - NOT NULL BETWEEN reversed_bounds = NULL (not TRUE)
+                if matches!(expr_val, vibesql_types::SqlValue::Null) {
+                    return Ok(vibesql_types::SqlValue::Null);
+                }
                 return Ok(vibesql_types::SqlValue::Boolean(negated));
             }
         }
