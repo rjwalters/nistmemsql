@@ -14,7 +14,8 @@ fn test_join_search_module_compiles() {
     let mut analyzer = JoinOrderAnalyzer::new();
     analyzer.register_tables(vec!["t1".to_string(), "t2".to_string()]);
 
-    let search = JoinOrderSearch::from_analyzer(&analyzer);
+    let db = vibesql_storage::Database::new();
+    let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
     let order = search.find_optimal_order();
 
     // Should return a valid ordering
