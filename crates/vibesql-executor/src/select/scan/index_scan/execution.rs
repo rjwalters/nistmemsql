@@ -164,47 +164,67 @@ pub(crate) fn execute_index_scan(
     // - Multi-column predicates where only first column was indexed
     if need_where_filter {
         if let Some(where_expr) = where_clause {
-            use crate::evaluator::CombinedExpressionEvaluator;
+            // Use predicate decomposition to extract only table-local predicates
+            // This prevents ColumnNotFound errors when WHERE clause references columns
+            // from other tables in a JOIN (e.g., FROM t1, t2 WHERE t1.a = 5 AND t2.b = 10)
+            use crate::optimizer::decompose_where_clause;
 
-            // Create evaluator for filtering
-            let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
+            let decomposition = decompose_where_clause(Some(where_expr), &schema)
+                .map_err(ExecutorError::InvalidWhereClause)?;
 
-            // Apply full WHERE clause to each row
-            let mut filtered_rows = Vec::new();
-            for row in rows {
-                // Clear CSE cache before evaluating each row
-                evaluator.clear_cse_cache();
+            // Extract predicates that apply to this table only
+            let table_local_preds: Option<&Vec<vibesql_ast::Expression>> =
+                decomposition.table_local_predicates.get(table_name);
 
-                let eval_result = evaluator.eval(where_expr, &row)?;
-                let include_row = match eval_result {
-                    vibesql_types::SqlValue::Boolean(true) => true,
-                    vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
-                    // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
-                    vibesql_types::SqlValue::Integer(0) => false,
-                    vibesql_types::SqlValue::Integer(_) => true,
-                    vibesql_types::SqlValue::Smallint(0) => false,
-                    vibesql_types::SqlValue::Smallint(_) => true,
-                    vibesql_types::SqlValue::Bigint(0) => false,
-                    vibesql_types::SqlValue::Bigint(_) => true,
-                    vibesql_types::SqlValue::Float(0.0) => false,
-                    vibesql_types::SqlValue::Float(_) => true,
-                    vibesql_types::SqlValue::Real(0.0) => false,
-                    vibesql_types::SqlValue::Real(_) => true,
-                    vibesql_types::SqlValue::Double(0.0) => false,
-                    vibesql_types::SqlValue::Double(_) => true,
-                    other => {
-                        return Err(ExecutorError::InvalidWhereClause(format!(
-                            "WHERE clause must evaluate to boolean, got: {:?}",
-                            other
-                        )))
+            // Only apply filtering if there are table-local predicates
+            if let Some(preds) = table_local_preds {
+                if !preds.is_empty() {
+                    use crate::evaluator::CombinedExpressionEvaluator;
+
+                    // Combine predicates with AND
+                    let combined_where = super::super::predicates::combine_predicates_with_and(preds.clone());
+
+                    // Create evaluator for filtering
+                    let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
+
+                    // Apply table-local predicates only
+                    let mut filtered_rows = Vec::new();
+                    for row in rows {
+                        // Clear CSE cache before evaluating each row
+                        evaluator.clear_cse_cache();
+
+                        let eval_result = evaluator.eval(&combined_where, &row)?;
+                        let include_row = match eval_result {
+                            vibesql_types::SqlValue::Boolean(true) => true,
+                            vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
+                            // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
+                            vibesql_types::SqlValue::Integer(0) => false,
+                            vibesql_types::SqlValue::Integer(_) => true,
+                            vibesql_types::SqlValue::Smallint(0) => false,
+                            vibesql_types::SqlValue::Smallint(_) => true,
+                            vibesql_types::SqlValue::Bigint(0) => false,
+                            vibesql_types::SqlValue::Bigint(_) => true,
+                            vibesql_types::SqlValue::Float(0.0) => false,
+                            vibesql_types::SqlValue::Float(_) => true,
+                            vibesql_types::SqlValue::Real(0.0) => false,
+                            vibesql_types::SqlValue::Real(_) => true,
+                            vibesql_types::SqlValue::Double(0.0) => false,
+                            vibesql_types::SqlValue::Double(_) => true,
+                            other => {
+                                return Err(ExecutorError::InvalidWhereClause(format!(
+                                    "WHERE clause must evaluate to boolean, got: {:?}",
+                                    other
+                                )))
+                            }
+                        };
+
+                        if include_row {
+                            filtered_rows.push(row);
+                        }
                     }
-                };
-
-                if include_row {
-                    filtered_rows.push(row);
+                    rows = filtered_rows;
                 }
             }
-            rows = filtered_rows;
         }
     }
 
