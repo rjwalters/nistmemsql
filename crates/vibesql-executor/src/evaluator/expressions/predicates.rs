@@ -9,11 +9,11 @@ impl ExpressionEvaluator<'_> {
     /// BETWEEN SYMMETRIC: swaps low and high if low > high before evaluation
     /// If negated: expr < low OR expr > high
     ///
-    /// NULL handling (standard SQL:1999 three-valued logic):
-    /// - NULL in any operand (expr, low, or high) propagates through comparisons
-    /// - Comparisons with NULL return NULL (not special-cased)
-    /// - NULL propagates through AND/OR operations per three-valued logic
-    /// - This matches CombinedExpressionEvaluator behavior
+    /// NULL handling (SQL:1999 standard):
+    /// - If ANY operand (expr, low, or high) is NULL, returns NULL immediately
+    /// - This is required because three-valued logic doesn't handle NOT (FALSE AND NULL) correctly
+    /// - NOT (FALSE AND NULL) = NOT FALSE = TRUE (incorrect)
+    /// - But SQL standard requires: expr NOT BETWEEN NULL AND x → NULL (not TRUE)
     pub(super) fn eval_between(
         &self,
         expr: &vibesql_ast::Expression,
@@ -27,9 +27,16 @@ impl ExpressionEvaluator<'_> {
         let mut low_val = self.eval(low, row)?;
         let mut high_val = self.eval(high, row)?;
 
-        // NULL handling is done via three-valued logic in comparisons below.
-        // We no longer special-case NULL bounds - comparisons will return NULL
-        // which then propagates through AND/OR operations naturally.
+        // NULL handling: Per SQL standard, if ANY operand (expr, low, or high) is NULL,
+        // BETWEEN returns NULL. This must be checked explicitly because three-valued logic
+        // doesn't correctly handle: NOT (FALSE AND NULL) which evaluates to TRUE instead of NULL.
+        // SQL:1999 standard: val BETWEEN NULL AND x → NULL, val BETWEEN x AND NULL → NULL
+        if matches!(expr_val, vibesql_types::SqlValue::Null)
+            || matches!(low_val, vibesql_types::SqlValue::Null)
+            || matches!(high_val, vibesql_types::SqlValue::Null)
+        {
+            return Ok(vibesql_types::SqlValue::Null);
+        }
 
         // Check if bounds are reversed (low > high)
         let gt_result =

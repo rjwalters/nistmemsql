@@ -28,19 +28,16 @@ impl CombinedExpressionEvaluator<'_> {
         let mut low_val = self.eval(low, row)?;
         let mut high_val = self.eval(high, row)?;
 
-        // SQLite NULL handling for BETWEEN:
-        // Instead of returning NULL immediately, let NULL propagate through
-        // the AND/OR operations using three-valued logic.
-        //
-        // For NOT BETWEEN: expr < low OR expr > high
-        //   - If one side is NULL and other is TRUE: OR evaluates to TRUE
-        //   - If one side is NULL and other is FALSE: OR evaluates to NULL
-        //
-        // For BETWEEN: expr >= low AND expr <= high
-        //   - If one side is NULL and other is TRUE: AND evaluates to NULL
-        //   - If one side is NULL and other is FALSE: AND evaluates to FALSE
-        //
-        // This matches SQLite behavior where NULL is handled by three-valued logic.
+        // NULL handling: Per SQL standard, if ANY operand (expr, low, or high) is NULL,
+        // BETWEEN returns NULL. This must be checked explicitly because three-valued logic
+        // doesn't correctly handle: NOT (FALSE AND NULL) which evaluates to TRUE instead of NULL.
+        // SQL:1999 standard: val BETWEEN NULL AND x → NULL, val BETWEEN x AND NULL → NULL
+        if matches!(expr_val, vibesql_types::SqlValue::Null)
+            || matches!(low_val, vibesql_types::SqlValue::Null)
+            || matches!(high_val, vibesql_types::SqlValue::Null)
+        {
+            return Ok(vibesql_types::SqlValue::Null);
+        }
 
         // Check if bounds are reversed (low > high)
         let gt_result = ExpressionEvaluator::eval_binary_op_static(
