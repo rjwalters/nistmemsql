@@ -200,14 +200,29 @@ pub(super) fn extract_index_predicate(expr: &Expression, column_name: &str) -> O
             if !negated && is_column_reference(col_expr, column_name) {
                 // Extract literal values from the IN list
                 let mut values = Vec::new();
+                let mut has_null = false;
                 for item in value_list {
                     if let Expression::Literal(value) = item {
+                        // Track if we encounter NULL in the list
+                        if matches!(value, SqlValue::Null) {
+                            has_null = true;
+                        }
                         values.push(value.clone());
                     } else {
                         // If any item is not a literal, we can't optimize
                         return None;
                     }
                 }
+
+                // If IN list contains NULL, skip index optimization
+                // Rationale: per SQL three-valued logic, when NULL is in the IN list:
+                // - value IN (..., NULL) when value doesn't match → NULL (not FALSE)
+                // The index lookup can't represent this NULL result, so we must fall back
+                // to regular evaluation which handles three-valued logic correctly
+                if has_null {
+                    return None;
+                }
+
                 if !values.is_empty() {
                     return Some(IndexPredicate::In(values));
                 }
