@@ -26,10 +26,10 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 - Completed in under 2 weeks (Oct 25 - Nov 1, 2025)
 
 **✅ Extended SQL:1999 Compliance - NEAR COMPLETE**
-- SQLLogicTest coverage: 579/597 files passing (97.0%, ~5.6M tests)
-- 26 files blocklisted (memory-intensive 1000+row tests, large select files)
+- SQLLogicTest coverage: 579/623 files passing (92.9%, ~5.6M tests)
+- 44 failures: 18 edge case bugs + 26 blocklisted (memory-intensive 1000+row tests)
 - Strong areas: DDL (100%), Evidence (100%), Index (98%), Select (100%)
-- Remaining work: 18 test files with edge cases
+- Remaining work: Fix 18 edge case failures, optimize 26 memory-intensive tests
 - Inspired by the [posix4e/nistmemsql challenge](https://github.com/posix4e/nistmemsql)
 
 **✅ Advanced Database Features - COMPLETE!**
@@ -49,7 +49,7 @@ Every line of code, every test, and all documentation in this repository has bee
 **What was built:**
 - 📊 **171,000+ lines** of production Rust code across 7-crate workspace
 - ✅ **100% SQL:1999 Core compliance** (739/739 sqltest + 2,991 unit tests)
-- ✅ **97.0% SQLLogicTest suite** (579/597 files, ~5.6M tests passing)
+- ✅ **92.9% SQLLogicTest suite** (579/623 files, ~5.6M tests passing)
 - 🚀 **Full WASM compilation** with live browser demo
 - 🏗️ **AI Builder/Judge workflow** with automated PR reviews
 - 🔒 **Complete security model** with privilege enforcement
@@ -77,11 +77,11 @@ We use comprehensive test suites to track SQL:1999 compliance:
 |-------|-------|--------|
 | SQL:1999 sqltest | 739 tests | ✅ **100% (739/739 passing)** |
 | Custom Unit Tests | 2,991 tests | ✅ **100% (2,991/2,991 passing)** |
-| SQLLogicTest | 597 test files (~5.6M tests, 26 blocklisted) | ✅ **97.0% (579/597 passing)** - Only 18 edge case failures remaining |
+| SQLLogicTest | 623 test files (~5.6M tests) | ✅ **92.9% (579/623 passing)** - 44 failures: 18 bugs + 26 blocklisted |
 
 **Major Features Implemented:**
 - ✅ **100% SQL:1999 Core Conformance** - All 739 sqltest tests passing
-- ✅ **SQLLogicTest Suite** - 579/597 test files passing (97.0% - near complete coverage)
+- ✅ **SQLLogicTest Suite** - 579/623 test files passing (92.9% - near complete coverage)
 - ✅ **Full-featured CLI** - Interactive REPL with PostgreSQL-compatible meta-commands
 - ✅ **Import/Export** - CSV and JSON support with \copy command
 - ✅ **Multiple output formats** - Table, JSON, CSV, Markdown, HTML
@@ -1251,4 +1251,4 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 **Try it now**: [Live Demo →](https://rjwalters.github.io/vibesql/)
 
-**Status**: ✅ 100% SQL:1999 Core Conformance | ✅ 97.0% SQLLogicTest Suite (579/597 files, ~5.6M tests)
+**Status**: ✅ 100% SQL:1999 Core Conformance | ✅ 92.9% SQLLogicTest Suite (579/623 files, ~5.6M tests)

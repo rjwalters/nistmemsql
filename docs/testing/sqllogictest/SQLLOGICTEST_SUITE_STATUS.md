@@ -1,10 +1,10 @@
 # SQLLogicTest Suite Status & Testing Guide
 
 **Last Updated**: 2025-11-17
-**Current Status**: 97.0% pass rate (579/597 files passing) ✅
+**Current Status**: 92.9% pass rate (579/623 files passing) ✅
 **Test Infrastructure**: Stable parallel execution with 8 workers
-**Memory Management**: Successfully running with blocklist for memory-intensive 1000+ row tests (26 files blocked)
-**Remaining Work**: 18 edge case failures to investigate
+**Memory Management**: 26 memory-intensive 1000+ row tests blocklisted (counted as failures)
+**Remaining Work**: 18 edge case bug fixes + 26 blocklisted test optimizations
 
 ## Quick Start
 
@@ -313,19 +313,21 @@ python3 scripts/query_test_results.py \
 
 ## Current Test Results (as of 2025-11-17)
 
-### ✅ MAJOR MILESTONE: 97.0% Pass Rate Achieved!
+### ✅ MAJOR MILESTONE: 92.9% Pass Rate Achieved!
 
 **Overall Statistics**
 
 | Metric | Value |
 |--------|-------|
 | Total Files in Suite | 623 |
-| Blocklisted (1000+ row tests) | 26 (4.2%) |
-| Files Tested | 597 |
-| Passing | 579 (97.0%) ✅ |
-| Failing | 18 (3.0%) |
+| Passing | 579 (92.9%) ✅ |
+| Failing | 44 (7.1%) |
+| - Edge case bugs | 18 (2.9%) |
+| - Blocklisted (memory-intensive) | 26 (4.2%) |
 
-### Pass Rate by Category
+**Note**: Blocklisted tests are counted as failures since we're not actually passing them, just skipping due to memory constraints.
+
+### Pass Rate by Category (Tested Files Only)
 
 | Category | Total | Passed | Failed | Pass Rate | Status |
 |----------|-------|--------|--------|-----------|--------|
@@ -335,11 +337,13 @@ python3 scripts/query_test_results.py \
 | **index** | 188 | 186 | 2 | 98.9% | ✅ Excellent |
 | **random** | 393 | 377 | 16 | 95.9% | ✅ Excellent |
 
+**Category stats show 97.0% pass rate on tested files (597), but overall suite pass rate is 92.9% when counting blocklisted tests as failures.**
+
 ### Blocklist Strategy - HIGHLY EFFECTIVE
 
 Successfully managing memory and test execution time by blocklisting memory-intensive tests:
 
-**Blocklisted Files (26 total)**:
+**Blocklisted Files (26 total - counted as failures)**:
 - `select4.test`, `select5.test` - Very large SELECT tests (2 files)
 - All `/1000/` pattern files - Tests with 1000+ rows (22 files)
 - All `/10000/` pattern files - Tests with 10,000+ rows (2 files)
@@ -350,11 +354,13 @@ Successfully managing memory and test execution time by blocklisting memory-inte
 - Enabled reliable parallel execution with 8 workers
 - Focused testing on real functionality issues vs. resource constraints
 
-**Result**: Stable test execution, 97.0% pass rate on tested files, zero memory crashes.
+**Result**: Stable test execution, 97.0% pass rate on tested files (579/597), zero memory crashes.
 
-### Remaining Failures (18 files, 3.0%)
+### Remaining Work (44 total failures, 7.1%)
 
-The 18 remaining failures are genuine edge cases to investigate:
+**1. Edge Case Bugs (18 files, 2.9%)**
+
+These are genuine functionality issues to investigate:
 
 | Category | Failures | Notes |
 |----------|----------|-------|
@@ -362,6 +368,13 @@ The 18 remaining failures are genuine edge cases to investigate:
 | random | 16 | Complex query edge cases |
 
 These represent **real functionality issues** to fix, not resource/memory problems.
+
+**2. Blocklisted Tests (26 files, 4.2%)**
+
+These tests need memory optimization to run reliably:
+- Memory profiling to understand allocation patterns
+- Potential streaming or batching strategies
+- Consider increasing available memory for large test runs
 
 
 ---
@@ -586,7 +599,7 @@ rm target/sqllogictest_results.sql
 
 | Date | Pass Rate | Tests | Blocklisted | Notes |
 |------|-----------|-------|-------------|-------|
-| 2025-11-17 | 97.0% | 579/597 | 26 (1000+ rows) | ✅ **MILESTONE**: Near-complete coverage achieved! |
+| 2025-11-17 | 92.9% | 579/623 | 26 (failures) | ✅ **MILESTONE**: 97% on tested files, counting blocklist as failures |
 | 2025-11-16 | 51.0% | 321/629 | 4 (10000 rows) | ✅ Stable infrastructure, aggregate bugs fixed |
 | 2025-11-08 | 0% | 0/403 | 4 | ⚠️ All tests timeout (REGRESSION) |
 | 2025-11-06 | 13.5% | 83/613 | 4 | Baseline measurement |
