@@ -52,26 +52,47 @@ python3 scripts/query_test_results.py --preset failed-files
 
 ### 1. `run_parallel_tests.py` - Full Suite Runner
 
-Runs SQLLogicTest files in parallel across multiple worker processes.
+Runs SQLLogicTest files in parallel across multiple worker processes with dynamic load balancing and real-time database updates.
+
+**Key Features** (as of November 2025):
+- **Dynamic work queue**: Workers pull files from shared queue for optimal load balancing
+- **Streaming database writes**: Results written to dogfooding database as tests complete
+- **Branch-aware tracking**: Test runs tagged with git branch for better analysis
+- **Real-time progress**: Monitor results during long test runs
 
 ```bash
 # Basic usage - use all available CPUs
-./scripts/sqllogictest run --parallel
+python3 scripts/run_parallel_tests.py
 
 # Specify worker count (default: CPU count)
-./scripts/sqllogictest run --parallel --workers 64
+python3 scripts/run_parallel_tests.py --workers 8
 
-# Set time limit per worker (default: 3600 seconds)
-./scripts/sqllogictest run --parallel --time-budget 1800
+# Set time budget per file (default: 300 seconds per file)
+python3 scripts/run_parallel_tests.py --time-budget 3600
 
 # Combined example
-./scripts/sqllogictest run --parallel --workers 32 --time-budget 7200
+python3 scripts/run_parallel_tests.py --workers 8 --time-budget 7200
 ```
 
 **Output files**:
-- `/tmp/sqllogictest_results/worker_*.log` - Individual worker logs
-- `/tmp/sqllogictest_results/worker_*_analysis.json` - Per-worker analysis
-- `target/sqllogictest_cumulative.json` - Aggregated results
+- `~/.vibesql/test_results/sqllogictest_results.sql` - Live dogfooding database (streaming writes)
+- `target/test_work_queue.txt` - Shared work queue (dynamically consumed by workers)
+
+**Architecture improvements**:
+- **Work queue**: Instead of static pre-partitioning, workers pull files one-by-one from shared queue
+  - Eliminates load imbalance (fast workers don't finish early while slow workers lag)
+  - Better CPU utilization across all cores
+  - Implemented with fcntl-based file locking for thread safety
+
+- **Streaming writes**: Database updated as each test completes
+  - Results visible immediately (no need to wait for full suite)
+  - Crash-resilient (partial runs captured)
+  - Enables live monitoring and dashboards
+
+- **Branch tracking**: Each run records git branch
+  - Compare main branch health vs feature branches
+  - Track regressions across branches
+  - Debug branch-specific issues
 
 ### 2. `aggregate_worker_results.py` - Result Aggregator
 
@@ -160,7 +181,7 @@ Tracks the current status of each SQLLogicTest file.
 
 #### `test_runs` - Execution History
 
-Metadata for each test run, enabling progress tracking.
+Metadata for each test run, enabling progress tracking and branch comparison.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -172,6 +193,7 @@ Metadata for each test run, enabling progress tracking.
 | failed | INTEGER | Number of failing files |
 | untested | INTEGER | Number of untested files |
 | git_commit | VARCHAR(40) | Link to specific code version |
+| branch_name | VARCHAR(200) | Git branch where tests were run (for branch-aware querying) |
 | ci_run_id | VARCHAR(100) | CI/CD system correlation |
 
 #### `test_results` - Detailed Results
@@ -239,6 +261,28 @@ JOIN test_files tf ON tr.file_path = tf.file_path
 WHERE tr.status = 'FAIL'
 ORDER BY tr.tested_at DESC
 LIMIT 50;
+
+-- Main branch progress (branch-aware tracking)
+SELECT
+    run_id,
+    started_at,
+    passed,
+    failed,
+    ROUND(100.0 * passed / total_files, 1) as pass_rate
+FROM test_runs
+WHERE branch_name = 'main'
+ORDER BY started_at DESC
+LIMIT 10;
+
+-- Feature branch vs main comparison
+SELECT
+    branch_name,
+    COUNT(*) as runs,
+    AVG(passed * 100.0 / total_files) as avg_pass_rate
+FROM test_runs
+WHERE branch_name IS NOT NULL
+GROUP BY branch_name
+ORDER BY avg_pass_rate DESC;
 ```
 
 ---

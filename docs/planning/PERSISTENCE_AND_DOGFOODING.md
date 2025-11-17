@@ -52,6 +52,7 @@ CREATE TABLE test_runs (
     failed INTEGER,
     untested INTEGER,
     git_commit VARCHAR(40),
+    branch_name VARCHAR(200),
     ci_run_id VARCHAR(100)
 );
 
@@ -115,6 +116,44 @@ JOIN test_files tf ON tr.file_path = tf.file_path
 WHERE tr.status = 'FAIL'
 ORDER BY tr.tested_at DESC
 LIMIT 50;
+
+-- Progress by branch (branch-aware tracking)
+SELECT
+    branch_name,
+    COUNT(*) as total_runs,
+    AVG(passed * 100.0 / total_files) as avg_pass_rate,
+    MAX(completed_at) as last_run
+FROM test_runs
+WHERE branch_name IS NOT NULL
+GROUP BY branch_name
+ORDER BY last_run DESC;
+
+-- Main branch progress over time
+SELECT
+    run_id,
+    started_at,
+    passed,
+    failed,
+    ROUND(100.0 * passed / total_files, 1) as pass_rate
+FROM test_runs
+WHERE branch_name = 'main' AND completed_at IS NOT NULL
+ORDER BY completed_at DESC
+LIMIT 30;
+
+-- Feature branch vs main comparison
+SELECT
+    'main' as branch,
+    AVG(passed * 100.0 / total_files) as pass_rate
+FROM test_runs
+WHERE branch_name = 'main'
+UNION ALL
+SELECT
+    branch_name as branch,
+    AVG(passed * 100.0 / total_files) as pass_rate
+FROM test_runs
+WHERE branch_name != 'main'
+GROUP BY branch_name
+ORDER BY pass_rate DESC;
 ```
 
 ### 3. Python Integration
@@ -285,6 +324,62 @@ ORDER BY file_path LIMIT 20;
 4. What about binary persistence for performance?
    - **Decision**: Deferred - SQL dump is sufficient for now, can add later with serde
 
+## Recent Improvements (November 2025)
+
+### Dynamic Work Queue for Load Balancing ✅
+
+**Problem**: Static pre-partitioning caused load imbalance - fast workers would finish early while slow workers held up the entire test suite.
+
+**Solution**: Implemented dynamic work queue using fcntl-based file locking.
+- Workers pull test files from shared queue one at a time
+- Fast workers automatically process more files
+- Eliminates idle time at end of test runs
+- Better CPU utilization across all cores
+
+**Implementation**: `scripts/run_parallel_tests.py` - `WorkQueue` class
+
+### Streaming Database Writes ✅
+
+**Problem**: Test results were only available after full suite completion, making it hard to monitor progress during long test runs.
+
+**Solution**: Write test results to database as tests complete.
+- Real-time visibility into test progress
+- Results survive crashes (partial runs still captured)
+- Better dogfooding - database actively used during testing
+- Enables live dashboards and monitoring
+
+**Implementation**: `scripts/run_parallel_tests.py` - `StreamingDatabaseWriter` class
+
+**Database location**: `~/.vibesql/test_results/sqllogictest_results.sql` (shared across all worktrees)
+
+### Branch-Aware Tracking ✅
+
+**Problem**: Running tests from feature branches mixed results with main branch, making it hard to:
+- Track overall project health (main branch)
+- Debug feature branch issues
+- Detect regressions across branches
+
+**Solution**: Added `branch_name` column to `test_runs` table.
+- Each test run records which git branch it was executed from
+- Query results by branch while maintaining unified history
+- Compare feature branch results against main baseline
+- Watch for regressions when merging changes
+
+**Schema change**: Added `branch_name VARCHAR(200)` to `test_runs` table
+
+**Example queries**:
+```sql
+-- Main branch health
+SELECT * FROM test_runs WHERE branch_name = 'main' ORDER BY started_at DESC LIMIT 10;
+
+-- Feature branch debugging
+SELECT * FROM test_runs WHERE branch_name = 'fix/analyze-statement' ORDER BY started_at DESC;
+
+-- Regression detection
+SELECT branch_name, AVG(passed * 100.0 / total_files) as pass_rate
+FROM test_runs GROUP BY branch_name;
+```
+
 ## Future Enhancements
 
 - Binary persistence with serde (faster load/save)
@@ -293,3 +388,5 @@ ORDER BY file_path LIMIT 20;
 - Performance metrics in test_results
 - Failure pattern analysis queries
 - Automated issue creation from failure patterns
+- Live dashboard for monitoring test progress
+- Historical trend analysis per branch
