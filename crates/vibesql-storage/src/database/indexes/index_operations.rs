@@ -228,6 +228,8 @@ impl IndexData {
                         // For multi-column indexes, Excluded([v]) doesn't exclude keys like [v, x]
                         // because lexicographically [v] < [v, x]. So for `col > 40`, we need to
                         // increment to 41 and use Included([41]) instead of Excluded([40]).
+                        // Use calculate_next_value (adds 1.0) instead of try_increment_sqlvalue (adds epsilon)
+                        // because index keys are normalized to Double but represent discrete integer values.
                         let start_key = normalized_start.as_ref().map(|v| {
                             if inclusive_start {
                                 // For >= predicates, use value as-is with Included
@@ -235,7 +237,7 @@ impl IndexData {
                             } else {
                                 // For > predicates, increment value and use Included
                                 // This ensures we exclude ALL keys starting with the original value
-                                match try_increment_sqlvalue(v) {
+                                match calculate_next_value(v) {
                                     Some(incremented) => (vec![incremented], true),
                                     // If increment fails (overflow), fall back to Excluded
                                     None => (vec![v.clone()], false),

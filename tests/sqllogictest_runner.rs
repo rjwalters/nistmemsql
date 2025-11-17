@@ -692,6 +692,10 @@ async fn run_single_test_file() {
     // Set hash threshold to 8 (SQLLogicTest default) - results with more than 8 values will be hashed
     tester.with_hash_threshold(8);
 
+    // Add "mysql" label for skipif/onlyif directives
+    // vibesql uses MySQL-compatible division (returns REAL/DECIMAL for integer division)
+    tester.add_label("mysql");
+
     tester.run_script(&contents)
         .unwrap_or_else(|e| panic!("Test failed for {}: {}", test_file, e));
 }

@@ -19,13 +19,22 @@ impl Division {
             return Ok(Null);
         }
 
-        // Fast path for integers - integer division (SQLite/SQL:1999 behavior)
-        // When both operands are integers, division returns integer (truncates toward zero)
+        // Fast path for integers - use smart type selection for MySQL compatibility
+        // - If division has no fractional part → return Integer (for DISTINCT correctness)
+        // - If division has fractional part → return Numeric (for precision)
+        // This matches MySQL behavior where integer division can return DECIMAL
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
                 return Ok(SqlValue::Null);
             }
-            return Ok(Integer(a / b));
+            let result = *a as f64 / *b as f64;
+            if result.fract() == 0.0 {
+                // No fractional part - return as Integer for DISTINCT correctness
+                return Ok(Integer(result as i64));
+            } else {
+                // Has fractional part - return as Numeric for precision
+                return Ok(Numeric(result));
+            }
         }
 
         // Use helper for type coercion
