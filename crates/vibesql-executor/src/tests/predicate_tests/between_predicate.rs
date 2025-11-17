@@ -144,7 +144,9 @@ fn test_not_between_with_null_bound() {
     let executor = SelectExecutor::new(&db);
 
     // SELECT * FROM test WHERE val NOT BETWEEN 10 AND NULL
-    // SQL standard: NOT BETWEEN returns NULL, WHERE NULL excludes all rows (0 rows)
+    // Three-valued logic: (val < 10) OR (val > NULL)
+    // For val=5: (5 < 10) OR (5 > NULL) = TRUE OR NULL = TRUE (included)
+    // For val=15: (15 < 10) OR (15 > NULL) = FALSE OR NULL = NULL (filtered)
     let stmt = vibesql_ast::SelectStmt {
         with_clause: None,
         set_operation: None,
@@ -167,7 +169,8 @@ fn test_not_between_with_null_bound() {
         into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 0); // SQL standard: NULL (excludes all rows)
+    assert_eq!(result.len(), 1); // Three-valued logic: 5 < 10 = TRUE, TRUE OR NULL = TRUE
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(5));
 }
 
 #[test]
@@ -229,7 +232,9 @@ fn test_not_between_with_null_lower_bound() {
     let executor = SelectExecutor::new(&db);
 
     // SELECT * FROM test WHERE val NOT BETWEEN NULL AND 20
-    // SQL standard: NOT BETWEEN returns NULL, WHERE NULL excludes all rows (0 rows)
+    // Three-valued logic: (val < NULL) OR (val > 20)
+    // For val=25: (25 < NULL) OR (25 > 20) = NULL OR TRUE = TRUE (included)
+    // For val=5,15: (val < NULL) OR (val > 20) = NULL OR FALSE = NULL (filtered)
     let stmt = vibesql_ast::SelectStmt {
         with_clause: None,
         set_operation: None,
@@ -252,7 +257,8 @@ fn test_not_between_with_null_lower_bound() {
         into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 0); // SQL standard: NULL (excludes all rows)
+    assert_eq!(result.len(), 1); // Three-valued logic: 25 > 20 = TRUE, NULL OR TRUE = TRUE
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(25));
 }
 
 #[test]
