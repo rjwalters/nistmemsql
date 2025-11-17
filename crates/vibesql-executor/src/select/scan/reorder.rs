@@ -10,9 +10,10 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::{derived::execute_derived_table, table::execute_table_scan};
+use super::{derived::execute_derived_table, table::execute_table_scan, FromResult};
 use crate::{
     errors::ExecutorError,
+    schema::CombinedSchema,
     select::{
         cte::CteResult,
         join::{nested_loop_join, JoinOrderAnalyzer, JoinOrderSearch},
@@ -124,6 +125,7 @@ fn extract_all_conditions(from: &vibesql_ast::FromClause, conditions: &mut Vec<v
 /// 2. Analyzes join conditions and WHERE predicates
 /// 3. Uses cost-based search to find optimal join order
 /// 4. Builds and executes joins in the optimal order
+/// 5. Restores original column ordering to preserve query semantics
 pub(crate) fn execute_with_join_reordering<F>(
     from: &vibesql_ast::FromClause,
     cte_results: &HashMap<String, CteResult>,
@@ -142,7 +144,7 @@ where
     let mut join_conditions = Vec::new();
     extract_all_conditions(from, &mut join_conditions);
 
-    // Step 3: Build analyzer with table names
+    // Step 3: Build analyzer with table names (preserving original order)
     let table_names: Vec<String> =
         table_refs.iter().map(|t| t.alias.clone().unwrap_or_else(|| t.name.clone())).collect();
 
@@ -182,7 +184,10 @@ where
         })
         .collect();
 
-    // Step 8: Execute tables in optimal order, joining them sequentially
+    // Step 8: Track column count per table for later column reordering
+    let mut table_column_counts: HashMap<String, usize> = HashMap::new();
+
+    // Step 9: Execute tables in optimal order, joining them sequentially
     let mut result: Option<super::FromResult> = None;
 
     for table_name in &optimal_order {
@@ -203,6 +208,14 @@ where
             execute_table_scan(&table_ref.name, table_ref.alias.as_ref(), cte_results, database, where_clause, None)?
         };
 
+        // Record the column count for this table (using table_schemas to get column info)
+        let col_count = if let Some((_, schema)) = table_result.schema.table_schemas.get(table_name) {
+            schema.columns.len()
+        } else {
+            table_result.schema.total_columns
+        };
+        table_column_counts.insert(table_name.clone(), col_count);
+
         // Join with previous result (if any)
         if let Some(prev_result) = result {
             // Find join conditions that connect prev tables with this table
@@ -222,5 +235,110 @@ where
         }
     }
 
-    result.ok_or_else(|| ExecutorError::UnsupportedFeature("No tables in join".to_string()))
+    let result = result.ok_or_else(|| ExecutorError::UnsupportedFeature("No tables in join".to_string()))?;
+
+    // Step 10: Restore original column ordering if needed
+    // Build column permutation: map from current position to target position
+    let column_permutation = build_column_permutation(&table_names, &optimal_order, &table_column_counts);
+
+    // Reorder rows according to the permutation
+    let rows = result.data.into_rows();
+    let reordered_rows: Vec<vibesql_storage::Row> = rows
+        .into_iter()
+        .map(|row| {
+            let mut new_values = Vec::with_capacity(row.values.len());
+            for &idx in &column_permutation {
+                new_values.push(row.values[idx].clone());
+            }
+            vibesql_storage::Row::new(new_values)
+        })
+        .collect();
+
+    // Build a new combined schema with tables in original order
+    let new_schema = build_reordered_schema(&result.schema, &table_names, &optimal_order);
+
+    // Return result with reordered data and schema
+    Ok(FromResult::from_rows(new_schema, reordered_rows))
+}
+
+/// Build a reordered combined schema with tables in original order
+///
+/// Takes the current schema (with tables in optimal order) and reconstructs it
+/// with tables in the original FROM clause order.
+fn build_reordered_schema(
+    current_schema: &CombinedSchema,
+    original_order: &[String],
+    _optimal_order: &[String],
+) -> CombinedSchema {
+    let mut new_table_schemas = HashMap::new();
+    let mut current_position = 0;
+
+    // Walk through original order and rebuild schema with correct positions
+    for table_name in original_order {
+        let table_lower = table_name.to_lowercase();
+
+        // Find this table's schema in the current (optimally ordered) schema
+        // Try exact match first, then case-insensitive
+        let table_schema = current_schema
+            .table_schemas
+            .get(table_name)
+            .or_else(|| {
+                current_schema.table_schemas.iter().find_map(|(k, v): (&String, &(usize, vibesql_catalog::TableSchema))| {
+                    if k.to_lowercase() == table_lower {
+                        Some(v)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .map(|(_, schema): &(usize, vibesql_catalog::TableSchema)| schema.clone());
+
+        if let Some(schema) = table_schema {
+            let col_count = schema.columns.len();
+            new_table_schemas.insert(table_name.clone(), (current_position, schema));
+            current_position += col_count;
+        }
+    }
+
+    CombinedSchema { table_schemas: new_table_schemas, total_columns: current_position }
+}
+
+/// Build a column permutation to restore original table ordering
+///
+/// Given:
+/// - Original table order: [tab0, tab2, tab1]
+/// - Optimal execution order: [tab1, tab0, tab2]
+/// - Column counts: {tab0: 3, tab1: 3, tab2: 3}
+///
+/// Returns permutation mapping current positions to original positions:
+/// - Current: [tab1.col0, tab1.col1, tab1.col2, tab0.col0, tab0.col1, tab0.col2, tab2.col0, tab2.col1, tab2.col2]
+/// - Target:  [tab0.col0, tab0.col1, tab0.col2, tab2.col0, tab2.col1, tab2.col2, tab1.col0, tab1.col1, tab1.col2]
+/// - Permutation: [3, 4, 5, 6, 7, 8, 0, 1, 2]
+fn build_column_permutation(
+    original_order: &[String],
+    optimal_order: &[String],
+    column_counts: &HashMap<String, usize>,
+) -> Vec<usize> {
+    // Build position map: table name -> starting column index in optimal order
+    let mut optimal_positions: HashMap<String, usize> = HashMap::new();
+    let mut current_position = 0;
+    for table in optimal_order {
+        optimal_positions.insert(table.clone(), current_position);
+        current_position += column_counts.get(table).unwrap_or(&0);
+    }
+
+    // Build permutation by walking through original order
+    let mut permutation = Vec::new();
+    for table in original_order {
+        let table_lower = table.to_lowercase();
+        let start_pos = optimal_positions.get(&table_lower).unwrap_or(&0);
+        let col_count = column_counts.get(&table_lower).unwrap_or(&0);
+
+        // Add all column indices for this table
+        for i in 0..*col_count {
+            permutation.push(start_pos + i);
+        }
+    }
+
+    permutation
 }
