@@ -75,6 +75,7 @@ pub(crate) fn execute_index_scan(
                     start_val,
                     &vibesql_ast::BinaryOperator::GreaterThan,
                     end_val,
+                    vibesql_types::SqlMode::default(),
                 )?;
                 if let vibesql_types::SqlValue::Boolean(true) = gt_result {
                     // start_val > end_val: empty range, return no rows

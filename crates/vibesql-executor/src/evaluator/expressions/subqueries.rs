@@ -231,7 +231,7 @@ impl ExpressionEvaluator<'_> {
             &rows,
             op,
             quantifier,
-            Self::eval_binary_op_static,
+            |left, op, right| Self::eval_binary_op_static(left, op, right, vibesql_types::SqlMode::default()),
         )
     }
 }

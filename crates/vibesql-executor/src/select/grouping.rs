@@ -360,7 +360,7 @@ fn add_sql_values(a: &vibesql_types::SqlValue, b: &vibesql_types::SqlValue) -> v
     use crate::evaluator::operators::OperatorRegistry;
     use vibesql_ast::BinaryOperator;
 
-    match OperatorRegistry::eval_binary_op(a, &BinaryOperator::Plus, b) {
+    match OperatorRegistry::eval_binary_op(a, &BinaryOperator::Plus, b, vibesql_types::SqlMode::default()) {
         Ok(result) => result,
         Err(_) => vibesql_types::SqlValue::Null, // If addition fails, return NULL
     }

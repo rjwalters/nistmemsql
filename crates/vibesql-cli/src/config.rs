@@ -36,6 +36,10 @@ pub struct DatabaseConfig {
     /// Whether to auto-save database on exit
     #[serde(default = "default_true")]
     pub auto_save: bool,
+
+    /// SQL compatibility mode (mysql, sqlite)
+    #[serde(default = "default_sql_mode")]
+    pub sql_mode: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,6 +81,10 @@ fn default_max_entries() -> usize {
     10000
 }
 
+fn default_sql_mode() -> String {
+    "mysql".to_string()
+}
+
 
 impl Default for DisplayConfig {
     fn default() -> Self {
@@ -86,7 +94,11 @@ impl Default for DisplayConfig {
 
 impl Default for DatabaseConfig {
     fn default() -> Self {
-        DatabaseConfig { default_path: None, auto_save: default_true() }
+        DatabaseConfig {
+            default_path: None,
+            auto_save: default_true(),
+            sql_mode: default_sql_mode(),
+        }
     }
 }
 
@@ -132,6 +144,15 @@ impl Config {
             _ => None,
         }
     }
+
+    /// Get the SQL mode as SqlMode enum
+    pub fn get_sql_mode(&self) -> Option<vibesql_types::SqlMode> {
+        match self.database.sql_mode.to_lowercase().as_str() {
+            "mysql" => Some(vibesql_types::SqlMode::MySQL),
+            "sqlite" => Some(vibesql_types::SqlMode::SQLite),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -143,6 +164,7 @@ mod tests {
         let config = Config::default();
         assert_eq!(config.display.format, "table");
         assert!(config.database.auto_save);
+        assert_eq!(config.database.sql_mode, "mysql");
         assert_eq!(config.history.max_entries, 10000);
         assert_eq!(config.query.timeout_seconds, 0);
     }
@@ -189,5 +211,22 @@ timeout_seconds = 30
 
         config.display.format = "invalid".to_string();
         assert!(config.get_output_format().is_none());
+    }
+
+    #[test]
+    fn test_get_sql_mode() {
+        let mut config = Config::default();
+
+        config.database.sql_mode = "mysql".to_string();
+        assert_eq!(config.get_sql_mode(), Some(vibesql_types::SqlMode::MySQL));
+
+        config.database.sql_mode = "MySQL".to_string(); // case insensitive
+        assert_eq!(config.get_sql_mode(), Some(vibesql_types::SqlMode::MySQL));
+
+        config.database.sql_mode = "sqlite".to_string();
+        assert_eq!(config.get_sql_mode(), Some(vibesql_types::SqlMode::SQLite));
+
+        config.database.sql_mode = "invalid".to_string();
+        assert!(config.get_sql_mode().is_none());
     }
 }

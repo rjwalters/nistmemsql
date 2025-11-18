@@ -11,7 +11,11 @@ pub struct Division;
 impl Division {
     /// Division operator (/)
     #[inline]
-    pub fn divide(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
+    pub fn divide(
+        left: &SqlValue,
+        right: &SqlValue,
+        sql_mode: vibesql_types::SqlMode,
+    ) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
         // NULL propagation - SQL standard semantics
@@ -19,16 +23,23 @@ impl Division {
             return Ok(Null);
         }
 
-        // Fast path for integers - SQLLogicTest expects floating-point results
-        // INTEGER / INTEGER → FLOAT (floating-point division)
-        // This matches SQLLogicTest expectations for standard division operator
+        // Fast path for integers - behavior depends on SQL mode
+        // MySQL: INTEGER / INTEGER → FLOAT (floating-point division)
+        // SQLite: INTEGER / INTEGER → INTEGER (truncated division)
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
                 return Ok(SqlValue::Null);
             }
-            // Perform floating-point division
-            let result = (*a as f64) / (*b as f64);
-            return Ok(Float(result as f32));
+
+            if sql_mode.division_returns_float() {
+                // MySQL mode: floating-point division
+                let result = (*a as f64) / (*b as f64);
+                return Ok(Float(result as f32));
+            } else {
+                // SQLite mode: integer division (truncated toward zero)
+                let result = ((*a as f64) / (*b as f64)).trunc() as i64;
+                return Ok(Integer(result));
+            }
         }
 
         // Use helper for type coercion
@@ -45,15 +56,21 @@ impl Division {
             return Ok(SqlValue::Null);
         }
 
-        // Division returns floating-point results
-        // - ExactNumeric: INTEGER / INTEGER → FLOAT (floating-point division)
-        // - ApproximateNumeric: FLOAT / FLOAT → FLOAT
-        // - Numeric: NUMERIC / NUMERIC → NUMERIC
+        // Division behavior depends on SQL mode and type
+        // - ExactNumeric: Depends on sql_mode (MySQL: FLOAT, SQLite: INTEGER)
+        // - ApproximateNumeric: FLOAT / FLOAT → FLOAT (all modes)
+        // - Numeric: NUMERIC / NUMERIC → NUMERIC (all modes)
         match coerced {
             super::CoercedValues::ExactNumeric(a, b) => {
-                // Perform floating-point division for integers
-                let result = (a as f64) / (b as f64);
-                Ok(Float(result as f32))
+                if sql_mode.division_returns_float() {
+                    // MySQL mode: floating-point division
+                    let result = (a as f64) / (b as f64);
+                    Ok(Float(result as f32))
+                } else {
+                    // SQLite mode: integer division (truncated toward zero)
+                    let result = ((a as f64) / (b as f64)).trunc() as i64;
+                    Ok(Integer(result))
+                }
             }
             super::CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a / b) as f32)),
             super::CoercedValues::Numeric(a, b) => Ok(Numeric(a / b)),

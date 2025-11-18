@@ -31,7 +31,7 @@ impl ExpressionEvaluator<'_> {
 
         // Check if bounds are reversed (low > high)
         let gt_result =
-            Self::eval_binary_op_static(&low_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val)?;
+            Self::eval_binary_op_static(&low_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val, vibesql_types::SqlMode::default())?;
 
         if let vibesql_types::SqlValue::Boolean(true) = gt_result {
             if symmetric {
@@ -54,19 +54,19 @@ impl ExpressionEvaluator<'_> {
         }
 
         let ge_low =
-            Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::GreaterThanOrEqual, &low_val)?;
+            Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::GreaterThanOrEqual, &low_val, vibesql_types::SqlMode::default())?;
 
         let le_high =
-            Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::LessThanOrEqual, &high_val)?;
+            Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::LessThanOrEqual, &high_val, vibesql_types::SqlMode::default())?;
 
         if negated {
             let lt_low =
-                Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::LessThan, &low_val)?;
+                Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::LessThan, &low_val, vibesql_types::SqlMode::default())?;
             let gt_high =
-                Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val)?;
-            Self::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high)
+                Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val, vibesql_types::SqlMode::default())?;
+            Self::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high, vibesql_types::SqlMode::default())
         } else {
-            Self::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high)
+            Self::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high, vibesql_types::SqlMode::default())
         }
     }
 

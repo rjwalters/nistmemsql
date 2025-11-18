@@ -192,7 +192,7 @@ impl CombinedExpressionEvaluator<'_> {
             &rows,
             op,
             quantifier,
-            ExpressionEvaluator::eval_binary_op_static,
+            |left, op, right| ExpressionEvaluator::eval_binary_op_static(left, op, right, vibesql_types::SqlMode::default()),
         )
     }
 
@@ -299,6 +299,7 @@ impl CombinedExpressionEvaluator<'_> {
                 &expr_val,
                 &vibesql_ast::BinaryOperator::Equal,
                 subquery_val,
+                vibesql_types::SqlMode::default(),
             )?;
 
             // If we found a match, return TRUE (or FALSE if negated)

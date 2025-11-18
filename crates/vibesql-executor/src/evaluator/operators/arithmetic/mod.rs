@@ -132,8 +132,12 @@ impl ArithmeticOps {
 
     /// Division operator (/)
     #[inline]
-    pub fn divide(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
-        Division::divide(left, right)
+    pub fn divide(
+        left: &SqlValue,
+        right: &SqlValue,
+        sql_mode: vibesql_types::SqlMode,
+    ) -> Result<SqlValue, ExecutorError> {
+        Division::divide(left, right, sql_mode)
     }
 
     /// Integer division operator (DIV) - MySQL-specific
@@ -176,14 +180,14 @@ mod tests {
     #[test]
     fn test_integer_division() {
         // Division returns Float for integer operands (SQLLogicTest behavior)
-        let result = ArithmeticOps::divide(&SqlValue::Integer(15), &SqlValue::Integer(3)).unwrap();
+        let result = ArithmeticOps::divide(&SqlValue::Integer(15), &SqlValue::Integer(3), vibesql_types::SqlMode::default()).unwrap();
         assert_eq!(result, SqlValue::Float(5.0));
     }
 
     #[test]
     fn test_division_by_zero() {
         // Division by zero should return NULL (SQL standard behavior)
-        let result = ArithmeticOps::divide(&SqlValue::Integer(5), &SqlValue::Integer(0));
+        let result = ArithmeticOps::divide(&SqlValue::Integer(5), &SqlValue::Integer(0), vibesql_types::SqlMode::default());
         assert_eq!(result.unwrap(), SqlValue::Null);
     }
 
@@ -263,19 +267,19 @@ mod tests {
     fn test_boolean_division() {
         // 10 / TRUE = 10.0 (booleans coerce to integers, then division returns float)
         let result =
-            ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
+            ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(true), vibesql_types::SqlMode::default()).unwrap();
         assert_eq!(result, SqlValue::Float(10.0));
 
         // TRUE / TRUE = 1.0
         let result =
-            ArithmeticOps::divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
+            ArithmeticOps::divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true), vibesql_types::SqlMode::default()).unwrap();
         assert_eq!(result, SqlValue::Float(1.0));
     }
 
     #[test]
     fn test_boolean_division_by_false() {
         // 10 / FALSE should return NULL (SQL standard behavior)
-        let result = ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(false));
+        let result = ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(false), vibesql_types::SqlMode::default());
         assert_eq!(result.unwrap(), SqlValue::Null);
     }
 
@@ -341,7 +345,7 @@ mod tests {
     #[test]
     fn test_numeric_divide_integer() {
         // Numeric / Integer should preserve Numeric type
-        let result = ArithmeticOps::divide(&SqlValue::Numeric(10.0), &SqlValue::Integer(2)).unwrap();
+        let result = ArithmeticOps::divide(&SqlValue::Numeric(10.0), &SqlValue::Integer(2), vibesql_types::SqlMode::default()).unwrap();
         assert!(matches!(result, SqlValue::Numeric(_)));
         if let SqlValue::Numeric(n) = result {
             assert_eq!(n, 5.0);
@@ -485,11 +489,11 @@ mod tests {
     #[test]
     fn test_null_division() {
         assert_eq!(
-            ArithmeticOps::divide(&SqlValue::Null, &SqlValue::Integer(23)).unwrap(),
+            ArithmeticOps::divide(&SqlValue::Null, &SqlValue::Integer(23), vibesql_types::SqlMode::default()).unwrap(),
             SqlValue::Null
         );
         assert_eq!(
-            ArithmeticOps::divide(&SqlValue::Integer(23), &SqlValue::Null).unwrap(),
+            ArithmeticOps::divide(&SqlValue::Integer(23), &SqlValue::Null, vibesql_types::SqlMode::default()).unwrap(),
             SqlValue::Null
         );
     }

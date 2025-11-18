@@ -23,6 +23,8 @@ pub struct Database {
     metadata: Metadata,
     operations: Operations,
     pub tables: HashMap<String, Table>,
+    /// SQL compatibility mode (MySQL, SQLite, etc.)
+    sql_mode: vibesql_types::SqlMode,
 }
 
 impl Database {
@@ -37,6 +39,7 @@ impl Database {
             metadata: Metadata::new(),
             operations: Operations::new(),
             tables: HashMap::new(),
+            sql_mode: vibesql_types::SqlMode::default(),
         }
     }
 
@@ -76,6 +79,7 @@ impl Database {
     /// ```
     pub fn with_config(config: DatabaseConfig) -> Self {
         let mut db = Self::new();
+        db.sql_mode = config.sql_mode;
         db.operations.set_config(config);
         db
     }
@@ -94,6 +98,7 @@ impl Database {
     /// ```
     pub fn with_path_and_config(path: PathBuf, config: DatabaseConfig) -> Self {
         let mut db = Self::new();
+        db.sql_mode = config.sql_mode;
         db.operations.set_database_path(path.join("data"));
         db.operations.set_config(config);
         db
@@ -428,6 +433,15 @@ impl Database {
     /// Clear all session variables
     pub fn clear_session_variables(&mut self) {
         self.metadata.clear_session_variables();
+    }
+
+    // ============================================================================
+    // SQL Mode
+    // ============================================================================
+
+    /// Get the current SQL compatibility mode
+    pub fn sql_mode(&self) -> vibesql_types::SqlMode {
+        self.sql_mode
     }
 
     // ============================================================================

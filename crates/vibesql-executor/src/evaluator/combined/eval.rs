@@ -135,7 +135,7 @@ impl CombinedExpressionEvaluator<'_> {
                                 }
 
                                 ExpressionEvaluator::eval_binary_op_static(
-                                    &left_val, op, &right_val,
+                                    &left_val, op, &right_val, vibesql_types::SqlMode::default(),
                                 )
                             }
                         }
@@ -161,7 +161,7 @@ impl CombinedExpressionEvaluator<'_> {
                                 }
 
                                 ExpressionEvaluator::eval_binary_op_static(
-                                    &left_val, op, &right_val,
+                                    &left_val, op, &right_val, vibesql_types::SqlMode::default(),
                                 )
                             }
                         }
@@ -170,7 +170,7 @@ impl CombinedExpressionEvaluator<'_> {
                     _ => {
                         let left_val = self.eval(left, row)?;
                         let right_val = self.eval(right, row)?;
-                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
+                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val, vibesql_types::SqlMode::default())
                     }
                 }
             }

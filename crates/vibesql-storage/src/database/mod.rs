@@ -32,6 +32,9 @@ pub struct DatabaseConfig {
 
     /// Policy for handling memory budget violations
     pub spill_policy: SpillPolicy,
+
+    /// SQL dialect compatibility mode (MySQL, SQLite, etc.)
+    pub sql_mode: vibesql_types::SqlMode,
 }
 
 /// Policy for what to do when memory budget is exceeded
@@ -52,11 +55,13 @@ impl DatabaseConfig {
     /// - 512MB memory budget (conservative for browsers)
     /// - 2GB disk budget (typical OPFS quota)
     /// - SpillToDisk policy (automatic eviction)
+    /// - MySQL mode (default)
     pub fn browser_default() -> Self {
         DatabaseConfig {
             memory_budget: 512 * 1024 * 1024,  // 512MB
             disk_budget: 2 * 1024 * 1024 * 1024,  // 2GB
             spill_policy: SpillPolicy::SpillToDisk,
+            sql_mode: vibesql_types::SqlMode::default(),
         }
     }
 
@@ -64,11 +69,13 @@ impl DatabaseConfig {
     /// - 16GB memory budget (abundant server RAM)
     /// - 1TB disk budget (generous server storage)
     /// - BestEffort policy (prefer memory, fall back to disk)
+    /// - MySQL mode (default)
     pub fn server_default() -> Self {
         DatabaseConfig {
             memory_budget: (16u64 * 1024 * 1024 * 1024) as usize,  // 16GB
             disk_budget: (1024u64 * 1024 * 1024 * 1024) as usize,  // 1TB
             spill_policy: SpillPolicy::BestEffort,
+            sql_mode: vibesql_types::SqlMode::default(),
         }
     }
 
@@ -76,11 +83,13 @@ impl DatabaseConfig {
     /// - 10MB memory budget (force eviction quickly)
     /// - 100MB disk budget
     /// - SpillToDisk policy
+    /// - MySQL mode (default)
     pub fn test_default() -> Self {
         DatabaseConfig {
             memory_budget: 10 * 1024 * 1024,  // 10MB
             disk_budget: 100 * 1024 * 1024,  // 100MB
             spill_policy: SpillPolicy::SpillToDisk,
+            sql_mode: vibesql_types::SqlMode::default(),
         }
     }
 }

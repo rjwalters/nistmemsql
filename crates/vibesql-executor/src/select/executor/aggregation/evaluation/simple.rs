@@ -46,6 +46,7 @@ pub(super) fn evaluate(
                     &low_val,
                     &vibesql_ast::BinaryOperator::GreaterThan,
                     &high_val,
+                    vibesql_types::SqlMode::default(),
                 )?;
 
                 if let vibesql_types::SqlValue::Boolean(true) = gt_result {
@@ -58,6 +59,7 @@ pub(super) fn evaluate(
                 &test_val,
                 &vibesql_ast::BinaryOperator::GreaterThanOrEqual,
                 &low_val,
+                vibesql_types::SqlMode::default(),
             )?;
 
             // Check if test_val <= high
@@ -65,6 +67,7 @@ pub(super) fn evaluate(
                 &test_val,
                 &vibesql_ast::BinaryOperator::LessThanOrEqual,
                 &high_val,
+                vibesql_types::SqlMode::default(),
             )?;
 
             // Combine with AND/OR depending on negated
@@ -74,16 +77,19 @@ pub(super) fn evaluate(
                     &test_val,
                     &vibesql_ast::BinaryOperator::LessThan,
                     &low_val,
+                    vibesql_types::SqlMode::default(),
                 )?;
                 let gt_high = ExpressionEvaluator::eval_binary_op_static(
                     &test_val,
                     &vibesql_ast::BinaryOperator::GreaterThan,
                     &high_val,
+                    vibesql_types::SqlMode::default(),
                 )?;
                 ExpressionEvaluator::eval_binary_op_static(
                     &lt_low,
                     &vibesql_ast::BinaryOperator::Or,
                     &gt_high,
+                    vibesql_types::SqlMode::default(),
                 )
             } else {
                 // BETWEEN: test_val >= low AND test_val <= high
@@ -91,6 +97,7 @@ pub(super) fn evaluate(
                     &ge_low,
                     &vibesql_ast::BinaryOperator::And,
                     &le_high,
+                    vibesql_types::SqlMode::default(),
                 )
             }
         }
@@ -134,6 +141,7 @@ pub(super) fn evaluate(
                     &test_val,
                     &vibesql_ast::BinaryOperator::Equal,
                     list_val,
+                    vibesql_types::SqlMode::default(),
                 )?;
 
                 if let vibesql_types::SqlValue::Boolean(true) = eq_result {
