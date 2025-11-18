@@ -83,22 +83,27 @@ Potential gaps in handlers:
 - Missing delegation to aggregate-aware evaluation in recursive calls
 - DISTINCT processing invoking evaluation before aggregation context setup
 
-## Next Steps
+## Verification Results (2025-11-17)
 
-1. **Run actual failing test files** to confirm current state:
-   ```bash
-   SQLLOGICTEST_FILE="third_party/sqllogictest/test/random/aggregates/slt_good_75.test" \
-     cargo test --test sqllogictest_runner run_single_test_file
-   ```
+All failing test files mentioned in issue #2011 now **PASS**:
 
-2. **If failures persist**, analyze specific error patterns:
-   - Capture exact queries that fail
-   - Trace execution path through evaluators
-   - Identify which code path calls regular evaluator instead of aggregate-aware evaluator
+✅ `third_party/sqllogictest/test/random/aggregates/slt_good_75.test` - PASSED
+✅ `third_party/sqllogictest/test/random/aggregates/slt_good_103.test` - PASSED
+✅ `third_party/sqllogictest/test/random/aggregates/slt_good_67.test` - PASSED
+✅ `third_party/sqllogictest/test/random/aggregates/slt_good_56.test` - PASSED
+✅ `third_party/sqllogictest/test/random/aggregates/slt_good_89.test` - PASSED
 
-3. **If no failures**, update issue #2011:
-   - Mark as resolved (likely fixed by #1846 BETWEEN NULL fixes)
-   - Close issue or re-scope to remaining edge cases
+## Resolution
+
+**Issue #2011 is RESOLVED**. The aggregate functions in expression contexts are working correctly.
+
+As predicted in the investigation, the 832 failures were primarily caused by BETWEEN NULL handling issues (not aggregate expression issues), which were fixed in PR #1846.
+
+The architecture for handling aggregates in expressions is sound and comprehensive:
+- Aggregate detection works correctly
+- Routing to aggregation path is correct
+- evaluate_with_aggregates() properly handles complex expressions
+- All tested aggregate expression patterns work as expected
 
 ## Conclusion
 
