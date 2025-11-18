@@ -235,20 +235,38 @@ pub(super) fn apply_where_filter_combined_parallel<'a>(
 }
 
 /// Auto-selecting WHERE filter that uses hardware-aware heuristics
-/// to choose between sequential and parallel execution.
+/// to choose between vectorized, parallel, or sequential execution.
 ///
 /// The decision is based on:
+/// - Row count (vectorized for medium datasets, parallel for large)
 /// - Number of CPU cores available
-/// - Row count
-/// - Operation type (scan/filter)
+/// - Cache optimization considerations
 /// - User override via PARALLEL_THRESHOLD environment variable
+///
+/// Strategy:
+/// - < 100 rows: Sequential (low overhead)
+/// - 100-10000 rows: Vectorized (cache-friendly chunking)
+/// - > 10000 rows: Parallel (multi-core utilization)
 pub(super) fn apply_where_filter_combined_auto<'a>(
     rows: Vec<vibesql_storage::Row>,
     where_expr: Option<&vibesql_ast::Expression>,
     evaluator: &CombinedExpressionEvaluator,
     executor: &crate::SelectExecutor<'a>,
 ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
-    // The parallel version now contains the heuristics and will
-    // automatically fall back to sequential if needed
-    apply_where_filter_combined_parallel(rows, where_expr, evaluator, executor)
+    if where_expr.is_none() {
+        return Ok(rows);
+    }
+
+    let row_count = rows.len();
+    let config = ParallelConfig::global();
+
+    // For very large datasets, use parallel execution
+    if config.should_parallelize_scan(row_count) {
+        return apply_where_filter_combined_parallel(rows, where_expr, evaluator, executor);
+    }
+
+    // For medium datasets, use vectorized (chunk-based) execution
+    // This provides better cache locality than row-by-row without
+    // the overhead of parallelization
+    super::vectorized::apply_where_filter_vectorized(rows, where_expr, evaluator, executor)
 }
