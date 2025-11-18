@@ -236,13 +236,48 @@ where
         // For now, use INNER JOIN (could be configurable)
         let join_type = vibesql_ast::JoinType::Inner;
 
-        // nested_loop_join now requires additional_equijoins parameter (empty for reordered joins)
-        result =
-            match nested_loop_join(result, next_result, &join_type, &join_condition, false, database, &[])
-            {
-                Ok(r) => r,
-                Err(e) => return Some(Err(e)),
-            };
+        // Phase 3: Extract WHERE clause equijoins that apply to this specific join
+        // Filter equijoins to only those connecting left (accumulated) and right (next_table) sides
+        let applicable_equijoins: Vec<vibesql_ast::Expression> = if let Some(preds) = predicates {
+            let left_schema_tables: std::collections::HashSet<_> =
+                result.schema.table_schemas.keys().cloned().collect();
+            let right_schema_tables: std::collections::HashSet<_> =
+                next_result.schema.table_schemas.keys().cloned().collect();
+
+            preds
+                .equijoin_conditions
+                .iter()
+                .filter_map(|(left_table, _left_col, right_table, _right_col, expr)| {
+                    // Check if this equijoin connects tables from left and right
+                    let left_in_left = left_schema_tables.contains(left_table);
+                    let right_in_right = right_schema_tables.contains(right_table);
+                    let right_in_left = left_schema_tables.contains(right_table);
+                    let left_in_right = right_schema_tables.contains(left_table);
+
+                    if (left_in_left && right_in_right) || (right_in_left && left_in_right) {
+                        Some(expr.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        // nested_loop_join with WHERE clause equijoins for hash join optimization (Phase 3)
+        result = match nested_loop_join(
+            result,
+            next_result,
+            &join_type,
+            &join_condition,
+            false,
+            database,
+            &applicable_equijoins,
+        ) {
+            Ok(r) => r,
+            Err(e) => return Some(Err(e)),
+        };
     }
 
     Some(Ok(result))
