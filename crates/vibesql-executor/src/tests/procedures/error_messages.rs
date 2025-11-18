@@ -6,7 +6,7 @@ use crate::procedural::executor::execute_procedural_statement;
 
 #[test]
 fn test_procedure_not_found_error_message() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     // Create some procedures for the suggestions
     let proc1 = CreateProcedureStmt {
@@ -49,7 +49,7 @@ fn test_procedure_not_found_error_message() {
 
 #[test]
 fn test_parameter_count_mismatch_error_message() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     // Create procedure with 2 parameters
     let proc = CreateProcedureStmt {
@@ -99,7 +99,7 @@ fn test_variable_not_found_error_message() {
     use crate::procedural::ExecutionContext;
     use crate::procedural::executor::execute_procedural_statement;
 
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     // Set up some variables in context

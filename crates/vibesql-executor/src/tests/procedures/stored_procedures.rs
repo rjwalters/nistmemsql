@@ -4,7 +4,7 @@ use super::*;
 
 #[test]
 fn test_create_procedure_simple() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     let proc = CreateProcedureStmt {
         procedure_name: "test_proc".to_string(),
@@ -24,7 +24,7 @@ fn test_create_procedure_simple() {
 
 #[test]
 fn test_drop_procedure_simple() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     let create_proc = CreateProcedureStmt {
         procedure_name: "test_proc".to_string(),
@@ -50,7 +50,7 @@ fn test_drop_procedure_simple() {
 
 #[test]
 fn test_drop_procedure_if_exists_not_found() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     let drop_proc = DropProcedureStmt {
         procedure_name: "nonexistent".to_string(),
@@ -64,7 +64,7 @@ fn test_drop_procedure_if_exists_not_found() {
 
 #[test]
 fn test_drop_procedure_without_if_exists_not_found() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     let drop_proc = DropProcedureStmt {
         procedure_name: "nonexistent".to_string(),
@@ -78,7 +78,7 @@ fn test_drop_procedure_without_if_exists_not_found() {
 
 #[test]
 fn test_call_procedure_simple() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     setup_test_table(&mut db);
 
     let create_proc = CreateProcedureStmt {

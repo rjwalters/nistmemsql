@@ -5,7 +5,7 @@ use crate::procedural::{ExecutionContext, ControlFlow};
 use crate::procedural::executor::execute_procedural_statement;
 #[test]
 fn test_if_simple_boolean_true() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     // DECLARE result VARCHAR(20);
@@ -33,7 +33,7 @@ fn test_if_simple_boolean_true() {
 
 #[test]
 fn test_if_simple_boolean_false() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     ctx.set_variable("result", SqlValue::Varchar("initial".to_string()));
@@ -61,7 +61,7 @@ fn test_if_simple_boolean_false() {
 
 #[test]
 fn test_if_with_else() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     ctx.set_variable("result", SqlValue::Varchar("initial".to_string()));
@@ -95,7 +95,7 @@ fn test_if_with_else() {
 
 #[test]
 fn test_if_integer_condition() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     ctx.set_variable("result", SqlValue::Varchar("initial".to_string()));
@@ -139,7 +139,7 @@ fn test_if_integer_condition() {
 
 #[test]
 fn test_if_null_condition() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     ctx.set_variable("result", SqlValue::Varchar("initial".to_string()));
@@ -167,7 +167,7 @@ fn test_if_null_condition() {
 // Test 2: WHILE loop basic functionality
 #[test]
 fn test_while_loop_basic() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     // DECLARE counter INT DEFAULT 0;
@@ -206,7 +206,7 @@ fn test_while_loop_basic() {
 
 #[test]
 fn test_while_loop_false_condition() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     ctx.set_variable("counter", SqlValue::Integer(0));
@@ -234,7 +234,7 @@ fn test_while_loop_false_condition() {
 // Test 3: LOOP with LEAVE
 #[test]
 fn test_loop_with_leave() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     ctx.set_variable("counter", SqlValue::Integer(0));
@@ -266,7 +266,7 @@ fn test_loop_with_leave() {
 
 #[test]
 fn test_loop_leave_invalid_label() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     // LOOP
@@ -282,7 +282,7 @@ fn test_loop_leave_invalid_label() {
 // Test 4: REPEAT/UNTIL
 #[test]
 fn test_repeat_until() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     ctx.set_variable("counter", SqlValue::Integer(0));
@@ -309,7 +309,7 @@ fn test_repeat_until() {
 
 #[test]
 fn test_repeat_executes_at_least_once() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     ctx.set_variable("executed", SqlValue::Boolean(false));
@@ -336,7 +336,7 @@ fn test_repeat_executes_at_least_once() {
 // Note: Full ITERATE behavior testing would require more complex setup to avoid infinite loops
 #[test]
 fn test_iterate_validates_label() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     // Test that ITERATE validates the label exists
@@ -354,7 +354,7 @@ fn test_iterate_validates_label() {
 
 #[test]
 fn test_iterate_invalid_label() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     // ITERATE nonexistent_label;  -- Should error
@@ -368,7 +368,7 @@ fn test_iterate_invalid_label() {
 // Test 6: Nested IF statements
 #[test]
 fn test_nested_if() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     ctx.set_variable("result", SqlValue::Varchar("initial".to_string()));
@@ -403,7 +403,7 @@ fn test_nested_if() {
 // Test 7: RETURN in IF branch
 #[test]
 fn test_if_with_return() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     // IF TRUE THEN
@@ -425,7 +425,7 @@ fn test_if_with_return() {
 // Test 8: Variable persistence across control flow
 #[test]
 fn test_variable_persistence() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
     let mut ctx = ExecutionContext::new();
 
     ctx.set_variable("x", SqlValue::Integer(1));
@@ -455,7 +455,7 @@ fn test_variable_persistence() {
 fn test_procedure_body_caching_performance() {
     use std::time::Instant;
 
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     // Create a procedure with multiple statements to make caching impact visible
     let create_stmt = CreateProcedureStmt {
@@ -568,7 +568,7 @@ fn test_procedure_body_caching_performance() {
 
 #[test]
 fn test_cache_invalidation_on_drop() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     // Create procedure
     let create_stmt = CreateProcedureStmt {

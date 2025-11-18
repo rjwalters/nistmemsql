@@ -4,7 +4,7 @@ use super::*;
 
 #[test]
 fn test_create_function_simple() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     let func = CreateFunctionStmt {
         function_name: "test_func".to_string(),
@@ -26,7 +26,7 @@ fn test_create_function_simple() {
 
 #[test]
 fn test_drop_function_simple() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     let create_func = CreateFunctionStmt {
         function_name: "test_func".to_string(),
