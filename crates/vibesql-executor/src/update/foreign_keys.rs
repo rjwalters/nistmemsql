@@ -209,6 +209,8 @@ impl ForeignKeyValidator {
                     .update_row(row_idx, new_row)
                     .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
             }
+            // Rebuild indexes after updates (following the same pattern as DELETE operations)
+            db.rebuild_indexes(&table_name);
         }
 
         Ok(())
