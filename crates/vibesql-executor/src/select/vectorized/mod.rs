@@ -1,15 +1,15 @@
-//! Vectorized/batch execution for improved cache locality and SIMD potential
+//! Chunk-based execution for improved instruction cache locality
 //!
 //! This module provides chunk-based predicate evaluation to improve:
-//! - Instruction cache locality (batch operations reduce function call overhead)
-//! - Data cache locality (better memory access patterns)
-//! - Branch prediction (more predictable patterns in batch operations)
-//! - Foundation for future SIMD optimizations
+//! - Instruction cache locality: Keeps predicate evaluation function hot in cache
+//! - Code locality: Tight inner loops enable better CPU pipeline efficiency
+//! - Single-pass processing: Avoids allocation overhead of intermediate data structures
 //!
-//! The vectorized approach processes rows in chunks (default 256 rows),
-//! evaluating predicates on the entire chunk and using bitmaps for filtering.
+//! The chunk-based approach processes rows in chunks (default 256 rows) with
+//! single-pass evaluation and filtering. This is NOT true SIMD/vectorization -
+//! it's a cache optimization technique.
 
-pub mod bitmap;
+pub mod bitmap;  // Kept for potential future SIMD use
 pub mod predicate;
 
 pub use predicate::apply_where_filter_vectorized;

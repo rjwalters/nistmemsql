@@ -1,7 +1,8 @@
-//! Vectorized WHERE clause predicate evaluation
+//! Chunk-based WHERE clause predicate evaluation
 //!
-//! Processes rows in chunks for better cache locality and potential SIMD acceleration.
-//! Falls back to row-by-row evaluation for small row counts.
+//! Processes rows in chunks of 256 for better instruction cache locality.
+//! Single-pass evaluation avoids the overhead of bitmap allocation and double iteration.
+//! Falls back to row-by-row evaluation for small row counts (< 100).
 
 use crate::{
     errors::ExecutorError,
@@ -10,15 +11,16 @@ use crate::{
 use vibesql_storage::Row;
 use vibesql_ast::Expression;
 
-use super::{bitmap::SelectionBitmap, DEFAULT_CHUNK_SIZE, VECTORIZE_THRESHOLD};
+use super::{DEFAULT_CHUNK_SIZE, VECTORIZE_THRESHOLD};
 
-/// Apply WHERE clause filter using vectorized (chunk-based) evaluation
+/// Apply WHERE clause filter using chunk-based evaluation
 ///
 /// Processes rows in chunks of DEFAULT_CHUNK_SIZE (256 rows) for improved:
-/// - Cache locality: Reduces scattered memory access
-/// - Branch prediction: More predictable patterns in batch operations
-/// - Future SIMD: Provides foundation for SIMD acceleration
+/// - Instruction cache locality: Keeps predicate evaluation function hot
+/// - Code locality: Tight inner loop enables better CPU pipeline efficiency
+/// - Reduced overhead: Single-pass evaluation and filtering
 ///
+/// This is NOT true vectorization/SIMD - it's chunking for cache benefits.
 /// Automatically falls back to row-by-row for small datasets (< VECTORIZE_THRESHOLD).
 pub fn apply_where_filter_vectorized<'a>(
     rows: Vec<Row>,
@@ -49,7 +51,7 @@ pub fn apply_where_filter_vectorized<'a>(
     let mut rows_processed = 0;
     const CHECK_INTERVAL: usize = 1000;
 
-    // Process rows in chunks
+    // Process rows in chunks (single-pass for cache efficiency)
     for chunk in rows.chunks(DEFAULT_CHUNK_SIZE) {
         // Check timeout periodically
         rows_processed += chunk.len();
@@ -57,16 +59,13 @@ pub fn apply_where_filter_vectorized<'a>(
             executor.check_timeout()?;
         }
 
-        // Evaluate predicate on entire chunk, producing bitmap
-        let selection_bitmap = evaluate_predicate_chunk(
-            chunk,
-            where_expr,
-            evaluator,
-        )?;
+        // Single-pass evaluation and filtering within chunk
+        // This keeps the predicate expression hot in instruction cache
+        // while processing the chunk in one pass
+        for row in chunk {
+            let include_row = evaluate_predicate(row, where_expr, evaluator)?;
 
-        // Filter chunk using bitmap and append to result
-        for (row, &keep) in chunk.iter().zip(selection_bitmap.iter()) {
-            if keep {
+            if include_row {
                 filtered_rows.push(row.clone());
             }
         }
@@ -78,97 +77,65 @@ pub fn apply_where_filter_vectorized<'a>(
     Ok(result)
 }
 
-/// Evaluate WHERE predicate on a chunk of rows, producing a selection bitmap
+/// Evaluate WHERE predicate on a single row
 ///
-/// This is the core vectorized evaluation function. It processes all rows in the chunk
-/// and produces a bitmap indicating which rows pass the predicate.
-///
-/// The chunk-based approach improves cache locality by:
-/// - Keeping the predicate expression hot in instruction cache
-/// - Reducing function call overhead (one setup per chunk vs per row)
-/// - Enabling better compiler optimizations for the inner loop
-fn evaluate_predicate_chunk(
-    chunk: &[Row],
+/// Extracted as a helper function to keep it hot in instruction cache
+/// when processing chunks. The tight loop in the caller enables better
+/// CPU pipeline efficiency.
+#[inline]
+fn evaluate_predicate(
+    row: &Row,
     where_expr: &Expression,
     evaluator: &CombinedExpressionEvaluator,
-) -> Result<SelectionBitmap, ExecutorError> {
-    let chunk_size = chunk.len();
-    let mut bitmap = SelectionBitmap::all_false(chunk_size);
+) -> Result<bool, ExecutorError> {
+    // CSE cache is NOT cleared between rows because only deterministic expressions
+    // (those without column references) are cached. Column values cannot be cached
+    // since is_deterministic() returns false for expressions containing column refs.
+    // This allows constant sub-expressions like (1 + 2) to be cached across all rows,
+    // significantly improving performance for expression-heavy queries.
 
-    // Evaluate predicate for each row in chunk
-    // The tight loop with minimal branching improves CPU pipeline efficiency
-    for (idx, row) in chunk.iter().enumerate() {
-        // CSE cache is NOT cleared between rows because only deterministic expressions
-        // (those without column references) are cached. Column values cannot be cached
-        // since is_deterministic() returns false for expressions containing column refs.
-        // This allows constant sub-expressions like (1 + 2) to be cached across all rows,
-        // significantly improving performance for expression-heavy queries.
-
-        let include_row = match evaluator.eval(where_expr, row)? {
-            vibesql_types::SqlValue::Boolean(true) => true,
-            vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
-            // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
-            vibesql_types::SqlValue::Integer(0) => false,
-            vibesql_types::SqlValue::Integer(_) => true,
-            vibesql_types::SqlValue::Smallint(0) => false,
-            vibesql_types::SqlValue::Smallint(_) => true,
-            vibesql_types::SqlValue::Bigint(0) => false,
-            vibesql_types::SqlValue::Bigint(_) => true,
-            vibesql_types::SqlValue::Float(0.0) => false,
-            vibesql_types::SqlValue::Float(_) => true,
-            vibesql_types::SqlValue::Real(0.0) => false,
-            vibesql_types::SqlValue::Real(_) => true,
-            vibesql_types::SqlValue::Double(0.0) => false,
-            vibesql_types::SqlValue::Double(_) => true,
-            other => {
-                return Err(ExecutorError::InvalidWhereClause(format!(
-                    "WHERE clause must evaluate to boolean, got: {:?}",
-                    other
-                )))
-            }
-        };
-
-        if include_row {
-            bitmap.set(idx, true);
-        }
+    match evaluator.eval(where_expr, row)? {
+        vibesql_types::SqlValue::Boolean(true) => Ok(true),
+        vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => Ok(false),
+        // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
+        vibesql_types::SqlValue::Integer(0) => Ok(false),
+        vibesql_types::SqlValue::Integer(_) => Ok(true),
+        vibesql_types::SqlValue::Smallint(0) => Ok(false),
+        vibesql_types::SqlValue::Smallint(_) => Ok(true),
+        vibesql_types::SqlValue::Bigint(0) => Ok(false),
+        vibesql_types::SqlValue::Bigint(_) => Ok(true),
+        vibesql_types::SqlValue::Float(0.0) => Ok(false),
+        vibesql_types::SqlValue::Float(_) => Ok(true),
+        vibesql_types::SqlValue::Real(0.0) => Ok(false),
+        vibesql_types::SqlValue::Real(_) => Ok(true),
+        vibesql_types::SqlValue::Double(0.0) => Ok(false),
+        vibesql_types::SqlValue::Double(_) => Ok(true),
+        other => Err(ExecutorError::InvalidWhereClause(format!(
+            "WHERE clause must evaluate to boolean, got: {:?}",
+            other
+        ))),
     }
-
-    Ok(bitmap)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vibesql_types::SqlValue;
-    use vibesql_storage::Row;
-
-    /// Helper to create a simple row with integer values
-    fn make_row(values: Vec<i32>) -> Row {
-        Row::new(values.into_iter().map(SqlValue::Integer).collect())
-    }
-
-    #[test]
-    fn test_evaluate_chunk_all_true() {
-        // This is a simplified test - real usage would require proper evaluator setup
-        // For now, we're testing the structure
-        let chunk = vec![
-            make_row(vec![1]),
-            make_row(vec![2]),
-            make_row(vec![3]),
-        ];
-
-        // In practice, evaluate_predicate_chunk would need a proper evaluator
-        // This test verifies the bitmap structure
-        let bitmap = SelectionBitmap::all_true(3);
-        assert_eq!(bitmap.count_true(), 3);
-    }
 
     #[test]
     fn test_chunk_size_threshold() {
-        // Verify constants are reasonable
+        // Verify constants are reasonable for cache optimization
         assert!(VECTORIZE_THRESHOLD > 0);
         assert!(VECTORIZE_THRESHOLD < DEFAULT_CHUNK_SIZE);
         assert!(DEFAULT_CHUNK_SIZE > 0);
-        assert!(DEFAULT_CHUNK_SIZE <= 1024); // Reasonable upper bound for cache
+        assert!(DEFAULT_CHUNK_SIZE <= 1024); // Reasonable upper bound for L1 cache
+    }
+
+    #[test]
+    fn test_chunk_size_cache_friendly() {
+        // 256 rows * ~64 bytes/row = ~16KB, fits in typical L1 cache (32KB)
+        assert_eq!(DEFAULT_CHUNK_SIZE, 256);
+
+        // Threshold should be high enough to amortize chunking overhead
+        assert!(VECTORIZE_THRESHOLD >= 100);
     }
 }
