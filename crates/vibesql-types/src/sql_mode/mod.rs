@@ -1,6 +1,15 @@
 mod config;
+pub mod types;
+mod strings;
+mod operators;
 
 pub use config::MySqlModeFlags;
+
+// Re-export string types and traits
+pub use strings::{Collation, StringBehavior};
+
+// Re-export operator types and traits
+pub use operators::{ConcatOperator, DivisionBehavior, OperatorBehavior};
 
 /// SQL compatibility mode
 ///
@@ -64,6 +73,72 @@ impl SqlMode {
         match self {
             SqlMode::MySQL { flags } => Some(flags),
             SqlMode::SQLite => None,
+        }
+    }
+}
+
+// Supported collations for each SQL mode
+const MYSQL_SUPPORTED_COLLATIONS: &[Collation] = &[
+    Collation::Binary,
+    Collation::Utf8Binary,
+    Collation::Utf8GeneralCi,
+];
+
+const SQLITE_SUPPORTED_COLLATIONS: &[Collation] = &[
+    Collation::Binary,
+    Collation::NoCase,
+    Collation::Rtrim,
+];
+
+impl StringBehavior for SqlMode {
+    fn default_string_comparison_case_sensitive(&self) -> bool {
+        match self {
+            SqlMode::MySQL { .. } => false, // MySQL defaults to case-insensitive
+            SqlMode::SQLite => true,        // SQLite defaults to case-sensitive
+        }
+    }
+
+    fn default_collation(&self) -> Collation {
+        match self {
+            SqlMode::MySQL { .. } => Collation::Utf8GeneralCi, // MySQL's default collation
+            SqlMode::SQLite => Collation::Binary,              // SQLite's default collation
+        }
+    }
+
+    fn supported_collations(&self) -> &[Collation] {
+        match self {
+            SqlMode::MySQL { .. } => MYSQL_SUPPORTED_COLLATIONS,
+            SqlMode::SQLite => SQLITE_SUPPORTED_COLLATIONS,
+        }
+    }
+}
+
+impl OperatorBehavior for SqlMode {
+    fn integer_division_behavior(&self) -> DivisionBehavior {
+        match self {
+            SqlMode::MySQL { .. } => DivisionBehavior::Decimal,
+            SqlMode::SQLite => DivisionBehavior::Integer,
+        }
+    }
+
+    fn supports_xor(&self) -> bool {
+        match self {
+            SqlMode::MySQL { .. } => true,
+            SqlMode::SQLite => false,
+        }
+    }
+
+    fn supports_integer_div_operator(&self) -> bool {
+        match self {
+            SqlMode::MySQL { .. } => true,
+            SqlMode::SQLite => false,
+        }
+    }
+
+    fn string_concat_operator(&self) -> ConcatOperator {
+        match self {
+            SqlMode::MySQL { .. } => ConcatOperator::Function,
+            SqlMode::SQLite => ConcatOperator::PipePipe,
         }
     }
 }
@@ -144,5 +219,116 @@ mod tests {
             }
             _ => panic!("Expected MySQL mode"),
         }
+    }
+
+    #[test]
+    fn test_mysql_string_comparison() {
+        let mode = SqlMode::MySQL {
+            flags: MySqlModeFlags::default(),
+        };
+        assert!(!mode.default_string_comparison_case_sensitive());
+        assert_eq!(mode.default_collation(), Collation::Utf8GeneralCi);
+    }
+
+    #[test]
+    fn test_sqlite_string_comparison() {
+        let mode = SqlMode::SQLite;
+        assert!(mode.default_string_comparison_case_sensitive());
+        assert_eq!(mode.default_collation(), Collation::Binary);
+    }
+
+    #[test]
+    fn test_mysql_supported_collations() {
+        let mode = SqlMode::MySQL {
+            flags: MySqlModeFlags::default(),
+        };
+        let collations = mode.supported_collations();
+        assert_eq!(collations.len(), 3);
+        assert!(collations.contains(&Collation::Binary));
+        assert!(collations.contains(&Collation::Utf8Binary));
+        assert!(collations.contains(&Collation::Utf8GeneralCi));
+    }
+
+    #[test]
+    fn test_sqlite_supported_collations() {
+        let mode = SqlMode::SQLite;
+        let collations = mode.supported_collations();
+        assert_eq!(collations.len(), 3);
+        assert!(collations.contains(&Collation::Binary));
+        assert!(collations.contains(&Collation::NoCase));
+        assert!(collations.contains(&Collation::Rtrim));
+    }
+
+    #[test]
+    fn test_collation_case_sensitivity_consistency() {
+        // MySQL default collation should be case-insensitive
+        let mysql_mode = SqlMode::MySQL {
+            flags: MySqlModeFlags::default(),
+        };
+        assert!(!mysql_mode.default_string_comparison_case_sensitive());
+        assert_eq!(mysql_mode.default_collation(), Collation::Utf8GeneralCi);
+
+        // SQLite default collation should be case-sensitive
+        let sqlite_mode = SqlMode::SQLite;
+        assert!(sqlite_mode.default_string_comparison_case_sensitive());
+        assert_eq!(sqlite_mode.default_collation(), Collation::Binary);
+    }
+
+    // Tests for OperatorBehavior trait implementation
+
+    #[test]
+    fn test_integer_division_behavior() {
+        let mysql_mode = SqlMode::MySQL {
+            flags: MySqlModeFlags::default(),
+        };
+        assert_eq!(
+            mysql_mode.integer_division_behavior(),
+            DivisionBehavior::Decimal
+        );
+
+        let sqlite_mode = SqlMode::SQLite;
+        assert_eq!(
+            sqlite_mode.integer_division_behavior(),
+            DivisionBehavior::Integer
+        );
+    }
+
+    #[test]
+    fn test_xor_support() {
+        let mysql_mode = SqlMode::MySQL {
+            flags: MySqlModeFlags::default(),
+        };
+        assert!(mysql_mode.supports_xor());
+
+        let sqlite_mode = SqlMode::SQLite;
+        assert!(!sqlite_mode.supports_xor());
+    }
+
+    #[test]
+    fn test_integer_div_operator_support() {
+        let mysql_mode = SqlMode::MySQL {
+            flags: MySqlModeFlags::default(),
+        };
+        assert!(mysql_mode.supports_integer_div_operator());
+
+        let sqlite_mode = SqlMode::SQLite;
+        assert!(!sqlite_mode.supports_integer_div_operator());
+    }
+
+    #[test]
+    fn test_string_concat_operator() {
+        let mysql_mode = SqlMode::MySQL {
+            flags: MySqlModeFlags::default(),
+        };
+        assert_eq!(
+            mysql_mode.string_concat_operator(),
+            ConcatOperator::Function
+        );
+
+        let sqlite_mode = SqlMode::SQLite;
+        assert_eq!(
+            sqlite_mode.string_concat_operator(),
+            ConcatOperator::PipePipe
+        );
     }
 }

@@ -27,7 +27,7 @@ This document outlines the behavioral differences between MySQL and SQLite that 
 | **SQLite** | `5.0/2` | `REAL` | `2.5` | Real division if any operand is real |
 
 **VibeSQL Implementation:**
-- MySQL mode: Returns `Float` (should be `Numeric` for exact decimal)
+- MySQL mode: Returns `Numeric` for exact decimal arithmetic (matches MySQL `DECIMAL` type)
 - SQLite mode: Returns `Integer` for int/int, `Float` for mixed types
 - Location: `crates/vibesql-executor/src/evaluator/operators/arithmetic/division.rs`
 
@@ -298,9 +298,9 @@ MySQL also supports `#` for single-line comments.
 
 ### High Priority
 
-1. **Fix Division Type in MySQL Mode**
-   - Change `Float` → `Numeric` for exact decimal arithmetic
-   - Update tests to verify precision
+1. **~~Fix Division Type in MySQL Mode~~** ✅ **COMPLETED**
+   - ~~Change `Float` → `Numeric` for exact decimal arithmetic~~ ✅ Implemented
+   - ~~Update tests to verify precision~~ ✅ Tests updated and passing
 
 2. **Document Mode Selection**
    - When to use MySQL mode (default for SQLLogicTest compatibility)

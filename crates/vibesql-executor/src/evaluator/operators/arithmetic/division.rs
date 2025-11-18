@@ -24,7 +24,7 @@ impl Division {
         }
 
         // Fast path for integers - behavior depends on SQL mode
-        // MySQL: INTEGER / INTEGER → FLOAT (floating-point division)
+        // MySQL: INTEGER / INTEGER → NUMERIC (exact decimal division)
         // SQLite: INTEGER / INTEGER → INTEGER (truncated division)
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
@@ -32,9 +32,9 @@ impl Division {
             }
 
             if sql_mode.division_returns_float() {
-                // MySQL mode: floating-point division
+                // MySQL mode: exact decimal division
                 let result = (*a as f64) / (*b as f64);
-                return Ok(Float(result as f32));
+                return Ok(Numeric(result));
             } else {
                 // SQLite mode: integer division (truncated toward zero)
                 let result = ((*a as f64) / (*b as f64)).trunc() as i64;
@@ -57,15 +57,15 @@ impl Division {
         }
 
         // Division behavior depends on SQL mode and type
-        // - ExactNumeric: Depends on sql_mode (MySQL: FLOAT, SQLite: INTEGER)
+        // - ExactNumeric: Depends on sql_mode (MySQL: NUMERIC, SQLite: INTEGER)
         // - ApproximateNumeric: FLOAT / FLOAT → FLOAT (all modes)
         // - Numeric: NUMERIC / NUMERIC → NUMERIC (all modes)
         match coerced {
             super::CoercedValues::ExactNumeric(a, b) => {
                 if sql_mode.division_returns_float() {
-                    // MySQL mode: floating-point division
+                    // MySQL mode: exact decimal division
                     let result = (a as f64) / (b as f64);
-                    Ok(Float(result as f32))
+                    Ok(Numeric(result))
                 } else {
                     // SQLite mode: integer division (truncated toward zero)
                     let result = ((a as f64) / (b as f64)).trunc() as i64;

@@ -47,11 +47,11 @@ fn test_nested_arithmetic() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    // Division returns Float, so the result is Float(11.0)
-    // (8 * 2) = Integer(16), 10 / 2 = Float(5.0), 16 - 5.0 = Float(11.0)
-    assert!(matches!(result[0].values[0], vibesql_types::SqlValue::Float(_)));
-    if let vibesql_types::SqlValue::Float(f) = result[0].values[0] {
-        assert!((f - 11.0).abs() < 0.001); // (8 * 2) - (10 / 2) = 11.0
+    // Division returns Numeric, so the result is Numeric(11.0)
+    // (8 * 2) = Integer(16), 10 / 2 = Numeric(5.0), 16 - 5.0 = Numeric(11.0)
+    assert!(matches!(result[0].values[0], vibesql_types::SqlValue::Numeric(_)));
+    if let vibesql_types::SqlValue::Numeric(n) = result[0].values[0] {
+        assert!((n - 11.0).abs() < 0.001); // (8 * 2) - (10 / 2) = 11.0
     }
 }
 
