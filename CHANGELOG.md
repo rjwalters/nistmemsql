@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Deprecated
+- Deprecated `SqlMode::division_returns_float()` method in favor of `TypeBehavior::division_result_type()`
+  - Migration: Use `mode.division_result_type(&left, &right)` instead of `mode.division_returns_float()`
+  - The new method provides more precise type information (returns `ValueType` enum instead of bool)
+  - Method will be removed in next major version
+
 ### Added
 - Added `--force` flag to `./scripts/sqllogictest` script to repopulate work queue with all 623 test files
   - Enables fresh test runs from scratch
