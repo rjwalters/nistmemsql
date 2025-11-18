@@ -1,18 +1,29 @@
 //! Cache management and integration utilities
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
-use super::{QueryPlanCache, QuerySignature};
+use super::{QueryPlanCache, QueryResultCache, QuerySignature};
+use crate::schema::CombinedSchema;
+use vibesql_storage::Row;
 
 /// Simplified cache manager for common operations
 pub struct CacheManager {
-    cache: Arc<QueryPlanCache>,
+    plan_cache: Arc<QueryPlanCache>,
+    result_cache: Arc<QueryResultCache>,
 }
 
 impl CacheManager {
-    /// Create a new cache manager
+    /// Create a new cache manager with separate plan and result caches
     pub fn new(max_size: usize) -> Self {
-        Self { cache: Arc::new(QueryPlanCache::new(max_size)) }
+        Self::with_separate_limits(max_size, max_size)
+    }
+
+    /// Create cache manager with different limits for plans and results
+    pub fn with_separate_limits(plan_cache_size: usize, result_cache_size: usize) -> Self {
+        Self {
+            plan_cache: Arc::new(QueryPlanCache::new(plan_cache_size)),
+            result_cache: Arc::new(QueryResultCache::new(result_cache_size)),
+        }
     }
 
     /// Get or create cached query plan
@@ -24,29 +35,57 @@ impl CacheManager {
         let signature = QuerySignature::from_sql(query);
 
         // Try cache hit
-        if let Some(cached) = self.cache.get(&signature) {
+        if let Some(cached) = self.plan_cache.get(&signature) {
             return Ok(cached);
         }
 
         // Cache miss - create new plan
         let plan = creator()?;
-        self.cache.insert(signature, plan.clone());
+        self.plan_cache.insert(signature, plan.clone());
         Ok(plan)
     }
 
-    /// Invalidate all plans referencing a table
+    /// Get cached query result
+    pub fn get_result(&self, signature: &QuerySignature) -> Option<(Vec<Row>, CombinedSchema)> {
+        self.result_cache.get(signature)
+    }
+
+    /// Insert query result into cache
+    pub fn insert_result(
+        &self,
+        signature: QuerySignature,
+        rows: Vec<Row>,
+        schema: CombinedSchema,
+        tables: HashSet<String>,
+    ) {
+        self.result_cache.insert(signature, rows, schema, tables);
+    }
+
+    /// Invalidate all plans and results referencing a table
     pub fn invalidate_table(&self, table_name: &str) {
-        self.cache.invalidate_table(table_name);
+        self.plan_cache.invalidate_table(table_name);
+        self.result_cache.invalidate_table(table_name);
     }
 
-    /// Clear all cached plans
+    /// Clear all cached plans and results
     pub fn clear(&self) {
-        self.cache.clear();
+        self.plan_cache.clear();
+        self.result_cache.clear();
     }
 
-    /// Get cache statistics
+    /// Get plan cache statistics
+    pub fn plan_stats(&self) -> super::CacheStats {
+        self.plan_cache.stats()
+    }
+
+    /// Get result cache statistics
+    pub fn result_stats(&self) -> super::CacheStats {
+        self.result_cache.stats()
+    }
+
+    /// Get combined cache statistics (for backwards compatibility)
     pub fn stats(&self) -> super::CacheStats {
-        self.cache.stats()
+        self.plan_stats()
     }
 }
 
@@ -112,7 +151,7 @@ mod tests {
         let signature = super::QuerySignature::from_sql("SELECT * FROM users");
         let mut tables = std::collections::HashSet::new();
         tables.insert("users".to_string());
-        manager.cache.insert_with_tables(signature, "SELECT * FROM users".to_string(), tables);
+        manager.plan_cache.insert_with_tables(signature, "SELECT * FROM users".to_string(), tables);
 
         assert_eq!(manager.stats().size, 1);
 
