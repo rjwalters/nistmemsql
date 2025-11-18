@@ -1,6 +1,6 @@
 //! Division operators (/, //) implementation
 
-use vibesql_types::SqlValue;
+use vibesql_types::{TypeBehavior, ValueType, SqlValue};
 
 use crate::errors::ExecutorError;
 
@@ -24,6 +24,7 @@ impl Division {
         }
 
         // Fast path for integers - behavior depends on SQL mode
+        // Use TypeBehavior trait to determine result type
         // MySQL: INTEGER / INTEGER → NUMERIC (exact decimal division)
         // SQLite: INTEGER / INTEGER → INTEGER (truncated division)
         if let (Integer(a), Integer(b)) = (left, right) {
@@ -31,15 +32,22 @@ impl Division {
                 return Ok(SqlValue::Null);
             }
 
-            if sql_mode.division_returns_float() {
-                // MySQL mode: exact decimal division
-                let result = (*a as f64) / (*b as f64);
-                return Ok(Numeric(result));
-            } else {
-                // SQLite mode: integer division (truncated toward zero)
-                let result = ((*a as f64) / (*b as f64)).trunc() as i64;
-                return Ok(Integer(result));
-            }
+            // Use TypeBehavior trait to determine result type
+            let result_type = sql_mode.division_result_type(left, right);
+
+            return match result_type {
+                ValueType::Numeric => {
+                    // MySQL mode: exact decimal division
+                    let result = (*a as f64) / (*b as f64);
+                    Ok(Numeric(result))
+                }
+                ValueType::Integer => {
+                    // SQLite mode: integer division (truncated toward zero)
+                    let result = ((*a as f64) / (*b as f64)).trunc() as i64;
+                    Ok(Integer(result))
+                }
+                _ => unreachable!("Integer division should only return Numeric or Integer"),
+            };
         }
 
         // Use helper for type coercion
@@ -56,24 +64,37 @@ impl Division {
             return Ok(SqlValue::Null);
         }
 
-        // Division behavior depends on SQL mode and type
-        // - ExactNumeric: Depends on sql_mode (MySQL: NUMERIC, SQLite: INTEGER)
-        // - ApproximateNumeric: FLOAT / FLOAT → FLOAT (all modes)
-        // - Numeric: NUMERIC / NUMERIC → NUMERIC (all modes)
-        match coerced {
-            super::CoercedValues::ExactNumeric(a, b) => {
-                if sql_mode.division_returns_float() {
-                    // MySQL mode: exact decimal division
-                    let result = (a as f64) / (b as f64);
-                    Ok(Numeric(result))
-                } else {
-                    // SQLite mode: integer division (truncated toward zero)
-                    let result = ((a as f64) / (b as f64)).trunc() as i64;
-                    Ok(Integer(result))
-                }
+        // Use TypeBehavior trait to determine result type based on original operands
+        let result_type = sql_mode.division_result_type(left, right);
+
+        // Perform division based on coerced values and convert to determined type
+        match (coerced, result_type) {
+            // ExactNumeric division - result type depends on SQL mode
+            (super::CoercedValues::ExactNumeric(a, b), ValueType::Numeric) => {
+                // MySQL mode: exact decimal division
+                let result = (a as f64) / (b as f64);
+                Ok(Numeric(result))
             }
-            super::CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a / b) as f32)),
-            super::CoercedValues::Numeric(a, b) => Ok(Numeric(a / b)),
+            (super::CoercedValues::ExactNumeric(a, b), ValueType::Integer) => {
+                // SQLite mode: integer division (truncated toward zero)
+                let result = ((a as f64) / (b as f64)).trunc() as i64;
+                Ok(Integer(result))
+            }
+            // ApproximateNumeric division - always returns Float
+            (super::CoercedValues::ApproximateNumeric(a, b), ValueType::Float) => {
+                Ok(Float((a / b) as f32))
+            }
+            // Numeric division - always returns Numeric
+            (super::CoercedValues::Numeric(a, b), ValueType::Numeric) => {
+                Ok(Numeric(a / b))
+            }
+            // Handle edge case: if TypeBehavior returns Float for approximate operands
+            // but coercion produced Numeric, convert to Numeric
+            (super::CoercedValues::Numeric(a, b), ValueType::Float) => {
+                Ok(Numeric(a / b))
+            }
+            // All other combinations should be unreachable due to type coercion rules
+            _ => unreachable!("Unexpected combination of coerced type and result type"),
         }
     }
 
