@@ -287,11 +287,12 @@ fn test_on_update_restrict() {
 // ========================================================================
 
 #[test]
-#[ignore] // TODO: Implement circular foreign key detection and handling
 fn test_circular_foreign_keys() {
+    use vibesql_catalog::ForeignKeyConstraint;
+
     let mut db = Database::new();
 
-    // Create tables with circular foreign keys (A → B → A)
+    // Create first table without FK
     let schema_a = TableSchema::with_primary_key(
         "TABLE_A".to_string(),
         vec![
@@ -302,18 +303,272 @@ fn test_circular_foreign_keys() {
     );
     db.create_table(schema_a).unwrap();
 
-    let schema_b = TableSchema::with_primary_key(
-        "TABLE_B".to_string(),
+    // Create second table with FK to TABLE_A
+    let fk_b_to_a = ForeignKeyConstraint {
+        name: Some("FK_B_A".to_string()),
+        column_names: vec!["A_ID".to_string()],
+        column_indices: vec![1],
+        parent_table: "TABLE_A".to_string(),
+        parent_column_names: vec!["ID".to_string()],
+        parent_column_indices: vec![0],
+        on_delete: ReferentialAction::NoAction,
+        on_update: ReferentialAction::NoAction,
+    };
+
+    let columns_b = vec![
+        ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+        ColumnSchema::new("A_ID".to_string(), DataType::Integer, true),
+    ];
+    let mut schema_b =
+        TableSchema::with_primary_key("TABLE_B".to_string(), columns_b, vec!["ID".to_string()]);
+    schema_b.foreign_keys.push(fk_b_to_a);
+    db.create_table(schema_b).unwrap();
+
+    // Now try to create TABLE_C with FK creating a cycle: C → A → B → (would close cycle to C)
+    // First, let's try to add a FK from A back to B, which would create a direct cycle
+    let _fk_a_to_b = ForeignKeyConstraint {
+        name: Some("FK_A_B".to_string()),
+        column_names: vec!["B_ID".to_string()],
+        column_indices: vec![1],
+        parent_table: "TABLE_B".to_string(),
+        parent_column_names: vec!["ID".to_string()],
+        parent_column_indices: vec![0],
+        on_delete: ReferentialAction::NoAction,
+        on_update: ReferentialAction::NoAction,
+    };
+
+    let columns_c = vec![
+        ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+        ColumnSchema::new("A_ID".to_string(), DataType::Integer, true),
+    ];
+    let mut schema_c =
+        TableSchema::with_primary_key("TABLE_C".to_string(), columns_c, vec!["ID".to_string()]);
+    // Add FK from C to A
+    schema_c.foreign_keys.push(ForeignKeyConstraint {
+        name: Some("FK_C_A".to_string()),
+        column_names: vec!["A_ID".to_string()],
+        column_indices: vec![1],
+        parent_table: "TABLE_A".to_string(),
+        parent_column_names: vec!["ID".to_string()],
+        parent_column_indices: vec![0],
+        on_delete: ReferentialAction::NoAction,
+        on_update: ReferentialAction::NoAction,
+    });
+    // This should succeed - no cycle yet
+    db.create_table(schema_c).unwrap();
+
+    // Now create TABLE_D that references TABLE_B creating a longer cycle: D → B → A → ...
+    // Actually, let's test by trying to update TABLE_A to reference B (simulating ALTER TABLE)
+    // Since we don't have ALTER TABLE support yet, we'll test detection during CREATE TABLE
+
+    // Test: Create a table that would create a cycle
+    // TABLE_X references TABLE_C, and if TABLE_A referenced TABLE_X, we'd have: A → X → C → A
+    let columns_x = vec![
+        ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+        ColumnSchema::new("C_ID".to_string(), DataType::Integer, true),
+        ColumnSchema::new("A_ID".to_string(), DataType::Integer, true),
+    ];
+    let mut schema_x =
+        TableSchema::with_primary_key("TABLE_X".to_string(), columns_x, vec!["ID".to_string()]);
+    schema_x.foreign_keys.push(ForeignKeyConstraint {
+        name: Some("FK_X_C".to_string()),
+        column_names: vec!["C_ID".to_string()],
+        column_indices: vec![1],
+        parent_table: "TABLE_C".to_string(),
+        parent_column_names: vec!["ID".to_string()],
+        parent_column_indices: vec![0],
+        on_delete: ReferentialAction::NoAction,
+        on_update: ReferentialAction::NoAction,
+    });
+    schema_x.foreign_keys.push(ForeignKeyConstraint {
+        name: Some("FK_X_A".to_string()),
+        column_names: vec!["A_ID".to_string()],
+        column_indices: vec![2],
+        parent_table: "TABLE_A".to_string(),
+        parent_column_names: vec!["ID".to_string()],
+        parent_column_indices: vec![0],
+        on_delete: ReferentialAction::NoAction,
+        on_update: ReferentialAction::NoAction,
+    });
+    // This creates X → C → A → B (no cycle from this table's perspective)
+    db.create_table(schema_x).unwrap();
+
+    // Test detection: Try to create a table Y that references X and is referenced by A
+    // We can't easily test this without ALTER TABLE support
+    // For now, verify that non-circular FKs work correctly
+
+    // Verify all tables were created successfully (no cycle yet)
+    assert!(db.get_table("TABLE_A").is_some());
+    assert!(db.get_table("TABLE_B").is_some());
+    assert!(db.get_table("TABLE_C").is_some());
+    assert!(db.get_table("TABLE_X").is_some());
+
+    // Now test actual cycle detection: Try to create TABLE_Y that references B
+    // and has A reference it back, creating: A → Y → B → A (cycle!)
+    // We need to drop and recreate TABLE_A with the FK to create the cycle
+
+    // Since we can't ALTER TABLE_A to add FK yet, create a fresh scenario:
+    let mut db2 = Database::new();
+
+    // Create TABLE_P
+    db2.create_table(TableSchema::with_primary_key(
+        "TABLE_P".to_string(),
         vec![
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new("A_ID".to_string(), DataType::Integer, true),
+            ColumnSchema::new("Q_ID".to_string(), DataType::Integer, true),
+        ],
+        vec!["ID".to_string()],
+    ))
+    .unwrap();
+
+    // Create TABLE_Q that references P
+    let mut schema_q = TableSchema::with_primary_key(
+        "TABLE_Q".to_string(),
+        vec![
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("R_ID".to_string(), DataType::Integer, true),
         ],
         vec!["ID".to_string()],
     );
-    db.create_table(schema_b).unwrap();
+    schema_q.foreign_keys.push(ForeignKeyConstraint {
+        name: Some("FK_Q_P".to_string()),
+        column_names: vec!["R_ID".to_string()],
+        column_indices: vec![1],
+        parent_table: "TABLE_P".to_string(),
+        parent_column_names: vec!["ID".to_string()],
+        parent_column_indices: vec![0],
+        on_delete: ReferentialAction::NoAction,
+        on_update: ReferentialAction::NoAction,
+    });
+    db2.create_table(schema_q).unwrap();
 
-    // Note: In real scenario, we'd need to add FKs after table creation to allow circularity
-    // This test verifies the system handles circular FK relationships correctly
+    // Now try to create TABLE_R that references Q but with P referencing R
+    // This would create: P → (will ref R) → Q → P = cycle
+    // Actually, P already exists without FK. Let's create TABLE_R that creates a cycle differently.
+
+    // Better approach: Create TABLE_R that references both P and Q
+    // And then P should reference R - but we can't modify P
+    // Let's test self-referencing instead, which should be ALLOWED
+    let mut schema_r = TableSchema::with_primary_key(
+        "TABLE_R".to_string(),
+        vec![
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("PARENT_ID".to_string(), DataType::Integer, true),
+        ],
+        vec!["ID".to_string()],
+    );
+    schema_r.foreign_keys.push(ForeignKeyConstraint {
+        name: Some("FK_R_SELF".to_string()),
+        column_names: vec!["PARENT_ID".to_string()],
+        column_indices: vec![1],
+        parent_table: "TABLE_R".to_string(),
+        parent_column_names: vec!["ID".to_string()],
+        parent_column_indices: vec![0],
+        on_delete: ReferentialAction::NoAction,
+        on_update: ReferentialAction::NoAction,
+    });
+    // Self-reference should be ALLOWED (e.g., employee table with manager_id)
+    let result = db2.create_table(schema_r);
+    assert!(result.is_ok(), "Self-referencing table should be allowed");
+
+    // Test actual multi-table cycle detection using DROP + CREATE approach
+    let mut db3 = Database::new();
+
+    // Create TABLE_T1 (no FK initially)
+    db3.create_table(TableSchema::with_primary_key(
+        "TABLE_T1".to_string(),
+        vec![
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("T3_ID".to_string(), DataType::Integer, true),
+        ],
+        vec!["ID".to_string()],
+    ))
+    .unwrap();
+
+    // Create TABLE_T2 with FK to T1 (T2→T1)
+    let mut schema_t2 = TableSchema::with_primary_key(
+        "TABLE_T2".to_string(),
+        vec![
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("T1_ID".to_string(), DataType::Integer, true),
+        ],
+        vec!["ID".to_string()],
+    );
+    schema_t2.foreign_keys.push(ForeignKeyConstraint {
+        name: Some("FK_T2_T1".to_string()),
+        column_names: vec!["T1_ID".to_string()],
+        column_indices: vec![1],
+        parent_table: "TABLE_T1".to_string(),
+        parent_column_names: vec!["ID".to_string()],
+        parent_column_indices: vec![0],
+        on_delete: ReferentialAction::NoAction,
+        on_update: ReferentialAction::NoAction,
+    });
+    db3.create_table(schema_t2).unwrap();
+
+    // Create TABLE_T3 with FK to T2 (T3→T2), creating chain T3→T2→T1
+    let mut schema_t3 = TableSchema::with_primary_key(
+        "TABLE_T3".to_string(),
+        vec![
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("T2_ID".to_string(), DataType::Integer, true),
+        ],
+        vec!["ID".to_string()],
+    );
+    schema_t3.foreign_keys.push(ForeignKeyConstraint {
+        name: Some("FK_T3_T2".to_string()),
+        column_names: vec!["T2_ID".to_string()],
+        column_indices: vec![1],
+        parent_table: "TABLE_T2".to_string(),
+        parent_column_names: vec!["ID".to_string()],
+        parent_column_indices: vec![0],
+        on_delete: ReferentialAction::NoAction,
+        on_update: ReferentialAction::NoAction,
+    });
+    db3.create_table(schema_t3).unwrap();
+
+    // Now drop TABLE_T1 and recreate it with FK to T3
+    // This would create cycle: T1→T3→T2→T1
+    db3.drop_table("TABLE_T1").unwrap();
+
+    let mut schema_t1_cyclic = TableSchema::with_primary_key(
+        "TABLE_T1".to_string(),
+        vec![
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("T3_ID".to_string(), DataType::Integer, true),
+        ],
+        vec!["ID".to_string()],
+    );
+    schema_t1_cyclic.foreign_keys.push(ForeignKeyConstraint {
+        name: Some("FK_T1_T3".to_string()),
+        column_names: vec!["T3_ID".to_string()],
+        column_indices: vec![1],
+        parent_table: "TABLE_T3".to_string(),
+        parent_column_names: vec!["ID".to_string()],
+        parent_column_indices: vec![0],
+        on_delete: ReferentialAction::NoAction,
+        on_update: ReferentialAction::NoAction,
+    });
+
+    // This MUST fail - creating cycle T1→T3→T2→T1
+    let result = db3.create_table(schema_t1_cyclic);
+    assert!(
+        result.is_err(),
+        "Creating circular FK dependency T1→T3→T2→T1 should be rejected"
+    );
+
+    // Verify it's the correct error type
+    match result {
+        Err(e) => {
+            let error_msg = format!("{}", e);
+            assert!(
+                error_msg.contains("Circular foreign key") || error_msg.contains("circular"),
+                "Error should mention circular FK, got: {}",
+                error_msg
+            );
+        }
+        Ok(_) => panic!("Expected CircularForeignKey error, but table creation succeeded"),
+    }
 }
 
 #[test]
@@ -364,7 +619,6 @@ fn test_self_referential_table() {
 }
 
 #[test]
-#[ignore] // TODO: Verify and test multi-column foreign key constraint enforcement
 fn test_multi_column_foreign_key() {
     let mut db = Database::new();
 
@@ -422,11 +676,19 @@ fn test_null_foreign_key_values() {
 }
 
 #[test]
-#[ignore] // TODO: Implement deferred constraint checking (SET CONSTRAINTS ... DEFERRED)
+#[ignore] // TODO: Requires transaction support - deferred constraint checking is out of scope
 fn test_deferred_constraint_checking() {
     // Test that constraints can be deferred to end of transaction
     // Allows temporary constraint violations during transaction
     // SQL standard feature: SET CONSTRAINTS ... DEFERRED
+    //
+    // Implementation requires:
+    // 1. Transaction support (BEGIN, COMMIT, ROLLBACK)
+    // 2. SET CONSTRAINTS command parsing and execution
+    // 3. Constraint validation mode tracking per transaction
+    // 4. Deferred validation queue that runs at COMMIT time
+    //
+    // This is a Phase 4 feature that depends on full transaction support
 }
 
 #[test]
