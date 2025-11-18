@@ -346,8 +346,13 @@ MySQL also supports `#` for single-line comments.
 - **SQLite Documentation:** https://www.sqlite.org/lang.html
 - **SQL Standard:** ISO/IEC 9075 (SQL:2016)
 - **VibeSQL Source:**
-  - `crates/vibesql-types/src/sql_mode.rs` - Mode definitions
-  - `crates/vibesql-executor/src/evaluator/operators/` - Operator implementations
+  - `crates/vibesql-types/src/sql_mode/` - SQL mode architecture
+    - `mod.rs` - Main SqlMode enum and trait implementations
+    - `operators.rs` - OperatorBehavior trait (division, XOR, DIV, concat)
+    - `types.rs` - TypeBehavior trait (type inference, coercion)
+    - `strings.rs` - StringBehavior trait (collations, case sensitivity)
+    - `config.rs` - MySqlModeFlags configuration
+  - `crates/vibesql-executor/src/evaluator/operators/arithmetic/division.rs` - Division operator implementation
   - `tests/sqllogictest_runner.rs` - Test runner
 
 ---
