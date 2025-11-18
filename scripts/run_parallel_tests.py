@@ -992,6 +992,10 @@ def main():
         print("Error: --time-budget must be >= 1", file=sys.stderr)
         return 1
 
+    if args.per_file_timeout < 1:
+        print("Error: --per-file-timeout must be >= 1", file=sys.stderr)
+        return 1
+
     # Get repository root
     try:
         repo_root = get_repo_root()
