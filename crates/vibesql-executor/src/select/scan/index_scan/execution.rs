@@ -221,7 +221,18 @@ fn apply_where_filter_zerocopy<'a>(
     // Create evaluator for filtering
     let evaluator = CombinedExpressionEvaluator::with_database(schema, database);
 
-    // Filter rows using references (no cloning)
+    // Check if we should use parallel filtering
+    let config = crate::select::parallel::ParallelConfig::global();
+    if config.should_parallelize_scan(row_refs.len()) {
+        return apply_where_filter_zerocopy_parallel(
+            row_refs,
+            schema,
+            combined_where,
+            evaluator,
+        );
+    }
+
+    // Sequential path for small datasets - filter rows using references (no cloning)
     let mut filtered = Vec::new();
     for row_ref in row_refs {
         evaluator.clear_cse_cache();
@@ -256,6 +267,81 @@ fn apply_where_filter_zerocopy<'a>(
     }
 
     Ok(filtered)
+}
+
+/// Apply WHERE filter using zero-copy row references with parallel execution
+///
+/// This function filters rows using Rayon's parallel iterators while maintaining zero-copy semantics.
+/// Only used for large datasets where parallelization provides performance benefits.
+///
+/// # Performance
+/// Parallelization is beneficial for datasets where `ParallelConfig::should_parallelize_scan()` returns true,
+/// typically for 10,000+ rows. The overhead of thread spawning is amortized across many rows.
+fn apply_where_filter_zerocopy_parallel<'a>(
+    row_refs: Vec<&'a Row>,
+    _schema: &CombinedSchema,
+    combined_where: vibesql_ast::Expression,
+    evaluator: crate::evaluator::CombinedExpressionEvaluator,
+) -> Result<Vec<&'a Row>, ExecutorError> {
+    use rayon::prelude::*;
+    use std::sync::Arc;
+
+    // Clone expression for thread-safe sharing
+    let where_expr_arc = Arc::new(combined_where);
+
+    // Extract evaluator components for parallel execution
+    let (schema, database, outer_row, outer_schema, window_mapping, enable_cse) =
+        evaluator.get_parallel_components();
+
+    // Use rayon's parallel iterator for filtering
+    let result: Result<Vec<_>, ExecutorError> = row_refs
+        .into_par_iter()
+        .map(|row_ref| {
+            // Create thread-local evaluator with independent caches
+            let thread_evaluator = crate::evaluator::CombinedExpressionEvaluator::from_parallel_components(
+                schema,
+                database,
+                outer_row,
+                outer_schema,
+                window_mapping,
+                enable_cse,
+            );
+
+            // Evaluate predicate for this row reference (no cloning)
+            let include_row = match thread_evaluator.eval(&where_expr_arc, row_ref)? {
+                vibesql_types::SqlValue::Boolean(true) => true,
+                vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
+                // SQLLogicTest compatibility: treat integers as truthy/falsy
+                vibesql_types::SqlValue::Integer(0) => false,
+                vibesql_types::SqlValue::Integer(_) => true,
+                vibesql_types::SqlValue::Smallint(0) => false,
+                vibesql_types::SqlValue::Smallint(_) => true,
+                vibesql_types::SqlValue::Bigint(0) => false,
+                vibesql_types::SqlValue::Bigint(_) => true,
+                vibesql_types::SqlValue::Float(0.0) => false,
+                vibesql_types::SqlValue::Float(_) => true,
+                vibesql_types::SqlValue::Real(0.0) => false,
+                vibesql_types::SqlValue::Real(_) => true,
+                vibesql_types::SqlValue::Double(0.0) => false,
+                vibesql_types::SqlValue::Double(_) => true,
+                other => {
+                    return Err(ExecutorError::InvalidWhereClause(format!(
+                        "WHERE clause must evaluate to boolean, got: {:?}",
+                        other
+                    )))
+                }
+            };
+
+            if include_row {
+                Ok(Some(row_ref))
+            } else {
+                Ok(None)
+            }
+        })
+        .collect();
+
+    // Filter out None values and extract Ok row references
+    result.map(|v| v.into_iter().flatten().collect())
 }
 
 /// Determines if the WHERE clause is fully satisfied by the index predicate
