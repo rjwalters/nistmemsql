@@ -471,20 +471,21 @@ fn test_circular_foreign_keys() {
     let result = db2.create_table(schema_r);
     assert!(result.is_ok(), "Self-referencing table should be allowed");
 
-    // Now test actual multi-table cycle: Create TABLE_S that would create a cycle with Q
-    // We need Q to reference S, creating: P ← Q ← S → P (if we add P→S later)
-    // Or better: Create a 3-table cycle scenario from scratch
+    // Test actual multi-table cycle detection using DROP + CREATE approach
     let mut db3 = Database::new();
 
     // Create TABLE_T1 (no FK initially)
     db3.create_table(TableSchema::with_primary_key(
         "TABLE_T1".to_string(),
-        vec![ColumnSchema::new("ID".to_string(), DataType::Integer, false)],
+        vec![
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("T3_ID".to_string(), DataType::Integer, true),
+        ],
         vec!["ID".to_string()],
     ))
     .unwrap();
 
-    // Create TABLE_T2 with FK to T1
+    // Create TABLE_T2 with FK to T1 (T2→T1)
     let mut schema_t2 = TableSchema::with_primary_key(
         "TABLE_T2".to_string(),
         vec![
@@ -505,14 +506,69 @@ fn test_circular_foreign_keys() {
     });
     db3.create_table(schema_t2).unwrap();
 
-    // Now try to create TABLE_T3 that references T2 AND has T1 reference back to T3
-    // Since we can't modify T1, we'll create T3 that creates a different cycle:
-    // We need T3 → T2 → T1, and if we could make T1 → T3, that would be a cycle
-    // But we can't test this without ALTER TABLE.
+    // Create TABLE_T3 with FK to T2 (T3→T2), creating chain T3→T2→T1
+    let mut schema_t3 = TableSchema::with_primary_key(
+        "TABLE_T3".to_string(),
+        vec![
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("T2_ID".to_string(), DataType::Integer, true),
+        ],
+        vec!["ID".to_string()],
+    );
+    schema_t3.foreign_keys.push(ForeignKeyConstraint {
+        name: Some("FK_T3_T2".to_string()),
+        column_names: vec!["T2_ID".to_string()],
+        column_indices: vec![1],
+        parent_table: "TABLE_T2".to_string(),
+        parent_column_names: vec!["ID".to_string()],
+        parent_column_indices: vec![0],
+        on_delete: ReferentialAction::NoAction,
+        on_update: ReferentialAction::NoAction,
+    });
+    db3.create_table(schema_t3).unwrap();
 
-    // Instead, let's verify the system correctly identifies no cycles yet
-    assert!(db3.get_table("TABLE_T1").is_some());
-    assert!(db3.get_table("TABLE_T2").is_some());
+    // Now drop TABLE_T1 and recreate it with FK to T3
+    // This would create cycle: T1→T3→T2→T1
+    db3.drop_table("TABLE_T1").unwrap();
+
+    let mut schema_t1_cyclic = TableSchema::with_primary_key(
+        "TABLE_T1".to_string(),
+        vec![
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("T3_ID".to_string(), DataType::Integer, true),
+        ],
+        vec!["ID".to_string()],
+    );
+    schema_t1_cyclic.foreign_keys.push(ForeignKeyConstraint {
+        name: Some("FK_T1_T3".to_string()),
+        column_names: vec!["T3_ID".to_string()],
+        column_indices: vec![1],
+        parent_table: "TABLE_T3".to_string(),
+        parent_column_names: vec!["ID".to_string()],
+        parent_column_indices: vec![0],
+        on_delete: ReferentialAction::NoAction,
+        on_update: ReferentialAction::NoAction,
+    });
+
+    // This MUST fail - creating cycle T1→T3→T2→T1
+    let result = db3.create_table(schema_t1_cyclic);
+    assert!(
+        result.is_err(),
+        "Creating circular FK dependency T1→T3→T2→T1 should be rejected"
+    );
+
+    // Verify it's the correct error type
+    match result {
+        Err(e) => {
+            let error_msg = format!("{}", e);
+            assert!(
+                error_msg.contains("Circular foreign key") || error_msg.contains("circular"),
+                "Error should mention circular FK, got: {}",
+                error_msg
+            );
+        }
+        Ok(_) => panic!("Expected CircularForeignKey error, but table creation succeeded"),
+    }
 }
 
 #[test]
