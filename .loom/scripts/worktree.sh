@@ -297,6 +297,12 @@ if git worktree add "${CREATE_ARGS[@]}"; then
     # Get absolute path to worktree
     ABS_WORKTREE_PATH=$(cd "$WORKTREE_PATH" && pwd)
 
+    # Initialize submodules in the new worktree (fast since storage is shared)
+    if [[ "$JSON_OUTPUT" != "true" ]]; then
+        print_info "Initializing submodules in worktree..."
+    fi
+    (cd "$ABS_WORKTREE_PATH" && git submodule update --init --recursive) > /dev/null 2>&1
+
     # Store return-to directory if provided
     if [[ -n "$RETURN_TO_DIR" ]]; then
         ABS_RETURN_TO=$(cd "$RETURN_TO_DIR" && pwd)
