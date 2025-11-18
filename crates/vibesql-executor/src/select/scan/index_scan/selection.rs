@@ -216,6 +216,7 @@ pub(crate) fn cost_based_index_selection(
 
     // Try each index and find the one with lowest cost
     let mut best_index: Option<(String, AccessMethod, Option<Vec<(String, vibesql_ast::OrderDirection)>>)> = None;
+    let mut has_applicable_index_without_stats = false;
 
     for index_name in &indexes {
         if let Some(index_metadata) = database.get_index(index_name) {
@@ -241,7 +242,10 @@ pub(crate) fn cost_based_index_selection(
             // Get column statistics for the indexed column
             let col_stats = table_stats.columns.get(column_name);
             if col_stats.is_none() {
-                continue; // No stats for this column
+                // Track that we found an applicable index without column stats
+                // We'll fall back to rule-based selection if cost-based fails
+                has_applicable_index_without_stats = true;
+                continue; // No stats for this column, try next index
             }
             let col_stats = col_stats.unwrap();
 
@@ -295,7 +299,18 @@ pub(crate) fn cost_based_index_selection(
     }
 
     // Return the best index if we found one
-    best_index.map(|(index_name, _, sorted_columns)| (index_name, sorted_columns))
+    if let Some((index_name, _, sorted_columns)) = best_index {
+        return Some((index_name, sorted_columns));
+    }
+
+    // If we have applicable indexes but no column stats, fall back to rule-based selection
+    // This ensures we use indexes even when statistics are incomplete
+    if has_applicable_index_without_stats {
+        return should_use_index_scan(table_name, where_clause, order_by, database);
+    }
+
+    // No applicable indexes found
+    None
 }
 
 /// Estimate selectivity of a predicate on a specific column
