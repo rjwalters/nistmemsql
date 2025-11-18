@@ -11,7 +11,7 @@ use super::partitioning::Partition;
 
 /// Calculate frame boundaries for a given row in a partition
 ///
-/// Returns a Range<usize> representing the [start, end) indices of rows in the frame.
+/// Returns a `Range<usize>` representing the [start, end) indices of rows in the frame.
 /// Implements ROWS mode frame semantics.
 pub fn calculate_frame(
     partition: &Partition,

@@ -18,12 +18,12 @@ impl std::fmt::Display for TestError {
 
 impl std::error::Error for TestError {}
 
-struct NistMemSqlDB {
+struct VibeSqlDB {
     db: Database,
     cache: std::sync::Arc<vibesql_executor::QueryPlanCache>,
 }
 
-impl NistMemSqlDB {
+impl VibeSqlDB {
     fn new() -> Self {
         Self {
             db: Database::new(),
@@ -432,7 +432,7 @@ impl NistMemSqlDB {
 }
 
 #[async_trait]
-impl AsyncDB for NistMemSqlDB {
+impl AsyncDB for VibeSqlDB {
     type Error = TestError;
     type ColumnType = DefaultColumnType;
 
@@ -454,7 +454,7 @@ impl AsyncDB for NistMemSqlDB {
 
 #[tokio::test]
 async fn test_basic_select() {
-    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(VibeSqlDB::new()) });
 
     let script = r#"
 statement ok
@@ -485,7 +485,7 @@ SELECT x FROM test WHERE y = 4
 
 #[tokio::test]
 async fn test_arithmetic() {
-    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(VibeSqlDB::new()) });
 
     let script = r#"
 query I
@@ -511,7 +511,7 @@ SELECT 4 * 5
 // This test contains the exact query from slt_good_32.test line 780 that causes a hang
 #[tokio::test]
 async fn test_issue_919_in_subquery_hang() {
-    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(VibeSqlDB::new()) });
 
     let script = r#"
 hash-threshold 8
@@ -561,7 +561,7 @@ SELECT pk FROM tab0 WHERE col3 >= 94 OR (col1 IN (63.39,21.7,52.63,42.27,35.11,7
 // Issue #1170: Reproduction test for multi-column SELECT column ordering
 #[tokio::test]
 async fn test_issue_1170_multi_column_select_order() {
-    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(VibeSqlDB::new()) });
 
     // Test with the exact syntax from the issue
     // Multi-column results should display each value on a separate line
@@ -579,7 +579,7 @@ SELECT + + 74 AS col0, 50 col1
 // Issue #1190: Reproduction test for 3-value queries returning hashes
 #[tokio::test]
 async fn test_issue_1190_three_values_no_hash() {
-    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(VibeSqlDB::new()) });
 
     let script = r#"
 statement ok
@@ -608,7 +608,7 @@ SELECT - 57 col2 FROM tab0
 // Issue #1479: Test that database state persists across statements (trigger duplicate detection)
 #[tokio::test]
 async fn test_issue_1479_trigger_duplicate_detection() {
-    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(VibeSqlDB::new()) });
 
     // Test 1: Basic trigger duplicate detection
     let script = r#"
@@ -634,7 +634,7 @@ DROP TRIGGER t1r1
 // Issue #1479: Extended test for state persistence across multiple DDL operations
 #[tokio::test]
 async fn test_issue_1479_state_persistence() {
-    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(VibeSqlDB::new()) });
 
     let script = r#"
 statement ok
@@ -705,7 +705,7 @@ async fn run_single_test_file() {
     let contents = std::fs::read_to_string(&full_path)
         .unwrap_or_else(|e| panic!("Failed to read test file {}: {}", full_path, e));
 
-    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(VibeSqlDB::new()) });
 
     // Set hash threshold to 8 (SQLLogicTest default) - results with more than 8 values will be hashed
     tester.with_hash_threshold(8);

@@ -26,7 +26,7 @@ use std::time::Duration;
 
 mod sqllogictest;
 
-use crate::sqllogictest::db_adapter::NistMemSqlDB;
+use crate::sqllogictest::db_adapter::VibeSqlDB;
 
 /// Fast regression test using sampled representative queries from select5.test
 ///
@@ -45,7 +45,7 @@ async fn test_select5_sampled_regression() {
         panic!("Sampled test file not found: {}", test_file.display());
     }
 
-    let mut runner = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut runner = Runner::new(|| async { Ok(VibeSqlDB::new()) });
 
     // Run the sampled test - should complete quickly
     let result = runner.run_file_async(test_file).await;
@@ -89,7 +89,7 @@ async fn test_select5_full_suite() {
         panic!("select5.test not found - run: git submodule update --init third_party/sqllogictest");
     }
 
-    let mut runner = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut runner = Runner::new(|| async { Ok(VibeSqlDB::new()) });
 
     // Run the full test with timeout protection
     let result = tokio::time::timeout(TEST_TIMEOUT, runner.run_file_async(test_file)).await;

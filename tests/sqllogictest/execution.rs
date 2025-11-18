@@ -6,7 +6,7 @@ use sqllogictest::Runner;
 use tokio::time::timeout;
 
 use super::{
-    db_adapter::NistMemSqlDB, preprocessing::preprocess_for_mysql,
+    db_adapter::VibeSqlDB, preprocessing::preprocess_for_mysql,
     scheduler, stats::TestFailure,
 };
 
@@ -32,7 +32,7 @@ impl std::error::Error for TestError {}
 /// Run a test file asynchronously and capture detailed failure information
 async fn run_test_file_async(contents: &str) -> (Result<(), TestError>, Vec<TestFailure>) {
     let preprocessed = preprocess_for_mysql(contents);
-    let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut tester = Runner::new(|| async { Ok(VibeSqlDB::new()) });
     // Enable hash mode with threshold of 8 (standard SQLLogicTest behavior)
     tester.with_hash_threshold(8);
 

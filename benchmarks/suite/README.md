@@ -209,7 +209,7 @@ Rust benchmark harness: [tests/sqllogictest_benchmark.rs](../tests/sqllogictest_
 
 Provides:
 - `SqliteDB` wrapper - SQLite AsyncDB implementation
-- `NistMemSqlDB` wrapper - VibeSQL AsyncDB implementation
+- `VibeSqlDB` wrapper - VibeSQL AsyncDB implementation
 - `benchmark_engine()` - Run single engine benchmark
 - `compare_engines()` - Head-to-head comparison
 

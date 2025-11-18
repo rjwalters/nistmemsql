@@ -285,18 +285,18 @@ impl AsyncDB for SqliteDB {
 
 // ===== VibeSQL Wrapper =====
 
-struct NistMemSqlDB {
+struct VibeSqlDB {
     db: Database,
     cache: std::sync::Arc<vibesql_executor::QueryPlanCache>,
 }
 
-impl Default for NistMemSqlDB {
+impl Default for VibeSqlDB {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl NistMemSqlDB {
+impl VibeSqlDB {
     fn new() -> Self {
         Self {
             db: Database::new(),
@@ -585,7 +585,7 @@ impl NistMemSqlDB {
 }
 
 #[async_trait]
-impl AsyncDB for NistMemSqlDB {
+impl AsyncDB for VibeSqlDB {
     type Error = TestError;
     type ColumnType = DefaultColumnType;
 
@@ -649,7 +649,7 @@ pub async fn compare_engines(
     test_file: &Path,
 ) -> Result<ComparisonResult, BenchmarkError> {
     println!("Benchmarking VibeSQL...");
-    let vibesql = match benchmark_engine::<NistMemSqlDB>(test_file, "VibeSQL").await {
+    let vibesql = match benchmark_engine::<VibeSqlDB>(test_file, "VibeSQL").await {
         Ok(metrics) => {
             eprintln!("✓ VibeSQL benchmark succeeded");
             Some(metrics)
@@ -702,7 +702,7 @@ async fn test_sqlite_wrapper_basic() {
 
 #[tokio::test]
 async fn test_vibesql_wrapper_basic() {
-    let mut db = NistMemSqlDB::new();
+    let mut db = VibeSqlDB::new();
 
     // Test CREATE TABLE
     let result = db.run("CREATE TABLE test (id INTEGER, name VARCHAR(50))").await;

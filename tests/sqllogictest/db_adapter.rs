@@ -2,12 +2,14 @@
 
 use std::{
     cell::RefCell,
+    collections::HashSet,
     env,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
 use async_trait::async_trait;
-use vibesql_executor::SelectExecutor;
+use vibesql_executor::{cache::{QueryResultCache, QuerySignature}, SelectExecutor};
 use vibesql_parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType};
 use vibesql_storage::Database;
@@ -43,7 +45,7 @@ fn get_pooled_database() -> Database {
     })
 }
 
-pub struct NistMemSqlDB {
+pub struct VibeSqlDB {
     db: Database,
     query_count: usize,
     verbose: bool,
@@ -52,9 +54,13 @@ pub struct NistMemSqlDB {
     file_start_time: Option<Instant>,
     query_timeout_ms: u64,
     timed_out_queries: usize,
+    result_cache: Arc<QueryResultCache>,
+    cache_enabled: bool,
+    cache_hits: usize,
+    cache_misses: usize,
 }
 
-impl NistMemSqlDB {
+impl VibeSqlDB {
     pub fn new() -> Self {
         let verbose = env::var("SQLLOGICTEST_VERBOSE")
             .map(|v| v == "1" || v.to_lowercase() == "true")
@@ -67,6 +73,16 @@ impl NistMemSqlDB {
             .and_then(|s| s.parse().ok())
             .unwrap_or(500); // Default: 500ms per query
 
+        // Query result cache: enabled by default, can be disabled via env var
+        let cache_enabled = env::var("SQLLOGICTEST_CACHE_ENABLED")
+            .map(|v| v != "0" && v.to_lowercase() != "false")
+            .unwrap_or(true); // Enabled by default
+
+        let cache_size = env::var("SQLLOGICTEST_CACHE_SIZE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(10000); // Default: 10,000 entries
+
         Self {
             db: get_pooled_database(),
             query_count: 0,
@@ -76,6 +92,10 @@ impl NistMemSqlDB {
             file_start_time: None,
             query_timeout_ms,
             timed_out_queries: 0,
+            result_cache: Arc::new(QueryResultCache::new(cache_size)),
+            cache_enabled,
+            cache_hits: 0,
+            cache_misses: 0,
         }
     }
 
@@ -147,10 +167,53 @@ impl NistMemSqlDB {
 
         match stmt {
             vibesql_ast::Statement::Select(select_stmt) => {
+                // Try cache first if enabled
+                if self.cache_enabled {
+                    let signature = QuerySignature::from_sql(sql);
+                    if let Some((cached_rows, _schema)) = self.result_cache.get(&signature) {
+                        self.cache_hits += 1;
+                        return self.format_query_result(cached_rows);
+                    }
+                    self.cache_misses += 1;
+                }
+
+                // Cache miss or cache disabled - execute query
                 let executor = SelectExecutor::new(&self.db);
                 let rows = executor
                     .execute(&select_stmt)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+
+                // Cache the result if cache is enabled
+                if self.cache_enabled {
+                    use vibesql_catalog::{ColumnSchema, TableSchema};
+                    use vibesql_executor::schema::CombinedSchema;
+
+                    let signature = QuerySignature::from_sql(sql);
+
+                    // Create a simple schema from the result rows
+                    let schema = if let Some(first_row) = rows.first() {
+                        let columns: Vec<ColumnSchema> = first_row.values.iter().enumerate().map(|(i, val)| {
+                            ColumnSchema {
+                                name: format!("col{}", i),
+                                data_type: val.get_type(),
+                                nullable: val.is_null(),
+                                default_value: None,
+                            }
+                        }).collect();
+                        let table_schema = TableSchema::new("result".to_string(), columns);
+                        CombinedSchema::from_table("result".to_string(), table_schema)
+                    } else {
+                        // Empty result - create empty schema
+                        let table_schema = TableSchema::new("result".to_string(), vec![]);
+                        CombinedSchema::from_table("result".to_string(), table_schema)
+                    };
+
+                    // Extract table names from SELECT statement for cache invalidation
+                    let tables = self.extract_table_names(&select_stmt);
+
+                    self.result_cache.insert(signature, rows.clone(), schema, tables);
+                }
+
                 self.format_query_result(rows)
             }
             vibesql_ast::Statement::CreateTable(create_stmt) => {
@@ -159,24 +222,44 @@ impl NistMemSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::Insert(insert_stmt) => {
+                // Invalidate cache for this table
+                if self.cache_enabled {
+                    self.result_cache.invalidate_table(&insert_stmt.table_name);
+                }
+
                 let rows_affected =
                     vibesql_executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
                         .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
             vibesql_ast::Statement::Update(update_stmt) => {
+                // Invalidate cache for this table
+                if self.cache_enabled {
+                    self.result_cache.invalidate_table(&update_stmt.table_name);
+                }
+
                 let rows_affected =
                     vibesql_executor::UpdateExecutor::execute(&update_stmt, &mut self.db)
                         .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
             vibesql_ast::Statement::Delete(delete_stmt) => {
+                // Invalidate cache for this table
+                if self.cache_enabled {
+                    self.result_cache.invalidate_table(&delete_stmt.table_name);
+                }
+
                 let rows_affected =
                     vibesql_executor::DeleteExecutor::execute(&delete_stmt, &mut self.db)
                         .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
             vibesql_ast::Statement::DropTable(drop_stmt) => {
+                // Invalidate cache for this table
+                if self.cache_enabled {
+                    self.result_cache.invalidate_table(&drop_stmt.table_name);
+                }
+
                 vibesql_executor::DropTableExecutor::execute(&drop_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
@@ -386,10 +469,49 @@ impl NistMemSqlDB {
 
         self.format_result_rows(&rows, types)
     }
+
+    /// Extract table names from a SELECT statement for cache invalidation
+    fn extract_table_names(&self, select: &vibesql_ast::SelectStmt) -> HashSet<String> {
+        let mut tables = HashSet::new();
+
+        // Extract from FROM clause
+        if let Some(ref from) = select.from {
+            self.extract_table_names_from_from(from, &mut tables);
+        }
+
+        tables
+    }
+
+    fn extract_table_names_from_from(
+        &self,
+        from: &vibesql_ast::FromClause,
+        tables: &mut HashSet<String>,
+    ) {
+        match from {
+            vibesql_ast::FromClause::Table { name, .. } => {
+                // Handle schema.table format
+                let table_name = if let Some(pos) = name.rfind('.') {
+                    &name[pos + 1..]
+                } else {
+                    name
+                };
+                tables.insert(table_name.to_string());
+            }
+            vibesql_ast::FromClause::Join { left, right, .. } => {
+                self.extract_table_names_from_from(left, tables);
+                self.extract_table_names_from_from(right, tables);
+            }
+            vibesql_ast::FromClause::Subquery { query, .. } => {
+                // Recursively extract from subquery
+                let subquery_tables = self.extract_table_names(query);
+                tables.extend(subquery_tables);
+            }
+        }
+    }
 }
 
 #[async_trait]
-impl AsyncDB for NistMemSqlDB {
+impl AsyncDB for VibeSqlDB {
     type Error = TestError;
     type ColumnType = DefaultColumnType;
 
@@ -442,10 +564,25 @@ impl AsyncDB for NistMemSqlDB {
             eprintln!("  Queries that timed out: {}", self.timed_out_queries);
             eprintln!("  Timeout per query: {}ms", self.query_timeout_ms);
         }
+
+        // Log cache statistics if cache was enabled
+        if self.cache_enabled {
+            let total_cache_requests = self.cache_hits + self.cache_misses;
+            if total_cache_requests > 0 {
+                let hit_rate = (self.cache_hits as f64 / total_cache_requests as f64) * 100.0;
+                eprintln!("📊 Query Result Cache Summary:");
+                eprintln!("  Cache hits: {}", self.cache_hits);
+                eprintln!("  Cache misses: {}", self.cache_misses);
+                eprintln!("  Hit rate: {:.2}%", hit_rate);
+                eprintln!("  Cache size: {} / {} entries",
+                    self.result_cache.stats().size,
+                    self.result_cache.max_size());
+            }
+        }
     }
 }
 
-impl NistMemSqlDB {
+impl VibeSqlDB {
     /// Execute SQL asynchronously (wrapper for query execution)
     async fn execute_sql_async(
         &mut self,
@@ -455,7 +592,7 @@ impl NistMemSqlDB {
     }
 }
 
-impl Drop for NistMemSqlDB {
+impl Drop for VibeSqlDB {
     fn drop(&mut self) {
         // Return database to thread-local pool for reuse
         // Only return if pool is empty to avoid conflicts with multiple instances

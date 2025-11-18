@@ -697,7 +697,7 @@ fn test_thread_local_pool_pattern() {
     fn run_cycle(cycle_num: usize) {
         eprintln!("\n=== Cycle {} ===", cycle_num);
 
-        // Get database from pool (mimics NistMemSqlDB::new())
+        // Get database from pool (mimics VibeSqlDB::new())
         let mut db = get_pooled_database();
 
         // Create table

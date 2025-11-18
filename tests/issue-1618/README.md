@@ -62,7 +62,7 @@ SELECT pk FROM tab1 WHERE col0 > 250;
 Since all storage-level tests pass but sqllogictest fails, the bug is NOT in `Database::reset()` itself. It must be in:
 
 1. **Executor caching** - Query plan cache or schema cache not invalidated
-2. **Test runner state** - `NistMemSqlDB` maintaining stale state across reset
+2. **Test runner state** - `VibeSqlDB` maintaining stale state across reset
 3. **Expression evaluator** - Cached state persisting across database resets
 
 ## Test Files
@@ -126,7 +126,7 @@ cargo test --package vibesql-storage test_thread_local_pool_pattern
    - `SelectExecutor`
    - `IndexScanExecutor`
    - `CombinedExpressionEvaluator`
-   - `NistMemSqlDB` wrapper
+   - `VibeSqlDB` wrapper
 
 3. Compare executor behavior between:
    - First test file (works)

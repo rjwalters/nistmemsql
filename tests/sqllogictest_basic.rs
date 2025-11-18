@@ -18,11 +18,11 @@ impl std::fmt::Display for TestError {
 
 impl std::error::Error for TestError {}
 
-struct NistMemSqlDB {
+struct VibeSqlDB {
     db: Database,
 }
 
-impl NistMemSqlDB {
+impl VibeSqlDB {
     fn new() -> Self {
         Self { db: Database::new() }
     }
@@ -175,7 +175,7 @@ impl NistMemSqlDB {
 }
 
 #[async_trait]
-impl AsyncDB for NistMemSqlDB {
+impl AsyncDB for VibeSqlDB {
     type Error = TestError;
     type ColumnType = DefaultColumnType;
 
@@ -229,7 +229,7 @@ SELECT a + b FROM t1 WHERE c = 3
 3
 "#;
 
-    let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut tester = Runner::new(|| async { Ok(VibeSqlDB::new()) });
 
     match tester.run_script(custom_script) {
         Ok(_) => {

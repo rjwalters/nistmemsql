@@ -6,7 +6,7 @@ use super::RowIterator;
 
 /// Iterator that scans rows from a materialized table
 ///
-/// This is the simplest RowIterator - it wraps a Vec<Row> and produces
+/// This is the simplest RowIterator - it wraps a `Vec<Row>` and produces
 /// rows one at a time. While the input is still materialized, this provides
 /// a uniform iterator interface for composition with other operators.
 ///

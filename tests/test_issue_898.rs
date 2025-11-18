@@ -18,11 +18,11 @@ impl std::fmt::Display for TestError {
 
 impl std::error::Error for TestError {}
 
-struct NistMemSqlDB {
+struct VibeSqlDB {
     db: Database,
 }
 
-impl NistMemSqlDB {
+impl VibeSqlDB {
     fn new() -> Self {
         Self { db: Database::new() }
     }
@@ -155,7 +155,7 @@ impl NistMemSqlDB {
 }
 
 #[async_trait]
-impl AsyncDB for NistMemSqlDB {
+impl AsyncDB for VibeSqlDB {
     type Error = TestError;
     type ColumnType = DefaultColumnType;
 
@@ -174,7 +174,7 @@ async fn test_file(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     println!("========================================");
 
     let contents = std::fs::read_to_string(path)?;
-    let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    let mut tester = Runner::new(|| async { Ok(VibeSqlDB::new()) });
 
     // Enable hash mode with threshold of 8 (standard SQLLogicTest behavior)
     tester.with_hash_threshold(8);

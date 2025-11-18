@@ -87,7 +87,7 @@ impl<'a> SelectExecutor<'a> {
     /// 4. Threading timeout through evaluators requires extensive refactoring
     ///
     /// Future improvement: Add timeout fields to ExpressionEvaluator and pass through
-    /// See: https://github.com/rjwalters/vibesql/issues/1012#subquery-timeout
+    /// See: <https://github.com/rjwalters/vibesql/issues/1012#subquery-timeout>
     pub fn new_with_outer_context_and_depth(
         database: &'a vibesql_storage::Database,
         outer_row: &'a vibesql_storage::Row,

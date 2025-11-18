@@ -25,7 +25,7 @@ mod privilege_checker;
 pub mod procedural;
 mod revoke;
 mod role_ddl;
-mod schema;
+pub mod schema;
 mod schema_ddl;
 pub mod select;
 mod select_into;

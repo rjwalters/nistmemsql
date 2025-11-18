@@ -148,9 +148,79 @@ The crates form a layered architecture with clear dependency flow:
 - Full test coverage across all crates
 - Comprehensive documentation
 
+## Publishing to crates.io
+
+VibeSQL crates are published to [crates.io](https://crates.io) for use by the Rust community.
+
+### Publishing Order
+
+Due to path dependencies, crates must be published sequentially in this order:
+
+1. **Foundation Layer** (no dependencies):
+   - `vibesql-types`
+   - `vibesql-ast`
+
+2. **Middle Layer** (depends on foundation):
+   - `vibesql-parser`
+   - `vibesql-catalog`
+
+3. **Storage Layer**:
+   - `vibesql-storage`
+
+4. **Execution Layer**:
+   - `vibesql-executor`
+
+5. **Interface Layer**:
+   - `vibesql-cli`
+   - `vibesql-wasm-bindings`
+   - `vibesql-python-bindings`
+
+6. **Root Package**:
+   - `vibesql`
+
+**Note**: The `sqllogictest` crate is marked `publish = false` as it contains vibesql-specific patches and is used only for internal testing.
+
+### Publishing Commands
+
+```bash
+# Verify a crate is ready for publishing (dry run)
+cargo publish --dry-run -p vibesql-types
+
+# Publish a crate to crates.io
+cargo publish -p vibesql-types
+
+# After publishing, wait for crates.io to index before publishing dependents
+# (usually takes 1-2 minutes)
+```
+
+### Pre-Publishing Checklist
+
+Before publishing, ensure:
+
+- ✅ All tests pass: `cargo test --all`
+- ✅ Documentation builds without warnings: `cargo doc --no-deps --all`
+- ✅ README files are present for all crates
+- ✅ Version numbers are updated in Cargo.toml
+- ✅ CHANGELOG is updated with release notes
+- ✅ All rustdoc warnings are fixed
+- ✅ Dependencies use version ranges (not path dependencies after publishing)
+
+### Available on crates.io
+
+Once published, crates can be used by adding to your `Cargo.toml`:
+
+```toml
+[dependencies]
+vibesql = "0.1"
+vibesql-types = "0.1"
+vibesql-parser = "0.1"
+# etc.
+```
+
 ## Documentation
 
 - Each crate contains inline documentation accessible via `cargo doc`
 - Build documentation: `cargo doc --no-deps --open`
+- Published documentation available at [docs.rs/vibesql](https://docs.rs/vibesql)
 - See main [README.md](../README.md) for project overview
 - See [ARCHITECTURE.md](../ARCHITECTURE.md) for system design details

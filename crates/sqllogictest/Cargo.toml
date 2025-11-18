@@ -7,6 +7,7 @@ keywords = ["sql", "database", "parser", "cli"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/risinglightdb/sqllogictest-rs"
 description = "Sqllogictest parser and runner."
+publish = false  # This is a patched version for internal testing only
 
 [dependencies]
 async-trait = "0.1"
