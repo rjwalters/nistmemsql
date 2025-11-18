@@ -331,7 +331,7 @@ def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
     return len(test_files)
 
 
-def run_worker(worker_id: int, work_queue: WorkQueue, db_writer: Optional[StreamingDatabaseWriter], time_budget: int, repo_root: Path, release_mode: bool = True) -> Tuple[int, Optional[Dict]]:
+def run_worker(worker_id: int, work_queue: WorkQueue, db_writer: Optional[StreamingDatabaseWriter], time_budget: int, repo_root: Path, release_mode: bool = True, per_file_timeout: int = 500) -> Tuple[int, Optional[Dict]]:
     """
     Run a single worker process, pulling test files from queue until empty.
 
@@ -342,6 +342,7 @@ def run_worker(worker_id: int, work_queue: WorkQueue, db_writer: Optional[Stream
         time_budget: Time budget in seconds
         repo_root: Repository root directory
         release_mode: Whether to use release binary (default: True for performance)
+        per_file_timeout: Timeout in seconds for each test file (default: 500s)
 
     Returns:
         (worker_id, results_dict) or (worker_id, None) on failure
@@ -384,11 +385,14 @@ def run_worker(worker_id: int, work_queue: WorkQueue, db_writer: Optional[Stream
         except:
             pass  # Ignore cleanup failures
 
-    # Per-file timeout: adaptive based on historical data, with reasonable bounds
+    # Per-file timeout is now configurable via --per-file-timeout argument (default: 500s)
     # Most files complete in <10s, but high-volume index tests (10,000+ queries) need more time
-    # Increased from 60s to 120s (issue #1921), then 300s, 600s, now 1200s for extreme */1000/* tests
-    # This separates correctness (tests pass/fail) from performance (tests are slow)
-    per_file_timeout = 500  # 500s (8.3 min) per file - extended timeout for large tests
+    # Slow tests may require higher timeout values:
+    #   Development: 300s (5 min) - fast feedback
+    #   CI/Standard: 500s (8.3 min) - covers 99% of tests
+    #   Comprehensive: 2000s (33 min) - covers all known slow tests + margin
+    #   Debug: 5000s (83 min) - for investigation only
+    print(f"[Worker {worker_id}] Per-file timeout: {per_file_timeout}s", flush=True)
 
     # Pull files from queue until empty or time budget exhausted
     while True:
@@ -770,7 +774,7 @@ def get_git_branch(repo_root: Path) -> Optional[str]:
         return None
 
 
-def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path, release_mode: bool = True) -> bool:
+def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path, release_mode: bool = True, per_file_timeout: int = 500) -> bool:
     """
     Run SQLLogicTest suite in parallel across multiple workers.
 
@@ -779,6 +783,7 @@ def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path, rele
         time_budget: Time budget in seconds per worker
         repo_root: Repository root directory
         release_mode: Whether to build in release mode (default: True for 10-15x speedup)
+        per_file_timeout: Timeout in seconds for each test file (default: 500s)
 
     Returns:
         True if successful, False otherwise
@@ -788,6 +793,7 @@ def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path, rele
     print(f"\n=== Parallel SQLLogicTest Runner ===")
     print(f"Workers: {num_workers}")
     print(f"Time budget: {time_budget}s per worker")
+    print(f"Per-file timeout: {per_file_timeout}s")
     print(f"Build mode: {build_type}")
     print()
 
@@ -899,7 +905,7 @@ VALUES ({run_id}, TIMESTAMP '{timestamp}', NULL, {len(test_files)}, 0, 0, {len(t
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
         # Submit all workers (they all share the same work queue and database writer)
         futures = {
-            executor.submit(run_worker, i, work_queue, db_writer, time_budget, repo_root, release_mode): i
+            executor.submit(run_worker, i, work_queue, db_writer, time_budget, repo_root, release_mode, per_file_timeout): i
             for i in range(num_workers)
         }
 
@@ -968,6 +974,12 @@ def main():
         action="store_true",
         help="Use debug build instead of release (faster build, but 10-15x slower tests)",
     )
+    parser.add_argument(
+        "--per-file-timeout",
+        type=int,
+        default=500,
+        help="Timeout in seconds for each test file (default: 500s)",
+    )
 
     args = parser.parse_args()
 
@@ -980,6 +992,10 @@ def main():
         print("Error: --time-budget must be >= 1", file=sys.stderr)
         return 1
 
+    if args.per_file_timeout < 1:
+        print("Error: --per-file-timeout must be >= 1", file=sys.stderr)
+        return 1
+
     # Get repository root
     try:
         repo_root = get_repo_root()
@@ -989,7 +1005,7 @@ def main():
 
     # Run parallel tests (default to release mode for performance)
     release_mode = not args.debug
-    success = run_parallel_tests(args.workers, args.time_budget, repo_root, release_mode)
+    success = run_parallel_tests(args.workers, args.time_budget, repo_root, release_mode, args.per_file_timeout)
 
     return 0 if success else 1
 
