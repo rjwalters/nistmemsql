@@ -14,7 +14,7 @@ pub mod create_index;
 pub mod drop_index;
 pub mod reindex;
 
-use vibesql_ast::{AnalyzeStmt, CreateIndexStmt, DropIndexStmt, ReindexStmt};
+use vibesql_ast::{CreateIndexStmt, DropIndexStmt, ReindexStmt};
 pub use analyze::AnalyzeExecutor;
 pub use create_index::CreateIndexExecutor;
 pub use drop_index::DropIndexExecutor;

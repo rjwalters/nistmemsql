@@ -4,13 +4,14 @@
 //! after classification, enabling consistent handling throughout the optimizer
 //! and executor layers.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use vibesql_ast::Expression;
 
 use crate::schema::CombinedSchema;
 
 /// A classified predicate ready for optimization and execution
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Predicate {
     /// Predicate that references only one table
@@ -58,16 +59,19 @@ pub enum Predicate {
 }
 
 /// Reference to a table (either by name or alias)
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TableId(pub String);
 
 /// Reference to a column within a table
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ColumnRef {
     pub table_id: TableId,
     pub column_name: String,
 }
 
+#[allow(dead_code)]
 impl Predicate {
     /// Classify an expression as a predicate
     ///
@@ -158,6 +162,7 @@ impl Predicate {
 }
 
 /// Extract all column references from an expression
+#[allow(dead_code)]
 fn extract_column_refs(expr: &Expression, schema: &CombinedSchema) -> Result<Vec<ColumnRef>, String> {
     let mut column_refs = Vec::new();
     extract_column_refs_recursive(expr, schema, &mut column_refs)?;
@@ -165,6 +170,7 @@ fn extract_column_refs(expr: &Expression, schema: &CombinedSchema) -> Result<Vec
 }
 
 /// Recursive helper to extract column references
+#[allow(dead_code)]
 fn extract_column_refs_recursive(
     expr: &Expression,
     schema: &CombinedSchema,
@@ -260,6 +266,7 @@ fn extract_column_refs_recursive(
 }
 
 /// Check if an expression is a simple equijoin (t1.col = t2.col)
+#[allow(dead_code)]
 fn is_equijoin(expr: &Expression, column_refs: &[ColumnRef]) -> bool {
     if let Expression::BinaryOp {
         left,
@@ -280,6 +287,7 @@ fn is_equijoin(expr: &Expression, column_refs: &[ColumnRef]) -> bool {
 }
 
 /// Extract the two column references from an equijoin expression
+#[allow(dead_code)]
 fn extract_equijoin_columns(
     expr: &Expression,
     column_refs: &[ColumnRef],

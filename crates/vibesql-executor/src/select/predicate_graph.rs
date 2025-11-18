@@ -39,6 +39,7 @@ use crate::{
 // ============================================================================
 
 /// A single operation in the execution graph
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum GraphOperation {
     /// Table scan with predicates
@@ -63,6 +64,7 @@ pub enum GraphOperation {
 }
 
 /// A layer in the execution graph (all operations can run in parallel)
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ExecutionLayer {
     /// Operations that can execute in parallel
@@ -73,6 +75,7 @@ pub struct ExecutionLayer {
 }
 
 /// BFS-style dependency graph for parallel predicate evaluation
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct PredicateDependencyGraph {
     /// Execution layers (sorted by dependency order)
@@ -82,6 +85,7 @@ pub struct PredicateDependencyGraph {
     pub total_operations: usize,
 }
 
+#[allow(dead_code)]
 impl PredicateDependencyGraph {
     /// Create an empty graph
     pub fn new() -> Self {
@@ -263,6 +267,7 @@ impl Default for PredicateDependencyGraph {
 // ============================================================================
 
 /// Extract all table names from a FROM clause
+#[allow(dead_code)]
 fn extract_table_names(from: &FromClause) -> Vec<String> {
     let mut tables = Vec::new();
     extract_tables_recursive(from, &mut tables);
@@ -270,6 +275,7 @@ fn extract_table_names(from: &FromClause) -> Vec<String> {
 }
 
 /// Recursively extract table names from FROM clause
+#[allow(dead_code)]
 fn extract_tables_recursive(from: &FromClause, tables: &mut Vec<String>) {
     match from {
         FromClause::Table { name, .. } => {

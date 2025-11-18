@@ -29,6 +29,7 @@ pub struct PredicatePlan {
     decomposition: PredicateDecomposition,
 }
 
+#[allow(dead_code)]
 impl PredicatePlan {
     /// Create an empty predicate plan (for queries without WHERE clause)
     pub fn empty() -> Self {

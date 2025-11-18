@@ -4,6 +4,7 @@
 /// behave differently across SQL dialects (MySQL vs SQLite).
 
 /// Behavior for division operations
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DivisionBehavior {
     /// Return integer result (truncated) - SQLite
@@ -18,6 +19,7 @@ pub enum DivisionBehavior {
 }
 
 /// String concatenation operator preference
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConcatOperator {
     /// Use || operator (SQLite, PostgreSQL)
@@ -45,6 +47,7 @@ pub enum ConcatOperator {
 /// assert_eq!(mode.integer_division_behavior(), DivisionBehavior::Decimal);
 /// assert!(mode.supports_xor());
 /// ```
+#[allow(dead_code)]
 pub trait OperatorBehavior {
     /// Division behavior for integer/integer operands
     ///

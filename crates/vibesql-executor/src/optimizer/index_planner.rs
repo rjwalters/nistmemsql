@@ -33,6 +33,7 @@ use vibesql_storage::Database;
 ///     execute_table_scan();
 /// }
 /// ```
+#[allow(dead_code)]
 pub struct IndexPlanner<'a> {
     database: &'a Database,
 }
@@ -44,6 +45,7 @@ pub struct IndexPlanner<'a> {
 /// - What predicate to push down
 /// - Whether additional WHERE filtering is needed
 /// - Estimated selectivity and cost
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct IndexPlan {
     /// Name of the index to use
@@ -68,6 +70,7 @@ pub struct IndexPlan {
     pub estimated_selectivity: f64,
 }
 
+#[allow(dead_code)]
 impl<'a> IndexPlanner<'a> {
     /// Create a new index planner for the given database
     pub fn new(database: &'a Database) -> Self {

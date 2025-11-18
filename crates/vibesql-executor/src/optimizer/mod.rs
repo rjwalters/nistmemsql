@@ -18,9 +18,5 @@ mod tests;
 pub mod where_pushdown;
 
 pub use expressions::*;
-pub use index_planner::{IndexPlan, IndexPlanner};
-pub use index_strategy::{IndexMetadata, IndexStrategy};
-pub use predicate::{ColumnRef, Predicate, TableId};
 pub use predicate_plan::PredicatePlan;
-pub use selectivity::{estimate_selectivity, order_predicates_by_selectivity};
-pub use where_pushdown::{combine_with_and, decompose_where_clause, PredicateDecomposition};
+pub use where_pushdown::{combine_with_and, PredicateDecomposition};

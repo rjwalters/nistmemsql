@@ -82,12 +82,14 @@ impl SqlMode {
 }
 
 // Supported collations for each SQL mode
+#[allow(dead_code)]
 const MYSQL_SUPPORTED_COLLATIONS: &[Collation] = &[
     Collation::Binary,
     Collation::Utf8Binary,
     Collation::Utf8GeneralCi,
 ];
 
+#[allow(dead_code)]
 const SQLITE_SUPPORTED_COLLATIONS: &[Collation] = &[
     Collation::Binary,
     Collation::NoCase,

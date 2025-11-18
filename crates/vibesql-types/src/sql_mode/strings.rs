@@ -7,6 +7,7 @@
 ///
 /// Different SQL dialects support different collation strategies for comparing
 /// strings and determining sort order.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Collation {
     /// Case-sensitive, byte-by-byte comparison
@@ -47,6 +48,7 @@ pub enum Collation {
 ///
 /// - **MySQL**: Defaults to case-insensitive (`utf8mb4_general_ci`)
 /// - **SQLite**: Defaults to case-sensitive (Binary collation)
+#[allow(dead_code)]
 pub trait StringBehavior {
     /// Returns whether string comparisons are case-sensitive by default
     ///

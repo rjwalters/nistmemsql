@@ -21,6 +21,7 @@ use super::predicate::{extract_index_predicate, IndexPredicate};
 /// When the WHERE clause can be fully satisfied by the index predicate (e.g., simple
 /// predicates like `WHERE col = 5` or `WHERE col BETWEEN 10 AND 20`), we skip redundant
 /// WHERE clause re-evaluation, significantly improving performance for large result sets.
+#[allow(private_interfaces)]
 pub(crate) fn execute_index_scan(
     table_name: &str,
     index_name: &str,

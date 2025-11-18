@@ -275,6 +275,7 @@ pub(super) fn extract_index_predicate(expr: &Expression, column_name: &str) -> O
 /// - `WHERE col BETWEEN 10 AND 20` (range)
 /// - `WHERE col IN (1, 2, 3)` (multi-value)
 /// - `WHERE col > 10 AND col < 20` (combined range)
+#[allow(dead_code)]
 pub(crate) fn where_clause_fully_satisfied_by_index(
     where_expr: &Expression,
     indexed_column: &str,

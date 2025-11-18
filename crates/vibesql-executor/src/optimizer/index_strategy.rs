@@ -6,10 +6,11 @@
 
 use vibesql_types::SqlValue;
 
-use super::predicate::{ColumnRef, Predicate, TableId};
+use super::predicate::Predicate;
 use vibesql_ast::{BinaryOperator, Expression};
 
 /// Strategy for using an index to evaluate a predicate
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum IndexStrategy {
     /// Exact key lookup (equality predicate)
@@ -48,6 +49,7 @@ pub enum IndexStrategy {
 }
 
 /// Metadata about an available index on a table
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct IndexMetadata {
     pub name: String,
@@ -55,6 +57,7 @@ pub struct IndexMetadata {
     pub unique: bool,
 }
 
+#[allow(dead_code)]
 impl IndexStrategy {
     /// Extract index strategy from a table-local predicate
     ///
@@ -121,6 +124,7 @@ impl IndexStrategy {
 }
 
 /// Extract index strategy for a single-column index
+#[allow(dead_code)]
 fn extract_single_column_strategy(expr: &Expression, column_name: &str) -> Option<IndexStrategy> {
     match expr {
         Expression::BinaryOp { left, op, right } => match op {
@@ -244,6 +248,7 @@ fn extract_single_column_strategy(expr: &Expression, column_name: &str) -> Optio
 }
 
 /// Extract index strategy for a multi-column index prefix
+#[allow(dead_code)]
 fn extract_prefix_strategy(expr: &Expression, index_columns: &[String]) -> Option<IndexStrategy> {
     // For now, only support exact matching on the first column
     // Full prefix matching would require more sophisticated analysis
@@ -255,6 +260,7 @@ fn extract_prefix_strategy(expr: &Expression, index_columns: &[String]) -> Optio
 }
 
 /// Check if an expression is a column reference to a specific column
+#[allow(dead_code)]
 fn is_column_ref(expr: &Expression, column_name: &str) -> bool {
     match expr {
         Expression::ColumnRef {
