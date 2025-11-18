@@ -44,15 +44,12 @@ where
 
     // If we have a WHERE clause, decompose it using the combined schema
     let equijoin_predicates = if let Some(where_expr) = where_clause {
-        // Build combined schema for WHERE clause analysis
-        let mut combined_schema = left_result.schema.clone();
+        // Build combined schema for WHERE clause analysis using SchemaBuilder for O(n) performance
+        let mut schema_builder = crate::schema::SchemaBuilder::from_schema(left_result.schema.clone());
         for (table_name, (_start_idx, table_schema)) in &right_result.schema.table_schemas {
-            combined_schema = crate::schema::CombinedSchema::combine(
-                combined_schema,
-                table_name.clone(),
-                table_schema.clone(),
-            );
+            schema_builder.add_table(table_name.clone(), table_schema.clone());
         }
+        let combined_schema = schema_builder.build();
 
         // Decompose WHERE clause with full schema
         let decomposition = decompose_where_clause(Some(where_expr), &combined_schema)
