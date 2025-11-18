@@ -1,9 +1,9 @@
 //! Memory buffer pooling for query execution
 //!
 //! Provides reusable buffers to reduce allocation overhead in high-volume query execution.
-//! Thread-safe pool supports concurrent access for parallel test execution.
+//! Thread-local pools eliminate lock contention for concurrent access.
 
-use std::sync::{Arc, Mutex};
+use std::cell::RefCell;
 use crate::Row;
 use vibesql_types::SqlValue;
 
@@ -16,20 +16,22 @@ const DEFAULT_VALUE_CAPACITY: usize = 16;
 /// Maximum number of buffers to keep in each pool
 const MAX_POOLED_BUFFERS: usize = 32;
 
-/// Thread-safe buffer pool for reusing allocations across query executions
-#[derive(Debug, Clone)]
-pub struct QueryBufferPool {
-    row_buffers: Arc<Mutex<Vec<Vec<Row>>>>,
-    value_buffers: Arc<Mutex<Vec<Vec<SqlValue>>>>,
+thread_local! {
+    static ROW_POOL: RefCell<Vec<Vec<Row>>> = RefCell::new(Vec::new());
+    static VALUE_POOL: RefCell<Vec<Vec<SqlValue>>> = RefCell::new(Vec::new());
 }
+
+/// Thread-safe buffer pool for reusing allocations across query executions
+///
+/// Uses thread-local storage to eliminate lock contention. Each thread maintains
+/// its own pool of buffers, bounded at MAX_POOLED_BUFFERS entries.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct QueryBufferPool;
 
 impl QueryBufferPool {
     /// Create a new empty buffer pool
     pub fn new() -> Self {
-        Self {
-            row_buffers: Arc::new(Mutex::new(Vec::new())),
-            value_buffers: Arc::new(Mutex::new(Vec::new())),
-        }
+        Self
     }
 
     /// Get a row buffer from the pool, or create a new one
@@ -37,17 +39,19 @@ impl QueryBufferPool {
     /// Returns a buffer with at least `min_capacity` capacity.
     /// The buffer will be empty but may have allocated capacity.
     pub fn get_row_buffer(&self, min_capacity: usize) -> Vec<Row> {
-        let mut pool = self.row_buffers.lock().unwrap();
+        ROW_POOL.with(|pool| {
+            let mut pool = pool.borrow_mut();
 
-        // Try to find a buffer with sufficient capacity
-        if let Some(pos) = pool.iter().position(|buf| buf.capacity() >= min_capacity) {
-            let mut buffer = pool.swap_remove(pos);
-            buffer.clear();
-            buffer
-        } else {
-            // No suitable buffer found, create new one
-            Vec::with_capacity(min_capacity.max(DEFAULT_ROW_CAPACITY))
-        }
+            // Try to find a buffer with sufficient capacity
+            if let Some(pos) = pool.iter().position(|buf| buf.capacity() >= min_capacity) {
+                let mut buffer = pool.swap_remove(pos);
+                buffer.clear();
+                buffer
+            } else {
+                // No suitable buffer found, create new one
+                Vec::with_capacity(min_capacity.max(DEFAULT_ROW_CAPACITY))
+            }
+        })
     }
 
     /// Return a row buffer to the pool for reuse
@@ -57,11 +61,13 @@ impl QueryBufferPool {
     pub fn return_row_buffer(&self, mut buffer: Vec<Row>) {
         buffer.clear();
 
-        let mut pool = self.row_buffers.lock().unwrap();
-        if pool.len() < MAX_POOLED_BUFFERS {
-            pool.push(buffer);
-        }
-        // else: drop the buffer (pool is full)
+        ROW_POOL.with(|pool| {
+            let mut pool = pool.borrow_mut();
+            if pool.len() < MAX_POOLED_BUFFERS {
+                pool.push(buffer);
+            }
+            // else: drop the buffer (pool is full)
+        });
     }
 
     /// Get a value buffer from the pool, or create a new one
@@ -69,17 +75,19 @@ impl QueryBufferPool {
     /// Returns a buffer with at least `min_capacity` capacity.
     /// The buffer will be empty but may have allocated capacity.
     pub fn get_value_buffer(&self, min_capacity: usize) -> Vec<SqlValue> {
-        let mut pool = self.value_buffers.lock().unwrap();
+        VALUE_POOL.with(|pool| {
+            let mut pool = pool.borrow_mut();
 
-        // Try to find a buffer with sufficient capacity
-        if let Some(pos) = pool.iter().position(|buf| buf.capacity() >= min_capacity) {
-            let mut buffer = pool.swap_remove(pos);
-            buffer.clear();
-            buffer
-        } else {
-            // No suitable buffer found, create new one
-            Vec::with_capacity(min_capacity.max(DEFAULT_VALUE_CAPACITY))
-        }
+            // Try to find a buffer with sufficient capacity
+            if let Some(pos) = pool.iter().position(|buf| buf.capacity() >= min_capacity) {
+                let mut buffer = pool.swap_remove(pos);
+                buffer.clear();
+                buffer
+            } else {
+                // No suitable buffer found, create new one
+                Vec::with_capacity(min_capacity.max(DEFAULT_VALUE_CAPACITY))
+            }
+        })
     }
 
     /// Return a value buffer to the pool for reuse
@@ -89,28 +97,26 @@ impl QueryBufferPool {
     pub fn return_value_buffer(&self, mut buffer: Vec<SqlValue>) {
         buffer.clear();
 
-        let mut pool = self.value_buffers.lock().unwrap();
-        if pool.len() < MAX_POOLED_BUFFERS {
-            pool.push(buffer);
-        }
-        // else: drop the buffer (pool is full)
+        VALUE_POOL.with(|pool| {
+            let mut pool = pool.borrow_mut();
+            if pool.len() < MAX_POOLED_BUFFERS {
+                pool.push(buffer);
+            }
+            // else: drop the buffer (pool is full)
+        });
     }
 
     /// Get statistics about pool usage (for debugging/monitoring)
+    ///
+    /// Returns stats for the current thread's pool only.
     pub fn stats(&self) -> QueryBufferPoolStats {
-        let row_pool = self.row_buffers.lock().unwrap();
-        let value_pool = self.value_buffers.lock().unwrap();
+        let row_buffers_pooled = ROW_POOL.with(|pool| pool.borrow().len());
+        let value_buffers_pooled = VALUE_POOL.with(|pool| pool.borrow().len());
 
         QueryBufferPoolStats {
-            row_buffers_pooled: row_pool.len(),
-            value_buffers_pooled: value_pool.len(),
+            row_buffers_pooled,
+            value_buffers_pooled,
         }
-    }
-}
-
-impl Default for QueryBufferPool {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -241,7 +247,7 @@ mod tests {
 
         {
             let buffer = pool.get_row_buffer(10);
-            let _guard = RowBufferGuard::new(buffer, pool.clone());
+            let _guard = RowBufferGuard::new(buffer, pool);
             // Guard dropped here, should return buffer to pool
         }
 
@@ -261,5 +267,36 @@ mod tests {
 
         let stats = pool.stats();
         assert_eq!(stats.row_buffers_pooled, MAX_POOLED_BUFFERS);
+    }
+
+    #[test]
+    fn test_concurrent_access_thread_safety() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let pool = Arc::new(QueryBufferPool::new());
+        let mut handles = vec![];
+
+        // Spawn multiple threads that access the pool concurrently
+        for _ in 0..4 {
+            let pool = Arc::clone(&pool);
+            let handle = thread::spawn(move || {
+                for _ in 0..100 {
+                    let buffer = pool.get_row_buffer(10);
+                    assert!(buffer.capacity() >= 10);
+                    pool.return_row_buffer(buffer);
+                }
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all threads to complete
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        // Each thread has its own pool, so stats show only current thread's pool
+        let stats = pool.stats();
+        assert!(stats.row_buffers_pooled <= MAX_POOLED_BUFFERS);
     }
 }
