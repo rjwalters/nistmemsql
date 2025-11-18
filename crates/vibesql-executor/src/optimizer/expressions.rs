@@ -23,8 +23,9 @@ pub enum WhereOptimization {
 
 /// Optimize a SELECT statement's WHERE clause
 ///
-/// Performs constant folding and dead code elimination on WHERE expressions.
-/// Returns information about whether the WHERE clause can be eliminated entirely.
+/// Performs constant folding, dead code elimination, and predicate reordering
+/// on WHERE expressions. Returns information about whether the WHERE clause
+/// can be eliminated entirely.
 pub fn optimize_where_clause(
     where_expr: Option<&Expression>,
     evaluator: &CombinedExpressionEvaluator,
@@ -32,9 +33,14 @@ pub fn optimize_where_clause(
     match where_expr {
         None => Ok(WhereOptimization::Unchanged(None)),
         Some(expr) => {
+            // Step 1: Constant folding and dead code elimination
             let optimized = optimize_expression(expr, evaluator)?;
 
-            match optimized {
+            // Step 2: Reorder predicates for optimal evaluation (cheap first)
+            // This is particularly beneficial for complex queries with many nested conditions
+            let reordered = crate::select::predicate_optimizer::optimize_predicate(&optimized);
+
+            match reordered {
                 Expression::Literal(SqlValue::Boolean(true)) => Ok(WhereOptimization::AlwaysTrue),
                 Expression::Literal(SqlValue::Boolean(false)) => Ok(WhereOptimization::AlwaysFalse),
                 Expression::Literal(SqlValue::Null) => {
