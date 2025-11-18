@@ -1,7 +1,7 @@
-use super::super::*;
+use super::super::super::*;
 
 // ========================================================================
-// String Type Tests with Modifiers
+// VARCHAR and CHARACTER VARYING Tests
 // ========================================================================
 
 #[test]
@@ -38,46 +38,6 @@ fn test_parse_character_varying_without_length() {
             match create.columns[0].data_type {
                 vibesql_types::DataType::Varchar { max_length: None } => {} // Success
                 _ => panic!("Expected VARCHAR data type without length"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_char_with_characters_modifier() {
-    let result = Parser::parse_sql("CREATE TABLE t (x CHAR(10 CHARACTERS));");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match create.columns[0].data_type {
-                vibesql_types::DataType::Character { length: 10 } => {} // Success
-                _ => panic!("Expected CHAR(10) data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_char_with_octets_modifier() {
-    let result = Parser::parse_sql("CREATE TABLE t (x CHAR(10 OCTETS));");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match create.columns[0].data_type {
-                vibesql_types::DataType::Character { length: 10 } => {} // Success
-                _ => panic!("Expected CHAR(10) data type"),
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -164,66 +124,6 @@ fn test_parse_character_varying_with_octets_modifier() {
     }
 }
 
-#[test]
-fn test_parse_char_without_modifier_still_works() {
-    let result = Parser::parse_sql("CREATE TABLE t (x CHAR(10));");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match create.columns[0].data_type {
-                vibesql_types::DataType::Character { length: 10 } => {} // Success
-                _ => panic!("Expected CHAR(10) data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_char_without_length() {
-    let result = Parser::parse_sql("CREATE TABLE t (A CHAR);");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "A");
-            match create.columns[0].data_type {
-                vibesql_types::DataType::Character { length: 1 } => {} // Success - defaults to 1
-                _ => panic!("Expected CHAR(1) data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_character_without_length() {
-    let result = Parser::parse_sql("CREATE TABLE t (A CHARACTER);");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "A");
-            match create.columns[0].data_type {
-                vibesql_types::DataType::Character { length: 1 } => {} // Success - defaults to 1
-                _ => panic!("Expected CHARACTER(1) data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
 // ========================================================================
 // CHAR VARING Tests (Deprecated SQL:1999 Syntax)
 // ========================================================================
@@ -295,177 +195,7 @@ fn test_parse_char_varing_equivalence() {
 }
 
 // ========================================================================
-// BINARY and VARBINARY Type Tests (MySQL compatibility)
-// ========================================================================
-
-#[test]
-fn test_parse_varbinary_with_size() {
-    // VARBINARY(n) without space before parenthesis
-    let result = Parser::parse_sql("CREATE TABLE t (x VARBINARY(4));");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match &create.columns[0].data_type {
-                vibesql_types::DataType::UserDefined { type_name } => {
-                    assert_eq!(type_name, "VARBINARY");
-                }
-                _ => panic!("Expected VARBINARY user-defined data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_varbinary_with_size_and_space() {
-    // VARBINARY (4) with space before parenthesis - this is the main issue #1662
-    let result = Parser::parse_sql("CREATE TABLE t (x VARBINARY (4));");
-    assert!(result.is_ok(), "Failed to parse VARBINARY with space: {:?}", result.err());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match &create.columns[0].data_type {
-                vibesql_types::DataType::UserDefined { type_name } => {
-                    assert_eq!(type_name, "VARBINARY");
-                }
-                _ => panic!("Expected VARBINARY user-defined data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_varbinary_without_size() {
-    // VARBINARY without size specification
-    let result = Parser::parse_sql("CREATE TABLE t (x VARBINARY);");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match &create.columns[0].data_type {
-                vibesql_types::DataType::UserDefined { type_name } => {
-                    assert_eq!(type_name, "VARBINARY");
-                }
-                _ => panic!("Expected VARBINARY user-defined data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_binary_with_size() {
-    // BINARY(n) without space before parenthesis
-    let result = Parser::parse_sql("CREATE TABLE t (x BINARY(8));");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match &create.columns[0].data_type {
-                vibesql_types::DataType::UserDefined { type_name } => {
-                    assert_eq!(type_name, "BINARY");
-                }
-                _ => panic!("Expected BINARY user-defined data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_binary_with_size_and_space() {
-    // BINARY (8) with space before parenthesis
-    let result = Parser::parse_sql("CREATE TABLE t (x BINARY (8));");
-    assert!(result.is_ok(), "Failed to parse BINARY with space: {:?}", result.err());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match &create.columns[0].data_type {
-                vibesql_types::DataType::UserDefined { type_name } => {
-                    assert_eq!(type_name, "BINARY");
-                }
-                _ => panic!("Expected BINARY user-defined data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_binary_without_size() {
-    // BINARY without size specification
-    let result = Parser::parse_sql("CREATE TABLE t (x BINARY);");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match &create.columns[0].data_type {
-                vibesql_types::DataType::UserDefined { type_name } => {
-                    assert_eq!(type_name, "BINARY");
-                }
-                _ => panic!("Expected BINARY user-defined data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_varbinary_with_key_constraint() {
-    // From the failing test case: VARBINARY (4) KEY
-    let result = Parser::parse_sql("CREATE TABLE t (c1 VARBINARY (4) KEY);");
-    assert!(result.is_ok(), "Failed to parse VARBINARY with KEY: {:?}", result.err());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "C1");
-            match &create.columns[0].data_type {
-                vibesql_types::DataType::UserDefined { type_name } => {
-                    assert_eq!(type_name, "VARBINARY");
-                }
-                _ => panic!("Expected VARBINARY user-defined data type"),
-            }
-            // Also verify the KEY constraint was parsed
-            assert!(create.columns[0].constraints.iter().any(|c| matches!(
-                &c.kind,
-                vibesql_ast::ColumnConstraintKind::Key
-            )));
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-// ========================================================================
-// NCHAR and NCHAR VARYING Tests
+// NCHAR VARYING Tests
 // ========================================================================
 
 #[test]
@@ -509,46 +239,6 @@ fn test_parse_nchar_varying_without_length() {
 }
 
 #[test]
-fn test_parse_nchar_with_length() {
-    let result = Parser::parse_sql("CREATE TABLE t (x NCHAR(20));");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match create.columns[0].data_type {
-                vibesql_types::DataType::Character { length: 20 } => {} // Success
-                _ => panic!("Expected CHAR(20) data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_nchar_without_length() {
-    let result = Parser::parse_sql("CREATE TABLE t (x NCHAR);");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match create.columns[0].data_type {
-                vibesql_types::DataType::Character { length: 1 } => {} // Success - default is 1
-                _ => panic!("Expected CHAR(1) data type (default)"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
 fn test_parse_nchar_varying_with_constraint() {
     // This is the actual failing test case from the SQLLogicTest suite
     let result = Parser::parse_sql(
@@ -582,24 +272,6 @@ fn test_parse_nchar_varying_with_constraint() {
                 &c.kind,
                 vibesql_ast::ColumnConstraintKind::Key
             )));
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_nchar_with_characters_modifier() {
-    let result = Parser::parse_sql("CREATE TABLE t (x NCHAR(10 CHARACTERS));");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.columns[0].name, "X");
-            match create.columns[0].data_type {
-                vibesql_types::DataType::Character { length: 10 } => {} // Success
-                _ => panic!("Expected CHAR(10) data type"),
-            }
         }
         _ => panic!("Expected CREATE TABLE statement"),
     }
@@ -790,7 +462,7 @@ fn test_parse_nvarchar_with_octets_modifier() {
 }
 
 // ========================================================================
-// NATIONAL VARCHAR and NATIONAL CHARACTER Tests
+// NATIONAL VARCHAR and NATIONAL CHARACTER VARYING Tests
 // ========================================================================
 
 #[test]
@@ -848,66 +520,6 @@ fn test_parse_national_varchar_without_length() {
             match create.columns[0].data_type {
                 vibesql_types::DataType::Varchar { max_length: None } => {} // Success
                 _ => panic!("Expected VARCHAR data type without length"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_national_character_with_length() {
-    let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL CHARACTER(15));");
-    assert!(result.is_ok(), "Failed to parse NATIONAL CHARACTER: {:?}", result.err());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match create.columns[0].data_type {
-                vibesql_types::DataType::Character { length: 15 } => {} // Success
-                _ => panic!("Expected CHAR(15) data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_national_character_without_length() {
-    let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL CHARACTER);");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match create.columns[0].data_type {
-                vibesql_types::DataType::Character { length: 1 } => {} // Success - default is 1
-                _ => panic!("Expected CHAR(1) data type (default)"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_national_char_with_length() {
-    let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL CHAR(10));");
-    assert!(result.is_ok(), "Failed to parse NATIONAL CHAR: {:?}", result.err());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "T");
-            assert_eq!(create.columns.len(), 1);
-            assert_eq!(create.columns[0].name, "X");
-            match create.columns[0].data_type {
-                vibesql_types::DataType::Character { length: 10 } => {} // Success
-                _ => panic!("Expected CHAR(10) data type"),
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -982,30 +594,6 @@ fn test_parse_national_varchar_equivalence() {
 }
 
 #[test]
-fn test_parse_national_character_equivalence() {
-    // NATIONAL CHARACTER should be identical to NCHAR
-    let national_result = Parser::parse_sql("CREATE TABLE t1 (x NATIONAL CHARACTER(10));");
-    let nchar_result = Parser::parse_sql("CREATE TABLE t2 (x NCHAR(10));");
-
-    assert!(national_result.is_ok());
-    assert!(nchar_result.is_ok());
-
-    let national_stmt = national_result.unwrap();
-    let nchar_stmt = nchar_result.unwrap();
-
-    match (national_stmt, nchar_stmt) {
-        (
-            vibesql_ast::Statement::CreateTable(national_create),
-            vibesql_ast::Statement::CreateTable(nchar_create),
-        ) => {
-            // Both should produce the same data type
-            assert_eq!(national_create.columns[0].data_type, nchar_create.columns[0].data_type);
-        }
-        _ => panic!("Expected CREATE TABLE statements"),
-    }
-}
-
-#[test]
 fn test_parse_national_varchar_with_characters_modifier() {
     let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL VARCHAR(25 CHARACTERS));");
     assert!(result.is_ok());
@@ -1017,24 +605,6 @@ fn test_parse_national_varchar_with_characters_modifier() {
             match create.columns[0].data_type {
                 vibesql_types::DataType::Varchar { max_length: Some(25) } => {} // Success
                 _ => panic!("Expected VARCHAR(25) data type"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_national_character_with_octets_modifier() {
-    let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL CHARACTER(12 OCTETS));");
-    assert!(result.is_ok());
-    let stmt = result.unwrap();
-
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.columns[0].name, "X");
-            match create.columns[0].data_type {
-                vibesql_types::DataType::Character { length: 12 } => {} // Success
-                _ => panic!("Expected CHAR(12) data type"),
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),
