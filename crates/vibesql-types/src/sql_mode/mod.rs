@@ -61,6 +61,10 @@ impl Default for SqlMode {
 
 impl SqlMode {
     /// Check if division should return floating-point (true) or integer (false)
+    #[deprecated(
+        since = "0.1.0",
+        note = "Use TypeBehavior::division_result_type() instead for more precise type information"
+    )]
     pub fn division_returns_float(&self) -> bool {
         match self {
             SqlMode::MySQL { .. } => true,
@@ -165,13 +169,24 @@ mod tests {
 
     #[test]
     fn test_division_behavior() {
+        use crate::sql_mode::types::{TypeBehavior, ValueType};
+        use crate::SqlValue;
+
         let mysql_mode = SqlMode::MySQL {
             flags: MySqlModeFlags::default(),
         };
-        assert!(mysql_mode.division_returns_float());
+        // MySQL returns Numeric for division
+        assert_eq!(
+            mysql_mode.division_result_type(&SqlValue::Integer(5), &SqlValue::Integer(2)),
+            ValueType::Numeric
+        );
 
         let sqlite_mode = SqlMode::SQLite;
-        assert!(!sqlite_mode.division_returns_float());
+        // SQLite returns Integer for int/int division
+        assert_eq!(
+            sqlite_mode.division_result_type(&SqlValue::Integer(5), &SqlValue::Integer(2)),
+            ValueType::Integer
+        );
     }
 
     #[test]
