@@ -18,6 +18,22 @@ use vibesql_types::SqlValue;
 
 use super::{execution::TestError, formatting::format_sql_value};
 
+/// Safely truncate a string to a maximum byte length, respecting UTF-8 character boundaries.
+/// Returns the truncated string with "..." appended if truncation occurred.
+fn truncate_sql(sql: &str, max_bytes: usize) -> String {
+    if sql.len() <= max_bytes {
+        return sql.to_string();
+    }
+
+    // Find the last valid UTF-8 character boundary at or before max_bytes
+    let mut boundary = max_bytes;
+    while boundary > 0 && !sql.is_char_boundary(boundary) {
+        boundary -= 1;
+    }
+
+    format!("{}...", &sql[..boundary])
+}
+
 // Thread-local Database pool for reuse across test files within the same worker thread.
 // This avoids the overhead of creating a new Database for each test file (622 files in full suite).
 // Each worker thread gets its own cached Database that is reset between files.
@@ -38,8 +54,11 @@ fn get_pooled_database() -> Database {
                 db
             }
             None => {
-                // First use - create new database
-                Database::new()
+                // First use - create new database with SQLite mode
+                // The SQLLogicTest suite expects SQLite semantics (integer division)
+                let mut config = vibesql_storage::DatabaseConfig::test_default();
+                config.sql_mode = vibesql_types::SqlMode::SQLite;
+                vibesql_storage::Database::with_config(config)
             }
         }
     })
@@ -61,12 +80,7 @@ impl StatementTimings {
         if duration > self.max_duration {
             self.max_duration = duration;
             // Store truncated SQL for the slowest statement
-            let sql_preview = if sql.len() > 100 {
-                format!("{}...", &sql[..100])
-            } else {
-                sql.to_string()
-            };
-            self.max_sql = Some(sql_preview);
+            self.max_sql = Some(truncate_sql(sql, 100));
         }
     }
 }
@@ -245,11 +259,7 @@ impl VibeSqlDB {
                 if let (Some(parse_elapsed), Some(exec_elapsed), Some(total_elapsed)) =
                    (parse_time, exec_time, total_start.map(|s| s.elapsed())) {
                     if exec_elapsed.as_millis() > 10 {  // Only log queries >10ms
-                        let sql_preview = if sql.len() > 80 {
-                            format!("{}...", &sql[..80])
-                        } else {
-                            sql.to_string()
-                        };
+                        let sql_preview = truncate_sql(sql, 80);
                         eprintln!("🔍 Query #{}: parse={:.2}ms, exec={:.2}ms, total={:.2}ms | {}",
                             self.query_count,
                             parse_elapsed.as_secs_f64() * 1000.0,
@@ -616,9 +626,7 @@ impl AsyncDB for VibeSqlDB {
                 .unwrap_or(100);
 
             if self.query_count % log_interval == 0 {
-                let sql_preview =
-                    if sql.len() > 60 { format!("{}...", &sql[..60]) } else { sql.to_string() };
-                eprintln!("  Query {}: {}", self.query_count, sql_preview);
+                eprintln!("  Query {}: {}", self.query_count, truncate_sql(sql, 60));
             }
         }
 
@@ -632,11 +640,9 @@ impl AsyncDB for VibeSqlDB {
             Ok(result) => result,
             Err(_) => {
                 self.timed_out_queries += 1;
-                let sql_preview =
-                    if sql.len() > 80 { format!("{}...", &sql[..80]) } else { sql.to_string() };
                 eprintln!(
                     "⏱️  Query timeout ({}ms): Query {}: {}",
-                    self.query_timeout_ms, self.query_count, sql_preview
+                    self.query_timeout_ms, self.query_count, truncate_sql(sql, 80)
                 );
 
                 // Log timeout stats if verbose
@@ -664,16 +670,11 @@ impl AsyncDB for VibeSqlDB {
             // Log slow queries
             let elapsed_ms = elapsed.as_millis() as u64;
             if elapsed_ms >= self.slow_query_threshold_ms {
-                let sql_preview = if sql.len() > 100 {
-                    format!("{}...", &sql[..100])
-                } else {
-                    sql.to_string()
-                };
                 eprintln!(
                     "[SLOW QUERY] {:.3}s - {} - {}",
                     elapsed.as_secs_f64(),
                     stype,
-                    sql_preview
+                    truncate_sql(sql, 100)
                 );
             }
         }
