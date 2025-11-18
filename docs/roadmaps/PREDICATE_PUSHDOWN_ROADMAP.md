@@ -1,8 +1,16 @@
 # Predicate Pushdown Optimization - Implementation Roadmap
 
-## Status: Phase 1 Complete - Infrastructure Ready
+**Status**: Phase 1 Complete - Infrastructure Ready | **Phase 2-3 DEFERRED**
+**Last Updated**: 2025-11-18
+**Reason for Deferral**: Not blocking any functionality; performance optimization can be revisited if profiling shows memory issues
 
-The predicate pushdown optimization infrastructure has been implemented in `crates/executor/src/optimizer/where_pushdown.rs`. This document outlines how to complete Phases 2-3 to fully solve the memory exhaustion issue in issue #1036.
+---
+
+## Overview
+
+The predicate pushdown optimization infrastructure has been implemented in `crates/executor/src/optimizer/where_pushdown.rs`. This document outlines how to complete Phases 2-3 if needed in the future.
+
+**Current Decision**: With 100% SQLLogicTest conformance achieved and no memory issues in practice, predicate pushdown implementation (Phase 2-3) is deferred. The infrastructure remains in place for future use if profiling demonstrates excessive memory usage in multi-table joins.
 
 ## What is Predicate Pushdown?
 

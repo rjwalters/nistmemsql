@@ -1,7 +1,7 @@
 # VibeSQL Parallelism Roadmap
 
-**Version**: 1.2
-**Date**: 2025-11-13
+**Version**: 1.3
+**Date**: 2025-11-18
 **Status**: Phase 1 COMPLETE ✅ | Phase 2+ DEFERRED (see [master roadmap](../ROADMAP.md))
 
 ---
