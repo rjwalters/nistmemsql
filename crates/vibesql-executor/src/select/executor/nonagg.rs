@@ -194,6 +194,7 @@ impl SelectExecutor<'_> {
         from_result: FromResult,
     ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
         let schema = from_result.schema.clone();
+        let sorted_by = from_result.sorted_by.clone();
         let rows = from_result.into_rows();
 
         // Create evaluator for WHERE clause
@@ -275,19 +276,40 @@ impl SelectExecutor<'_> {
         // Stage 5.5: Apply implicit ordering for deterministic results
         // Queries without explicit ORDER BY get sorted by all columns in schema order
         // This ensures SQLLogicTest compatibility and deterministic behavior
-        if stmt.order_by.is_none() && !filtered_rows.is_empty() {
-            use crate::select::grouping::compare_sql_values;
+        // Skip sorting if data is already sorted from index scan
+        let needs_implicit_sort = stmt.order_by.is_none() && sorted_by.is_none() && !filtered_rows.is_empty();
 
-            filtered_rows.sort_by(|row_a, row_b| {
-                // Compare column by column until we find a difference
-                for i in 0..row_a.values.len().min(row_b.values.len()) {
-                    let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
-                    if cmp != std::cmp::Ordering::Equal {
-                        return cmp;
+        if needs_implicit_sort {
+            use crate::select::grouping::compare_sql_values;
+            use crate::select::parallel::ParallelConfig;
+
+            // Use parallel sorting for larger datasets
+            let should_parallel = ParallelConfig::global().should_parallelize_sort(filtered_rows.len());
+
+            if should_parallel {
+                use rayon::prelude::*;
+                filtered_rows.par_sort_by(|row_a, row_b| {
+                    // Compare column by column until we find a difference
+                    for i in 0..row_a.values.len().min(row_b.values.len()) {
+                        let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
+                        if cmp != std::cmp::Ordering::Equal {
+                            return cmp;
+                        }
                     }
-                }
-                std::cmp::Ordering::Equal
-            });
+                    std::cmp::Ordering::Equal
+                });
+            } else {
+                filtered_rows.sort_by(|row_a, row_b| {
+                    // Compare column by column until we find a difference
+                    for i in 0..row_a.values.len().min(row_b.values.len()) {
+                        let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
+                        if cmp != std::cmp::Ordering::Equal {
+                            return cmp;
+                        }
+                    }
+                    std::cmp::Ordering::Equal
+                });
+            }
         }
 
         // Stage 6: Project columns (handles wildcards, expressions, etc.)
@@ -504,21 +526,40 @@ impl SelectExecutor<'_> {
                 result_rows =
                     apply_order_by(result_rows, order_by, &order_by_evaluator, &stmt.select_list)?;
             }
-        } else if !result_rows.is_empty() {
+        } else if sorted_by.is_none() && !result_rows.is_empty() {
             // No explicit ORDER BY - apply implicit ordering for deterministic results
             // This ensures SQLLogicTest compatibility and deterministic behavior
+            // Skip sorting if data is already sorted from index scan
             use crate::select::grouping::compare_sql_values;
+            use crate::select::parallel::ParallelConfig;
 
-            result_rows.sort_by(|(row_a, _), (row_b, _)| {
-                // Compare column by column until we find a difference
-                for i in 0..row_a.values.len().min(row_b.values.len()) {
-                    let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
-                    if cmp != std::cmp::Ordering::Equal {
-                        return cmp;
+            // Use parallel sorting for larger datasets
+            let should_parallel = ParallelConfig::global().should_parallelize_sort(result_rows.len());
+
+            if should_parallel {
+                use rayon::prelude::*;
+                result_rows.par_sort_by(|(row_a, _), (row_b, _)| {
+                    // Compare column by column until we find a difference
+                    for i in 0..row_a.values.len().min(row_b.values.len()) {
+                        let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
+                        if cmp != std::cmp::Ordering::Equal {
+                            return cmp;
+                        }
                     }
-                }
-                std::cmp::Ordering::Equal
-            });
+                    std::cmp::Ordering::Equal
+                });
+            } else {
+                result_rows.sort_by(|(row_a, _), (row_b, _)| {
+                    // Compare column by column until we find a difference
+                    for i in 0..row_a.values.len().min(row_b.values.len()) {
+                        let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
+                        if cmp != std::cmp::Ordering::Equal {
+                            return cmp;
+                        }
+                    }
+                    std::cmp::Ordering::Equal
+                });
+            }
         }
 
         // Choose projection strategy based on DISTINCT and set operations

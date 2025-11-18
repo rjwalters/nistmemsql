@@ -100,24 +100,25 @@ impl ParallelConfig {
             },
             // 2-3 cores: very conservative (most overhead from parallel coordination)
             2..=3 => ParallelThresholds {
-                scan_filter: 20_000,
-                aggregate: 25_000,
-                join: 30_000,
-                sort: 30_000,
+                scan_filter: 10_000,
+                aggregate: 12_500,
+                join: 15_000,
+                sort: 15_000,
             },
-            // 4-7 cores: moderate thresholds
+            // 4-7 cores: moderate thresholds - lowered for better 100-1000 row performance
             4..=7 => ParallelThresholds {
-                scan_filter: 5_000,
-                aggregate: 7_500,
-                join: 10_000,
-                sort: 10_000,
-            },
-            // 8+ cores: aggressive thresholds (modern hardware)
-            _ => ParallelThresholds {
-                scan_filter: 2_000,
-                aggregate: 3_000,
+                scan_filter: 2_500,
+                aggregate: 3_750,
                 join: 5_000,
                 sort: 5_000,
+            },
+            // 8+ cores: aggressive thresholds - lowered significantly for 100-1000 row datasets
+            // Modern multi-core hardware benefits from earlier parallelization
+            _ => ParallelThresholds {
+                scan_filter: 1_000,
+                aggregate: 1_500,
+                join: 2_500,
+                sort: 2_000,
             },
         }
     }
