@@ -2,7 +2,7 @@
 
 **Issue**: #2110
 **Date**: 2025-11-18
-**Status**: Investigation Complete
+**Status**: Code Investigation Complete - Awaiting Empirical Data
 
 ## Problem Summary
 
@@ -61,7 +61,9 @@ match op {
 - Column matches indexed column
 - Both bounds are literal values (not NULL)
 
-**Status**: ✅ Already optimized
+**Recent Fix**: PR #2113 (merged 2025-11-18) fixed a critical bug in BTree range scans that was causing incorrect results and performance issues.
+
+**Status**: ✅ Already optimized and bug-fixed
 
 ### 3. **Predicate Evaluation is Correct ✅**
 
@@ -77,10 +79,10 @@ The BETWEEN evaluation logic is correct and handles:
 
 ## Sub-Issues Status
 
-- **#2106** (Instrumentation) - Add timing/profiling to identify actual slow phases
-- **#2107** (BETWEEN optimization) - ✅ Index strategy already exists
+- **#2106** ✅ CLOSED - Instrumentation implemented via PR #2111 (merged 2025-11-18)
+- **#2107** ✅ CLOSED - BTree range scan bug fixed via PR #2113 (merged 2025-11-18)
 - **#2108** (Predicate optimization) - Re-evaluate with corrected understanding
-- **#2109** (INSERT optimization) - Bulk insert improvements
+- **#2109** ✅ CLOSED - INSERT optimization completed
 
 ## Recommendations
 
@@ -90,7 +92,7 @@ Since short-circuit evaluation and BETWEEN indexing already exist, the bottlenec
 
 1. **Get test to actually execute**: Fix test runner filter issue (currently 0 tests executed)
 2. **Profile with cargo flamegraph**: Identify which functions consume the most time
-3. **Use instrumentation from #2106**: Add per-query timing to measure actual slow queries
+3. **Use the newly implemented instrumentation from PR #2111**: Leverage per-query timing to measure actual slow queries
 4. **Analyze results**: Focus optimization efforts on measured bottlenecks, not hypothetical ones
 
 ### Medium Priority: Predicate Reordering
@@ -124,15 +126,15 @@ Result: 0 tests executed due to filter mismatch
 **Next Steps for Measurement**:
 1. Fix test runner filter issue to get actual execution
 2. Use `cargo flamegraph` to profile actual execution
-3. Implement instrumentation from #2106 for per-query timing
+3. Use the newly implemented instrumentation from PR #2111 for per-query timing
 4. Focus optimization on **measured** bottlenecks, not hypothetical ones
 
 ## Next Steps
 
 1. **Fix test runner** to get actual test execution (not just compilation)
-2. **Implement #2106** (instrumentation/profiling) to identify actual bottlenecks
+2. **Use instrumentation from PR #2111** to identify actual bottlenecks with per-query timing
 3. **Re-evaluate #2108** with corrected understanding that short-circuit already exists
-4. **Profile actual execution** with `cargo flamegraph` or instrumentation
+4. **Profile actual execution** with `cargo flamegraph` or the newly implemented instrumentation
 5. **Address measured bottlenecks** based on profiling data
 6. **Continue working on #2110** (not closed by this PR - this is analysis only)
 
