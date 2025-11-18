@@ -111,29 +111,21 @@ pub(crate) fn execute_index_scan(
         matching_row_indices.sort_unstable();
     }
 
-    // Fetch rows from table
+    // Fetch rows from table (zero-copy - returns references)
     let all_rows = table.scan();
-    let mut rows: Vec<Row> = matching_row_indices
-        .into_iter()
-        .filter_map(|idx| all_rows.get(idx).cloned())
-        .collect();
 
-    // Reverse rows if needed for DESC ORDER BY
-    // BTreeMap iteration is always ascending, but for DESC ORDER BY we need descending order
-    // Check if we're using this index for ORDER BY and if the first ORDER BY column is DESC
-    if let Some(ref sorted_cols) = sorted_columns {
-        if let Some((_, first_order_direction)) = sorted_cols.first() {
-            if *first_order_direction == vibesql_ast::OrderDirection::Desc {
-                rows.reverse();
-            }
-        }
-    }
-
-    // Build schema
+    // Build schema early (needed for WHERE filtering)
     let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
     let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
 
-    // Apply WHERE clause predicates if needed (Phase 1 optimization)
+    // Zero-copy optimization: Work with row references until the final step
+    // This avoids cloning rows that will be filtered out by the WHERE clause
+    let row_refs: Vec<&Row> = matching_row_indices
+        .iter()
+        .filter_map(|idx| all_rows.get(*idx))
+        .collect();
+
+    // Apply WHERE clause predicates if needed (zero-copy filtering)
     // Performance optimization: Skip WHERE clause evaluation if the index already
     // guarantees all rows satisfy the predicate (e.g., simple predicates like
     // `WHERE col = 5` or `WHERE col BETWEEN 10 AND 20`).
@@ -143,22 +135,41 @@ pub(crate) fn execute_index_scan(
     // - Complex predicates that couldn't be fully pushed to index
     // - OR predicates (not yet optimized for index pushdown)
     // - Multi-column predicates where only first column was indexed
-    if need_where_filter && where_clause.is_some() {
-        // Build predicate plan once (Phase 1 optimization)
+    let filtered_row_refs: Vec<&Row> = if need_where_filter && where_clause.is_some() {
+        // Build predicate plan once
         let predicate_plan = PredicatePlan::from_where_clause(where_clause, &schema)
             .map_err(ExecutorError::InvalidWhereClause)?;
 
-        // Apply table-local predicates using predicate pushdown
-        // This ensures we only evaluate predicates that reference this table,
-        // avoiding ColumnNotFound errors for predicates referencing other tables
-        rows = crate::select::scan::predicates::apply_table_local_predicates(
-            rows,
-            schema.clone(),
+        // Filter with zero-copy references
+        apply_where_filter_zerocopy(
+            row_refs,
+            &schema,
             &predicate_plan,
             table_name,
             database,
-        )?;
+        )?
+    } else {
+        row_refs
+    };
+
+    // Reverse row refs if needed for DESC ORDER BY
+    // BTreeMap iteration is always ascending, but for DESC ORDER BY we need descending order
+    // Check if we're using this index for ORDER BY and if the first ORDER BY column is DESC
+    let mut filtered_row_refs = filtered_row_refs;
+    if let Some(ref sorted_cols) = sorted_columns {
+        if let Some((_, first_order_direction)) = sorted_cols.first() {
+            if *first_order_direction == vibesql_ast::OrderDirection::Desc {
+                filtered_row_refs.reverse();
+            }
+        }
     }
+
+    // Final step: Clone only the filtered rows
+    // This is the only place where cloning happens, and only for rows that survived filtering
+    let rows: Vec<Row> = filtered_row_refs
+        .into_iter()
+        .map(|row| row.clone())
+        .collect();
 
     // Return results with sorting metadata if available
     // If WHERE clause was fully handled by index (!need_where_filter), indicate this
@@ -171,6 +182,80 @@ pub(crate) fn execute_index_scan(
             None => Ok(super::super::FromResult::from_rows(schema, rows)),
         }
     }
+}
+
+/// Apply WHERE filter using zero-copy row references
+///
+/// This function filters rows by reference, avoiding clones for rows that don't pass the filter.
+/// Only the final filtered result needs to be cloned (done by the caller).
+///
+/// # Performance
+/// For queries with selective WHERE clauses (e.g., filtering 1000 rows down to 100),
+/// this saves ~90% of row cloning overhead compared to clone-then-filter approach.
+fn apply_where_filter_zerocopy<'a>(
+    row_refs: Vec<&'a Row>,
+    schema: &CombinedSchema,
+    predicate_plan: &PredicatePlan,
+    table_name: &str,
+    database: &vibesql_storage::Database,
+) -> Result<Vec<&'a Row>, ExecutorError> {
+    use crate::evaluator::CombinedExpressionEvaluator;
+    use crate::select::scan::predicates::combine_predicates_with_and;
+
+    // Get table statistics for selectivity-based ordering
+    let table_stats = database
+        .get_table(table_name)
+        .and_then(|table| table.get_statistics());
+
+    // Get predicates ordered by selectivity (most selective first)
+    let ordered_preds = predicate_plan.get_table_filters_ordered(table_name, table_stats);
+
+    // If no table-local predicates, return all rows
+    if ordered_preds.is_empty() {
+        return Ok(row_refs);
+    }
+
+    // Combine ordered predicates with AND
+    let combined_where = combine_predicates_with_and(ordered_preds);
+
+    // Create evaluator for filtering
+    let evaluator = CombinedExpressionEvaluator::with_database(schema, database);
+
+    // Filter rows using references (no cloning)
+    let mut filtered = Vec::new();
+    for row_ref in row_refs {
+        evaluator.clear_cse_cache();
+
+        let include_row = match evaluator.eval(&combined_where, row_ref)? {
+            vibesql_types::SqlValue::Boolean(true) => true,
+            vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
+            // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
+            vibesql_types::SqlValue::Integer(0) => false,
+            vibesql_types::SqlValue::Integer(_) => true,
+            vibesql_types::SqlValue::Smallint(0) => false,
+            vibesql_types::SqlValue::Smallint(_) => true,
+            vibesql_types::SqlValue::Bigint(0) => false,
+            vibesql_types::SqlValue::Bigint(_) => true,
+            vibesql_types::SqlValue::Float(0.0) => false,
+            vibesql_types::SqlValue::Float(_) => true,
+            vibesql_types::SqlValue::Real(0.0) => false,
+            vibesql_types::SqlValue::Real(_) => true,
+            vibesql_types::SqlValue::Double(0.0) => false,
+            vibesql_types::SqlValue::Double(_) => true,
+            other => {
+                return Err(ExecutorError::InvalidWhereClause(format!(
+                    "WHERE clause must evaluate to boolean, got: {:?}",
+                    other
+                )))
+            }
+        };
+
+        if include_row {
+            filtered.push(row_ref);
+        }
+    }
+
+    Ok(filtered)
 }
 
 /// Determines if the WHERE clause is fully satisfied by the index predicate
