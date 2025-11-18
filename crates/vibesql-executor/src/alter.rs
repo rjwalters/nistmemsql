@@ -376,6 +376,9 @@ impl AlterTableExecutor {
                         Some(vibesql_ast::ReferentialAction::SetDefault) => {
                             vibesql_catalog::ReferentialAction::SetDefault
                         }
+                        Some(vibesql_ast::ReferentialAction::Restrict) => {
+                            vibesql_catalog::ReferentialAction::Restrict
+                        }
                         Some(vibesql_ast::ReferentialAction::NoAction) | None => {
                             vibesql_catalog::ReferentialAction::NoAction
                         }

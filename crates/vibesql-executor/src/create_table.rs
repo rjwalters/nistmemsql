@@ -209,6 +209,9 @@ impl CreateTableExecutor {
                         vibesql_ast::ReferentialAction::SetDefault => {
                             vibesql_catalog::ReferentialAction::SetDefault
                         }
+                        vibesql_ast::ReferentialAction::Restrict => {
+                            vibesql_catalog::ReferentialAction::Restrict
+                        }
                         vibesql_ast::ReferentialAction::NoAction => {
                             vibesql_catalog::ReferentialAction::NoAction
                         }

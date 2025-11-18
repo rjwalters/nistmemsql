@@ -13,6 +13,7 @@ use crate::Expression;
 #[derive(Debug, Clone, PartialEq)]
 pub enum ReferentialAction {
     NoAction,
+    Restrict,
     Cascade,
     SetNull,
     SetDefault,

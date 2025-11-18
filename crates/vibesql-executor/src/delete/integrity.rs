@@ -90,7 +90,7 @@ pub fn check_no_child_references(
     // Now perform the actions
     for (child_table_name, fk, action) in actions_to_perform {
         match action {
-            ReferentialAction::NoAction => {
+            ReferentialAction::NoAction | ReferentialAction::Restrict => {
                 // Fail with constraint violation
                 return Err(ExecutorError::ConstraintViolation(format!(
                     "FOREIGN KEY constraint violation: cannot delete or update a parent row when a foreign key constraint exists. The conflict occurred in table \'{}\', constraint \'{}\'.",
