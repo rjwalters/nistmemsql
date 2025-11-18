@@ -146,3 +146,16 @@ mod tests {
         }
     }
 }
+
+// Comprehensive test suites for mode-specific behavior
+#[cfg(test)]
+mod operators_tests;
+
+#[cfg(test)]
+mod types_tests;
+
+#[cfg(test)]
+mod strings_tests;
+
+#[cfg(test)]
+mod config_tests;
