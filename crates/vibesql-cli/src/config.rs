@@ -148,7 +148,9 @@ impl Config {
     /// Get the SQL mode as SqlMode enum
     pub fn get_sql_mode(&self) -> Option<vibesql_types::SqlMode> {
         match self.database.sql_mode.to_lowercase().as_str() {
-            "mysql" => Some(vibesql_types::SqlMode::MySQL),
+            "mysql" => Some(vibesql_types::SqlMode::MySQL {
+                flags: vibesql_types::MySqlModeFlags::default(),
+            }),
             "sqlite" => Some(vibesql_types::SqlMode::SQLite),
             _ => None,
         }

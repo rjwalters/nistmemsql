@@ -1,11 +1,6 @@
 //! SQL INTERVAL type implementation
 
-use std::{
-    cmp::Ordering,
-    fmt,
-    hash::Hash,
-    str::FromStr,
-};
+use std::{cmp::Ordering, fmt, hash::Hash, str::FromStr};
 
 /// SQL INTERVAL type - represents a duration
 ///

@@ -1,10 +1,6 @@
 //! SQL TIME type implementation
 
-use std::{
-    cmp::Ordering,
-    fmt,
-    str::FromStr,
-};
+use std::{cmp::Ordering, fmt, str::FromStr};
 
 /// SQL TIME type - represents a time without date
 ///
@@ -12,9 +8,9 @@ use std::{
 /// Stored as hour, minute, second, nanosecond components for correct comparison
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Time {
-    pub hour: u8,       // 0-23
-    pub minute: u8,     // 0-59
-    pub second: u8,     // 0-59
+    pub hour: u8,        // 0-23
+    pub minute: u8,      // 0-59
+    pub second: u8,      // 0-59
     pub nanosecond: u32, // 0-999999999
 }
 
@@ -53,19 +49,19 @@ impl FromStr for Time {
             return Err(format!("Invalid time format: '{}' (expected HH:MM:SS)", s));
         }
 
-        let hour = parts[0].parse::<u8>()
-            .map_err(|_| format!("Invalid hour: '{}'", parts[0]))?;
-        let minute = parts[1].parse::<u8>()
-            .map_err(|_| format!("Invalid minute: '{}'", parts[1]))?;
-        let second = parts[2].parse::<u8>()
-            .map_err(|_| format!("Invalid second: '{}'", parts[2]))?;
+        let hour = parts[0].parse::<u8>().map_err(|_| format!("Invalid hour: '{}'", parts[0]))?;
+        let minute =
+            parts[1].parse::<u8>().map_err(|_| format!("Invalid minute: '{}'", parts[1]))?;
+        let second =
+            parts[2].parse::<u8>().map_err(|_| format!("Invalid second: '{}'", parts[2]))?;
 
         // Parse fractional seconds if present
         let nanosecond = if let Some(frac) = frac_part {
             // Pad or truncate to 9 digits (nanoseconds)
             let padded = format!("{:0<9}", frac);
             let truncated = &padded[..9.min(padded.len())];
-            truncated.parse::<u32>()
+            truncated
+                .parse::<u32>()
                 .map_err(|_| format!("Invalid fractional seconds: '{}'", frac))?
         } else {
             0
@@ -95,7 +91,8 @@ impl PartialOrd for Time {
 
 impl Ord for Time {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.hour.cmp(&other.hour)
+        self.hour
+            .cmp(&other.hour)
             .then_with(|| self.minute.cmp(&other.minute))
             .then_with(|| self.second.cmp(&other.second))
             .then_with(|| self.nanosecond.cmp(&other.nanosecond))

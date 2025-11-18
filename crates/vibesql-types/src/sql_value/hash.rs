@@ -1,7 +1,8 @@
 //! Hash implementation for SqlValue
 
-use crate::sql_value::SqlValue;
 use std::hash::{Hash, Hasher};
+
+use crate::sql_value::SqlValue;
 
 /// Hash implementation for SqlValue
 ///

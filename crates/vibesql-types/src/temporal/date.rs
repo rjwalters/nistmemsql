@@ -1,10 +1,6 @@
 //! SQL DATE type implementation
 
-use std::{
-    cmp::Ordering,
-    fmt,
-    str::FromStr,
-};
+use std::{cmp::Ordering, fmt, str::FromStr};
 
 /// SQL DATE type - represents a date without time
 ///
@@ -13,8 +9,8 @@ use std::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Date {
     pub year: i32,
-    pub month: u8,  // 1-12
-    pub day: u8,    // 1-31
+    pub month: u8, // 1-12
+    pub day: u8,   // 1-31
 }
 
 impl Date {
@@ -40,12 +36,9 @@ impl FromStr for Date {
             return Err(format!("Invalid date format: '{}' (expected YYYY-MM-DD)", s));
         }
 
-        let year = parts[0].parse::<i32>()
-            .map_err(|_| format!("Invalid year: '{}'", parts[0]))?;
-        let month = parts[1].parse::<u8>()
-            .map_err(|_| format!("Invalid month: '{}'", parts[1]))?;
-        let day = parts[2].parse::<u8>()
-            .map_err(|_| format!("Invalid day: '{}'", parts[2]))?;
+        let year = parts[0].parse::<i32>().map_err(|_| format!("Invalid year: '{}'", parts[0]))?;
+        let month = parts[1].parse::<u8>().map_err(|_| format!("Invalid month: '{}'", parts[1]))?;
+        let day = parts[2].parse::<u8>().map_err(|_| format!("Invalid day: '{}'", parts[2]))?;
 
         Date::new(year, month, day)
     }
@@ -65,7 +58,8 @@ impl PartialOrd for Date {
 
 impl Ord for Date {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.year.cmp(&other.year)
+        self.year
+            .cmp(&other.year)
             .then_with(|| self.month.cmp(&other.month))
             .then_with(|| self.day.cmp(&other.day))
     }

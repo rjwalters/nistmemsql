@@ -1,7 +1,8 @@
 //! Tests for Eq/Ord consistency to ensure BTreeMap correctness
 
-use vibesql_types::SqlValue;
 use std::cmp::Ordering;
+
+use vibesql_types::SqlValue;
 
 /// Verify that Eq and Ord are consistent for all SqlValue variants
 /// This is a requirement for BTreeMap keys:
@@ -63,8 +64,7 @@ fn test_eq_ord_consistency() {
                 assert!(
                     eq_result,
                     "Eq/Ord inconsistency: {:?}.cmp({:?}) == Equal, but == returned false",
-                    a,
-                    b
+                    a, b
                 );
             }
         }
@@ -196,12 +196,17 @@ fn test_btreemap_vec_keys() {
     let mut btree_keys: Vec<_> = btree.keys().cloned().collect();
     let mut hash_keys: Vec<_> = hash.keys().cloned().collect();
 
-    // Sort both for comparison (HashMap iteration is non-deterministic, BTreeMap iteration is sorted)
+    // Sort both for comparison (HashMap iteration is non-deterministic, BTreeMap iteration is
+    // sorted)
     btree_keys.sort();
     hash_keys.sort();
 
     // They should have the same keys after sorting
-    assert_eq!(btree_keys.len(), hash_keys.len(), "BTreeMap and HashMap should have same number of keys");
+    assert_eq!(
+        btree_keys.len(),
+        hash_keys.len(),
+        "BTreeMap and HashMap should have same number of keys"
+    );
     for key in &btree_keys {
         assert!(hash_keys.contains(key), "BTreeMap key {:?} should be in HashMap", key);
     }

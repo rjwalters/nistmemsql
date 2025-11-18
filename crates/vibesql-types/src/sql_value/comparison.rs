@@ -1,7 +1,8 @@
 //! Comparison implementations for SqlValue
 
-use crate::sql_value::SqlValue;
 use std::cmp::Ordering;
+
+use crate::sql_value::SqlValue;
 
 /// PartialEq implementation for SqlValue
 ///

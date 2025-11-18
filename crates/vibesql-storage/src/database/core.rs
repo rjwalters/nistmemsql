@@ -79,7 +79,7 @@ impl Database {
     /// ```
     pub fn with_config(config: DatabaseConfig) -> Self {
         let mut db = Self::new();
-        db.sql_mode = config.sql_mode;
+        db.sql_mode = config.sql_mode.clone();
         db.operations.set_config(config);
         db
     }
@@ -98,7 +98,7 @@ impl Database {
     /// ```
     pub fn with_path_and_config(path: PathBuf, config: DatabaseConfig) -> Self {
         let mut db = Self::new();
-        db.sql_mode = config.sql_mode;
+        db.sql_mode = config.sql_mode.clone();
         db.operations.set_database_path(path.join("data"));
         db.operations.set_config(config);
         db
@@ -441,7 +441,7 @@ impl Database {
 
     /// Get the current SQL compatibility mode
     pub fn sql_mode(&self) -> vibesql_types::SqlMode {
-        self.sql_mode
+        self.sql_mode.clone()
     }
 
     // ============================================================================
