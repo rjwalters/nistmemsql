@@ -30,7 +30,7 @@ Usage:
 
 Environment Variables:
     SQLLOGICTEST_WORKER_ID: Worker number (0-indexed)
-    SQLLOGICTEST_FILES: Test file to run (set per-file by worker)
+    SQLLOGICTEST_FILE: Test file to run (set per-file by worker)
     SQLLOGICTEST_TIME_BUDGET: Time budget in seconds per file
 
 Example:
@@ -409,7 +409,7 @@ def run_worker(worker_id: int, work_queue: WorkQueue, db_writer: Optional[Stream
         # Set environment variables for this file
         env = os.environ.copy()
         env["SQLLOGICTEST_WORKER_ID"] = str(worker_id)
-        env["SQLLOGICTEST_FILES"] = test_file  # Single file
+        env["SQLLOGICTEST_FILE"] = test_file  # Single file (must match tests/sqllogictest_runner.rs:687)
         env["SQLLOGICTEST_TIME_BUDGET"] = str(per_file_timeout)
 
         # Run the test binary for this single file
