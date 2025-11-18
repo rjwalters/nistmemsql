@@ -45,6 +45,32 @@ fn get_pooled_database() -> Database {
     })
 }
 
+/// Statement timing statistics
+#[derive(Debug, Default)]
+struct StatementTimings {
+    count: usize,
+    total_duration: Duration,
+    max_duration: Duration,
+    max_sql: Option<String>,
+}
+
+impl StatementTimings {
+    fn record(&mut self, duration: Duration, sql: &str) {
+        self.count += 1;
+        self.total_duration += duration;
+        if duration > self.max_duration {
+            self.max_duration = duration;
+            // Store truncated SQL for the slowest statement
+            let sql_preview = if sql.len() > 100 {
+                format!("{}...", &sql[..100])
+            } else {
+                sql.to_string()
+            };
+            self.max_sql = Some(sql_preview);
+        }
+    }
+}
+
 pub struct VibeSqlDB {
     db: Database,
     query_count: usize,
@@ -58,6 +84,13 @@ pub struct VibeSqlDB {
     cache_enabled: bool,
     cache_hits: usize,
     cache_misses: usize,
+    // Statement timing instrumentation
+    timing_enabled: bool,
+    slow_query_threshold_ms: u64,
+    insert_timings: StatementTimings,
+    create_index_timings: StatementTimings,
+    select_timings: StatementTimings,
+    other_timings: StatementTimings,
 }
 
 impl VibeSqlDB {
@@ -83,6 +116,16 @@ impl VibeSqlDB {
             .and_then(|s| s.parse().ok())
             .unwrap_or(10000); // Default: 10,000 entries
 
+        // Statement timing: enabled by default, configurable
+        let timing_enabled = env::var("SQLLOGICTEST_TIMING")
+            .map(|v| v != "0" && v.to_lowercase() != "false")
+            .unwrap_or(true); // Enabled by default
+
+        let slow_query_threshold_ms = env::var("SQLLOGICTEST_SLOW_THRESHOLD_MS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(1000); // Default: 1000ms (1 second)
+
         Self {
             db: get_pooled_database(),
             query_count: 0,
@@ -96,6 +139,12 @@ impl VibeSqlDB {
             cache_enabled,
             cache_hits: 0,
             cache_misses: 0,
+            timing_enabled,
+            slow_query_threshold_ms,
+            insert_timings: StatementTimings::default(),
+            create_index_timings: StatementTimings::default(),
+            select_timings: StatementTimings::default(),
+            other_timings: StatementTimings::default(),
         }
     }
 
@@ -497,6 +546,20 @@ impl VibeSqlDB {
         self.format_result_rows(&rows, types)
     }
 
+    /// Detect statement type from SQL for timing categorization
+    fn detect_statement_type(&self, sql: &str) -> &str {
+        let sql_upper = sql.trim().to_uppercase();
+        if sql_upper.starts_with("INSERT") {
+            "INSERT"
+        } else if sql_upper.starts_with("CREATE INDEX") || sql_upper.starts_with("CREATE UNIQUE INDEX") {
+            "CREATE_INDEX"
+        } else if sql_upper.starts_with("SELECT") {
+            "SELECT"
+        } else {
+            "OTHER"
+        }
+    }
+
     /// Extract table names from a SELECT statement for cache invalidation
     fn extract_table_names(&self, select: &vibesql_ast::SelectStmt) -> HashSet<String> {
         let mut tables = HashSet::new();
@@ -559,9 +622,13 @@ impl AsyncDB for VibeSqlDB {
             }
         }
 
+        // Start timing if enabled
+        let stmt_start = if self.timing_enabled { Some(Instant::now()) } else { None };
+        let stmt_type = if self.timing_enabled { Some(self.detect_statement_type(sql)) } else { None };
+
         // Execute query with per-query timeout
         let timeout_duration = Duration::from_millis(self.query_timeout_ms);
-        match timeout(timeout_duration, self.execute_sql_async(sql)).await {
+        let result = match timeout(timeout_duration, self.execute_sql_async(sql)).await {
             Ok(result) => result,
             Err(_) => {
                 self.timed_out_queries += 1;
@@ -580,10 +647,114 @@ impl AsyncDB for VibeSqlDB {
                 // Skip the timed-out query and continue
                 Ok(DBOutput::Rows { types: vec![], rows: vec![] })
             }
+        };
+
+        // Record timing if enabled
+        if let (Some(start), Some(stype)) = (stmt_start, stmt_type) {
+            let elapsed = start.elapsed();
+
+            // Record in appropriate bucket
+            match stype {
+                "INSERT" => self.insert_timings.record(elapsed, sql),
+                "CREATE_INDEX" => self.create_index_timings.record(elapsed, sql),
+                "SELECT" => self.select_timings.record(elapsed, sql),
+                _ => self.other_timings.record(elapsed, sql),
+            }
+
+            // Log slow queries
+            let elapsed_ms = elapsed.as_millis() as u64;
+            if elapsed_ms >= self.slow_query_threshold_ms {
+                let sql_preview = if sql.len() > 100 {
+                    format!("{}...", &sql[..100])
+                } else {
+                    sql.to_string()
+                };
+                eprintln!(
+                    "[SLOW QUERY] {:.3}s - {} - {}",
+                    elapsed.as_secs_f64(),
+                    stype,
+                    sql_preview
+                );
+            }
         }
+
+        result
     }
 
     async fn shutdown(&mut self) {
+        // Log statement timing summary
+        if self.timing_enabled {
+            let total_stmts = self.insert_timings.count
+                + self.create_index_timings.count
+                + self.select_timings.count
+                + self.other_timings.count;
+
+            if total_stmts > 0 {
+                eprintln!("\n📊 Statement Timing Summary:");
+                eprintln!("  Total statements: {}", total_stmts);
+
+                let total_time = self.insert_timings.total_duration
+                    + self.create_index_timings.total_duration
+                    + self.select_timings.total_duration
+                    + self.other_timings.total_duration;
+                eprintln!("  Total time: {:.2}s", total_time.as_secs_f64());
+
+                // INSERT statistics
+                if self.insert_timings.count > 0 {
+                    let avg_ms = self.insert_timings.total_duration.as_millis() as f64
+                        / self.insert_timings.count as f64;
+                    eprintln!("\n  INSERT statements: {}", self.insert_timings.count);
+                    eprintln!("    Total time: {:.2}s", self.insert_timings.total_duration.as_secs_f64());
+                    eprintln!("    Average: {:.2}ms", avg_ms);
+                    eprintln!("    Slowest: {:.2}s", self.insert_timings.max_duration.as_secs_f64());
+                    if let Some(ref sql) = self.insert_timings.max_sql {
+                        eprintln!("      SQL: {}", sql);
+                    }
+                }
+
+                // CREATE INDEX statistics
+                if self.create_index_timings.count > 0 {
+                    let avg_ms = self.create_index_timings.total_duration.as_millis() as f64
+                        / self.create_index_timings.count as f64;
+                    eprintln!("\n  CREATE INDEX statements: {}", self.create_index_timings.count);
+                    eprintln!("    Total time: {:.2}s", self.create_index_timings.total_duration.as_secs_f64());
+                    eprintln!("    Average: {:.2}ms", avg_ms);
+                    eprintln!("    Slowest: {:.2}s", self.create_index_timings.max_duration.as_secs_f64());
+                    if let Some(ref sql) = self.create_index_timings.max_sql {
+                        eprintln!("      SQL: {}", sql);
+                    }
+                }
+
+                // SELECT statistics
+                if self.select_timings.count > 0 {
+                    let avg_ms = self.select_timings.total_duration.as_millis() as f64
+                        / self.select_timings.count as f64;
+                    eprintln!("\n  SELECT queries: {}", self.select_timings.count);
+                    eprintln!("    Total time: {:.2}s", self.select_timings.total_duration.as_secs_f64());
+                    eprintln!("    Average: {:.2}ms", avg_ms);
+                    eprintln!("    Slowest: {:.2}s", self.select_timings.max_duration.as_secs_f64());
+                    if let Some(ref sql) = self.select_timings.max_sql {
+                        eprintln!("      SQL: {}", sql);
+                    }
+                }
+
+                // OTHER statistics
+                if self.other_timings.count > 0 {
+                    let avg_ms = self.other_timings.total_duration.as_millis() as f64
+                        / self.other_timings.count as f64;
+                    eprintln!("\n  Other statements: {}", self.other_timings.count);
+                    eprintln!("    Total time: {:.2}s", self.other_timings.total_duration.as_secs_f64());
+                    eprintln!("    Average: {:.2}ms", avg_ms);
+                    eprintln!("    Slowest: {:.2}s", self.other_timings.max_duration.as_secs_f64());
+                    if let Some(ref sql) = self.other_timings.max_sql {
+                        eprintln!("      SQL: {}", sql);
+                    }
+                }
+
+                eprintln!();
+            }
+        }
+
         // Log final timeout statistics
         if self.timed_out_queries > 0 {
             eprintln!("📊 Query Timeout Summary:");
