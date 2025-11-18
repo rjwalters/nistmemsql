@@ -66,13 +66,13 @@ fn test_numeric_whole_number_display() {
 #[test]
 fn test_float_display() {
     let value = SqlValue::Float(2.5);
-    assert_eq!(format!("{}", value), "2.5");
+    assert_eq!(format!("{}", value), "2.500");
 }
 
 #[test]
 fn test_real_display() {
     let value = SqlValue::Real(2.71);
-    assert_eq!(format!("{}", value), "2.71");
+    assert_eq!(format!("{}", value), "2.710");
 }
 
 #[test]
