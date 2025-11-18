@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - COUNT(*) now returns INTEGER type instead of NUMERIC for SQL standard compliance
 - Numeric whole numbers now display without decimal places (MySQL compatibility)
 
-## [0.1.0] - 2024-11-10
+## [0.1.0] - 2025-11-10
 
 ### Added - Initial Release
 
@@ -156,7 +156,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Development
 - **100% AI-generated code** using Claude Code and Loom orchestration
 - **65,000+ lines of Rust code**
-- **Built in under 2 weeks** (Oct 25 - Nov 1, 2024)
+- **Built in under 2 weeks** (Oct 25 - Nov 1, 2025)
 - **Continuous integration** with automated testing
 - **Automated PR reviews** via AI Judge agents
 

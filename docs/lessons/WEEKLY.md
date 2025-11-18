@@ -16,7 +16,7 @@ Use the template in `../templates/LESSONS_TEMPLATE.md` for detailed entries.
 
 ---
 
-## Week 1: October 21-25, 2024
+## Week 1: October 21-25, 2025
 
 ### Focus
 Planning, requirements clarification, and documentation infrastructure
