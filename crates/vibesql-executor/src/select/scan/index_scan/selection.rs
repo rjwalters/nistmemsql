@@ -86,7 +86,7 @@ pub(crate) fn should_use_index_scan(
 ///
 /// Returns true if the expression contains a predicate on the given column
 /// For example: "WHERE age = 25" filters column "age"
-pub(super) fn expression_filters_column(expr: &Expression, column_name: &str) -> bool {
+pub(crate) fn expression_filters_column(expr: &Expression, column_name: &str) -> bool {
     match expr {
         Expression::BinaryOp { left, op, right } => {
             // Check for comparison operators
@@ -139,7 +139,7 @@ pub(super) fn is_column_reference(expr: &Expression, column_name: &str) -> bool 
 /// - ORDER BY col0 DESC can use index (col0 DESC)
 /// - ORDER BY col0, col1 can use index (col0, col1)
 /// - ORDER BY col0 cannot use index (col0 DESC) - wrong direction
-fn can_use_index_for_order_by(
+pub(crate) fn can_use_index_for_order_by(
     order_items: &[vibesql_ast::OrderByItem],
     index_columns: &[vibesql_ast::IndexColumn],
 ) -> bool {
@@ -302,7 +302,7 @@ pub(crate) fn cost_based_index_selection(
 ///
 /// Uses column statistics to estimate what fraction of rows will match the predicate.
 /// Returns a value between 0.0 (no rows) and 1.0 (all rows).
-fn estimate_selectivity(
+pub(crate) fn estimate_selectivity(
     expr: &Expression,
     column_name: &str,
     col_stats: &vibesql_storage::statistics::ColumnStatistics,

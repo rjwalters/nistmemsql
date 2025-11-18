@@ -11,7 +11,7 @@ mod join_reorder_wrapper;
 mod order;
 mod parallel;
 mod projection;
-mod scan;
+pub(crate) mod scan;
 mod set_operations;
 mod window;
 
