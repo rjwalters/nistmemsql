@@ -162,8 +162,15 @@ impl VibeSqlDB {
     }
 
     fn execute_sql(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {
+        use std::time::Instant;
+
+        let profile_queries = env::var("SQLLOGICTEST_PROFILE").is_ok();
+        let total_start = if profile_queries { Some(Instant::now()) } else { None };
+
+        let parse_start = if profile_queries { Some(Instant::now()) } else { None };
         let stmt = Parser::parse_sql(sql)
             .map_err(|e| TestError::Execution(format!("Parse error: {:?}", e)))?;
+        let parse_time = parse_start.map(|s| s.elapsed());
 
         match stmt {
             vibesql_ast::Statement::Select(select_stmt) => {
@@ -178,10 +185,30 @@ impl VibeSqlDB {
                 }
 
                 // Cache miss or cache disabled - execute query
+                let exec_start = if profile_queries { Some(Instant::now()) } else { None };
                 let executor = SelectExecutor::new(&self.db);
                 let rows = executor
                     .execute(&select_stmt)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                let exec_time = exec_start.map(|s| s.elapsed());
+
+                // Log profiling info if enabled
+                if let (Some(parse_elapsed), Some(exec_elapsed), Some(total_elapsed)) =
+                   (parse_time, exec_time, total_start.map(|s| s.elapsed())) {
+                    if exec_elapsed.as_millis() > 10 {  // Only log queries >10ms
+                        let sql_preview = if sql.len() > 80 {
+                            format!("{}...", &sql[..80])
+                        } else {
+                            sql.to_string()
+                        };
+                        eprintln!("🔍 Query #{}: parse={:.2}ms, exec={:.2}ms, total={:.2}ms | {}",
+                            self.query_count,
+                            parse_elapsed.as_secs_f64() * 1000.0,
+                            exec_elapsed.as_secs_f64() * 1000.0,
+                            total_elapsed.as_secs_f64() * 1000.0,
+                            sql_preview);
+                    }
+                }
 
                 // Cache the result if cache is enabled
                 if self.cache_enabled {
