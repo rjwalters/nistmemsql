@@ -327,6 +327,34 @@ impl Database {
         Ok(())
     }
 
+    /// Insert multiple rows into a table in a single batch
+    /// This is more efficient than calling insert_row repeatedly as it:
+    /// - Reduces per-row overhead (table lookups, etc.)
+    /// - Updates indexes in batch
+    /// Returns the number of rows inserted
+    pub fn insert_rows_batch(&mut self, table_name: &str, rows: Vec<Row>) -> Result<usize, StorageError> {
+        if rows.is_empty() {
+            return Ok(0);
+        }
+
+        let row_indices = self.operations.insert_rows_batch(
+            &self.catalog,
+            &mut self.tables,
+            table_name,
+            rows.clone(),
+        )?;
+
+        // Record changes for transaction management
+        for row in rows {
+            self.record_change(TransactionChange::Insert {
+                table_name: table_name.to_string(),
+                row,
+            });
+        }
+
+        Ok(row_indices.len())
+    }
+
     /// List all table names
     pub fn list_tables(&self) -> Vec<String> {
         self.catalog.list_tables()

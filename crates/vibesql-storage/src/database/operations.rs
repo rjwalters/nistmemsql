@@ -156,6 +156,72 @@ impl Operations {
         Ok(row_index)
     }
 
+    /// Insert multiple rows into a table in a single batch
+    /// Returns the row indices of the inserted rows
+    pub fn insert_rows_batch(
+        &mut self,
+        catalog: &vibesql_catalog::Catalog,
+        tables: &mut HashMap<String, Table>,
+        table_name: &str,
+        rows: Vec<Row>,
+    ) -> Result<Vec<usize>, StorageError> {
+        if rows.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Normalize table name for lookup (matches catalog normalization)
+        let normalized_name = if catalog.is_case_sensitive_identifiers() {
+            table_name.to_string()
+        } else {
+            table_name.to_uppercase()
+        };
+
+        // First try direct lookup, then try with schema prefix if needed
+        let table = if let Some(tbl) = tables.get_mut(&normalized_name) {
+            tbl
+        } else if !table_name.contains('.') {
+            // Try with schema prefix
+            let current_schema = catalog.get_current_schema();
+            let qualified_name = format!("{}.{}", current_schema, normalized_name);
+            tables
+                .get_mut(&qualified_name)
+                .ok_or_else(|| StorageError::TableNotFound(table_name.to_string()))?
+        } else {
+            return Err(StorageError::TableNotFound(table_name.to_string()));
+        };
+
+        let mut row_indices = Vec::with_capacity(rows.len());
+
+        // Get table schema once for all rows
+        let table_schema = catalog.get_table(table_name);
+
+        // Check unique constraints for all rows before inserting any
+        if let Some(schema) = table_schema {
+            for row in &rows {
+                self.index_manager.check_unique_constraints_for_insert(table_name, schema, row)?;
+            }
+        }
+
+        // Insert all rows into the table
+        for row in &rows {
+            let row_index = table.row_count();
+            table.insert(row.clone())?;
+            row_indices.push(row_index);
+        }
+
+        // Batch update indexes for all inserted rows
+        if let Some(schema) = table_schema {
+            for (i, row) in rows.iter().enumerate() {
+                let row_index = row_indices[i];
+                self.index_manager.add_to_indexes_for_insert(table_name, schema, row, row_index);
+                // Update spatial indexes
+                self.update_spatial_indexes_for_insert(catalog, table_name, row, row_index);
+            }
+        }
+
+        Ok(row_indices)
+    }
+
     // ============================================================================
     // Index Management - Delegates to IndexManager
     // ============================================================================
