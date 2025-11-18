@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 use vibesql_ast::Expression;
 
+use super::selectivity::order_predicates_by_selectivity;
 use super::where_pushdown::{decompose_where_clause, PredicateDecomposition};
 use crate::schema::CombinedSchema;
 
@@ -56,6 +57,38 @@ impl PredicatePlan {
             .get(table_name)
             .map(|v| v.as_slice())
             .unwrap_or(&[])
+    }
+
+    /// Get table-local predicates ordered by selectivity (most selective first)
+    ///
+    /// Uses table statistics to estimate predicate selectivity and reorder them
+    /// for optimal filter performance. If statistics are unavailable, returns
+    /// predicates in parse order.
+    ///
+    /// # Arguments
+    /// * `table_name` - The table to get predicates for
+    /// * `stats` - Optional table statistics for selectivity estimation
+    ///
+    /// # Returns
+    /// Vector of predicates ordered by selectivity (owned, not borrowed)
+    pub fn get_table_filters_ordered(
+        &self,
+        table_name: &str,
+        stats: Option<&vibesql_storage::statistics::TableStatistics>,
+    ) -> Vec<Expression> {
+        let predicates = self.get_table_filters(table_name);
+
+        if predicates.is_empty() {
+            return Vec::new();
+        }
+
+        // If statistics are available, order by selectivity
+        if let Some(table_stats) = stats {
+            order_predicates_by_selectivity(predicates.to_vec(), table_stats)
+        } else {
+            // No statistics: return in parse order
+            predicates.to_vec()
+        }
     }
 
     /// Check if there are any table-local predicates for a given table

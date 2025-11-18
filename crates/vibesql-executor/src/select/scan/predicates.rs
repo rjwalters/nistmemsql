@@ -23,6 +23,7 @@ use std::sync::Arc;
 /// Uses parallel filtering when beneficial based on row count and hardware.
 ///
 /// **Phase 1**: Now accepts `PredicatePlan` instead of decomposing WHERE clause internally.
+/// **Phase 4**: Uses cost-based predicate ordering via selectivity estimation.
 pub(crate) fn apply_table_local_predicates(
     rows: Vec<vibesql_storage::Row>,
     schema: CombinedSchema,
@@ -30,13 +31,19 @@ pub(crate) fn apply_table_local_predicates(
     table_name: &str,
     database: &vibesql_storage::Database,
 ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
-    // Get pre-decomposed table-local predicates from the plan
-    let table_local_preds = predicate_plan.get_table_filters(table_name);
+    // Get table statistics for selectivity-based ordering
+    let table_stats = database
+        .get_table(table_name)
+        .and_then(|table| table.get_statistics());
+
+    // Get predicates ordered by selectivity (most selective first)
+    // Falls back to parse order if statistics unavailable
+    let ordered_preds = predicate_plan.get_table_filters_ordered(table_name, table_stats);
 
     // If there are table-local predicates, apply them
-    if !table_local_preds.is_empty() {
-        // Combine predicates with AND
-        let combined_where = combine_predicates_with_and(table_local_preds.to_vec());
+    if !ordered_preds.is_empty() {
+        // Combine ordered predicates with AND
+        let combined_where = combine_predicates_with_and(ordered_preds);
 
         // Create evaluator for filtering
         let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
