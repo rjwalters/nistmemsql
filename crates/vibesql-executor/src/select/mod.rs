@@ -10,6 +10,7 @@ mod join_executor;
 mod join_reorder_wrapper;
 mod order;
 mod parallel;
+mod predicate_graph;
 mod projection;
 mod scan;
 mod set_operations;
