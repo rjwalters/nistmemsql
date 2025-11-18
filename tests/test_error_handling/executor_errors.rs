@@ -146,7 +146,6 @@ fn test_constraint_violation_error() {
 }
 
 #[test]
-#[ignore] // TODO: Implement validation preventing dropping the last column in ALTER TABLE
 fn test_cannot_drop_column_error() {
     let mut db = Database::new();
 
