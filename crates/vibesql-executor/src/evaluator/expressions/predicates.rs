@@ -16,6 +16,7 @@ impl ExpressionEvaluator<'_> {
     /// - For NOT BETWEEN: (expr < low) OR (expr > high)
     ///   - If any comparison is NULL: NULL OR ... → TRUE or NULL (per three-valued OR)
     ///   - Example: 93 NOT BETWEEN NULL AND 10 = (NULL) OR (TRUE) = TRUE
+    #[inline]
     pub(super) fn eval_between(
         &self,
         expr: &vibesql_ast::Expression,
@@ -71,6 +72,7 @@ impl ExpressionEvaluator<'_> {
     }
 
     /// Evaluate CAST expression
+    #[inline]
     pub(super) fn eval_cast(
         &self,
         expr: &vibesql_ast::Expression,
@@ -82,6 +84,7 @@ impl ExpressionEvaluator<'_> {
     }
 
     /// Evaluate POSITION expression
+    #[inline]
     pub(super) fn eval_position(
         &self,
         substring: &vibesql_ast::Expression,
@@ -110,6 +113,7 @@ impl ExpressionEvaluator<'_> {
 
     /// Evaluate TRIM expression
     /// TRIM([position] [removal_char FROM] string)
+    #[inline]
     pub(super) fn eval_trim(
         &self,
         position: &Option<vibesql_ast::TrimPosition>,
@@ -197,6 +201,7 @@ impl ExpressionEvaluator<'_> {
     }
 
     /// Evaluate LIKE predicate
+    #[inline]
     pub(super) fn eval_like(
         &self,
         expr: &vibesql_ast::Expression,
@@ -238,6 +243,7 @@ impl ExpressionEvaluator<'_> {
     }
 
     /// Evaluate IN list predicate
+    #[inline]
     pub(super) fn eval_in_list(
         &self,
         expr: &vibesql_ast::Expression,
