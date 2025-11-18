@@ -10,6 +10,7 @@ pub mod error;
 pub mod index;
 pub mod page;
 pub mod persistence;
+pub mod query_buffer_pool;
 pub mod row;
 pub mod statistics;
 pub mod table;
@@ -21,6 +22,7 @@ pub use database::{
     SpatialIndexMetadata, TransactionState,
 };
 pub use error::StorageError;
+pub use query_buffer_pool::{QueryBufferPool, QueryBufferPoolStats, RowBufferGuard, ValueBufferGuard};
 pub use index::{extract_mbr_from_sql_value, SpatialIndex, SpatialIndexEntry};
 pub use persistence::load::{parse_sql_statements, read_sql_dump};
 pub use row::Row;

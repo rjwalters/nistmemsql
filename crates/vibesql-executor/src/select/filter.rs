@@ -27,7 +27,8 @@ pub(super) fn apply_where_filter_combined<'a>(
     }
 
     let where_expr = where_expr.unwrap();
-    let mut filtered_rows = Vec::new();
+    // Use pooled buffer to reduce allocation overhead
+    let mut filtered_rows = executor.query_buffer_pool().get_row_buffer(rows.len());
     let mut rows_processed = 0;
     const CHECK_INTERVAL: usize = 1000;
 
@@ -93,7 +94,8 @@ pub(super) fn apply_where_filter_basic<'a>(
     }
 
     let where_expr = where_expr.unwrap();
-    let mut filtered_rows = Vec::new();
+    // Use pooled buffer to reduce allocation overhead
+    let mut filtered_rows = executor.query_buffer_pool().get_row_buffer(rows.len());
     let mut rows_processed = 0;
     const CHECK_INTERVAL: usize = 1000;
 

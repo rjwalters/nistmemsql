@@ -7,7 +7,7 @@ use super::metadata::Metadata;
 use super::operations::{Operations, SpatialIndexMetadata};
 use super::transactions::TransactionChange;
 use super::DatabaseConfig;
-use crate::{Row, StorageError, Table};
+use crate::{QueryBufferPool, Row, StorageError, Table};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use vibesql_ast::IndexColumn;
@@ -25,6 +25,8 @@ pub struct Database {
     pub tables: HashMap<String, Table>,
     /// SQL compatibility mode (MySQL, SQLite, etc.)
     sql_mode: vibesql_types::SqlMode,
+    /// Buffer pool for reducing query execution allocations
+    query_buffer_pool: QueryBufferPool,
 }
 
 impl Database {
@@ -40,6 +42,7 @@ impl Database {
             operations: Operations::new(),
             tables: HashMap::new(),
             sql_mode: vibesql_types::SqlMode::default(),
+            query_buffer_pool: QueryBufferPool::new(),
         }
     }
 
@@ -442,6 +445,15 @@ impl Database {
     /// Get the current SQL compatibility mode
     pub fn sql_mode(&self) -> vibesql_types::SqlMode {
         self.sql_mode.clone()
+    }
+
+    // ============================================================================
+    // Query Buffer Pool
+    // ============================================================================
+
+    /// Get a reference to the query buffer pool for reusing allocations
+    pub fn query_buffer_pool(&self) -> &QueryBufferPool {
+        &self.query_buffer_pool
     }
 
     // ============================================================================
