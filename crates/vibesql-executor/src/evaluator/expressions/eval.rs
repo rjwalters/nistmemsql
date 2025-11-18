@@ -7,6 +7,7 @@ use crate::errors::ExecutorError;
 
 impl ExpressionEvaluator<'_> {
     /// Evaluate an expression in the context of a row
+    #[inline]
     pub fn eval(
         &self,
         expr: &vibesql_ast::Expression,
@@ -40,6 +41,7 @@ impl ExpressionEvaluator<'_> {
     }
 
     /// Internal implementation of eval with depth already incremented
+    #[inline]
     fn eval_impl(
         &self,
         expr: &vibesql_ast::Expression,
@@ -356,6 +358,7 @@ impl ExpressionEvaluator<'_> {
     }
 
     /// Evaluate column reference
+    #[inline]
     fn eval_column_ref(
         &self,
         table_qualifier: Option<&str>,
