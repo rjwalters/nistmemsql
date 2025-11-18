@@ -5,7 +5,7 @@
 use vibesql_ast::Expression;
 use vibesql_storage::{Database, Row};
 
-use crate::{errors::ExecutorError, schema::CombinedSchema};
+use crate::{errors::ExecutorError, optimizer::PredicatePlan, schema::CombinedSchema};
 
 use super::predicate::{extract_index_predicate, IndexPredicate};
 
@@ -153,7 +153,7 @@ pub(crate) fn execute_index_scan(
     let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
     let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
 
-    // Apply WHERE clause predicates if needed
+    // Apply WHERE clause predicates if needed (Phase 1 optimization)
     // Performance optimization: Skip WHERE clause evaluation if the index already
     // guarantees all rows satisfy the predicate (e.g., simple predicates like
     // `WHERE col = 5` or `WHERE col BETWEEN 10 AND 20`).
@@ -163,19 +163,21 @@ pub(crate) fn execute_index_scan(
     // - Complex predicates that couldn't be fully pushed to index
     // - OR predicates (not yet optimized for index pushdown)
     // - Multi-column predicates where only first column was indexed
-    if need_where_filter {
-        if let Some(where_expr) = where_clause {
-            // Apply table-local predicates using predicate pushdown
-            // This ensures we only evaluate predicates that reference this table,
-            // avoiding ColumnNotFound errors for predicates referencing other tables
-            rows = crate::select::scan::predicates::apply_table_local_predicates(
-                rows,
-                schema.clone(),
-                where_expr,
-                table_name,
-                database,
-            )?;
-        }
+    if need_where_filter && where_clause.is_some() {
+        // Build predicate plan once (Phase 1 optimization)
+        let predicate_plan = PredicatePlan::from_where_clause(where_clause, &schema)
+            .map_err(ExecutorError::InvalidWhereClause)?;
+
+        // Apply table-local predicates using predicate pushdown
+        // This ensures we only evaluate predicates that reference this table,
+        // avoiding ColumnNotFound errors for predicates referencing other tables
+        rows = crate::select::scan::predicates::apply_table_local_predicates(
+            rows,
+            schema.clone(),
+            &predicate_plan,
+            table_name,
+            database,
+        )?;
     }
 
     // Return results with sorting metadata if available
