@@ -129,6 +129,13 @@ impl AlterTableExecutor {
             ));
         }
 
+        // Check if this is the last column in the table
+        if table.schema.columns.len() <= 1 {
+            return Err(ExecutorError::CannotDropColumn(
+                "Cannot drop the last column in a table. Use DROP TABLE instead.".to_string(),
+            ));
+        }
+
         // Get column index
         let col_index = table.schema.get_column_index(&stmt.column_name).ok_or_else(|| {
             ExecutorError::ColumnNotFound {
