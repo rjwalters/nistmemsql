@@ -34,31 +34,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 # Import shared configuration for test results storage
-from test_results_config import get_default_database_path
-
-
-def get_repo_root() -> Path:
-    """Find the repository root directory, handling git worktrees."""
-    current = Path(__file__).resolve().parent
-    while current != current.parent:
-        git_path = current / ".git"
-        if git_path.exists():
-            # Check if this is a worktree (where .git is a file, not directory)
-            if git_path.is_file():
-                # Parse .git file to find main worktree
-                git_content = git_path.read_text().strip()
-                # Format: "gitdir: /path/to/main/repo/.git/worktrees/name"
-                if git_content.startswith("gitdir: "):
-                    git_dir = git_content[8:]  # Remove "gitdir: " prefix
-                    # Navigate up from .git/worktrees/name to main repo
-                    main_git_dir = Path(git_dir).parent.parent.parent
-                    if main_git_dir.exists():
-                        return main_git_dir
-            else:
-                # Regular git directory
-                return current
-        current = current.parent
-    raise RuntimeError("Could not find git repository root")
+from test_results_config import get_default_database_path, get_repo_root
 
 
 # Preset queries for common tasks

@@ -36,32 +36,10 @@ from typing import Dict, List, Optional, Tuple
 from test_results_config import (
     get_default_database_path,
     get_default_json_path,
+    get_git_commit,
+    get_repo_root,
     migrate_legacy_results,
 )
-
-
-def get_repo_root() -> Path:
-    """Find the repository root directory."""
-    current = Path(__file__).resolve().parent
-    while current != current.parent:
-        if (current / ".git").exists():
-            return current
-        current = current.parent
-    raise RuntimeError("Could not find git repository root")
-
-
-def get_git_commit() -> Optional[str]:
-    """Get current git commit hash."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        return None
 
 
 def execute_sql_file(sql_path: Path) -> Tuple[bool, str]:
