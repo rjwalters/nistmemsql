@@ -82,5 +82,9 @@ path = "tests/test_issue_1618.rs"
 name = "aggregate_random_patterns"
 path = "tests/aggregate_random_patterns.rs"
 
+[[test]]
+name = "test_error_handling"
+path = "tests/test_error_handling.rs"
+
 [patch.crates-io]
 sqllogictest = { path = "crates/sqllogictest" }

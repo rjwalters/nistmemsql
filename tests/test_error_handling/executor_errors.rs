@@ -46,7 +46,6 @@ fn test_division_by_zero_error() {
 }
 
 #[test]
-#[ignore] // TODO: Implement subquery execution and scalar subquery validation
 fn test_subquery_returned_multiple_rows_error() {
     let mut db = Database::new();
 
