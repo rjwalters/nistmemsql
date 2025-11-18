@@ -86,7 +86,11 @@ pub(super) fn project_row_combined(
         }
     }
 
-    Ok(vibesql_storage::Row::new(values))
+    // Move data to result and return pooled buffer
+    // This allows buffer capacity reuse while avoiding clone overhead
+    let result_values = std::mem::take(&mut values);
+    buffer_pool.return_value_buffer(values);
+    Ok(vibesql_storage::Row::new(result_values))
 }
 
 /// Evaluate an expression, checking for window functions first

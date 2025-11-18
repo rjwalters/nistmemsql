@@ -316,12 +316,12 @@ impl SelectExecutor<'_> {
         // Stage 6: Project columns (handles wildcards, expressions, etc.)
         // Use pooled buffer to reduce allocation overhead
         let mut final_rows = self.database.query_buffer_pool().get_row_buffer(filtered_rows.len());
-        for row in filtered_rows {
+        for row in &filtered_rows {
             // Clear CSE cache before projecting each row
             evaluator.clear_cse_cache();
 
             let projected_row = project_row_combined(
-                &row,
+                row,
                 &stmt.select_list,
                 &evaluator,
                 &schema,
@@ -332,7 +332,11 @@ impl SelectExecutor<'_> {
             final_rows.push(projected_row);
         }
 
-        Ok(final_rows)
+        // Return intermediate buffer to pool, then return final result
+        self.database.query_buffer_pool().return_row_buffer(filtered_rows);
+        let result = std::mem::take(&mut final_rows);
+        self.database.query_buffer_pool().return_row_buffer(final_rows);
+        Ok(result)
     }
 
     /// Execute SELECT without aggregation
@@ -647,7 +651,10 @@ impl SelectExecutor<'_> {
                 final_rows.push(projected_row);
             }
 
-            final_rows
+            // Return buffer to pool and move data to result
+            let result = std::mem::take(&mut final_rows);
+            self.database.query_buffer_pool().return_row_buffer(final_rows);
+            result
         };
 
         Ok(final_rows)
