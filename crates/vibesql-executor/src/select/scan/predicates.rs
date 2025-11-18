@@ -1,104 +1,93 @@
 //! Predicate pushdown and filtering logic
 //!
 //! Handles optimization of WHERE clause predicates by:
-//! - Decomposing WHERE clause into table-local predicates
-//! - Applying predicates early during table scans
+//! - Applying pre-decomposed table-local predicates early during table scans
 //! - Reducing intermediate result sizes before joins
+//!
+//! **Phase 1 Optimization**: This module now uses `PredicatePlan` to avoid redundant
+//! WHERE clause decomposition. The plan is computed once at query start and passed through.
 
 use crate::{
     errors::ExecutorError, evaluator::CombinedExpressionEvaluator,
-    optimizer::{decompose_where_clause, order_predicates_by_selectivity}, schema::CombinedSchema,
+    optimizer::PredicatePlan, schema::CombinedSchema,
     select::parallel::ParallelConfig,
 };
 use rayon::prelude::*;
 use std::sync::Arc;
 
-/// Apply table-local predicates from WHERE clause during table scan
+/// Apply table-local predicates from a pre-computed predicate plan
 ///
 /// This function implements predicate pushdown by filtering rows early,
 /// before they contribute to larger Cartesian products in JOINs.
 ///
 /// Uses parallel filtering when beneficial based on row count and hardware.
+///
+/// **Phase 1**: Now accepts `PredicatePlan` instead of decomposing WHERE clause internally.
+/// **Phase 4**: Uses cost-based predicate ordering via selectivity estimation.
 pub(crate) fn apply_table_local_predicates(
     rows: Vec<vibesql_storage::Row>,
     schema: CombinedSchema,
-    where_clause: &vibesql_ast::Expression,
+    predicate_plan: &PredicatePlan,
     table_name: &str,
     database: &vibesql_storage::Database,
 ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
-    // Decompose WHERE clause using branch-specific API with schema
-    let decomposition = decompose_where_clause(Some(where_clause), &schema)
-        .map_err(ExecutorError::InvalidWhereClause)?;
+    // Get table statistics for selectivity-based ordering
+    let table_stats = database
+        .get_table(table_name)
+        .and_then(|table| table.get_statistics());
 
-    // Extract predicates that can be applied to this table
-    let table_local_preds: Option<&Vec<vibesql_ast::Expression>> =
-        decomposition.table_local_predicates.get(table_name);
+    // Get predicates ordered by selectivity (most selective first)
+    // Falls back to parse order if statistics unavailable
+    let ordered_preds = predicate_plan.get_table_filters_ordered(table_name, table_stats);
 
     // If there are table-local predicates, apply them
-    if let Some(preds) = table_local_preds {
-        if !preds.is_empty() {
-            // Order predicates by selectivity for optimal performance
-            // Get table statistics if available
-            let ordered_preds = if let Some(table) = database.get_table(table_name) {
-                if let Some(stats) = table.get_statistics() {
-                    // Use cost-based ordering: most selective predicates first
-                    order_predicates_by_selectivity(preds.clone(), stats)
-                } else {
-                    // No statistics: use parse order
-                    preds.clone()
+    if !ordered_preds.is_empty() {
+        // Combine ordered predicates with AND
+        let combined_where = combine_predicates_with_and(ordered_preds);
+
+        // Create evaluator for filtering
+        let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
+
+        // Check if we should use parallel filtering
+        let config = ParallelConfig::global();
+        if config.should_parallelize_scan(rows.len()) {
+            return apply_predicates_parallel(rows, combined_where, evaluator);
+        }
+
+        // Sequential path for small datasets
+        let mut filtered_rows = Vec::new();
+        for row in rows {
+            evaluator.clear_cse_cache();
+
+            let include_row = match evaluator.eval(&combined_where, &row)? {
+                vibesql_types::SqlValue::Boolean(true) => true,
+                vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
+                // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
+                vibesql_types::SqlValue::Integer(0) => false,
+                vibesql_types::SqlValue::Integer(_) => true,
+                vibesql_types::SqlValue::Smallint(0) => false,
+                vibesql_types::SqlValue::Smallint(_) => true,
+                vibesql_types::SqlValue::Bigint(0) => false,
+                vibesql_types::SqlValue::Bigint(_) => true,
+                vibesql_types::SqlValue::Float(0.0) => false,
+                vibesql_types::SqlValue::Float(_) => true,
+                vibesql_types::SqlValue::Real(0.0) => false,
+                vibesql_types::SqlValue::Real(_) => true,
+                vibesql_types::SqlValue::Double(0.0) => false,
+                vibesql_types::SqlValue::Double(_) => true,
+                other => {
+                    return Err(ExecutorError::InvalidWhereClause(format!(
+                        "WHERE clause must evaluate to boolean, got: {:?}",
+                        other
+                    )))
                 }
-            } else {
-                // Table not found: use parse order
-                preds.clone()
             };
 
-            // Combine ordered predicates with AND
-            let combined_where = combine_predicates_with_and(ordered_preds);
-
-            // Create evaluator for filtering
-            let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
-
-            // Check if we should use parallel filtering
-            let config = ParallelConfig::global();
-            if config.should_parallelize_scan(rows.len()) {
-                return apply_predicates_parallel(rows, combined_where, evaluator);
+            if include_row {
+                filtered_rows.push(row);
             }
-
-            // Sequential path for small datasets
-            let mut filtered_rows = Vec::new();
-            for row in rows {
-                evaluator.clear_cse_cache();
-
-                let include_row = match evaluator.eval(&combined_where, &row)? {
-                    vibesql_types::SqlValue::Boolean(true) => true,
-                    vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
-                    // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
-                    vibesql_types::SqlValue::Integer(0) => false,
-                    vibesql_types::SqlValue::Integer(_) => true,
-                    vibesql_types::SqlValue::Smallint(0) => false,
-                    vibesql_types::SqlValue::Smallint(_) => true,
-                    vibesql_types::SqlValue::Bigint(0) => false,
-                    vibesql_types::SqlValue::Bigint(_) => true,
-                    vibesql_types::SqlValue::Float(0.0) => false,
-                    vibesql_types::SqlValue::Float(_) => true,
-                    vibesql_types::SqlValue::Real(0.0) => false,
-                    vibesql_types::SqlValue::Real(_) => true,
-                    vibesql_types::SqlValue::Double(0.0) => false,
-                    vibesql_types::SqlValue::Double(_) => true,
-                    other => {
-                        return Err(ExecutorError::InvalidWhereClause(format!(
-                            "WHERE clause must evaluate to boolean, got: {:?}",
-                            other
-                        )))
-                    }
-                };
-
-                if include_row {
-                    filtered_rows.push(row);
-                }
-            }
-            return Ok(filtered_rows);
         }
+        return Ok(filtered_rows);
     }
 
     // No table-local predicates - return rows as-is

@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 use super::predicates::apply_table_local_predicates;
 use crate::{
-    errors::ExecutorError, optimizer::decompose_where_clause, privilege_checker::PrivilegeChecker,
+    errors::ExecutorError, optimizer::PredicatePlan, privilege_checker::PrivilegeChecker,
     schema::CombinedSchema, select::cte::CteResult, select::parallel::parallel_scan_materialize,
 };
 
@@ -30,12 +30,16 @@ pub(crate) fn execute_table_scan(
         let schema = CombinedSchema::from_table(effective_name, cte_schema.clone());
         let mut rows = cte_rows.clone();
 
-        // Apply table-local predicates from WHERE clause
-        if let Some(where_expr) = where_clause {
+        // Apply table-local predicates from WHERE clause using pre-computed plan
+        if where_clause.is_some() {
+            // Build predicate plan once for this table
+            let predicate_plan = PredicatePlan::from_where_clause(where_clause, &schema)
+                .map_err(ExecutorError::InvalidWhereClause)?;
+
             rows = apply_table_local_predicates(
                 rows,
                 schema.clone(),
-                where_expr,
+                &predicate_plan,
                 table_name,
                 database,
             )?;
@@ -101,12 +105,16 @@ pub(crate) fn execute_table_scan(
         let schema = CombinedSchema::from_table(effective_name, view_schema);
         let mut rows = select_result.rows;
 
-        // Apply table-local predicates from WHERE clause
-        if let Some(where_expr) = where_clause {
+        // Apply table-local predicates from WHERE clause using pre-computed plan
+        if where_clause.is_some() {
+            // Build predicate plan once for this table
+            let predicate_plan = PredicatePlan::from_where_clause(where_clause, &schema)
+                .map_err(ExecutorError::InvalidWhereClause)?;
+
             rows = apply_table_local_predicates(
                 rows,
                 schema.clone(),
-                where_expr,
+                &predicate_plan,
                 table_name,
                 database,
             )?;
@@ -135,24 +143,23 @@ pub(crate) fn execute_table_scan(
     // Use parallel scan for materialization when beneficial for large tables
     let rows = parallel_scan_materialize(table.scan());
 
-    // Check if we need to apply table-local predicates
-    if let Some(where_expr) = where_clause {
-        // Check if there are actually table-local predicates for this table
-        let decomposition = decompose_where_clause(Some(where_expr), &schema)
+    // Check if we need to apply table-local predicates (Phase 1 optimization)
+    if where_clause.is_some() {
+        // Build predicate plan once for this table
+        let predicate_plan = PredicatePlan::from_where_clause(where_clause, &schema)
             .map_err(ExecutorError::InvalidWhereClause)?;
 
-        if let Some(preds) = decomposition.table_local_predicates.get(table_name) {
-            if !preds.is_empty() {
-                // Have table-local predicates: materialize and filter
-                let filtered_rows = apply_table_local_predicates(
-                    rows,
-                    schema.clone(),
-                    where_expr,
-                    table_name,
-                    database,
-                )?;
-                return Ok(super::FromResult::from_rows(schema, filtered_rows));
-            }
+        // Check if there are actually table-local predicates for this table
+        if predicate_plan.has_table_filters(table_name) {
+            // Have table-local predicates: materialize and filter
+            let filtered_rows = apply_table_local_predicates(
+                rows,
+                schema.clone(),
+                &predicate_plan,
+                table_name,
+                database,
+            )?;
+            return Ok(super::FromResult::from_rows(schema, filtered_rows));
         }
     }
 

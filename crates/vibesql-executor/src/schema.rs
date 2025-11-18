@@ -87,3 +87,58 @@ impl CombinedSchema {
         }
     }
 }
+
+/// Builder for incrementally constructing a CombinedSchema
+///
+/// Builds schemas in O(n) time instead of O(n²) by tracking
+/// the column offset as tables are added.
+#[derive(Debug)]
+pub struct SchemaBuilder {
+    table_schemas: HashMap<String, (usize, vibesql_catalog::TableSchema)>,
+    column_offset: usize,
+}
+
+impl SchemaBuilder {
+    /// Create a new empty schema builder
+    pub fn new() -> Self {
+        SchemaBuilder {
+            table_schemas: HashMap::new(),
+            column_offset: 0,
+        }
+    }
+
+    /// Create a schema builder initialized with an existing CombinedSchema
+    pub fn from_schema(schema: CombinedSchema) -> Self {
+        let column_offset = schema.total_columns;
+        SchemaBuilder {
+            table_schemas: schema.table_schemas,
+            column_offset,
+        }
+    }
+
+    /// Add a table to the schema
+    ///
+    /// This is an O(1) operation - columns are not copied, just indexed
+    pub fn add_table(&mut self, name: String, schema: vibesql_catalog::TableSchema) -> &mut Self {
+        let num_columns = schema.columns.len();
+        self.table_schemas.insert(name, (self.column_offset, schema));
+        self.column_offset += num_columns;
+        self
+    }
+
+    /// Build the final CombinedSchema
+    ///
+    /// This consumes the builder and produces the schema in O(1) time
+    pub fn build(self) -> CombinedSchema {
+        CombinedSchema {
+            table_schemas: self.table_schemas,
+            total_columns: self.column_offset,
+        }
+    }
+}
+
+impl Default for SchemaBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

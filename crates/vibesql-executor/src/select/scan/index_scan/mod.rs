@@ -15,8 +15,8 @@
 //! - `should_use_index_scan()`: Determines if an index scan is beneficial
 //! - `execute_index_scan()`: Executes an index scan to retrieve rows
 
-mod selection;
-mod predicate;
+pub(crate) mod selection;
+pub(crate) mod predicate;
 mod execution;
 
 // Re-export public APIs
