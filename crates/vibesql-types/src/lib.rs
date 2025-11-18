@@ -7,10 +7,12 @@
 //! - Type checking utilities
 
 mod data_type;
+mod sql_mode;
 mod sql_value;
 mod temporal;
 
 // Re-export all public types to maintain the same public API
 pub use data_type::DataType;
+pub use sql_mode::SqlMode;
 pub use sql_value::SqlValue;
 pub use temporal::{Date, Time, Timestamp, Interval, IntervalField};
