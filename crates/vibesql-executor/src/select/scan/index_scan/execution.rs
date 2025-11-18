@@ -69,35 +69,14 @@ pub(crate) fn execute_index_scan(
     // Get row indices using the appropriate index operation
     let matching_row_indices: Vec<usize> = match index_predicate {
         Some(IndexPredicate::Range(range)) => {
-            // Validate bounds: if start > end, the range is empty
-            if let (Some(start_val), Some(end_val)) = (&range.start, &range.end) {
-                let gt_result = crate::evaluator::ExpressionEvaluator::eval_binary_op_static(
-                    start_val,
-                    &vibesql_ast::BinaryOperator::GreaterThan,
-                    end_val,
-                    vibesql_types::SqlMode::default(),
-                )?;
-                if let vibesql_types::SqlValue::Boolean(true) = gt_result {
-                    // start_val > end_val: empty range, return no rows
-                    Vec::new()
-                } else {
-                    // Valid range, use storage layer's optimized range_scan
-                    index_data.range_scan(
-                        range.start.as_ref(),
-                        range.end.as_ref(),
-                        range.inclusive_start,
-                        range.inclusive_end,
-                    )
-                }
-            } else {
-                // Use storage layer's optimized range_scan for >, <, >=, <=, BETWEEN
-                index_data.range_scan(
-                    range.start.as_ref(),
-                    range.end.as_ref(),
-                    range.inclusive_start,
-                    range.inclusive_end,
-                )
-            }
+            // Use storage layer's optimized range_scan for >, <, >=, <=, BETWEEN
+            // The storage layer handles empty/inverted range validation efficiently
+            index_data.range_scan(
+                range.start.as_ref(),
+                range.end.as_ref(),
+                range.inclusive_start,
+                range.inclusive_end,
+            )
         }
         Some(IndexPredicate::In(values)) => {
             // For multi-column indexes, use prefix matching to find all rows

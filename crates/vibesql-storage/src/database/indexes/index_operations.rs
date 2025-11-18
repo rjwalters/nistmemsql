@@ -229,12 +229,18 @@ impl IndexData {
                     }
                 }
 
-                // Edge case: Check for invalid range (start == end with at least one exclusive bound)
-                // Example: col > 5 AND col < 5 (mathematically empty range, but valid SQL)
-                // This would create invalid BTreeMap bounds (both excluded at same value) → panic
+                // Edge case: Check for invalid/empty ranges
+                // 1. start == end with at least one exclusive bound: col > 5 AND col < 5
+                // 2. start > end (inverted range): col BETWEEN 100 AND 50
                 if let (Some(start_val), Some(end_val)) = (&normalized_start, &normalized_end) {
                     if start_val == end_val && (!inclusive_start || !inclusive_end) {
                         // Empty range: no values can satisfy this condition
+                        return Vec::new();
+                    }
+                    // Check for inverted range: start > end
+                    // This handles cases like BETWEEN 9128.11 AND 4747.32 where min > max
+                    if start_val > end_val {
+                        // Inverted range: no values can satisfy this condition
                         return Vec::new();
                     }
                 }
