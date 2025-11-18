@@ -250,6 +250,7 @@ fn test_budget_enforcement_with_spill_policy() {
         memory_budget: 1000,  // 1KB - very small to force eviction
         disk_budget: 100 * 1024 * 1024,  // 100MB disk
         spill_policy: SpillPolicy::SpillToDisk,
+        sql_mode: vibesql_types::SqlMode::default(),
     };
     index_manager.set_config(config);
 
@@ -315,6 +316,7 @@ fn test_lru_eviction_order() {
         memory_budget: 2000,  // 2KB
         disk_budget: 100 * 1024 * 1024,
         spill_policy: SpillPolicy::SpillToDisk,
+        sql_mode: vibesql_types::SqlMode::default(),
     };
     index_manager.set_config(config);
 

@@ -266,7 +266,8 @@ impl SelectExecutor<'_> {
         }
 
         // Stage 5: Materialize filtered results
-        let mut filtered_rows = Vec::new();
+        // Use pooled buffer to reduce allocation overhead
+        let mut filtered_rows = self.database.query_buffer_pool().get_row_buffer(128);
         for row_result in iterator {
             // Check timeout during iteration
             self.check_timeout()?;
@@ -313,23 +314,29 @@ impl SelectExecutor<'_> {
         }
 
         // Stage 6: Project columns (handles wildcards, expressions, etc.)
-        let mut final_rows = Vec::new();
-        for row in filtered_rows {
+        // Use pooled buffer to reduce allocation overhead
+        let mut final_rows = self.database.query_buffer_pool().get_row_buffer(filtered_rows.len());
+        for row in &filtered_rows {
             // Clear CSE cache before projecting each row
             evaluator.clear_cse_cache();
 
             let projected_row = project_row_combined(
-                &row,
+                row,
                 &stmt.select_list,
                 &evaluator,
                 &schema,
                 &None, // No window functions in iterator path
+                self.database.query_buffer_pool(),
             )?;
 
             final_rows.push(projected_row);
         }
 
-        Ok(final_rows)
+        // Return intermediate buffer to pool, then return final result
+        self.database.query_buffer_pool().return_row_buffer(filtered_rows);
+        let result = std::mem::take(&mut final_rows);
+        self.database.query_buffer_pool().return_row_buffer(final_rows);
+        Ok(result)
     }
 
     /// Execute SELECT without aggregation
@@ -567,7 +574,8 @@ impl SelectExecutor<'_> {
         // - If no DISTINCT, we can apply LIMIT/OFFSET before projection for better performance
         let final_rows = if stmt.distinct || stmt.set_operation.is_some() {
             // Eager projection: project all rows, then apply DISTINCT and/or LIMIT/OFFSET
-            let mut projected_rows = Vec::new();
+            // Use pooled buffer to reduce allocation overhead
+            let mut projected_rows = self.database.query_buffer_pool().get_row_buffer(result_rows.len());
             for (row, _) in result_rows {
                 // Check timeout during projection
                 self.check_timeout()?;
@@ -582,6 +590,7 @@ impl SelectExecutor<'_> {
                     &evaluator,
                     &schema,
                     &window_mapping,
+                    self.database.query_buffer_pool(),
                 )?;
 
                 // Track memory for each projected row
@@ -622,10 +631,12 @@ impl SelectExecutor<'_> {
                 evaluator,
                 schema.clone(),
                 window_mapping.clone(),
+                self.database.query_buffer_pool().clone(),
             );
 
             // Collect projected rows with memory tracking
-            let mut final_rows = Vec::new();
+            // Use pooled buffer to reduce allocation overhead
+            let mut final_rows = self.database.query_buffer_pool().get_row_buffer(128);
             for projected_result in projection_iter {
                 // Check timeout during projection
                 self.check_timeout()?;
@@ -640,7 +651,10 @@ impl SelectExecutor<'_> {
                 final_rows.push(projected_row);
             }
 
-            final_rows
+            // Return buffer to pool and move data to result
+            let result = std::mem::take(&mut final_rows);
+            self.database.query_buffer_pool().return_row_buffer(final_rows);
+            result
         };
 
         Ok(final_rows)

@@ -171,6 +171,11 @@ impl<'a> SelectExecutor<'a> {
         self.aggregate_cache.borrow_mut().clear();
     }
 
+    /// Get access to the query buffer pool for reducing allocations
+    pub(crate) fn query_buffer_pool(&self) -> &vibesql_storage::QueryBufferPool {
+        self.database.query_buffer_pool()
+    }
+
     /// Check if query has exceeded timeout
     /// Call this in hot loops to prevent infinite execution
     pub fn check_timeout(&self) -> Result<(), crate::errors::ExecutorError> {

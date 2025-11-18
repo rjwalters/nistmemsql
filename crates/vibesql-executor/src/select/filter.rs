@@ -27,7 +27,8 @@ pub(super) fn apply_where_filter_combined<'a>(
     }
 
     let where_expr = where_expr.unwrap();
-    let mut filtered_rows = Vec::new();
+    // Use pooled buffer to reduce allocation overhead during filtering
+    let mut filtered_rows = executor.query_buffer_pool().get_row_buffer(rows.len());
     let mut rows_processed = 0;
     const CHECK_INTERVAL: usize = 1000;
 
@@ -73,7 +74,11 @@ pub(super) fn apply_where_filter_combined<'a>(
         }
     }
 
-    Ok(filtered_rows)
+    // Move data to final result and return pooled buffer
+    // This allows buffer reuse while avoiding clone overhead
+    let result = std::mem::take(&mut filtered_rows);
+    executor.query_buffer_pool().return_row_buffer(filtered_rows);
+    Ok(result)
 }
 
 /// Apply WHERE clause filter to rows (Basic evaluator version)
@@ -95,7 +100,8 @@ pub(super) fn apply_where_filter_basic<'a>(
     }
 
     let where_expr = where_expr.unwrap();
-    let mut filtered_rows = Vec::new();
+    // Use pooled buffer to reduce allocation overhead
+    let mut filtered_rows = executor.query_buffer_pool().get_row_buffer(rows.len());
     let mut rows_processed = 0;
     const CHECK_INTERVAL: usize = 1000;
 
@@ -141,7 +147,11 @@ pub(super) fn apply_where_filter_basic<'a>(
         }
     }
 
-    Ok(filtered_rows)
+    // Move data to final result and return pooled buffer
+    // This allows buffer reuse while avoiding clone overhead
+    let result = std::mem::take(&mut filtered_rows);
+    executor.query_buffer_pool().return_row_buffer(filtered_rows);
+    Ok(result)
 }
 
 

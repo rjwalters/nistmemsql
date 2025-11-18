@@ -9,8 +9,10 @@ pub(super) fn project_row_combined(
     evaluator: &crate::evaluator::CombinedExpressionEvaluator,
     schema: &crate::schema::CombinedSchema,
     window_mapping: &Option<HashMap<WindowFunctionKey, usize>>,
+    buffer_pool: &vibesql_storage::QueryBufferPool,
 ) -> Result<vibesql_storage::Row, crate::errors::ExecutorError> {
-    let mut values = Vec::new();
+    // Use pooled buffer to reduce allocation overhead
+    let mut values = buffer_pool.get_value_buffer(columns.len());
 
     for item in columns {
         match item {
@@ -84,7 +86,11 @@ pub(super) fn project_row_combined(
         }
     }
 
-    Ok(vibesql_storage::Row::new(values))
+    // Move data to result and return pooled buffer
+    // This allows buffer capacity reuse while avoiding clone overhead
+    let result_values = std::mem::take(&mut values);
+    buffer_pool.return_value_buffer(values);
+    Ok(vibesql_storage::Row::new(result_values))
 }
 
 /// Evaluate an expression, checking for window functions first
@@ -245,6 +251,7 @@ pub struct SelectProjectionIterator<'a, I: Iterator<Item = Result<vibesql_storag
     evaluator: crate::evaluator::CombinedExpressionEvaluator<'a>,
     input_schema: crate::schema::CombinedSchema,
     window_mapping: Option<HashMap<WindowFunctionKey, usize>>,
+    buffer_pool: vibesql_storage::QueryBufferPool,
 }
 
 impl<'a, I: Iterator<Item = Result<vibesql_storage::Row, crate::errors::ExecutorError>>> SelectProjectionIterator<'a, I> {
@@ -262,6 +269,7 @@ impl<'a, I: Iterator<Item = Result<vibesql_storage::Row, crate::errors::Executor
         evaluator: crate::evaluator::CombinedExpressionEvaluator<'a>,
         input_schema: crate::schema::CombinedSchema,
         window_mapping: Option<HashMap<WindowFunctionKey, usize>>,
+        buffer_pool: vibesql_storage::QueryBufferPool,
     ) -> Self {
         Self {
             source,
@@ -269,6 +277,7 @@ impl<'a, I: Iterator<Item = Result<vibesql_storage::Row, crate::errors::Executor
             evaluator,
             input_schema,
             window_mapping,
+            buffer_pool,
         }
     }
 }
@@ -294,6 +303,7 @@ impl<'a, I: Iterator<Item = Result<vibesql_storage::Row, crate::errors::Executor
             &self.evaluator,
             &self.input_schema,
             &self.window_mapping,
+            &self.buffer_pool,
         );
 
         Some(projected)
