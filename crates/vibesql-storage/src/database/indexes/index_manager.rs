@@ -20,6 +20,9 @@ use crate::NativeStorage;
 #[cfg(target_arch = "wasm32")]
 use crate::OpfsStorage;
 
+#[cfg(target_arch = "wasm32")]
+use crate::backend::MemoryStorage;
+
 /// Manages user-defined indexes (CREATE INDEX statements)
 ///
 /// This component encapsulates all user-defined index operations, maintaining
@@ -63,7 +66,7 @@ impl IndexManager {
         #[cfg(not(target_arch = "wasm32"))]
         let storage = Arc::new(NativeStorage::new(".").unwrap());
         #[cfg(target_arch = "wasm32")]
-        let storage = Arc::new(OpfsStorage::new().unwrap());
+        let storage = Arc::new(MemoryStorage::new());
 
         IndexManager {
             indexes: HashMap::new(),
@@ -80,7 +83,7 @@ impl IndexManager {
         #[cfg(not(target_arch = "wasm32"))]
         let storage = Arc::new(NativeStorage::new(".").unwrap());
         #[cfg(target_arch = "wasm32")]
-        let storage = Arc::new(OpfsStorage::new().unwrap());
+        let storage = Arc::new(MemoryStorage::new());
 
         IndexManager {
             indexes: HashMap::new(),
@@ -104,10 +107,27 @@ impl IndexManager {
         #[cfg(target_arch = "wasm32")]
         {
             // OPFS doesn't use directory paths the same way
-            // Keep the existing OPFS storage
+            // Keep the existing storage (will be initialized via init_opfs_async)
             let _ = path; // Suppress unused variable warning
         }
         self.database_path = Some(path);
+    }
+
+    /// Initialize OPFS storage asynchronously (WASM only)
+    ///
+    /// This replaces the temporary in-memory storage with persistent OPFS storage.
+    /// Must be called from an async context.
+    ///
+    /// # Returns
+    /// Ok on successful initialization, Err if OPFS is not supported or initialization fails
+    #[cfg(target_arch = "wasm32")]
+    pub async fn init_opfs_async(&mut self) -> Result<(), StorageError> {
+        let opfs_storage = OpfsStorage::new_async()
+            .await
+            .map_err(|e| StorageError::from(e))?;
+
+        self.storage = Arc::new(opfs_storage);
+        Ok(())
     }
 
     /// Set the resource budget configuration

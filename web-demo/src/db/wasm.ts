@@ -55,7 +55,7 @@ export async function initDatabase(useOpfs: boolean = true): Promise<Database> {
 
     // Use OPFS-backed persistent storage if requested and available
     if (useOpfs && isOpfsSupported()) {
-      db = module.Database.newWithPersistence()
+      db = await module.Database.newWithPersistence()
       usingOpfs = true
       console.log('Database initialized with OPFS persistent storage')
     } else {

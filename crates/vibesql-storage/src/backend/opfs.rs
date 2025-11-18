@@ -11,13 +11,14 @@
 //!
 //! # Architecture
 //!
-//! OPFS is inherently asynchronous, but the StorageBackend trait is synchronous.
-//! We use a channel-based blocking mechanism to bridge this gap, spawning async
-//! operations with `wasm_bindgen_futures::spawn_local` and blocking on completion.
+//! OPFS is inherently asynchronous. This module provides async initialization via
+//! `OpfsStorage::new_async()` and uses internal async operations with synchronous
+//! wrappers via `wasm_bindgen_futures::spawn_local` for StorageBackend trait compatibility.
 
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{FileSystemDirectoryHandle, FileSystemFileHandle, FileSystemWritableFileStream};
@@ -117,17 +118,23 @@ unsafe impl Send for OpfsStorage {}
 unsafe impl Sync for OpfsStorage {}
 
 impl OpfsStorage {
-    /// Create a new OPFS storage backend
+    /// Create a new OPFS storage backend asynchronously
+    ///
+    /// This is the primary initialization method for OPFS storage.
+    /// It must be called from an async context.
     ///
     /// # Returns
     ///
     /// Returns an error if OPFS is not supported or cannot be initialized
-    pub fn new() -> Result<Self, OpfsError> {
-        block_on(Self::new_async())
-    }
-
-    /// Async initialization of OPFS storage
-    async fn new_async() -> Result<Self, OpfsError> {
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// # use vibesql_storage::backend::OpfsStorage;
+    /// # async fn example() {
+    /// let storage = OpfsStorage::new_async().await.unwrap();
+    /// # }
+    /// ```
+    pub async fn new_async() -> Result<Self, OpfsError> {
         // Get window object
         let window = web_sys::window()
             .ok_or(OpfsError::NotSupported)?;
@@ -166,7 +173,7 @@ impl OpfsStorage {
 
         let promise = if create {
             // Use FileSystemGetFileOptions to set create: true
-            let mut options = web_sys::FileSystemGetFileOptions::new();
+            let options = web_sys::FileSystemGetFileOptions::new();
             options.set_create(true);
             root.get_file_handle_with_options(path, &options)
         } else {
@@ -398,6 +405,136 @@ impl StorageFile for OpfsFile {
             Ok(web_file.size() as u64)
         })
         .map_err(|e: OpfsError| StorageError::from(e))
+    }
+}
+
+// ============================================================================
+// Memory Storage - Temporary in-memory backend for WASM initialization
+// ============================================================================
+
+/// Simple in-memory storage backend for WASM
+///
+/// This is used as a temporary placeholder during database initialization
+/// before OPFS storage is asynchronously initialized. It does not persist data.
+pub struct MemoryStorage {
+    files: Rc<RefCell<HashMap<String, Vec<u8>>>>,
+}
+
+// SAFETY: WASM is single-threaded
+unsafe impl Send for MemoryStorage {}
+unsafe impl Sync for MemoryStorage {}
+
+impl MemoryStorage {
+    /// Create a new in-memory storage backend
+    pub fn new() -> Self {
+        Self {
+            files: Rc::new(RefCell::new(HashMap::new())),
+        }
+    }
+}
+
+impl StorageBackend for MemoryStorage {
+    fn create_file(&self, path: &str) -> Result<Box<dyn StorageFile>, StorageError> {
+        let mut files = self.files.borrow_mut();
+        files.insert(path.to_string(), Vec::new());
+        Ok(Box::new(MemoryFile {
+            path: path.to_string(),
+            files: self.files.clone(),
+        }))
+    }
+
+    fn open_file(&self, path: &str) -> Result<Box<dyn StorageFile>, StorageError> {
+        let mut files = self.files.borrow_mut();
+        files.entry(path.to_string()).or_insert_with(Vec::new);
+        Ok(Box::new(MemoryFile {
+            path: path.to_string(),
+            files: self.files.clone(),
+        }))
+    }
+
+    fn delete_file(&self, path: &str) -> Result<(), StorageError> {
+        let mut files = self.files.borrow_mut();
+        files.remove(path);
+        Ok(())
+    }
+
+    fn file_exists(&self, path: &str) -> bool {
+        let files = self.files.borrow();
+        files.contains_key(path)
+    }
+
+    fn file_size(&self, path: &str) -> Result<u64, StorageError> {
+        let files = self.files.borrow();
+        files
+            .get(path)
+            .map(|data| data.len() as u64)
+            .ok_or_else(|| StorageError::IoError("File not found".to_string()))
+    }
+}
+
+/// In-memory file implementation
+pub struct MemoryFile {
+    path: String,
+    files: Rc<RefCell<HashMap<String, Vec<u8>>>>,
+}
+
+// SAFETY: WASM is single-threaded
+unsafe impl Send for MemoryFile {}
+unsafe impl Sync for MemoryFile {}
+
+impl StorageFile for MemoryFile {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize, StorageError> {
+        let files = self.files.borrow();
+        let data = files
+            .get(&self.path)
+            .ok_or_else(|| StorageError::IoError("File not found".to_string()))?;
+
+        let offset = offset as usize;
+        let end = std::cmp::min(offset + buf.len(), data.len());
+
+        if offset >= data.len() {
+            return Ok(0);
+        }
+
+        let bytes_to_read = end - offset;
+        buf[..bytes_to_read].copy_from_slice(&data[offset..end]);
+        Ok(bytes_to_read)
+    }
+
+    fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<usize, StorageError> {
+        let mut files = self.files.borrow_mut();
+        let data = files
+            .get_mut(&self.path)
+            .ok_or_else(|| StorageError::IoError("File not found".to_string()))?;
+
+        let offset = offset as usize;
+        let end = offset + buf.len();
+
+        // Expand file if necessary
+        if end > data.len() {
+            data.resize(end, 0);
+        }
+
+        data[offset..end].copy_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn sync_all(&mut self) -> Result<(), StorageError> {
+        // No-op for in-memory storage
+        Ok(())
+    }
+
+    fn sync_data(&mut self) -> Result<(), StorageError> {
+        // No-op for in-memory storage
+        Ok(())
+    }
+
+    fn size(&self) -> Result<u64, StorageError> {
+        let files = self.files.borrow();
+        files
+            .get(&self.path)
+            .map(|data| data.len() as u64)
+            .ok_or_else(|| StorageError::IoError("File not found".to_string()))
     }
 }
 
