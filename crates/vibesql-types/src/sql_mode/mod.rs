@@ -1,3 +1,5 @@
+pub mod types;
+
 /// SQL compatibility mode
 ///
 /// VibeSQL supports different SQL dialect modes to match the behavior
