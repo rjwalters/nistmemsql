@@ -33,13 +33,8 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
 
     // Blocklist of test files to skip (typically due to memory issues or extreme query volume)
     let blocklist: HashSet<String> = vec![
-        // High-volume index tests (32K+ queries, require extended timeouts)
-        // These tests are correctness-validated but excluded from standard runs due to volume
-        // See issue #2037 for details
-        "index/between/1000/slt_good_0.test",  // 2,771 queries
-        "index/commute/1000/slt_good_1.test",  // 9,562 queries
-        "index/commute/1000/slt_good_2.test",  // 10,000 queries
-        "index/commute/1000/slt_good_3.test",  // 10,000 queries
+        // Blocklist is now empty - select4.test and select5.test pass after fixes in #1036 and #1689
+        // High-volume index tests (32K+ queries) use extended timeouts instead of blocklisting (see issue #2037)
     ]
     .into_iter()
     .map(|s: &str| s.to_string())

@@ -89,7 +89,7 @@ pub fn run_test_file_with_details(
     contents: &str,
     file_name: &str,
 ) -> (Result<(), TestError>, Vec<TestFailure>) {
-    let timeout_secs = get_test_file_timeout();
+    let timeout_secs = scheduler::get_test_file_timeout_for(file_name);
 
     let result = std::panic::catch_unwind(|| {
         tokio::runtime::Builder::new_current_thread()
