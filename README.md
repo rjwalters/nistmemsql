@@ -538,6 +538,54 @@ cat target/sqllogictest_punchlist.csv
 python3 scripts/generate_punchlist.py
 ```
 
+### Analyzing Test Results
+
+Test results are stored in a SQL database at `~/.vibesql/test_results/sqllogictest_results.sql`. Query and analyze results using built-in presets:
+
+```bash
+# View summary of latest test run
+./scripts/sqllogictest query --preset=analyze-summary
+
+# Show all failures from latest run
+./scripts/sqllogictest query --preset=latest-failures
+
+# Group failures by category
+./scripts/sqllogictest query --preset=failing-by-category
+
+# Find slow tests
+./scripts/sqllogictest query --preset=slow-tests
+
+# Run custom SQL query
+./scripts/sqllogictest query --query "SELECT file_path, status FROM test_results WHERE status='failed' LIMIT 10"
+
+# List all available presets
+./scripts/sqllogictest query --list-presets
+```
+
+### Backing Up Test Results
+
+Test results are tracked in version control to maintain history across git worktrees:
+
+```bash
+# Create a timestamped backup in test_results/ directory
+./scripts/backup_test_results.sh
+
+# Backup is automatically created with timestamp
+# Example: test_results/sqllogictest_results-20251117-143052.sql
+
+# Only the 5 most recent backups are kept
+# Older backups are automatically deleted
+
+# Commit the backup to git
+git add test_results/
+git commit -m "Update test results database backup"
+git push
+```
+
+**Database Locations**:
+- **Working database**: `~/.vibesql/test_results/sqllogictest_results.sql` - actively updated by test runs
+- **Version-controlled backups**: `test_results/sqllogictest_results-*.sql` - timestamped snapshots in git
+
 **Documentation**:
 - **[docs/testing/sqllogictest/QUICK_START.md](docs/testing/sqllogictest/QUICK_START.md)** - 2-minute overview with key commands
 - **[docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md](docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md)** - Full strategic guide with workflow and phase breakdown
