@@ -271,6 +271,44 @@ VALUES ({result_id}, {self.run_id}, {self._sql_escape(file_path)}, '{status}', T
 
         return f"'{escaped}'"
 
+    def finalize(self, cumulative_results: Dict):
+        """
+        Finalize the test run by updating the test_runs table with final counts.
+
+        Args:
+            cumulative_results: Dictionary containing test results summary with keys:
+                               'summary' with 'total', 'passed', 'failed', 'errors', etc.
+        """
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        summary = cumulative_results.get('summary', {})
+
+        total = summary.get('total', 0)
+        passed = summary.get('passed', 0)
+        failed = summary.get('failed', 0) + summary.get('errors', 0)
+        untested = total - passed - failed
+
+        # Update test_runs table with final counts
+        update_stmt = f"""
+-- Test run finalized at {timestamp}
+UPDATE test_runs
+SET completed_at = TIMESTAMP '{timestamp}',
+    passed = {passed},
+    failed = {failed},
+    untested = {untested}
+WHERE run_id = {self.run_id};
+"""
+
+        # Write to database with locking
+        with open(self.lock_file, 'r') as lock_fd:
+            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
+
+            try:
+                with open(self.db_path, 'a') as f:
+                    f.write(update_stmt)
+                    f.write("\n")
+            finally:
+                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+
 
 def discover_test_files(repo_root: Path) -> List[str]:
     """
@@ -900,6 +938,12 @@ VALUES ({run_id}, TIMESTAMP '{timestamp}', NULL, {len(test_files)}, 0, 0, {len(t
         json.dump(cumulative_results, f, indent=2)
 
     print(f"✓ Results written to: {output_file}")
+    print()
+
+    # Finalize database: update test_runs table with final counts
+    print("Finalizing database...")
+    db_writer.finalize(cumulative_results)
+    print(f"✓ Database finalized: {db_path}")
     print()
 
     # Print summary
