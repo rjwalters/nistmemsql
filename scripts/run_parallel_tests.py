@@ -388,7 +388,7 @@ def run_worker(worker_id: int, work_queue: WorkQueue, db_writer: Optional[Stream
     # Most files complete in <10s, but high-volume index tests (10,000+ queries) need more time
     # Increased from 60s to 120s (issue #1921), then 300s, 600s, now 1200s for extreme */1000/* tests
     # This separates correctness (tests pass/fail) from performance (tests are slow)
-    per_file_timeout = 300  # 300s (5 min) per file - balance between speed and correctness
+    per_file_timeout = 500  # 500s (8.3 min) per file - extended timeout for large tests
 
     # Pull files from queue until empty or time budget exhausted
     while True:
