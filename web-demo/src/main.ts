@@ -12,10 +12,8 @@ import { LoadingProgressComponent } from './components/LoadingProgress'
 import { initShowcase } from './showcase'
 import { sampleDatabases, loadSampleDatabase, getSampleDatabase, loadSqlDump } from './data/sample-databases'
 import { updateConformanceFooter } from './utils/conformance'
-import * as monaco from 'monaco-editor'
-
-type Monaco = typeof monaco
-type MonacoEditor = monaco.editor.IStandaloneCodeEditor
+import { loadMonaco, isMonacoLoaded, type Monaco, type MonacoEditor } from './editor/monaco-loader'
+import { createFallbackEditor, type FallbackEditor } from './editor/fallback-editor'
 
 const SQL_KEYWORDS = [
   'SELECT',
@@ -68,10 +66,8 @@ SELECT * FROM employees;
 -- SELECT name, department, salary FROM employees WHERE salary > 80000;
 `
 
-async function loadMonaco(): Promise<Monaco> {
-  // Monaco is now bundled with the app, so just return it
-  return monaco
-}
+// Editor state
+type Editor = MonacoEditor | FallbackEditor
 
 function getLayoutElements(): {
   editorContainer: HTMLDivElement | null
@@ -176,15 +172,18 @@ async function safeInitDatabase(): Promise<Database | null> {
   }
 }
 
-function setupThemeSync(monaco: Monaco): { theme: ReturnType<typeof initTheme> } {
+function setupThemeSync(monaco: Monaco | null): { theme: ReturnType<typeof initTheme> } {
   const theme = initTheme()
 
   const applyTheme = (mode: 'light' | 'dark'): void => {
+    if (!monaco) return
     const targetTheme = mode === 'dark' ? 'vs-dark' : 'vs'
     monaco.editor?.setTheme?.(targetTheme)
   }
 
-  applyTheme(theme.current)
+  if (monaco) {
+    applyTheme(theme.current)
+  }
 
   // Listen for theme changes
   const observer = new MutationObserver(() => {
@@ -197,6 +196,76 @@ function setupThemeSync(monaco: Monaco): { theme: ReturnType<typeof initTheme> }
   })
 
   return { theme }
+}
+
+/**
+ * Upgrade from fallback editor to full Monaco editor
+ */
+async function upgradeToMonaco(
+  container: HTMLElement,
+  fallbackEditor: FallbackEditor,
+  options: {
+    value?: string
+    language?: string
+    theme?: string
+    readOnly?: boolean
+    lineNumbers?: 'on' | 'off'
+  },
+  callbacks: {
+    onDidChangeModelContent?: (monaco: Monaco, editor: MonacoEditor) => void
+    onShortcuts?: (monaco: Monaco, editor: MonacoEditor) => void
+  }
+): Promise<MonacoEditor> {
+  console.log('[Editor Upgrade] Starting Monaco load...')
+
+  // Get current value from fallback editor
+  const currentValue = fallbackEditor.getValue()
+
+  // Load Monaco
+  const monaco = await loadMonaco()
+
+  console.log('[Editor Upgrade] Creating Monaco editor...')
+
+  // Destroy fallback editor
+  fallbackEditor.destroy()
+
+  // Clear container
+  container.innerHTML = ''
+
+  // Create Monaco editor
+  const editor = monaco.editor.create(container, {
+    value: currentValue || options.value || '',
+    language: options.language || 'sql',
+    theme: options.theme || 'vs-dark',
+    readOnly: options.readOnly || false,
+    minimap: { enabled: false },
+    automaticLayout: true,
+    fontFamily:
+      'JetBrains Mono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontSize: 14,
+    smoothScrolling: true,
+    scrollBeyondLastLine: false,
+    lineNumbers: options.lineNumbers || 'on',
+  })
+
+  // Apply current theme
+  const isDark = document.documentElement.classList.contains('dark')
+  monaco.editor.setTheme(isDark ? 'vs-dark' : 'vs')
+
+  // Register callbacks
+  if (callbacks.onDidChangeModelContent) {
+    editor.onDidChangeModelContent(() => {
+      callbacks.onDidChangeModelContent!(monaco, editor)
+    })
+  }
+
+  if (callbacks.onShortcuts) {
+    callbacks.onShortcuts(monaco, editor)
+  }
+
+  console.log('[Editor Upgrade] Monaco editor ready!')
+
+  return editor
 }
 
 function isQueryResult(result: QueryResult | ExecuteResult): result is QueryResult {
@@ -277,9 +346,9 @@ function formatResultAsAsciiTable(result: QueryResult | ExecuteResult): string {
 }
 
 function createExecutionHandler(
-  editor: MonacoEditor,
+  editor: Editor,
   database: Database | null,
-  resultsEditor: MonacoEditor,
+  resultsEditor: Editor,
   refreshTables: () => void
 ): () => void {
   return () => {
@@ -321,9 +390,11 @@ function createExecutionHandler(
         const newOutput = separator + sqlComment + resultTable + timing
         resultsEditor.setValue(currentValue + newOutput)
 
-        // Scroll to bottom
-        const lineCount = resultsEditor.getModel()?.getLineCount() || 0
-        resultsEditor.revealLine(lineCount)
+        // Scroll to bottom (Monaco-specific, skip for fallback editor)
+        if ('getModel' in resultsEditor && 'revealLine' in resultsEditor) {
+          const lineCount = resultsEditor.getModel()?.getLineCount() || 0
+          resultsEditor.revealLine(lineCount)
+        }
 
         refreshTables()
       } catch (error) {
@@ -334,9 +405,11 @@ function createExecutionHandler(
         const errorMsg = `ERROR: ${message}`
         resultsEditor.setValue(currentValue + separator + sqlComment + errorMsg)
 
-        // Scroll to bottom
-        const lineCount = resultsEditor.getModel()?.getLineCount() || 0
-        resultsEditor.revealLine(lineCount)
+        // Scroll to bottom (Monaco-specific, skip for fallback editor)
+        if ('getModel' in resultsEditor && 'revealLine' in resultsEditor) {
+          const lineCount = resultsEditor.getModel()?.getLineCount() || 0
+          resultsEditor.revealLine(lineCount)
+        }
 
         console.error(`Execution error: ${message}`)
       }
@@ -348,7 +421,7 @@ async function bootstrap(): Promise<void> {
   // Initialize loading progress indicator
   const progress = new LoadingProgressComponent()
   progress.addStep('theme', 'Initializing theme')
-  progress.addStep('monaco', 'Loading Monaco Editor')
+  progress.addStep('editor', 'Preparing editor')
   progress.addStep('wasm', 'Loading database engine')
   progress.addStep('ui', 'Setting up user interface')
 
@@ -377,21 +450,20 @@ async function bootstrap(): Promise<void> {
       return
     }
 
-    // Step 2: Load Monaco Editor (this is the slowest part)
-    progress.updateStep('monaco', 10, 'loading')
-    const monacoStartTime = performance.now()
+    // Step 2: Create fallback editors (fast, no Monaco loading)
+    progress.updateStep('editor', 50, 'loading')
 
-    // Simulate progress updates for Monaco loading
-    const monacoProgressInterval = setInterval(() => {
-      const elapsed = performance.now() - monacoStartTime
-      // Estimate progress based on time (assume 1 second total)
-      const estimatedProgress = Math.min(90, 10 + (elapsed / 1000) * 80)
-      progress.updateStep('monaco', estimatedProgress, 'loading')
-    }, 100)
+    let editor: Editor = createFallbackEditor(layout.editorContainer, {
+      value: DEFAULT_SQL,
+      placeholder: 'Enter SQL query...',
+    })
 
-    const monaco = await loadMonaco()
-    clearInterval(monacoProgressInterval)
-    progress.completeStep('monaco')
+    let resultsEditor: Editor = createFallbackEditor(layout.resultsEditorContainer, {
+      value: 'Query results will appear here\nPress Ctrl/Cmd + Enter to run queries',
+      readOnly: true,
+    })
+
+    progress.completeStep('editor')
 
     // Step 3: Load WASM database in parallel with editor creation
     progress.updateStep('wasm', 20, 'loading')
@@ -402,7 +474,7 @@ async function bootstrap(): Promise<void> {
         progress.updateStep('wasm', 80, 'loading')
         return db
       }),
-      // Create editors while WASM loads
+      // UI setup while WASM loads
       Promise.resolve().then(() => {
         progress.updateStep('ui', 30, 'loading')
         return null
@@ -411,37 +483,10 @@ async function bootstrap(): Promise<void> {
 
     progress.completeStep('wasm')
 
-    // Step 4: Create editor instances
+    // Step 4: Initial UI setup (without Monaco)
     progress.updateStep('ui', 50, 'loading')
-    const editor = monaco.editor.create(layout.editorContainer, {
-    value: DEFAULT_SQL,
-    language: 'sql',
-    theme: 'vs-dark',
-    minimap: { enabled: false },
-    automaticLayout: true,
-    fontFamily:
-      'JetBrains Mono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    fontSize: 14,
-    smoothScrolling: true,
-    scrollBeyondLastLine: false,
-  })
 
-  const resultsEditor = monaco.editor.create(layout.resultsEditorContainer, {
-    value: 'Query results will appear here\nPress Ctrl/Cmd + Enter to run queries',
-    language: 'plaintext',
-    theme: 'vs-dark',
-    readOnly: true,
-    minimap: { enabled: false },
-    automaticLayout: true,
-    fontFamily:
-      'JetBrains Mono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    fontSize: 14,
-    smoothScrolling: true,
-    scrollBeyondLastLine: false,
-    lineNumbers: 'off',
-  })
-
-  setupThemeSync(monaco)
+    setupThemeSync(null)
 
   // Initialize Navigation component
   progress.updateStep('ui', 70, 'loading')
@@ -496,8 +541,6 @@ async function bootstrap(): Promise<void> {
     void loadDatabase('employees')
   }
 
-  registerCompletions(monaco, () => tableNames)
-
   const refreshTables = (): void => {
     if (!database) return
     try {
@@ -509,20 +552,95 @@ async function bootstrap(): Promise<void> {
 
   refreshTables()
 
-  editor.onDidChangeModelContent(() => {
-    applyValidationMarkers(monaco, editor)
-  })
-  applyValidationMarkers(monaco, editor)
+  // Track if Monaco has been loaded
+  let monacoInstance: Monaco | null = null
+  let hasUpgradedEditors = false
+
+  // Function to upgrade to Monaco on first interaction
+  const upgradeEditorsToMonaco = async (): Promise<void> => {
+    if (hasUpgradedEditors || isMonacoLoaded()) return
+    hasUpgradedEditors = true
+
+    console.log('[Bootstrap] Upgrading to Monaco editors...')
+
+    // Upgrade SQL editor
+    const sqlEditor = await upgradeToMonaco(
+      layout.editorContainer!,
+      editor as FallbackEditor,
+      {
+        language: 'sql',
+        theme: 'vs-dark',
+      },
+      {
+        onDidChangeModelContent: (monaco, monacoEditor) => {
+          applyValidationMarkers(monaco, monacoEditor)
+        },
+        onShortcuts: (monaco, monacoEditor) => {
+          registerShortcuts(monaco, monacoEditor, execute)
+        },
+      }
+    )
+
+    // Upgrade results editor
+    const resultsMonacoEditor = await upgradeToMonaco(
+      layout.resultsEditorContainer!,
+      resultsEditor as FallbackEditor,
+      {
+        language: 'plaintext',
+        theme: 'vs-dark',
+        readOnly: true,
+        lineNumbers: 'off',
+      },
+      {}
+    )
+
+    // Update references
+    editor = sqlEditor
+    resultsEditor = resultsMonacoEditor
+
+    // Get Monaco instance
+    monacoInstance = await loadMonaco()
+
+    // Register completions with Monaco
+    registerCompletions(monacoInstance, () => tableNames)
+
+    // Apply initial validation
+    applyValidationMarkers(monacoInstance, sqlEditor)
+
+    // Update theme sync
+    setupThemeSync(monacoInstance)
+  }
+
+  // Add focus listener to upgrade editors
+  layout.editorContainer?.addEventListener(
+    'focus',
+    () => {
+      void upgradeEditorsToMonaco()
+    },
+    { capture: true, once: true }
+  )
+
+  // Also upgrade on click
+  layout.editorContainer?.addEventListener(
+    'click',
+    () => {
+      void upgradeEditorsToMonaco()
+    },
+    { once: true }
+  )
 
   // Initialize Examples sidebar
   const examplesComponent = new ExamplesComponent()
   examplesComponent.onSelect((event: ExampleSelectEvent) => {
-    editor.setValue(event.sql)
-    // Switch database if needed
-    if (event.database !== currentDatabaseId) {
-      void loadDatabase(event.database)
-      databaseSelector.setSelected(event.database)
-    }
+    // Upgrade to Monaco if needed before setting value
+    void upgradeEditorsToMonaco().then(() => {
+      editor.setValue(event.sql)
+      // Switch database if needed
+      if (event.database !== currentDatabaseId) {
+        void loadDatabase(event.database)
+        databaseSelector.setSelected(event.database)
+      }
+    })
   })
 
   // Initialize Database Selector with all available sample databases
@@ -538,8 +656,10 @@ async function bootstrap(): Promise<void> {
 
   const execute = createExecutionHandler(editor, database, resultsEditor, refreshTables)
 
-  registerShortcuts(monaco, editor, execute)
-  layout.runButton?.addEventListener('click', execute)
+  // Run button triggers upgrade
+  layout.runButton?.addEventListener('click', () => {
+    void upgradeEditorsToMonaco().then(() => execute())
+  })
 
   // Initialize SQL:1999 Showcase navigation
   initShowcase()

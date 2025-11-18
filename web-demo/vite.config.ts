@@ -42,9 +42,23 @@ export default defineConfig({
         conformance: resolve(__dirname, 'conformance.html'),
         benchmarks: resolve(__dirname, 'benchmarks.html'),
       },
+      output: {
+        // Code splitting configuration
+        manualChunks: {
+          // Split Monaco Editor into separate chunk for lazy loading
+          'monaco-editor': ['monaco-editor'],
+        },
+      },
     },
+    // Increase chunk size warning limit for Monaco
+    chunkSizeWarningLimit: 1000,
   },
   define: {
     __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
+  },
+  // Optimize dependencies
+  optimizeDeps: {
+    // Exclude Monaco from pre-bundling to enable lazy loading
+    exclude: ['monaco-editor'],
   },
 })
