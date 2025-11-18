@@ -11,6 +11,7 @@ mod join_reorder_wrapper;
 mod order;
 mod parallel;
 mod predicate_graph;
+mod vectorized;
 mod projection;
 pub(crate) mod scan;
 mod set_operations;
