@@ -19,40 +19,40 @@ The SQLLogicTest file `index/between/1000/slt_good_0.test` times out or takes ex
 - **Query Pattern**: Each BETWEEN query tested across 5 tables to verify index correctness
 - **Complexity**: Queries progress from simple to extremely complex (100+ nested AND/OR conditions)
 
-## Performance Bottlenecks Identified
+## Current State of Optimization
 
-### 1. **No Short-Circuit Evaluation for AND/OR Operators**
+### 1. **Short-Circuit Evaluation: Already Implemented ✅**
 
-**Location**: `crates/vibesql-executor/src/evaluator/operators/mod.rs:37-79`
+**Location**: `crates/vibesql-executor/src/evaluator/expressions/eval.rs:71-127`
 
-**Issue**: The `eval_binary_op` function receives **already-evaluated** `SqlValue` parameters:
+**Status**: Short-circuit evaluation for AND/OR operators **already exists** in the codebase:
 
 ```rust
-pub fn eval_binary_op(
-    left: &SqlValue,     // Already evaluated!
-    op: &BinaryOperator,
-    right: &SqlValue,    // Already evaluated!
-    sql_mode: SqlMode,
-) -> Result<SqlValue, ExecutorError>
+// From eval.rs:71-127
+match op {
+    vibesql_ast::BinaryOperator::And => {
+        let left_val = self.eval(left, row)?;
+        // Short-circuit if false
+        match left_val {
+            SqlValue::Boolean(false) => Ok(SqlValue::Boolean(false)),
+            _ => {
+                let right_val = self.eval(right, row)?; // Only eval if needed
+                self.eval_binary_op(&left_val, op, &right_val)
+            }
+        }
+    }
+    // Similar for OR operator
+}
 ```
 
-This means:
-- For `FALSE AND (expensive_expression)`, the expensive expression is **still evaluated**
-- For `TRUE OR (expensive_expression)`, the expensive expression is **still evaluated**
-- No opportunity to short-circuit based on left-hand side result
+**Analysis**: The expression evaluator correctly short-circuits:
+- For AND: Returns false immediately if left side is false
+- For OR: Returns true immediately if left side is true
+- Only evaluates right side when necessary
 
-**Impact**: With queries containing 100+ nested AND/OR conditions, we evaluate **all** predicates even when early short-circuiting would skip most of them.
+**Note**: While `eval_binary_op` receives pre-evaluated values, the short-circuit logic happens **before** calling it in the expression evaluator layer.
 
-**Example Query** (label-2740):
-```sql
-SELECT pk FROM tab4 WHERE
-  ((col0 > 1523) AND col3 >= 2524 OR col4 < 6498.70 AND ...)
-  -- 100+ more nested conditions
-```
-
-Every single condition is evaluated for every row, even when early conditions determine the result.
-
-### 2. **BETWEEN Index Strategy Already Implemented**
+### 2. **BETWEEN Index Strategy Already Implemented ✅**
 
 **Location**: `crates/vibesql-executor/src/optimizer/index_strategy.rs:205-224`
 
@@ -63,7 +63,7 @@ Every single condition is evaluated for every row, even when early conditions de
 
 **Status**: ✅ Already optimized
 
-### 3. **Predicate Evaluation is Correct, Just Inefficient**
+### 3. **Predicate Evaluation is Correct ✅**
 
 **Location**: `crates/vibesql-executor/src/evaluator/combined/predicates.rs:22-99`
 
@@ -73,52 +73,25 @@ The BETWEEN evaluation logic is correct and handles:
 - SYMMETRIC keyword
 - Negation (NOT BETWEEN)
 
-**Status**: ✅ Correctness verified, efficiency improvements needed
+**Status**: ✅ Correctness verified
 
 ## Sub-Issues Status
 
-- **#2106** (Instrumentation) - `loom:building` - Add timing to identify slow phases
-- **#2107** (BETWEEN optimization) - `loom:building` - Index strategy already exists
-- **#2108** (Predicate optimization) - `loom:issue` - **CRITICAL: Implement short-circuit evaluation**
-- **#2109** (INSERT optimization) - `loom:building` - Bulk insert improvements
+- **#2106** (Instrumentation) - Add timing/profiling to identify actual slow phases
+- **#2107** (BETWEEN optimization) - ✅ Index strategy already exists
+- **#2108** (Predicate optimization) - Re-evaluate with corrected understanding
+- **#2109** (INSERT optimization) - Bulk insert improvements
 
 ## Recommendations
 
-### High Priority: Implement Short-Circuit Evaluation (#2108)
+### High Priority: Identify Actual Bottleneck with Profiling
 
-**Where to Fix**: Expression evaluation layer (before calling `eval_binary_op`)
+Since short-circuit evaluation and BETWEEN indexing already exist, the bottleneck must be elsewhere. Recommendations:
 
-**Required Change**: Evaluate AND/OR expressions lazily:
-
-```rust
-// Current (pseudocode):
-let left_val = eval(left_expr);   // Always evaluates
-let right_val = eval(right_expr); // Always evaluates
-LogicalOps::and(left_val, right_val)
-
-// Needed (pseudocode):
-match op {
-    BinaryOperator::And => {
-        let left_val = eval(left_expr);
-        if matches!(left_val, SqlValue::Boolean(false)) {
-            return Ok(SqlValue::Boolean(false)); // Short-circuit!
-        }
-        let right_val = eval(right_expr); // Only evaluate if needed
-        LogicalOps::and(&left_val, &right_val)
-    }
-    BinaryOperator::Or => {
-        let left_val = eval(left_expr);
-        if matches!(left_val, SqlValue::Boolean(true)) {
-            return Ok(SqlValue::Boolean(true)); // Short-circuit!
-        }
-        let right_val = eval(right_expr); // Only evaluate if needed
-        LogicalOps::or(&left_val, &right_val)
-    }
-    _ => { /* existing logic */ }
-}
-```
-
-**Expected Impact**: 2-5x speedup on complex queries (per #2108 acceptance criteria)
+1. **Get test to actually execute**: Fix test runner filter issue (currently 0 tests executed)
+2. **Profile with cargo flamegraph**: Identify which functions consume the most time
+3. **Use instrumentation from #2106**: Add per-query timing to measure actual slow queries
+4. **Analyze results**: Focus optimization efforts on measured bottlenecks, not hypothetical ones
 
 ### Medium Priority: Predicate Reordering
 
@@ -138,18 +111,30 @@ Test: index/between/1000/slt_good_0.test
 Duration: 331s total
   - Compilation: ~328s (5m 28s)
   - Execution: ~3s
-Result: Test runner issue (0 tests executed due to filter mismatch)
+Result: 0 tests executed due to filter mismatch
 ```
 
-**Note**: Test execution infrastructure needs investigation separately from performance optimization.
+**Critical Note**: The test **did not actually execute**. The observed time was mostly compilation, not query execution. This means:
+
+- We have **no empirical performance data** yet
+- The 331s includes ~328s of compilation overhead
+- Actual query execution time is unknown
+- Analysis above is based on code inspection, not measured bottlenecks
+
+**Next Steps for Measurement**:
+1. Fix test runner filter issue to get actual execution
+2. Use `cargo flamegraph` to profile actual execution
+3. Implement instrumentation from #2106 for per-query timing
+4. Focus optimization on **measured** bottlenecks, not hypothetical ones
 
 ## Next Steps
 
-1. **Complete #2106** (instrumentation) to identify exact slow queries
-2. **Implement #2108** (short-circuit evaluation) - highest impact
-3. **Verify #2107** (BETWEEN indexes) - may already be sufficient
-4. **Measure improvement** with #2106 instrumentation
-5. **Close #2110** when test completes in < 300s
+1. **Fix test runner** to get actual test execution (not just compilation)
+2. **Implement #2106** (instrumentation/profiling) to identify actual bottlenecks
+3. **Re-evaluate #2108** with corrected understanding that short-circuit already exists
+4. **Profile actual execution** with `cargo flamegraph` or instrumentation
+5. **Address measured bottlenecks** based on profiling data
+6. **Continue working on #2110** (not closed by this PR - this is analysis only)
 
 ## Files Referenced
 
