@@ -131,6 +131,81 @@ fn extract_all_conditions(from: &vibesql_ast::FromClause, conditions: &mut Vec<v
     }
 }
 
+/// Extract all table names referenced in an expression
+///
+/// This function recursively walks an expression tree and collects all table names
+/// mentioned in column references. Used to determine which tables a join condition connects.
+fn extract_referenced_tables(expr: &vibesql_ast::Expression, tables: &mut HashSet<String>) {
+    match expr {
+        vibesql_ast::Expression::ColumnRef { table: Some(table), .. } => {
+            tables.insert(table.to_lowercase());
+        }
+        vibesql_ast::Expression::BinaryOp { left, right, .. } => {
+            extract_referenced_tables(left, tables);
+            extract_referenced_tables(right, tables);
+        }
+        vibesql_ast::Expression::UnaryOp { expr, .. } => {
+            extract_referenced_tables(expr, tables);
+        }
+        vibesql_ast::Expression::Function { args, .. } | vibesql_ast::Expression::AggregateFunction { args, .. } => {
+            for arg in args {
+                extract_referenced_tables(arg, tables);
+            }
+        }
+        vibesql_ast::Expression::InList { expr, values, .. } => {
+            extract_referenced_tables(expr, tables);
+            for item in values {
+                extract_referenced_tables(item, tables);
+            }
+        }
+        vibesql_ast::Expression::Between { expr, low, high, .. } => {
+            extract_referenced_tables(expr, tables);
+            extract_referenced_tables(low, tables);
+            extract_referenced_tables(high, tables);
+        }
+        vibesql_ast::Expression::Case { operand, when_clauses, else_result } => {
+            if let Some(op) = operand {
+                extract_referenced_tables(op, tables);
+            }
+            for clause in when_clauses {
+                for condition in &clause.conditions {
+                    extract_referenced_tables(condition, tables);
+                }
+                extract_referenced_tables(&clause.result, tables);
+            }
+            if let Some(else_res) = else_result {
+                extract_referenced_tables(else_res, tables);
+            }
+        }
+        vibesql_ast::Expression::IsNull { expr, .. } => {
+            extract_referenced_tables(expr, tables);
+        }
+        vibesql_ast::Expression::Cast { expr, .. } => {
+            extract_referenced_tables(expr, tables);
+        }
+        vibesql_ast::Expression::In { expr, .. } => {
+            extract_referenced_tables(expr, tables);
+            // Note: We don't traverse into subqueries as they reference different tables
+        }
+        vibesql_ast::Expression::Position { substring, string, .. } => {
+            extract_referenced_tables(substring, tables);
+            extract_referenced_tables(string, tables);
+        }
+        vibesql_ast::Expression::Trim { removal_char, string, .. } => {
+            if let Some(char_expr) = removal_char {
+                extract_referenced_tables(char_expr, tables);
+            }
+            extract_referenced_tables(string, tables);
+        }
+        vibesql_ast::Expression::Like { expr, pattern, .. } => {
+            extract_referenced_tables(expr, tables);
+            extract_referenced_tables(pattern, tables);
+        }
+        // For other expressions (literals, wildcards, subqueries, etc.), no direct column refs to extract
+        _ => {}
+    }
+}
+
 /// Apply join reordering optimization to a multi-table join
 ///
 /// This function:
@@ -202,6 +277,8 @@ where
 
     // Step 9: Execute tables in optimal order, joining them sequentially
     let mut result: Option<super::FromResult> = None;
+    let mut joined_tables: HashSet<String> = HashSet::new();
+    let mut applied_conditions: HashSet<usize> = HashSet::new();
 
     for table_name in &optimal_order {
         let table_ref = table_map.get(table_name).ok_or_else(|| {
@@ -231,21 +308,52 @@ where
 
         // Join with previous result (if any)
         if let Some(prev_result) = result {
-            // Find join conditions that connect prev tables with this table
-            // For now, use cross join and let conditions filter
-            // TODO: Extract specific join conditions for this table pair
+            // Extract join conditions that connect this table to already-joined tables
+            let mut applicable_conditions: Vec<vibesql_ast::Expression> = Vec::new();
+
+            for (idx, condition) in join_conditions.iter().enumerate() {
+                // Skip conditions we've already applied
+                if applied_conditions.contains(&idx) {
+                    continue;
+                }
+
+                // Extract tables referenced in this condition
+                let mut referenced_tables = HashSet::new();
+                extract_referenced_tables(condition, &mut referenced_tables);
+
+                // Check if condition connects the new table with any already-joined table
+                // Condition is applicable if it references the new table AND at least one joined table
+                let references_new_table = referenced_tables.contains(&table_name.to_lowercase());
+                let references_joined_table = referenced_tables.iter().any(|t| joined_tables.contains(t));
+
+                if references_new_table && references_joined_table {
+                    applicable_conditions.push(condition.clone());
+                    applied_conditions.insert(idx);
+                }
+            }
+
+            // Use INNER join if we have applicable conditions, CROSS join otherwise
+            let join_type = if applicable_conditions.is_empty() {
+                &vibesql_ast::JoinType::Cross
+            } else {
+                &vibesql_ast::JoinType::Inner
+            };
+
             result = Some(nested_loop_join(
                 prev_result,
                 table_result,
-                &vibesql_ast::JoinType::Cross, // Use cross join, filtered by conditions
-                &None,
+                join_type,
+                &None, // No ON condition (using additional_equijoins instead)
                 false, // Not a NATURAL JOIN
                 database,
-                &join_conditions, // Pass all conditions as equijoin filters
+                &applicable_conditions, // Pass only the applicable conditions for this join
             )?);
         } else {
             result = Some(table_result);
         }
+
+        // Mark this table as joined
+        joined_tables.insert(table_name.to_lowercase());
     }
 
     let result = result.ok_or_else(|| ExecutorError::UnsupportedFeature("No tables in join".to_string()))?;
