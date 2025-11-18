@@ -726,6 +726,12 @@ impl From<vibesql_catalog::CatalogError> for ExecutorError {
                 index_name,
                 table_name,
             } => ExecutorError::IndexNotFound(format!("{} on table {}", index_name, table_name)),
+            vibesql_catalog::CatalogError::CircularForeignKey { table_name, message } => {
+                ExecutorError::ConstraintViolation(format!(
+                    "Circular foreign key dependency on table '{}': {}",
+                    table_name, message
+                ))
+            }
         }
     }
 }

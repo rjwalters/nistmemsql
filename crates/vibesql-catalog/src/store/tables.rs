@@ -4,10 +4,121 @@
 //! modification, deletion, and queries.
 
 use crate::{errors::CatalogError, table::TableSchema};
+use std::collections::{HashMap, HashSet};
 
 impl super::Catalog {
+    /// Check for circular foreign key dependencies that would be created by adding this table.
+    ///
+    /// Uses depth-first search to detect cycles in the foreign key dependency graph.
+    /// Note: Self-referential tables (table references itself) are allowed.
+    /// Returns an error if a circular dependency involving multiple tables is detected.
+    fn check_circular_foreign_keys(&self, new_table: &TableSchema) -> Result<(), CatalogError> {
+        // Build a dependency graph: table_name -> set of tables it depends on (via FK)
+        // Excludes self-references (table referencing itself is allowed)
+        let mut graph: HashMap<String, HashSet<String>> = HashMap::new();
+
+        // Add existing tables and their FK dependencies
+        for table_name in self.list_all_tables() {
+            if let Some(table_schema) = self.get_table(&table_name) {
+                let normalized_name = if self.case_sensitive_identifiers {
+                    table_schema.name.clone()
+                } else {
+                    table_schema.name.to_uppercase()
+                };
+
+                let mut dependencies = HashSet::new();
+                for fk in &table_schema.foreign_keys {
+                    let parent_table = if self.case_sensitive_identifiers {
+                        fk.parent_table.clone()
+                    } else {
+                        fk.parent_table.to_uppercase()
+                    };
+                    // Skip self-references - they're allowed
+                    if parent_table != normalized_name {
+                        dependencies.insert(parent_table);
+                    }
+                }
+                graph.insert(normalized_name, dependencies);
+            }
+        }
+
+        // Add the new table's dependencies
+        let new_table_name = if self.case_sensitive_identifiers {
+            new_table.name.clone()
+        } else {
+            new_table.name.to_uppercase()
+        };
+
+        let mut new_dependencies = HashSet::new();
+        for fk in &new_table.foreign_keys {
+            let parent_table = if self.case_sensitive_identifiers {
+                fk.parent_table.clone()
+            } else {
+                fk.parent_table.to_uppercase()
+            };
+            // Skip self-references - they're allowed
+            if parent_table != new_table_name {
+                new_dependencies.insert(parent_table);
+            }
+        }
+        graph.insert(new_table_name.clone(), new_dependencies);
+
+        // Perform DFS from the new table to detect cycles (excluding self-references)
+        let mut visited = HashSet::new();
+        let mut rec_stack = HashSet::new();
+
+        if self.has_cycle_dfs(&new_table_name, &graph, &mut visited, &mut rec_stack) {
+            return Err(CatalogError::CircularForeignKey {
+                table_name: new_table.name.clone(),
+                message: "Circular foreign key dependency detected between multiple tables. \
+                Circular foreign key relationships are not allowed during table creation. \
+                Consider using ALTER TABLE to add foreign keys after all tables are created, \
+                or ensure foreign keys only reference tables that don't create dependency cycles.".to_string(),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Helper function for cycle detection using depth-first search
+    fn has_cycle_dfs(
+        &self,
+        node: &str,
+        graph: &HashMap<String, HashSet<String>>,
+        visited: &mut HashSet<String>,
+        rec_stack: &mut HashSet<String>,
+    ) -> bool {
+        if rec_stack.contains(node) {
+            // Found a back edge - there's a cycle
+            return true;
+        }
+
+        if visited.contains(node) {
+            // Already processed this node
+            return false;
+        }
+
+        visited.insert(node.to_string());
+        rec_stack.insert(node.to_string());
+
+        // Visit all dependencies
+        if let Some(dependencies) = graph.get(node) {
+            for dep in dependencies {
+                if self.has_cycle_dfs(dep, graph, visited, rec_stack) {
+                    return true;
+                }
+            }
+        }
+
+        rec_stack.remove(node);
+        false
+    }
+
     /// Create a table schema in the current schema.
     pub fn create_table(&mut self, schema: TableSchema) -> Result<(), CatalogError> {
+        // Check for circular foreign key dependencies
+        self.check_circular_foreign_keys(&schema)?;
+
         let case_sensitive = self.case_sensitive_identifiers;
         let current_schema = self
             .schemas

@@ -61,6 +61,10 @@ pub enum CatalogError {
         index_name: String,
         table_name: String,
     },
+    CircularForeignKey {
+        table_name: String,
+        message: String,
+    },
 }
 
 impl std::fmt::Display for CatalogError {
@@ -207,6 +211,9 @@ impl std::fmt::Display for CatalogError {
                 table_name,
             } => {
                 write!(f, "Index '{}' on table '{}' not found", index_name, table_name)
+            }
+            CatalogError::CircularForeignKey { table_name, message } => {
+                write!(f, "Circular foreign key dependency detected for table '{}': {}", table_name, message)
             }
         }
     }
