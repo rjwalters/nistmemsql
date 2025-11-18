@@ -237,6 +237,28 @@ if check_if_in_worktree; then
     fi
 fi
 
+# Check if submodules are initialized in main workspace
+if [[ "$JSON_OUTPUT" != "true" ]]; then
+    print_info "Checking submodules in main workspace..."
+fi
+
+# Check for uninitialized submodules (lines starting with '-')
+UNINIT_SUBMODULES=$(git submodule status | grep '^-' | wc -l | tr -d ' ')
+if [[ "$UNINIT_SUBMODULES" -gt 0 ]]; then
+    if [[ "$JSON_OUTPUT" == "true" ]]; then
+        echo '{"error": "Submodules not initialized in main workspace"}'
+    else
+        print_error "Found $UNINIT_SUBMODULES uninitialized submodule(s) in main workspace"
+        echo ""
+        print_info "Worktree creation requires submodules to be initialized in main first."
+        print_info "Please run:"
+        echo "  git submodule update --init --recursive"
+        echo ""
+        print_info "Then try creating the worktree again."
+    fi
+    exit 1
+fi
+
 # Determine branch name
 if [[ -n "$CUSTOM_BRANCH" ]]; then
     BRANCH_NAME="feature/$CUSTOM_BRANCH"
@@ -297,11 +319,59 @@ if git worktree add "${CREATE_ARGS[@]}"; then
     # Get absolute path to worktree
     ABS_WORKTREE_PATH=$(cd "$WORKTREE_PATH" && pwd)
 
-    # Initialize submodules in the new worktree (fast since storage is shared)
+    # Initialize submodules in the new worktree with references to main workspace
+    # This uses --reference to share objects, avoiding network downloads
     if [[ "$JSON_OUTPUT" != "true" ]]; then
-        print_info "Initializing submodules in worktree..."
+        print_info "Initializing submodules in worktree (sharing objects with main)..."
     fi
-    (cd "$ABS_WORKTREE_PATH" && git submodule update --init --recursive) > /dev/null 2>&1
+
+    # Initialize each submodule with reference to main workspace's module storage
+    SUBMODULE_EXIT_CODE=0
+    (
+        cd "$ABS_WORKTREE_PATH"
+        MAIN_GIT_DIR=$(git rev-parse --git-common-dir)
+
+        # Get list of uninitialized submodules
+        git submodule status | grep '^-' | awk '{print $2}' | while read submod_path; do
+            ref_path="$MAIN_GIT_DIR/modules/$submod_path"
+
+            if [[ -d "$ref_path" ]]; then
+                # Use reference to share objects with main workspace
+                timeout 30 git submodule update --init --reference "$ref_path" -- "$submod_path" > /dev/null 2>&1
+            else
+                # No reference available, initialize normally
+                timeout 30 git submodule update --init -- "$submod_path" > /dev/null 2>&1
+            fi
+
+            if [[ $? -ne 0 ]]; then
+                exit 1
+            fi
+        done
+    )
+    SUBMODULE_EXIT_CODE=$?
+
+    if [[ $SUBMODULE_EXIT_CODE -ne 0 ]]; then
+        if [[ "$JSON_OUTPUT" == "true" ]]; then
+            echo '{"success": false, "error": "Submodule initialization failed or timed out", "exitCode": '"$SUBMODULE_EXIT_CODE"'}'
+        else
+            print_error "Submodule initialization failed or timed out (exit code: $SUBMODULE_EXIT_CODE)"
+            echo ""
+            print_info "This usually means:"
+            echo "  1. Submodules aren't initialized in main workspace"
+            echo "  2. Network issues preventing submodule clone"
+            echo "  3. Submodule URLs are inaccessible"
+            echo ""
+            print_info "To fix:"
+            echo "  1. Return to main workspace: cd $MAIN_WORKSPACE"
+            echo "  2. Initialize submodules: git submodule update --init --recursive"
+            echo "  3. Try creating the worktree again"
+            echo ""
+            print_info "Cleaning up partially created worktree..."
+        fi
+        # Clean up the worktree since submodule init failed
+        git worktree remove "$WORKTREE_PATH" --force > /dev/null 2>&1
+        exit 1
+    fi
 
     # Store return-to directory if provided
     if [[ -n "$RETURN_TO_DIR" ]]; then
