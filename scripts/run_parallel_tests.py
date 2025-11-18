@@ -56,17 +56,12 @@ from typing import Dict, List, Optional, Tuple
 
 # Import shared configuration for test results storage
 sys.path.insert(0, str(Path(__file__).parent))
-from test_results_config import get_default_database_path
-
-
-def get_repo_root() -> Path:
-    """Find the repository root directory."""
-    current = Path(__file__).resolve().parent
-    while current != current.parent:
-        if (current / ".git").exists():
-            return current
-        current = current.parent
-    raise RuntimeError("Could not find git repository root")
+from test_results_config import (
+    get_default_database_path,
+    get_git_branch,
+    get_git_commit,
+    get_repo_root,
+)
 
 
 class WorkQueue:
@@ -780,36 +775,6 @@ def merge_worker_results(worker_results: List[Tuple[int, Optional[Dict]]]) -> Di
             }
 
     return cumulative
-
-
-def get_git_commit(repo_root: Path) -> Optional[str]:
-    """Get current git commit hash."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        return None
-
-
-def get_git_branch(repo_root: Path) -> Optional[str]:
-    """Get current git branch name."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        return None
 
 
 def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path, release_mode: bool = True, per_file_timeout: int = 500) -> bool:

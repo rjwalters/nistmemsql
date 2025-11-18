@@ -7,8 +7,9 @@ Results are stored in ~/.vibesql/test_results/ to persist across worktree deleti
 """
 
 import os
+import subprocess
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 
 def get_shared_results_dir() -> Path:
@@ -119,3 +120,43 @@ def ensure_shared_directory() -> Path:
     shared_dir = get_shared_results_dir()
     shared_dir.mkdir(parents=True, exist_ok=True)
     return shared_dir
+
+
+def get_repo_root() -> Path:
+    """Find the repository root directory."""
+    current = Path(__file__).resolve().parent
+    while current != current.parent:
+        if (current / ".git").exists():
+            return current
+        current = current.parent
+    raise RuntimeError("Could not find git repository root")
+
+
+def get_git_commit(repo_root: Optional[Path] = None) -> Optional[str]:
+    """Get current git commit hash."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root or get_repo_root(),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
+def get_git_branch(repo_root: Optional[Path] = None) -> Optional[str]:
+    """Get current git branch name."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=repo_root or get_repo_root(),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return None
