@@ -19,6 +19,11 @@
 ///
 /// MySQL mode is the default to maximize compatibility with the
 /// dolthub/sqllogictest test suite, which was generated from MySQL 8.
+
+mod operators;
+
+// Re-export operator types and traits
+pub use operators::{ConcatOperator, DivisionBehavior, OperatorBehavior};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SqlMode {
     /// MySQL 8.0+ compatibility mode (default)
@@ -54,6 +59,36 @@ impl SqlMode {
     }
 }
 
+impl OperatorBehavior for SqlMode {
+    fn integer_division_behavior(&self) -> DivisionBehavior {
+        match self {
+            SqlMode::MySQL => DivisionBehavior::Decimal,
+            SqlMode::SQLite => DivisionBehavior::Integer,
+        }
+    }
+
+    fn supports_xor(&self) -> bool {
+        match self {
+            SqlMode::MySQL => true,
+            SqlMode::SQLite => false,
+        }
+    }
+
+    fn supports_integer_div_operator(&self) -> bool {
+        match self {
+            SqlMode::MySQL => true,
+            SqlMode::SQLite => false,
+        }
+    }
+
+    fn string_concat_operator(&self) -> ConcatOperator {
+        match self {
+            SqlMode::MySQL => ConcatOperator::Function,
+            SqlMode::SQLite => ConcatOperator::PipePipe,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -67,5 +102,43 @@ mod tests {
     fn test_division_behavior() {
         assert!(SqlMode::MySQL.division_returns_float());
         assert!(!SqlMode::SQLite.division_returns_float());
+    }
+
+    // Tests for OperatorBehavior trait implementation
+
+    #[test]
+    fn test_integer_division_behavior() {
+        assert_eq!(
+            SqlMode::MySQL.integer_division_behavior(),
+            DivisionBehavior::Decimal
+        );
+        assert_eq!(
+            SqlMode::SQLite.integer_division_behavior(),
+            DivisionBehavior::Integer
+        );
+    }
+
+    #[test]
+    fn test_xor_support() {
+        assert!(SqlMode::MySQL.supports_xor());
+        assert!(!SqlMode::SQLite.supports_xor());
+    }
+
+    #[test]
+    fn test_integer_div_operator_support() {
+        assert!(SqlMode::MySQL.supports_integer_div_operator());
+        assert!(!SqlMode::SQLite.supports_integer_div_operator());
+    }
+
+    #[test]
+    fn test_string_concat_operator() {
+        assert_eq!(
+            SqlMode::MySQL.string_concat_operator(),
+            ConcatOperator::Function
+        );
+        assert_eq!(
+            SqlMode::SQLite.string_concat_operator(),
+            ConcatOperator::PipePipe
+        );
     }
 }
