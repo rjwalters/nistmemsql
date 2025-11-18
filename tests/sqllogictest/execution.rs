@@ -7,7 +7,7 @@ use tokio::time::timeout;
 
 use super::{
     db_adapter::NistMemSqlDB, preprocessing::preprocess_for_mysql,
-    scheduler::get_test_file_timeout, stats::TestFailure,
+    scheduler, stats::TestFailure,
 };
 
 #[derive(Debug)]
