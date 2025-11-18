@@ -26,10 +26,10 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 - Completed in under 2 weeks (Oct 25 - Nov 1, 2025)
 
 **✅ Extended SQL:1999 Compliance - NEAR COMPLETE**
-- SQLLogicTest coverage: 617/623 files passing (99.0%, ~5.6M tests)
-- 6 failures: 4 timeouts (1000-row tests >300s) + 2 blocklisted (10000-row tests)
-- Strong areas: DDL (100%), Evidence (100%), Index (97.2%), Select (100%), Random (100%)
-- Remaining work: Optimize 6 large index tests to reach 100% conformance (see issue #2037)
+- SQLLogicTest coverage: 619/623 files passing (99.4%, ~5.6M tests)
+- 4 failures: 4 timeouts (1000-row tests >500s with default timeout)
+- Strong areas: DDL (100%), Evidence (100%), Index (97.8%), Select (100%), Random (100%)
+- Remaining work: Optimize 4 large index tests to reach 100% conformance (see issue #2037)
 - Inspired by the [posix4e/nistmemsql challenge](https://github.com/posix4e/nistmemsql)
 
 **✅ Advanced Database Features - COMPLETE!**
@@ -740,11 +740,10 @@ See [Working with AI](https://github.com/rjwalters/loom/blob/main/docs/philosoph
 
 ### 🔄 Extended Compliance - NEAR COMPLETE
 
-**SQLLogicTest Coverage - 99.0% (617/623 files)**
-- ✅ 617 test files passing (~5.6M test cases)
-- ⏱️  4 timeout tests (large 1000-row index tests exceeding 300s limit)
-- 🚫 2 blocklisted tests (10000-row tests marked as extremely memory intensive)
-- 🎯 Target: Optimize 6 large index tests to reach 100% conformance (see issue #2037)
+**SQLLogicTest Coverage - 99.4% (619/623 files)**
+- ✅ 619 test files passing (~5.6M test cases)
+- ⏱️  4 timeout tests (large 1000-row index tests exceeding 500s default timeout)
+- 🎯 Target: Optimize 4 large index tests to reach 100% conformance (see issue #2037)
 
 **Optional SQL:1999 Features - Complete**
 - ✅ Information schema views
