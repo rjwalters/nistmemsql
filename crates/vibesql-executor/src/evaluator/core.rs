@@ -1,6 +1,12 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, num::NonZeroUsize, rc::Rc};
+
+use lru::LruCache;
 
 use crate::{errors::ExecutorError, schema::CombinedSchema, select::WindowFunctionKey};
+
+/// Default maximum size for CSE cache (entries)
+/// Can be overridden via CSE_CACHE_SIZE environment variable
+const DEFAULT_CSE_CACHE_SIZE: usize = 1000;
 
 /// Components returned by get_parallel_components for parallel execution
 type ParallelComponents<'a> = (
@@ -24,8 +30,8 @@ pub struct ExpressionEvaluator<'a> {
     pub(super) procedural_context: Option<&'a crate::procedural::ExecutionContext>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
-    /// CSE cache for common sub-expression elimination (shared via Rc across depth levels)
-    pub(super) cse_cache: Rc<RefCell<HashMap<u64, vibesql_types::SqlValue>>>,
+    /// CSE cache for common sub-expression elimination with LRU eviction (shared via Rc across depth levels)
+    pub(super) cse_cache: Rc<RefCell<LruCache<u64, vibesql_types::SqlValue>>>,
     /// Whether CSE is enabled (can be disabled for debugging)
     pub(super) enable_cse: bool,
 }
@@ -43,8 +49,8 @@ pub struct CombinedExpressionEvaluator<'a> {
     column_cache: RefCell<HashMap<(Option<String>, String), usize>>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
-    /// CSE cache for common sub-expression elimination (shared via Rc across depth levels)
-    pub(super) cse_cache: Rc<RefCell<HashMap<u64, vibesql_types::SqlValue>>>,
+    /// CSE cache for common sub-expression elimination with LRU eviction (shared via Rc across depth levels)
+    pub(super) cse_cache: Rc<RefCell<LruCache<u64, vibesql_types::SqlValue>>>,
     /// Whether CSE is enabled (can be disabled for debugging)
     pub(super) enable_cse: bool,
 }
@@ -52,6 +58,7 @@ pub struct CombinedExpressionEvaluator<'a> {
 impl<'a> ExpressionEvaluator<'a> {
     /// Create a new expression evaluator for a given schema
     pub fn new(schema: &'a vibesql_catalog::TableSchema) -> Self {
+        let cache_size = Self::get_cse_cache_size();
         ExpressionEvaluator {
             schema,
             outer_row: None,
@@ -60,7 +67,9 @@ impl<'a> ExpressionEvaluator<'a> {
             trigger_context: None,
             procedural_context: None,
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(cache_size).unwrap()
+            ))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -71,6 +80,15 @@ impl<'a> ExpressionEvaluator<'a> {
         std::env::var("CSE_ENABLED")
             .map(|v| v.to_lowercase() != "false" && v != "0")
             .unwrap_or(true) // Default: enabled
+    }
+
+    /// Get CSE cache size from environment variable
+    /// Defaults to DEFAULT_CSE_CACHE_SIZE, can be overridden by setting CSE_CACHE_SIZE
+    fn get_cse_cache_size() -> usize {
+        std::env::var("CSE_CACHE_SIZE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(DEFAULT_CSE_CACHE_SIZE)
     }
 
     /// Create a new expression evaluator with outer query context for correlated subqueries
@@ -87,7 +105,9 @@ impl<'a> ExpressionEvaluator<'a> {
             trigger_context: None,
             procedural_context: None,
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -105,7 +125,9 @@ impl<'a> ExpressionEvaluator<'a> {
             trigger_context: None,
             procedural_context: None,
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -124,7 +146,9 @@ impl<'a> ExpressionEvaluator<'a> {
             trigger_context: Some(trigger_context),
             procedural_context: None,
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -145,7 +169,9 @@ impl<'a> ExpressionEvaluator<'a> {
             trigger_context: None,
             procedural_context: None,
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -164,7 +190,9 @@ impl<'a> ExpressionEvaluator<'a> {
             trigger_context: None,
             procedural_context: Some(procedural_context),
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -271,6 +299,15 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             .unwrap_or(true) // Default: enabled
     }
 
+    /// Get CSE cache size from environment variable
+    /// Defaults to DEFAULT_CSE_CACHE_SIZE, can be overridden by setting CSE_CACHE_SIZE
+    fn get_cse_cache_size() -> usize {
+        std::env::var("CSE_CACHE_SIZE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(DEFAULT_CSE_CACHE_SIZE)
+    }
+
     /// Create a new combined expression evaluator
     /// Note: Currently unused as all callers use with_database(), but kept for API completeness
     #[allow(dead_code)]
@@ -284,7 +321,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -303,7 +342,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -325,7 +366,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -345,7 +388,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -365,7 +410,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: Some(procedural_context),
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -433,7 +480,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: self.procedural_context,
             column_cache: RefCell::new(HashMap::new()),
             depth: self.depth,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse: self.enable_cse,
         }
     }
@@ -470,7 +519,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse,
         }
     }
