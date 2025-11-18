@@ -176,6 +176,7 @@ cmd_run() {
     local parallel=false
     local workers=""
     local time_budget="${SQLLOGICTEST_TIME_BUDGET:-2400}"
+    local per_file_timeout="500"
     local force=false
     local debug_mode=false
 
@@ -193,6 +194,7 @@ Options:
   --parallel              Run tests in parallel across multiple workers
   --workers N             Number of parallel workers (default: CPU count)
   --time N                Time budget in seconds per worker (default: 300)
+  --timeout N             Per-file timeout in seconds (default: 500)
   --debug                 Use debug build (faster compile, 10-15x slower tests)
   --force                 Repopulate work queue with all test files (bypasses smart filtering)
 
@@ -211,6 +213,9 @@ Examples:
 
   # Parallel on remote machine with 320 workers, 1 hour each
   ./scripts/sqllogictest run --parallel --workers 320 --time 3600
+
+  # Custom timeout for slow tests
+  ./scripts/sqllogictest run --parallel --workers 8 --timeout 2000
 
 Build Modes:
   - Release (default): 10-15x faster tests, ~60s compile time
@@ -245,6 +250,10 @@ EOF
                 ;;
             --time)
                 time_budget="$2"
+                shift 2
+                ;;
+            --timeout)
+                per_file_timeout="$2"
                 shift 2
                 ;;
             --debug)
@@ -286,6 +295,7 @@ EOF
         local python_args=(
             "--workers" "$workers"
             "--time-budget" "$time_budget"
+            "--per-file-timeout" "$per_file_timeout"
         )
         if $debug_mode; then
             python_args+=("--debug")
