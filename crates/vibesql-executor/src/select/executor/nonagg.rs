@@ -332,6 +332,11 @@ impl SelectExecutor<'_> {
             final_rows.push(projected_row);
         }
 
+        // Clear CSE cache at end of query to prevent cross-query pollution
+        // Cache can persist within a single query for performance, but must be
+        // cleared between different SQL statements to avoid stale values
+        evaluator.clear_cse_cache();
+
         // Return intermediate buffer to pool, then return final result
         self.database.query_buffer_pool().return_row_buffer(filtered_rows);
         let result = std::mem::take(&mut final_rows);

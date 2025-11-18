@@ -74,6 +74,11 @@ pub(super) fn apply_where_filter_combined<'a>(
         }
     }
 
+    // Clear CSE cache at end of query to prevent cross-query pollution
+    // Cache can persist within a single query for performance, but must be
+    // cleared between different SQL statements to avoid stale values
+    evaluator.clear_cse_cache();
+
     // Move data to final result and return pooled buffer
     // This allows buffer reuse while avoiding clone overhead
     let result = std::mem::take(&mut filtered_rows);
@@ -146,6 +151,11 @@ pub(super) fn apply_where_filter_basic<'a>(
             filtered_rows.push(row);
         }
     }
+
+    // Clear CSE cache at end of query to prevent cross-query pollution
+    // Cache can persist within a single query for performance, but must be
+    // cleared between different SQL statements to avoid stale values
+    evaluator.clear_cse_cache();
 
     // Move data to final result and return pooled buffer
     // This allows buffer reuse while avoiding clone overhead
