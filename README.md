@@ -475,7 +475,7 @@ After running tests, **always use the database to analyze results** - don't pars
 - 📈 **Historical tracking**: Track pass rate over time with git commits
 - 🎯 **Manual testing workflow**: Query your progress as you work through tests
 - 🔄 **--force flag**: Repopulates work queue with all 623 test files for fresh runs
-- ⚡ **Parallel mode**: Run full suite in ~2 minutes with `--parallel --workers 8` (10-15x speedup)
+- ⚡ **Parallel mode**: Run full suite with `--parallel --workers 8` (10-15x speedup vs serial, 10-20+ minutes depending on system)
 
 **Documentation**:
 - [Quick Start Guide](docs/sqllogictest/SQLLOGICTEST_QUICKSTART.md) - 30-second introduction
@@ -494,10 +494,10 @@ cargo test --test sqltest_conformance -- --nocapture
 cargo test --test sqllogictest_basic
 
 # Run comprehensive SQLLogicTest suite (recommended)
-# Tests all 622 files in ~2 minutes on 8 CPUs
+# Tests all 623 files in parallel (10-20+ minutes on 8 CPUs)
 ./scripts/sqllogictest run --parallel --workers 8
 
-# Or specify custom time budget (though all files usually complete in <2 min)
+# Or specify custom time budget per worker (in seconds)
 ./scripts/sqllogictest run --parallel --workers 8 --time 600
 
 # Single file testing for debugging
@@ -513,10 +513,10 @@ cargo test --test sqllogictest_basic
 
 ### Fast Local Testing Workflow
 
-With work queue parallelization, the full test suite now runs in **~2 minutes on 8 CPUs**:
+With work queue parallelization, the full test suite runs much faster than serial mode:
 
 ```bash
-# Run full suite (all 622 files in ~2 minutes)
+# Run full suite (all 623 files in 10-20+ minutes on 8 CPUs)
 ./scripts/sqllogictest run --parallel --workers 8
 
 # View results
