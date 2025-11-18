@@ -45,7 +45,7 @@ members = [
     "crates/vibesql-cli",
     "crates/vibesql-wasm-bindings",
     "crates/vibesql-python-bindings",
-    "crates/sqllogictest",
+    "crates/vibesql-sqllogictest",
 ]
 default-members = ["crates/vibesql-cli"]
 resolver = "2"
@@ -87,4 +87,4 @@ name = "test_error_handling"
 path = "tests/test_error_handling.rs"
 
 [patch.crates-io]
-sqllogictest = { path = "crates/sqllogictest" }
+sqllogictest = { path = "crates/vibesql-sqllogictest" }
