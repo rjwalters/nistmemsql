@@ -150,62 +150,93 @@ fn execute_insert_internal(
 
     // All rows validated successfully, now insert them
     let mut rows_inserted = 0;
-    for full_row_values in validated_rows {
-        // Check if ON DUPLICATE KEY UPDATE is specified
-        if let Some(ref assignments) = stmt.on_duplicate_key_update {
-            // Try to update an existing row if there's a conflict
-            let update_result = super::duplicate_key_update::handle_duplicate_key_update(
-                db,
-                &stmt.table_name,
-                &schema,
-                &full_row_values,
-                assignments,
-            )?;
 
-            if update_result.is_some() {
-                // Row was updated, count it
-                rows_inserted += 1;
-                continue;
-            }
-            // No conflict, fall through to insert
-        } else if matches!(
+    // Check if we can use batch insert optimization
+    // Batch insert is faster but can only be used when:
+    // 1. No ON DUPLICATE KEY UPDATE clause
+    // 2. No REPLACE conflict clause
+    // 3. No INSERT triggers on the table (BEFORE or AFTER)
+    let has_insert_triggers = db
+        .catalog
+        .get_triggers_for_table(&stmt.table_name, Some(vibesql_ast::TriggerEvent::Insert))
+        .next()
+        .is_some();
+
+    let use_batch_insert = stmt.on_duplicate_key_update.is_none()
+        && !matches!(
             stmt.conflict_clause,
             Some(vibesql_ast::ConflictClause::Replace)
-        ) {
-            // If REPLACE conflict clause, delete conflicting rows first
-            super::replace::handle_replace_conflicts(
+        )
+        && !has_insert_triggers;
+
+    if use_batch_insert && validated_rows.len() > 1 {
+        // Fast path: Use batch insert for multiple rows without triggers
+        let rows: Vec<vibesql_storage::Row> = validated_rows
+            .into_iter()
+            .map(vibesql_storage::Row::new)
+            .collect();
+
+        rows_inserted = db.insert_rows_batch(&stmt.table_name, rows)
+            .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;
+    } else {
+        // Slow path: Insert rows one by one (needed for triggers, special clauses)
+        for full_row_values in validated_rows {
+            // Check if ON DUPLICATE KEY UPDATE is specified
+            if let Some(ref assignments) = stmt.on_duplicate_key_update {
+                // Try to update an existing row if there's a conflict
+                let update_result = super::duplicate_key_update::handle_duplicate_key_update(
+                    db,
+                    &stmt.table_name,
+                    &schema,
+                    &full_row_values,
+                    assignments,
+                )?;
+
+                if update_result.is_some() {
+                    // Row was updated, count it
+                    rows_inserted += 1;
+                    continue;
+                }
+                // No conflict, fall through to insert
+            } else if matches!(
+                stmt.conflict_clause,
+                Some(vibesql_ast::ConflictClause::Replace)
+            ) {
+                // If REPLACE conflict clause, delete conflicting rows first
+                super::replace::handle_replace_conflicts(
+                    db,
+                    &stmt.table_name,
+                    &schema,
+                    &full_row_values,
+                )?;
+            }
+
+            // Fire BEFORE INSERT triggers
+            let row_to_insert = vibesql_storage::Row::new(full_row_values.clone());
+            crate::TriggerFirer::execute_before_triggers(
                 db,
                 &stmt.table_name,
-                &schema,
-                &full_row_values,
+                vibesql_ast::TriggerEvent::Insert,
+                None,
+                Some(&row_to_insert),
             )?;
+
+            // Insert the row
+            let row = vibesql_storage::Row::new(full_row_values);
+            db.insert_row(&stmt.table_name, row.clone())
+                .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;
+
+            // Fire AFTER INSERT triggers
+            crate::TriggerFirer::execute_after_triggers(
+                db,
+                &stmt.table_name,
+                vibesql_ast::TriggerEvent::Insert,
+                None,
+                Some(&row),
+            )?;
+
+            rows_inserted += 1;
         }
-
-        // Fire BEFORE INSERT triggers
-        let row_to_insert = vibesql_storage::Row::new(full_row_values.clone());
-        crate::TriggerFirer::execute_before_triggers(
-            db,
-            &stmt.table_name,
-            vibesql_ast::TriggerEvent::Insert,
-            None,
-            Some(&row_to_insert),
-        )?;
-
-        // Insert the row
-        let row = vibesql_storage::Row::new(full_row_values);
-        db.insert_row(&stmt.table_name, row.clone())
-            .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;
-
-        // Fire AFTER INSERT triggers
-        crate::TriggerFirer::execute_after_triggers(
-            db,
-            &stmt.table_name,
-            vibesql_ast::TriggerEvent::Insert,
-            None,
-            Some(&row),
-        )?;
-
-        rows_inserted += 1;
     }
 
     Ok(rows_inserted)
