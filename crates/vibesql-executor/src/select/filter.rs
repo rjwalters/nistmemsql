@@ -38,9 +38,11 @@ pub(super) fn apply_where_filter_combined<'a>(
             executor.check_timeout()?;
         }
 
-        // Clear CSE cache before evaluating each row to prevent column values
-        // from being incorrectly cached across different rows
-        evaluator.clear_cse_cache();
+        // CSE cache is NOT cleared between rows because only deterministic expressions
+        // (those without column references) are cached. Column values cannot be cached
+        // since is_deterministic() returns false for expressions containing column refs.
+        // This allows constant sub-expressions like (1 + 2) to be cached across all rows,
+        // significantly improving performance for expression-heavy queries.
 
         let include_row = match evaluator.eval(where_expr, &row)? {
             vibesql_types::SqlValue::Boolean(true) => true,
@@ -104,9 +106,11 @@ pub(super) fn apply_where_filter_basic<'a>(
             executor.check_timeout()?;
         }
 
-        // Clear CSE cache before evaluating each row to prevent column values
-        // from being incorrectly cached across different rows
-        evaluator.clear_cse_cache();
+        // CSE cache is NOT cleared between rows because only deterministic expressions
+        // (those without column references) are cached. Column values cannot be cached
+        // since is_deterministic() returns false for expressions containing column refs.
+        // This allows constant sub-expressions like (1 + 2) to be cached across all rows,
+        // significantly improving performance for expression-heavy queries.
 
         let include_row = match evaluator.eval(where_expr, &row)? {
             vibesql_types::SqlValue::Boolean(true) => true,
