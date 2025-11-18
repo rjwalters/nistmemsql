@@ -121,20 +121,3 @@ export function createFallbackEditor(
     },
   }
 }
-
-/**
- * Show loading indicator for Monaco initialization
- */
-export function showEditorLoading(container: HTMLElement): () => void {
-  const overlay = container.querySelector('[data-loading]') as HTMLElement
-  if (overlay) {
-    overlay.style.opacity = '1'
-  }
-
-  return () => {
-    if (overlay) {
-      overlay.style.opacity = '0'
-      setTimeout(() => overlay.remove(), 200)
-    }
-  }
-}

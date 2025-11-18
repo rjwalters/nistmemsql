@@ -31,12 +31,19 @@ export async function loadMonaco(): Promise<Monaco> {
   console.log('[Monaco Loader] Starting Monaco Editor load...')
   const startTime = performance.now()
 
-  monacoLoadPromise = import('monaco-editor').then(m => {
-    monacoInstance = m
-    const loadTime = performance.now() - startTime
-    console.log(`[Monaco Loader] Monaco Editor loaded in ${loadTime.toFixed(2)}ms`)
-    return m
-  })
+  monacoLoadPromise = import('monaco-editor')
+    .then(m => {
+      monacoInstance = m
+      const loadTime = performance.now() - startTime
+      console.log(`[Monaco Loader] Monaco Editor loaded in ${loadTime.toFixed(2)}ms`)
+      return m
+    })
+    .catch(err => {
+      console.error('[Monaco Loader] Failed to load Monaco Editor:', err)
+      // Clear promise to allow retry
+      monacoLoadPromise = null
+      throw err
+    })
 
   return monacoLoadPromise
 }

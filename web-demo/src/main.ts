@@ -12,7 +12,7 @@ import { LoadingProgressComponent } from './components/LoadingProgress'
 import { initShowcase } from './showcase'
 import { sampleDatabases, loadSampleDatabase, getSampleDatabase, loadSqlDump } from './data/sample-databases'
 import { updateConformanceFooter } from './utils/conformance'
-import { loadMonaco, isMonacoLoaded, type Monaco, type MonacoEditor } from './editor/monaco-loader'
+import { loadMonaco, type Monaco, type MonacoEditor } from './editor/monaco-loader'
 import { createFallbackEditor, type FallbackEditor } from './editor/fallback-editor'
 
 const SQL_KEYWORDS = [
@@ -555,60 +555,77 @@ async function bootstrap(): Promise<void> {
   // Track if Monaco has been loaded
   let monacoInstance: Monaco | null = null
   let hasUpgradedEditors = false
+  let upgradePromise: Promise<void> | null = null
+
+  // Mutable execute handler (will be recreated after Monaco upgrade)
+  let executeHandler = createExecutionHandler(editor, database, resultsEditor, refreshTables)
 
   // Function to upgrade to Monaco on first interaction
   const upgradeEditorsToMonaco = async (): Promise<void> => {
-    if (hasUpgradedEditors || isMonacoLoaded()) return
-    hasUpgradedEditors = true
+    // Return existing promise if upgrade already in progress
+    if (upgradePromise) return upgradePromise
 
-    console.log('[Bootstrap] Upgrading to Monaco editors...')
+    // Return immediately if already upgraded
+    if (hasUpgradedEditors) return
 
-    // Upgrade SQL editor
-    const sqlEditor = await upgradeToMonaco(
-      layout.editorContainer!,
-      editor as FallbackEditor,
-      {
-        language: 'sql',
-        theme: 'vs-dark',
-      },
-      {
-        onDidChangeModelContent: (monaco, monacoEditor) => {
-          applyValidationMarkers(monaco, monacoEditor)
+    // Create and track the upgrade promise to prevent concurrent upgrades
+    upgradePromise = (async () => {
+      hasUpgradedEditors = true
+
+      console.log('[Bootstrap] Upgrading to Monaco editors...')
+
+      // Upgrade SQL editor
+      const sqlEditor = await upgradeToMonaco(
+        layout.editorContainer!,
+        editor as FallbackEditor,
+        {
+          language: 'sql',
+          theme: 'vs-dark',
         },
-        onShortcuts: (monaco, monacoEditor) => {
-          registerShortcuts(monaco, monacoEditor, execute)
+        {
+          onDidChangeModelContent: (monaco, monacoEditor) => {
+            applyValidationMarkers(monaco, monacoEditor)
+          },
+          onShortcuts: (monaco, monacoEditor) => {
+            registerShortcuts(monaco, monacoEditor, () => executeHandler())
+          },
+        }
+      )
+
+      // Upgrade results editor
+      const resultsMonacoEditor = await upgradeToMonaco(
+        layout.resultsEditorContainer!,
+        resultsEditor as FallbackEditor,
+        {
+          language: 'plaintext',
+          theme: 'vs-dark',
+          readOnly: true,
+          lineNumbers: 'off',
         },
-      }
-    )
+        {}
+      )
 
-    // Upgrade results editor
-    const resultsMonacoEditor = await upgradeToMonaco(
-      layout.resultsEditorContainer!,
-      resultsEditor as FallbackEditor,
-      {
-        language: 'plaintext',
-        theme: 'vs-dark',
-        readOnly: true,
-        lineNumbers: 'off',
-      },
-      {}
-    )
+      // Update references
+      editor = sqlEditor
+      resultsEditor = resultsMonacoEditor
 
-    // Update references
-    editor = sqlEditor
-    resultsEditor = resultsMonacoEditor
+      // Recreate execute handler with new Monaco editors
+      executeHandler = createExecutionHandler(sqlEditor, database, resultsMonacoEditor, refreshTables)
 
-    // Get Monaco instance
-    monacoInstance = await loadMonaco()
+      // Get Monaco instance
+      monacoInstance = await loadMonaco()
 
-    // Register completions with Monaco
-    registerCompletions(monacoInstance, () => tableNames)
+      // Register completions with Monaco
+      registerCompletions(monacoInstance, () => tableNames)
 
-    // Apply initial validation
-    applyValidationMarkers(monacoInstance, sqlEditor)
+      // Apply initial validation
+      applyValidationMarkers(monacoInstance, sqlEditor)
 
-    // Update theme sync
-    setupThemeSync(monacoInstance)
+      // Update theme sync
+      setupThemeSync(monacoInstance)
+    })()
+
+    return upgradePromise
   }
 
   // Add focus listener to upgrade editors
@@ -654,11 +671,9 @@ async function bootstrap(): Promise<void> {
     void loadDatabase(dbId).then(() => refreshTables())
   })
 
-  const execute = createExecutionHandler(editor, database, resultsEditor, refreshTables)
-
-  // Run button triggers upgrade
+  // Run button triggers upgrade and executes query
   layout.runButton?.addEventListener('click', () => {
-    void upgradeEditorsToMonaco().then(() => execute())
+    void upgradeEditorsToMonaco().then(() => executeHandler())
   })
 
   // Initialize SQL:1999 Showcase navigation
