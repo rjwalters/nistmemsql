@@ -24,7 +24,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-use rayon::prelude::*;
 use vibesql_ast::FromClause;
 use vibesql_storage::{Database, Row};
 
@@ -151,14 +150,18 @@ impl PredicateDependencyGraph {
             let mut layer_operations = Vec::new();
             let mut joins_to_remove = Vec::new();
 
-            // Find joins where at least one table is already joined
-            // or both tables are in the initial scan (first join)
+            // Find joins where both tables are ready
             for (idx, (left_table, left_col, right_table, right_col, condition)) in remaining_joins.iter().enumerate() {
-                let left_ready = joined_tables.contains(left_table) || current_layer == 1;
-                let right_ready = joined_tables.contains(right_table) || current_layer == 1;
+                let can_schedule = if current_layer == 1 {
+                    // For first layer: both tables must be from initial scans (not yet in joined_tables)
+                    !joined_tables.contains(left_table) && !joined_tables.contains(right_table)
+                } else {
+                    // For subsequent layers: both tables must be available (from scan or previous joins)
+                    (joined_tables.contains(left_table) || table_names.contains(left_table)) &&
+                    (joined_tables.contains(right_table) || table_names.contains(right_table))
+                };
 
-                // At least one side must be ready (or both for first join)
-                if left_ready || right_ready {
+                if can_schedule {
                     layer_operations.push(GraphOperation::Join {
                         left_table: left_table.clone(),
                         right_table: right_table.clone(),
@@ -345,6 +348,7 @@ mod tests {
             }),
             join_type: vibesql_ast::JoinType::Inner,
             condition: None,
+            natural: false,
         };
         let tables = extract_table_names(&from);
         assert_eq!(tables, vec!["users", "orders"]);
