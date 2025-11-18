@@ -348,28 +348,28 @@ mod tests {
     #[test]
     fn test_conservative_thresholds_2_3_cores() {
         let thresholds = ParallelConfig::thresholds_for_hardware(2);
-        assert_eq!(thresholds.scan_filter, 20_000);
+        assert_eq!(thresholds.scan_filter, 10_000);
 
         let thresholds = ParallelConfig::thresholds_for_hardware(3);
-        assert_eq!(thresholds.scan_filter, 20_000);
+        assert_eq!(thresholds.scan_filter, 10_000);
     }
 
     #[test]
     fn test_moderate_thresholds_4_7_cores() {
         let thresholds = ParallelConfig::thresholds_for_hardware(4);
-        assert_eq!(thresholds.scan_filter, 5_000);
+        assert_eq!(thresholds.scan_filter, 2_500);
 
         let thresholds = ParallelConfig::thresholds_for_hardware(7);
-        assert_eq!(thresholds.scan_filter, 5_000);
+        assert_eq!(thresholds.scan_filter, 2_500);
     }
 
     #[test]
     fn test_aggressive_thresholds_8_plus_cores() {
         let thresholds = ParallelConfig::thresholds_for_hardware(8);
-        assert_eq!(thresholds.scan_filter, 2_000);
+        assert_eq!(thresholds.scan_filter, 1_000);
 
         let thresholds = ParallelConfig::thresholds_for_hardware(16);
-        assert_eq!(thresholds.scan_filter, 2_000);
+        assert_eq!(thresholds.scan_filter, 1_000);
     }
 
     #[test]
@@ -381,10 +381,10 @@ mod tests {
         };
 
         // Below threshold
-        assert!(!config.should_parallelize_scan(1_000));
+        assert!(!config.should_parallelize_scan(500));
 
         // At threshold
-        assert!(config.should_parallelize_scan(2_000));
+        assert!(config.should_parallelize_scan(1_000));
 
         // Above threshold
         assert!(config.should_parallelize_scan(10_000));
