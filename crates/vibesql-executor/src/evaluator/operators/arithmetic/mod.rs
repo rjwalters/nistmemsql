@@ -179,9 +179,9 @@ mod tests {
 
     #[test]
     fn test_integer_division() {
-        // Division returns Float for integer operands (SQLLogicTest behavior)
+        // Division returns Numeric for integer operands in MySQL mode (exact decimal arithmetic)
         let result = ArithmeticOps::divide(&SqlValue::Integer(15), &SqlValue::Integer(3), vibesql_types::SqlMode::default()).unwrap();
-        assert_eq!(result, SqlValue::Float(5.0));
+        assert_eq!(result, SqlValue::Numeric(5.0));
     }
 
     #[test]
@@ -265,15 +265,15 @@ mod tests {
 
     #[test]
     fn test_boolean_division() {
-        // 10 / TRUE = 10.0 (booleans coerce to integers, then division returns float)
+        // 10 / TRUE = 10.0 (booleans coerce to integers, then division returns exact decimal)
         let result =
             ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(true), vibesql_types::SqlMode::default()).unwrap();
-        assert_eq!(result, SqlValue::Float(10.0));
+        assert_eq!(result, SqlValue::Numeric(10.0));
 
         // TRUE / TRUE = 1.0
         let result =
             ArithmeticOps::divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true), vibesql_types::SqlMode::default()).unwrap();
-        assert_eq!(result, SqlValue::Float(1.0));
+        assert_eq!(result, SqlValue::Numeric(1.0));
     }
 
     #[test]
