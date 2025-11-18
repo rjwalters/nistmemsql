@@ -122,6 +122,10 @@ impl BTreeIndex {
             self.find_leftmost_leaf()?
         };
 
+        // Track whether we've started collecting results (passed start_key check)
+        // Once true, we can skip redundant start_key comparisons
+        let mut started = start_key.is_none();
+
         // Scan through leaves
         loop {
             // Process entries in current leaf
@@ -139,16 +143,20 @@ impl BTreeIndex {
                     }
                 }
 
-                // Check if we're before the start key
-                if let Some(start) = start_key {
-                    let cmp = key.cmp(start);
-                    if cmp == std::cmp::Ordering::Less {
-                        // Before start key, skip
-                        continue;
-                    }
-                    if cmp == std::cmp::Ordering::Equal && !inclusive_start {
-                        // At start key but not inclusive, skip
-                        continue;
+                // Check if we're before the start key (only if we haven't started yet)
+                if !started {
+                    if let Some(start) = start_key {
+                        let cmp = key.cmp(start);
+                        if cmp == std::cmp::Ordering::Less {
+                            // Before start key, skip
+                            continue;
+                        }
+                        if cmp == std::cmp::Ordering::Equal && !inclusive_start {
+                            // At start key but not inclusive, skip
+                            continue;
+                        }
+                        // We've now passed the start_key check
+                        started = true;
                     }
                 }
 
