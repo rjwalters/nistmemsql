@@ -4,7 +4,7 @@ use super::*;
 
 #[test]
 fn test_call_procedure_with_in_parameter() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     // CREATE PROCEDURE greet(IN name VARCHAR(50))
     // BEGIN
@@ -51,7 +51,7 @@ fn test_call_procedure_with_in_parameter() {
 
 #[test]
 fn test_call_procedure_with_multiple_parameters() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     // CREATE PROCEDURE add_numbers(IN a INT, IN b INT)
     // BEGIN
@@ -115,7 +115,7 @@ fn test_call_procedure_with_multiple_parameters() {
 
 #[test]
 fn test_declare_with_default_value() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     // CREATE PROCEDURE test_defaults()
     // BEGIN
@@ -155,7 +155,7 @@ fn test_declare_with_default_value() {
 
 #[test]
 fn test_variable_in_expression() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     // CREATE PROCEDURE test_math()
     // BEGIN
@@ -207,7 +207,7 @@ fn test_variable_in_expression() {
 
 #[test]
 fn test_concat_function_in_procedure() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     // CREATE PROCEDURE test_concat(IN first VARCHAR(50), IN last VARCHAR(50))
     // BEGIN
@@ -274,7 +274,7 @@ fn test_concat_function_in_procedure() {
 
 #[test]
 fn test_parameter_count_mismatch() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     let create_proc = CreateProcedureStmt {
         procedure_name: "needs_param".to_string(),
@@ -304,7 +304,7 @@ fn test_parameter_count_mismatch() {
 
 #[test]
 fn test_out_parameter_not_yet_supported() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     let create_proc = CreateProcedureStmt {
         procedure_name: "test_out".to_string(),
@@ -334,7 +334,7 @@ fn test_out_parameter_not_yet_supported() {
 
 #[test]
 fn test_procedure_not_found() {
-    let mut db = Database::new();
+    let mut db = setup_test_db();
 
     let call = CallStmt {
         procedure_name: "nonexistent".to_string(),
