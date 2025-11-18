@@ -7,7 +7,7 @@
 
 use crate::{
     errors::ExecutorError, evaluator::CombinedExpressionEvaluator,
-    optimizer::decompose_where_clause, schema::CombinedSchema,
+    optimizer::{decompose_where_clause, order_predicates_by_selectivity}, schema::CombinedSchema,
     select::parallel::ParallelConfig,
 };
 use rayon::prelude::*;
@@ -37,8 +37,23 @@ pub(crate) fn apply_table_local_predicates(
     // If there are table-local predicates, apply them
     if let Some(preds) = table_local_preds {
         if !preds.is_empty() {
-            // Combine predicates with AND
-            let combined_where = combine_predicates_with_and(preds.clone());
+            // Order predicates by selectivity for optimal performance
+            // Get table statistics if available
+            let ordered_preds = if let Some(table) = database.get_table(table_name) {
+                if let Some(stats) = table.get_statistics() {
+                    // Use cost-based ordering: most selective predicates first
+                    order_predicates_by_selectivity(preds.clone(), stats)
+                } else {
+                    // No statistics: use parse order
+                    preds.clone()
+                }
+            } else {
+                // Table not found: use parse order
+                preds.clone()
+            };
+
+            // Combine ordered predicates with AND
+            let combined_where = combine_predicates_with_and(ordered_preds);
 
             // Create evaluator for filtering
             let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);

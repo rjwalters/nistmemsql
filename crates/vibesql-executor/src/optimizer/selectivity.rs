@@ -70,35 +70,38 @@ pub fn order_predicates_by_selectivity(
 /// Lower values mean more selective (filters more rows).
 pub fn estimate_selectivity(predicate: &Expression, stats: &TableStatistics) -> f64 {
     match predicate {
-        // Binary operations (most common predicates)
-        Expression::BinaryOp { op, left, right } => {
-            estimate_binary_op_selectivity(op, left, right, stats)
-        }
-
         // Boolean literals
         Expression::Literal(vibesql_types::SqlValue::Boolean(true)) => 1.0,
         Expression::Literal(vibesql_types::SqlValue::Boolean(false)) => 0.0,
 
         // AND: product of selectivities (assumes independence)
+        // Must come BEFORE general BinaryOp to avoid being caught by it
         Expression::BinaryOp {
             op: BinaryOperator::And,
             left,
             right,
         } => {
-            let left_sel = estimate_selectivity(left, stats);
-            let right_sel = estimate_selectivity(right, stats);
+            let left_sel = estimate_selectivity(left.as_ref(), stats);
+            let right_sel = estimate_selectivity(right.as_ref(), stats);
             left_sel * right_sel
         }
 
         // OR: 1 - ((1 - s1) * (1 - s2)) (probability theory)
+        // Must come BEFORE general BinaryOp to avoid being caught by it
         Expression::BinaryOp {
             op: BinaryOperator::Or,
             left,
             right,
         } => {
-            let left_sel = estimate_selectivity(left, stats);
-            let right_sel = estimate_selectivity(right, stats);
+            let left_sel = estimate_selectivity(left.as_ref(), stats);
+            let right_sel = estimate_selectivity(right.as_ref(), stats);
             1.0 - ((1.0 - left_sel) * (1.0 - right_sel))
+        }
+
+        // Binary operations (=, !=, <, >, <=, >=)
+        // This catch-all must come AFTER specific AND/OR handling
+        Expression::BinaryOp { op, left, right } => {
+            estimate_binary_op_selectivity(op, left, right, stats)
         }
 
         // NOT: inverse selectivity
@@ -325,7 +328,89 @@ mod tests {
         };
 
         let selectivity = estimate_selectivity(&pred, &stats);
+
         // Should be product of individual selectivities
-        assert!(selectivity < 0.75); // Combined is more selective
+        // Note: id < 10 has selectivity 1.0 for this test data (all ids are < 10)
+        // So: 0.75 * 1.0 = 0.75
+        assert!((selectivity - 0.75).abs() < 0.01,
+            "Expected selectivity 0.75, got {}", selectivity);
+    }
+
+    #[test]
+    fn test_or_selectivity() {
+        let stats = create_test_stats();
+
+        // (status = 'active') OR (id < 10)
+        let pred = Expression::BinaryOp {
+            op: BinaryOperator::Or,
+            left: Box::new(Expression::BinaryOp {
+                op: BinaryOperator::Equal,
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "status".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Varchar("active".to_string()))),
+            }),
+            right: Box::new(Expression::BinaryOp {
+                op: BinaryOperator::LessThan,
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            }),
+        };
+
+        let selectivity = estimate_selectivity(&pred, &stats);
+
+        // OR formula: 1 - ((1 - 0.75) * (1 - 1.0)) = 1 - (0.25 * 0) = 1.0
+        // Note: id < 10 has selectivity 1.0 for this test data (all ids are < 10)
+        assert!((selectivity - 1.0).abs() < 0.01,
+            "Expected selectivity 1.0, got {}", selectivity);
+    }
+
+    #[test]
+    fn test_nested_and_or_selectivity() {
+        let stats = create_test_stats();
+
+        // (status = 'active' OR status = 'inactive') AND (id < 3)
+        let pred = Expression::BinaryOp {
+            op: BinaryOperator::And,
+            left: Box::new(Expression::BinaryOp {
+                op: BinaryOperator::Or,
+                left: Box::new(Expression::BinaryOp {
+                    op: BinaryOperator::Equal,
+                    left: Box::new(Expression::ColumnRef {
+                        table: None,
+                        column: "status".to_string(),
+                    }),
+                    right: Box::new(Expression::Literal(SqlValue::Varchar("active".to_string()))),
+                }),
+                right: Box::new(Expression::BinaryOp {
+                    op: BinaryOperator::Equal,
+                    left: Box::new(Expression::ColumnRef {
+                        table: None,
+                        column: "status".to_string(),
+                    }),
+                    right: Box::new(Expression::Literal(SqlValue::Varchar("inactive".to_string()))),
+                }),
+            }),
+            right: Box::new(Expression::BinaryOp {
+                op: BinaryOperator::LessThan,
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Integer(3))),
+            }),
+        };
+
+        let selectivity = estimate_selectivity(&pred, &stats);
+
+        // Nested: (0.75 OR 0.25) AND 0.33
+        // OR part: 1 - ((1 - 0.75) * (1 - 0.25)) = 1 - (0.25 * 0.75) = 1 - 0.1875 = 0.8125
+        // AND with 0.33: 0.8125 * 0.33 ≈ 0.27
+        assert!(selectivity >= 0.25 && selectivity <= 0.30,
+            "Expected nested selectivity ~0.27, got {}", selectivity);
     }
 }
