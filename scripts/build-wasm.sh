@@ -60,6 +60,14 @@ rm -rf web-demo/public/pkg
 # Note: OPFS support is automatically included for wasm32 target
 echo "📦 Building WASM bindings..."
 if [[ "$BUILD_MODE" == "release" ]]; then
+    # Use size-optimized profile settings via environment variables
+    # These match the wasm-release profile defined in root Cargo.toml
+    echo "🎯 Using size-optimized build settings (wasm-release profile)"
+    CARGO_PROFILE_RELEASE_OPT_LEVEL=z \
+    CARGO_PROFILE_RELEASE_LTO=fat \
+    CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 \
+    CARGO_PROFILE_RELEASE_STRIP=true \
+    CARGO_PROFILE_RELEASE_PANIC=abort \
     wasm-pack build \
         --target web \
         --out-dir "$(pwd)/web-demo/public/pkg" \

@@ -86,5 +86,14 @@ path = "tests/aggregate_random_patterns.rs"
 name = "test_error_handling"
 path = "tests/test_error_handling.rs"
 
+# Custom release profile optimized for WASM size
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"           # Optimize for size
+lto = "fat"               # Link-Time Optimization
+codegen-units = 1         # Better optimization (slower compile, smaller binary)
+strip = true              # Remove debug symbols
+panic = "abort"           # Smaller panic handler
+
 [patch.crates-io]
 sqllogictest = { path = "crates/vibesql-sqllogictest" }
