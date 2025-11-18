@@ -220,10 +220,14 @@ timeout_seconds = 30
         let mut config = Config::default();
 
         config.database.sql_mode = "mysql".to_string();
-        assert_eq!(config.get_sql_mode(), Some(vibesql_types::SqlMode::MySQL));
+        assert_eq!(config.get_sql_mode(), Some(vibesql_types::SqlMode::MySQL {
+            flags: vibesql_types::MySqlModeFlags::default()
+        }));
 
         config.database.sql_mode = "MySQL".to_string(); // case insensitive
-        assert_eq!(config.get_sql_mode(), Some(vibesql_types::SqlMode::MySQL));
+        assert_eq!(config.get_sql_mode(), Some(vibesql_types::SqlMode::MySQL {
+            flags: vibesql_types::MySqlModeFlags::default()
+        }));
 
         config.database.sql_mode = "sqlite".to_string();
         assert_eq!(config.get_sql_mode(), Some(vibesql_types::SqlMode::SQLite));
