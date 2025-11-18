@@ -624,7 +624,7 @@ impl AsyncDB for VibeSqlDB {
 
         // Start timing if enabled
         let stmt_start = if self.timing_enabled { Some(Instant::now()) } else { None };
-        let stmt_type = if self.timing_enabled { Some(self.detect_statement_type(sql)) } else { None };
+        let stmt_type = if self.timing_enabled { Some(self.detect_statement_type(sql).to_string()) } else { None };
 
         // Execute query with per-query timeout
         let timeout_duration = Duration::from_millis(self.query_timeout_ms);
@@ -654,7 +654,7 @@ impl AsyncDB for VibeSqlDB {
             let elapsed = start.elapsed();
 
             // Record in appropriate bucket
-            match stype {
+            match stype.as_str() {
                 "INSERT" => self.insert_timings.record(elapsed, sql),
                 "CREATE_INDEX" => self.create_index_timings.record(elapsed, sql),
                 "SELECT" => self.select_timings.record(elapsed, sql),
