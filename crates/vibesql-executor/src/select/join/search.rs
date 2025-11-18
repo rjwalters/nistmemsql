@@ -33,6 +33,9 @@
 //! ```
 
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use rayon::prelude::*;
 
 use super::reorder::{JoinEdge, JoinOrderAnalyzer};
 
@@ -60,6 +63,30 @@ impl JoinCost {
     }
 }
 
+/// Configuration for parallel join order search
+#[derive(Debug, Clone)]
+pub struct ParallelSearchConfig {
+    /// Enable parallel BFS search (vs sequential DFS)
+    pub enabled: bool,
+    /// Maximum depth to explore with parallel BFS (tables with >max_depth use DFS)
+    pub max_depth: usize,
+    /// Maximum states per layer before pruning
+    pub max_states_per_layer: usize,
+    /// Prune states with cost > best * threshold
+    pub pruning_threshold: f64,
+}
+
+impl Default for ParallelSearchConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            max_depth: 6,
+            max_states_per_layer: 1000,
+            pruning_threshold: 1.5,
+        }
+    }
+}
+
 /// State during join order search
 #[derive(Debug, Clone)]
 struct SearchState {
@@ -79,6 +106,8 @@ pub struct JoinOrderSearch {
     edges: Vec<JoinEdge>,
     /// Estimated rows for each table after local filters
     table_cardinalities: std::collections::HashMap<String, usize>,
+    /// Configuration for parallel search
+    config: ParallelSearchConfig,
 }
 
 impl JoinOrderSearch {
@@ -91,6 +120,7 @@ impl JoinOrderSearch {
             all_tables: analyzer.tables().clone(),
             edges: analyzer.edges().to_vec(),
             table_cardinalities: Self::extract_cardinalities(analyzer, database),
+            config: ParallelSearchConfig::default(),
         }
     }
 
@@ -120,12 +150,51 @@ impl JoinOrderSearch {
     /// Find optimal join order by exploring search space
     ///
     /// Returns list of table names in the order they should be joined.
-    /// If search space is too large, returns left-to-right ordering as fallback.
+    /// Uses adaptive strategy selection: parallel BFS for 3-6 table queries with
+    /// highly connected join graphs, DFS for small or large queries.
     pub fn find_optimal_order(&self) -> Vec<String> {
         if self.all_tables.is_empty() {
             return Vec::new();
         }
 
+        // Use adaptive strategy selection
+        if self.should_use_parallel_search() {
+            self.find_optimal_order_parallel()
+        } else {
+            self.find_optimal_order_dfs()
+        }
+    }
+
+    /// Determine whether to use parallel BFS or sequential DFS
+    fn should_use_parallel_search(&self) -> bool {
+        // Don't parallelize if disabled
+        if !self.config.enabled {
+            return false;
+        }
+
+        let num_tables = self.all_tables.len();
+
+        // Don't parallelize small queries (< 3 tables)
+        if num_tables < 3 {
+            return false;
+        }
+
+        // Don't parallelize beyond depth limit (memory constraints)
+        if num_tables > self.config.max_depth {
+            return false;
+        }
+
+        // Parallel BFS beneficial for highly connected graphs
+        // Calculate edge density: edges per table
+        let edge_density = self.edges.len() as f64 / num_tables as f64;
+
+        // High edge density suggests complex join graph → parallel beneficial
+        // Threshold of 1.5 means we need at least 1-2 edges per table
+        edge_density >= 1.5
+    }
+
+    /// Find optimal order using sequential DFS (original algorithm)
+    fn find_optimal_order_dfs(&self) -> Vec<String> {
         let initial_state = SearchState {
             joined_tables: HashSet::new(),
             cost_so_far: JoinCost::new(0, 0),
@@ -255,6 +324,144 @@ impl JoinOrderSearch {
             }
         }
         false
+    }
+
+    /// Find optimal order using parallel BFS
+    ///
+    /// Explores all candidate orderings at each depth level using parallel iteration,
+    /// with intelligent pruning to manage memory usage.
+    fn find_optimal_order_parallel(&self) -> Vec<String> {
+        // Initial state: empty set of joined tables
+        let initial_state = SearchState {
+            joined_tables: HashSet::new(),
+            cost_so_far: JoinCost::new(0, 0),
+            order: Vec::new(),
+        };
+
+        let mut current_layer = vec![initial_state];
+        let best_cost = AtomicU64::new(u64::MAX);
+        let mut best_order = vec![];
+
+        // Iterate through depths (number of tables joined)
+        for _depth in 0..self.all_tables.len() {
+            if current_layer.is_empty() {
+                break; // No more paths to explore
+            }
+
+            // Generate next layer in parallel
+            let best_cost_snapshot = best_cost.load(Ordering::Relaxed);
+            let next_layer: Vec<SearchState> = current_layer
+                .into_par_iter()
+                .flat_map(|state| self.expand_state_parallel(&state, best_cost_snapshot))
+                .collect();
+
+            // Prune layer to prevent memory explosion
+            current_layer = self.prune_layer(next_layer, &best_cost, &mut best_order);
+        }
+
+        // If no solution found, return left-to-right ordering as fallback
+        if best_order.is_empty() {
+            return self.all_tables.iter().cloned().collect();
+        }
+
+        best_order
+    }
+
+    /// Expand a single state by trying all unjoined tables
+    ///
+    /// Returns a vector of next states, each representing adding one more table
+    /// to the current join sequence. Prunes states that exceed the best known cost.
+    fn expand_state_parallel(&self, state: &SearchState, best_cost: u64) -> Vec<SearchState> {
+        self.all_tables
+            .iter()
+            .filter(|t| !state.joined_tables.contains(*t))
+            .filter_map(|next_table| {
+                // Estimate cost of joining this table
+                let join_cost = self.estimate_join_cost(&state.joined_tables, next_table);
+                let new_cost = JoinCost::new(
+                    state.cost_so_far.cardinality + join_cost.cardinality,
+                    state.cost_so_far.operations + join_cost.operations,
+                );
+
+                // Prune if cost exceeds best
+                if new_cost.total() >= best_cost {
+                    return None;
+                }
+
+                // Create new state
+                let mut new_state = state.clone();
+                new_state.joined_tables.insert(next_table.clone());
+                new_state.cost_so_far = new_cost;
+                new_state.order.push(next_table.clone());
+
+                Some(new_state)
+            })
+            .collect()
+    }
+
+    /// Prune layer to prevent memory explosion
+    ///
+    /// Updates best solution from complete orderings, removes complete orderings
+    /// from the layer, prunes states with poor cost, and limits layer size.
+    fn prune_layer(
+        &self,
+        mut layer: Vec<SearchState>,
+        best_cost: &AtomicU64,
+        best_order: &mut Vec<String>,
+    ) -> Vec<SearchState> {
+        // Update best solution from complete orderings
+        for state in &layer {
+            if state.joined_tables.len() == self.all_tables.len() {
+                let cost = state.cost_so_far.total();
+                let current_best = best_cost.load(Ordering::Relaxed);
+
+                // Try to update best cost atomically
+                if cost < current_best {
+                    // Compare-and-swap loop to handle concurrent updates
+                    let mut current = current_best;
+                    loop {
+                        match best_cost.compare_exchange_weak(
+                            current,
+                            cost,
+                            Ordering::Relaxed,
+                            Ordering::Relaxed,
+                        ) {
+                            Ok(_) => {
+                                // Successfully updated best cost
+                                *best_order = state.order.clone();
+                                break;
+                            }
+                            Err(actual) => {
+                                // Another thread updated, check if we're still better
+                                if cost >= actual {
+                                    break; // No longer the best
+                                }
+                                current = actual;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Remove complete orderings (no need to expand further)
+        layer.retain(|s| s.joined_tables.len() < self.all_tables.len());
+
+        // Prune states with poor cost relative to best
+        let current_best = best_cost.load(Ordering::Relaxed);
+        if current_best < u64::MAX {
+            let threshold_cost = (current_best as f64 * self.config.pruning_threshold) as u64;
+            layer.retain(|s| s.cost_so_far.total() < threshold_cost);
+        }
+
+        // Limit layer size to prevent memory issues
+        if layer.len() > self.config.max_states_per_layer {
+            // Sort by cost and keep best N states
+            layer.sort_by_key(|s| s.cost_so_far.total());
+            layer.truncate(self.config.max_states_per_layer);
+        }
+
+        layer
     }
 }
 
@@ -438,5 +645,166 @@ mod tests {
             "Hub table t1 should be early in join order, found at position {}",
             t1_pos
         );
+    }
+
+    #[test]
+    fn test_parallel_bfs_selection() {
+        // Test that should_use_parallel_search selects correctly
+        let mut analyzer = JoinOrderAnalyzer::new();
+
+        // Test 1: Small query (2 tables) should use DFS
+        analyzer.register_tables(vec!["t1".to_string(), "t2".to_string()]);
+        analyzer.add_edge(JoinEdge {
+            left_table: "t1".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t2".to_string(),
+            right_column: "id".to_string(),
+        });
+
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
+        assert!(!search.should_use_parallel_search(), "Small queries should use DFS");
+
+        // Test 2: Highly connected 5-table query should use parallel BFS
+        let mut analyzer = JoinOrderAnalyzer::new();
+        analyzer.register_tables(vec![
+            "t1".to_string(),
+            "t2".to_string(),
+            "t3".to_string(),
+            "t4".to_string(),
+            "t5".to_string(),
+        ]);
+
+        // Create a highly connected graph (star + additional edges)
+        // 8 edges / 5 tables = 1.6 edge density > 1.5 threshold
+        analyzer.add_edge(JoinEdge {
+            left_table: "t1".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t2".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t1".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t3".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t1".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t4".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t1".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t5".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t2".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t3".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t3".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t4".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t4".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t5".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t2".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t5".to_string(),
+            right_column: "id".to_string(),
+        });
+
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
+        assert!(
+            search.should_use_parallel_search(),
+            "Highly connected 5-table query should use parallel BFS"
+        );
+
+        // Verify it produces valid ordering
+        let order = search.find_optimal_order();
+        assert_eq!(order.len(), 5);
+    }
+
+    #[test]
+    fn test_parallel_bfs_produces_valid_ordering() {
+        // Test that parallel BFS produces a valid ordering
+        let mut analyzer = JoinOrderAnalyzer::new();
+        analyzer.register_tables(vec![
+            "t1".to_string(),
+            "t2".to_string(),
+            "t3".to_string(),
+            "t4".to_string(),
+        ]);
+
+        // Star pattern with 3 edges (3/4 = 0.75, below threshold)
+        // Force parallel BFS by adding more edges
+        analyzer.add_edge(JoinEdge {
+            left_table: "t1".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t2".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t1".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t3".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t1".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t4".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t2".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t3".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t3".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t4".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t2".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t4".to_string(),
+            right_column: "id".to_string(),
+        });
+
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
+
+        // Verify parallel BFS is selected
+        assert!(search.should_use_parallel_search());
+
+        // Test both DFS and parallel BFS produce valid orderings
+        let order_parallel = search.find_optimal_order_parallel();
+        let order_dfs = search.find_optimal_order_dfs();
+
+        // Both should contain all tables
+        assert_eq!(order_parallel.len(), 4);
+        assert_eq!(order_dfs.len(), 4);
+
+        // Both should be valid orderings
+        for table in &["t1", "t2", "t3", "t4"] {
+            assert!(order_parallel.contains(&table.to_string()));
+            assert!(order_dfs.contains(&table.to_string()));
+        }
     }
 }
