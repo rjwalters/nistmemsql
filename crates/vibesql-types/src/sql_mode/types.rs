@@ -133,14 +133,14 @@ fn is_float_value(value: &SqlValue) -> bool {
 impl TypeBehavior for super::SqlMode {
     fn has_decimal_type(&self) -> bool {
         match self {
-            super::SqlMode::MySQL => true,
+            super::SqlMode::MySQL { .. } => true,
             super::SqlMode::SQLite => false,
         }
     }
 
     fn uses_dynamic_typing(&self) -> bool {
         match self {
-            super::SqlMode::MySQL => false,
+            super::SqlMode::MySQL { .. } => false,
             super::SqlMode::SQLite => true,
         }
     }
@@ -152,7 +152,7 @@ impl TypeBehavior for super::SqlMode {
         }
 
         match self {
-            super::SqlMode::MySQL => {
+            super::SqlMode::MySQL { .. } => {
                 // MySQL always returns Numeric (exact decimal) for division
                 // to preserve precision regardless of operand types
                 ValueType::Numeric
@@ -174,7 +174,7 @@ impl TypeBehavior for super::SqlMode {
         match self {
             // MySQL is permissive by default (would need to check mode flags for strict mode)
             // For now, return true as default MySQL behavior
-            super::SqlMode::MySQL => true,
+            super::SqlMode::MySQL { .. } => true,
 
             // SQLite is always permissive with type affinity
             super::SqlMode::SQLite => true,
@@ -189,25 +189,25 @@ mod tests {
 
     #[test]
     fn test_has_decimal_type() {
-        assert!(SqlMode::MySQL.has_decimal_type());
+        assert!(SqlMode::default().has_decimal_type());
         assert!(!SqlMode::SQLite.has_decimal_type());
     }
 
     #[test]
     fn test_uses_dynamic_typing() {
-        assert!(!SqlMode::MySQL.uses_dynamic_typing());
+        assert!(!SqlMode::default().uses_dynamic_typing());
         assert!(SqlMode::SQLite.uses_dynamic_typing());
     }
 
     #[test]
     fn test_permissive_type_coercion() {
-        assert!(SqlMode::MySQL.permissive_type_coercion());
+        assert!(SqlMode::default().permissive_type_coercion());
         assert!(SqlMode::SQLite.permissive_type_coercion());
     }
 
     #[test]
     fn test_mysql_division_result_type() {
-        let mode = SqlMode::MySQL;
+        let mode = SqlMode::default();
 
         // MySQL always returns Numeric for division
         assert_eq!(
