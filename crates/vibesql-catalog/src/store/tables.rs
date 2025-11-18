@@ -134,6 +134,9 @@ impl super::Catalog {
         schema_name: &str,
         schema: TableSchema,
     ) -> Result<(), CatalogError> {
+        // Check for circular foreign key dependencies
+        self.check_circular_foreign_keys(&schema)?;
+
         let case_sensitive = self.case_sensitive_identifiers;
         let target_schema = self
             .schemas
