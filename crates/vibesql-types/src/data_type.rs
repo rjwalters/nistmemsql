@@ -41,7 +41,7 @@ pub enum DataType {
     Interval { start_field: IntervalField, end_field: Option<IntervalField> },
 
     // Binary types
-    BinaryLargeObject, // BLOB
+    BinaryLargeObject,             // BLOB
     Bit { length: Option<usize> }, // BIT or BIT(n), MySQL compatibility, default length is 1
 
     // User-defined types (SQL:1999)
@@ -137,8 +137,14 @@ impl DataType {
             (DataType::Bit { .. }, DataType::Bit { .. }) => true,
 
             // BIT can coerce to/from integer types (numeric interpretation)
-            (DataType::Bit { .. }, DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint) => true,
-            (DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint, DataType::Bit { .. }) => true,
+            (
+                DataType::Bit { .. },
+                DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint,
+            ) => true,
+            (
+                DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint,
+                DataType::Bit { .. },
+            ) => true,
 
             // BIT can coerce to/from binary types
             (DataType::Bit { .. }, DataType::BinaryLargeObject) => true,
@@ -149,27 +155,53 @@ impl DataType {
             (DataType::Integer, DataType::Bigint | DataType::Unsigned) => true,
             (DataType::Bigint, DataType::Unsigned) => true,
             (DataType::Unsigned, DataType::Bigint) => true,
-            (DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint,
-             DataType::Decimal { .. } | DataType::Numeric { .. }) => true,
-            (DataType::Decimal { .. } | DataType::Numeric { .. },
-             DataType::Real | DataType::Float { .. } | DataType::DoublePrecision) => true,
-            (DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint,
-             DataType::Real | DataType::Float { .. } | DataType::DoublePrecision) => true,
+            (
+                DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint,
+                DataType::Decimal { .. } | DataType::Numeric { .. },
+            ) => true,
+            (
+                DataType::Decimal { .. } | DataType::Numeric { .. },
+                DataType::Real | DataType::Float { .. } | DataType::DoublePrecision,
+            ) => true,
+            (
+                DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint,
+                DataType::Real | DataType::Float { .. } | DataType::DoublePrecision,
+            ) => true,
 
             // Numeric types are bidirectionally coercible (widening and narrowing allowed)
             (DataType::Bigint | DataType::Unsigned, DataType::Integer | DataType::Smallint) => true,
-            (DataType::Real | DataType::Float { .. } | DataType::DoublePrecision,
-             DataType::Decimal { .. } | DataType::Numeric { .. }) => true,
-            (DataType::Real | DataType::Float { .. } | DataType::DoublePrecision,
-             DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint) => true,
-            (DataType::Decimal { .. } | DataType::Numeric { .. },
-             DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint) => true,
+            (
+                DataType::Real | DataType::Float { .. } | DataType::DoublePrecision,
+                DataType::Decimal { .. } | DataType::Numeric { .. },
+            ) => true,
+            (
+                DataType::Real | DataType::Float { .. } | DataType::DoublePrecision,
+                DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint,
+            ) => true,
+            (
+                DataType::Decimal { .. } | DataType::Numeric { .. },
+                DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint,
+            ) => true,
 
             // Character string types can coerce among themselves
-            (DataType::Character { .. }, DataType::Varchar { .. } | DataType::Name | DataType::CharacterLargeObject) => true,
-            (DataType::Varchar { .. }, DataType::Character { .. } | DataType::Name | DataType::CharacterLargeObject) => true,
-            (DataType::Name, DataType::Character { .. } | DataType::Varchar { .. } | DataType::CharacterLargeObject) => true,
-            (DataType::CharacterLargeObject, DataType::Character { .. } | DataType::Varchar { .. } | DataType::Name) => true,
+            (
+                DataType::Character { .. },
+                DataType::Varchar { .. } | DataType::Name | DataType::CharacterLargeObject,
+            ) => true,
+            (
+                DataType::Varchar { .. },
+                DataType::Character { .. } | DataType::Name | DataType::CharacterLargeObject,
+            ) => true,
+            (
+                DataType::Name,
+                DataType::Character { .. }
+                | DataType::Varchar { .. }
+                | DataType::CharacterLargeObject,
+            ) => true,
+            (
+                DataType::CharacterLargeObject,
+                DataType::Character { .. } | DataType::Varchar { .. } | DataType::Name,
+            ) => true,
 
             // Temporal types can coerce among themselves
             (DataType::Date, DataType::Timestamp { .. }) => true,
@@ -213,22 +245,25 @@ impl DataType {
         // Special handling for types with precision/scale parameters
         match (self, other) {
             // For DECIMAL/NUMERIC, combine precision and scale appropriately
-            (DataType::Decimal { precision: p1, scale: s1 },
-             DataType::Decimal { precision: p2, scale: s2 }) => {
+            (
+                DataType::Decimal { precision: p1, scale: s1 },
+                DataType::Decimal { precision: p2, scale: s2 },
+            ) => {
                 let max_scale = (*s1).max(*s2);
                 let max_precision = (*p1).max(*p2);
                 Some(DataType::Decimal { precision: max_precision, scale: max_scale })
             }
-            (DataType::Numeric { precision: p1, scale: s1 },
-             DataType::Numeric { precision: p2, scale: s2 }) => {
+            (
+                DataType::Numeric { precision: p1, scale: s1 },
+                DataType::Numeric { precision: p2, scale: s2 },
+            ) => {
                 let max_scale = (*s1).max(*s2);
                 let max_precision = (*p1).max(*p2);
                 Some(DataType::Numeric { precision: max_precision, scale: max_scale })
             }
 
             // For VARCHAR, use the larger length (or None for unlimited)
-            (DataType::Varchar { max_length: l1 },
-             DataType::Varchar { max_length: l2 }) => {
+            (DataType::Varchar { max_length: l1 }, DataType::Varchar { max_length: l2 }) => {
                 let max_length = match (l1, l2) {
                     (None, _) | (_, None) => None,
                     (Some(a), Some(b)) => Some((*a).max(*b)),
@@ -237,8 +272,7 @@ impl DataType {
             }
 
             // For BIT, use the larger length (or None for unlimited)
-            (DataType::Bit { length: l1 },
-             DataType::Bit { length: l2 }) => {
+            (DataType::Bit { length: l1 }, DataType::Bit { length: l2 }) => {
                 let max_length = match (l1, l2) {
                     (None, _) | (_, None) => None,
                     (Some(a), Some(b)) => Some((*a).max(*b)),

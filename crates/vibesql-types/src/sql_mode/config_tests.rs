@@ -65,15 +65,9 @@ fn test_with_strict_mode() {
 fn test_ansi_mode() {
     let flags = MySqlModeFlags::ansi();
 
-    assert!(
-        flags.pipes_as_concat,
-        "ANSI mode should enable pipes_as_concat"
-    );
+    assert!(flags.pipes_as_concat, "ANSI mode should enable pipes_as_concat");
     assert!(flags.ansi_quotes, "ANSI mode should enable ansi_quotes");
-    assert!(
-        !flags.strict_mode,
-        "ANSI mode should not enable strict_mode"
-    );
+    assert!(!flags.strict_mode, "ANSI mode should not enable strict_mode");
 }
 
 // ============================================================================
@@ -82,11 +76,7 @@ fn test_ansi_mode() {
 
 #[test]
 fn test_all_flags_enabled() {
-    let flags = MySqlModeFlags {
-        pipes_as_concat: true,
-        ansi_quotes: true,
-        strict_mode: true,
-    };
+    let flags = MySqlModeFlags { pipes_as_concat: true, ansi_quotes: true, strict_mode: true };
 
     assert!(flags.pipes_as_concat);
     assert!(flags.ansi_quotes);
@@ -95,11 +85,7 @@ fn test_all_flags_enabled() {
 
 #[test]
 fn test_all_flags_disabled() {
-    let flags = MySqlModeFlags {
-        pipes_as_concat: false,
-        ansi_quotes: false,
-        strict_mode: false,
-    };
+    let flags = MySqlModeFlags { pipes_as_concat: false, ansi_quotes: false, strict_mode: false };
 
     assert!(!flags.pipes_as_concat);
     assert!(!flags.ansi_quotes);
@@ -109,18 +95,10 @@ fn test_all_flags_disabled() {
 #[test]
 fn test_partial_flag_combinations() {
     // Test various combinations
-    let combo1 = MySqlModeFlags {
-        pipes_as_concat: true,
-        ansi_quotes: false,
-        strict_mode: true,
-    };
+    let combo1 = MySqlModeFlags { pipes_as_concat: true, ansi_quotes: false, strict_mode: true };
     assert!(combo1.pipes_as_concat && combo1.strict_mode && !combo1.ansi_quotes);
 
-    let combo2 = MySqlModeFlags {
-        pipes_as_concat: false,
-        ansi_quotes: true,
-        strict_mode: true,
-    };
+    let combo2 = MySqlModeFlags { pipes_as_concat: false, ansi_quotes: true, strict_mode: true };
     assert!(!combo2.pipes_as_concat && combo2.ansi_quotes && combo2.strict_mode);
 }
 
@@ -142,18 +120,14 @@ fn test_sqlmode_default_is_mysql() {
 
 #[test]
 fn test_sqlmode_mysql_with_default_flags() {
-    let mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
+    let mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
 
     assert_eq!(mode, SqlMode::default());
 }
 
 #[test]
 fn test_sqlmode_mysql_with_custom_flags() {
-    let mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::ansi(),
-    };
+    let mode = SqlMode::MySQL { flags: MySqlModeFlags::ansi() };
 
     match mode {
         SqlMode::MySQL { flags } => {
@@ -189,15 +163,9 @@ fn test_flags_equality() {
 
 #[test]
 fn test_mode_equality_with_flags() {
-    let mode1 = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
-    let mode2 = SqlMode::MySQL {
-        flags: MySqlModeFlags::new(),
-    };
-    let mode3 = SqlMode::MySQL {
-        flags: MySqlModeFlags::with_strict_mode(),
-    };
+    let mode1 = SqlMode::MySQL { flags: MySqlModeFlags::default() };
+    let mode2 = SqlMode::MySQL { flags: MySqlModeFlags::new() };
+    let mode3 = SqlMode::MySQL { flags: MySqlModeFlags::with_strict_mode() };
 
     assert_eq!(mode1, mode2, "Same flags should be equal");
     assert_ne!(mode1, mode3, "Different flags should not be equal");
@@ -205,9 +173,7 @@ fn test_mode_equality_with_flags() {
 
 #[test]
 fn test_mode_equality_mysql_vs_sqlite() {
-    let mysql = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
+    let mysql = SqlMode::MySQL { flags: MySqlModeFlags::default() };
     let sqlite = SqlMode::SQLite;
 
     assert_ne!(mysql, sqlite, "MySQL and SQLite modes should not be equal");
@@ -219,11 +185,7 @@ fn test_mode_equality_mysql_vs_sqlite() {
 
 #[test]
 fn test_flags_clone() {
-    let original = MySqlModeFlags {
-        pipes_as_concat: true,
-        ansi_quotes: true,
-        strict_mode: false,
-    };
+    let original = MySqlModeFlags { pipes_as_concat: true, ansi_quotes: true, strict_mode: false };
 
     let cloned = original.clone();
 
@@ -235,9 +197,7 @@ fn test_flags_clone() {
 
 #[test]
 fn test_mode_clone() {
-    let original = SqlMode::MySQL {
-        flags: MySqlModeFlags::ansi(),
-    };
+    let original = SqlMode::MySQL { flags: MySqlModeFlags::ansi() };
 
     let cloned = original.clone();
 
@@ -252,10 +212,7 @@ fn test_mode_clone() {
 fn test_struct_update_syntax() {
     let base = MySqlModeFlags::default();
 
-    let modified = MySqlModeFlags {
-        strict_mode: true,
-        ..base
-    };
+    let modified = MySqlModeFlags { strict_mode: true, ..base };
 
     assert!(!modified.pipes_as_concat, "Should inherit default");
     assert!(!modified.ansi_quotes, "Should inherit default");
@@ -266,11 +223,7 @@ fn test_struct_update_syntax() {
 fn test_multiple_modifications() {
     let base = MySqlModeFlags::default();
 
-    let modified = MySqlModeFlags {
-        pipes_as_concat: true,
-        strict_mode: true,
-        ..base
-    };
+    let modified = MySqlModeFlags { pipes_as_concat: true, strict_mode: true, ..base };
 
     assert!(modified.pipes_as_concat, "First modification");
     assert!(!modified.ansi_quotes, "Should inherit default");
@@ -283,9 +236,7 @@ fn test_multiple_modifications() {
 
 #[test]
 fn test_mysql_flags_accessor() {
-    let mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::with_strict_mode(),
-    };
+    let mode = SqlMode::MySQL { flags: MySqlModeFlags::with_strict_mode() };
 
     let flags = mode.mysql_flags();
     assert!(flags.is_some(), "MySQL mode should have flags");
@@ -302,16 +253,11 @@ fn test_sqlite_flags_accessor() {
 
 #[test]
 fn test_division_behavior_accessor() {
-    let mysql = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
+    let mysql = SqlMode::MySQL { flags: MySqlModeFlags::default() };
     let sqlite = SqlMode::SQLite;
 
     assert!(mysql.division_returns_float(), "MySQL uses float division");
-    assert!(
-        !sqlite.division_returns_float(),
-        "SQLite uses integer division"
-    );
+    assert!(!sqlite.division_returns_float(), "SQLite uses integer division");
 }
 
 // ============================================================================
@@ -324,17 +270,12 @@ fn test_flags_debug() {
     let debug_str = format!("{:?}", flags);
 
     // Debug should be meaningful and contain flag info
-    assert!(
-        !debug_str.is_empty(),
-        "Debug output should not be empty"
-    );
+    assert!(!debug_str.is_empty(), "Debug output should not be empty");
 }
 
 #[test]
 fn test_mode_debug() {
-    let mysql = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
+    let mysql = SqlMode::MySQL { flags: MySqlModeFlags::default() };
     let sqlite = SqlMode::SQLite;
 
     let mysql_debug = format!("{:?}", mysql);
@@ -370,12 +311,8 @@ fn test_mode_can_be_hashed() {
     use std::collections::HashSet;
 
     let mut set = HashSet::new();
-    set.insert(SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    });
-    set.insert(SqlMode::MySQL {
-        flags: MySqlModeFlags::ansi(),
-    });
+    set.insert(SqlMode::MySQL { flags: MySqlModeFlags::default() });
+    set.insert(SqlMode::MySQL { flags: MySqlModeFlags::ansi() });
     set.insert(SqlMode::SQLite);
 
     assert_eq!(set.len(), 3, "All different modes should hash uniquely");
@@ -389,10 +326,7 @@ fn test_mode_can_be_hashed() {
 fn test_flags_consistent_across_constructors() {
     // Verify that using constructors vs struct literal gives same result
     let via_constructor = MySqlModeFlags::with_pipes_as_concat();
-    let via_literal = MySqlModeFlags {
-        pipes_as_concat: true,
-        ..Default::default()
-    };
+    let via_literal = MySqlModeFlags { pipes_as_concat: true, ..Default::default() };
 
     assert_eq!(via_constructor, via_literal);
 }
@@ -400,9 +334,7 @@ fn test_flags_consistent_across_constructors() {
 #[test]
 fn test_mode_consistent_across_creation_methods() {
     let default_mode = SqlMode::default();
-    let explicit_mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
+    let explicit_mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
 
     assert_eq!(default_mode, explicit_mode);
 }
@@ -415,18 +347,9 @@ fn test_mode_consistent_across_creation_methods() {
 fn test_flags_builder_pattern_simulation() {
     // Simulate a builder pattern using struct update syntax
     let flags = MySqlModeFlags::default();
-    let flags = MySqlModeFlags {
-        pipes_as_concat: true,
-        ..flags
-    };
-    let flags = MySqlModeFlags {
-        ansi_quotes: true,
-        ..flags
-    };
-    let flags = MySqlModeFlags {
-        strict_mode: true,
-        ..flags
-    };
+    let flags = MySqlModeFlags { pipes_as_concat: true, ..flags };
+    let flags = MySqlModeFlags { ansi_quotes: true, ..flags };
+    let flags = MySqlModeFlags { strict_mode: true, ..flags };
 
     assert!(flags.pipes_as_concat);
     assert!(flags.ansi_quotes);

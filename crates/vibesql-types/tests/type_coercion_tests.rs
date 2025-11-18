@@ -28,8 +28,8 @@ fn test_integer_to_decimal_coercion() {
 
 #[test]
 fn test_decimal_to_double_coercion() {
-    let result = DataType::Decimal { precision: 10, scale: 2 }
-        .coerce_to_common(&DataType::DoublePrecision);
+    let result =
+        DataType::Decimal { precision: 10, scale: 2 }.coerce_to_common(&DataType::DoublePrecision);
     assert_eq!(result, Some(DataType::DoublePrecision));
 }
 
@@ -102,9 +102,11 @@ fn test_character_to_varchar_coercion() {
 
 #[test]
 fn test_string_types_are_compatible() {
-    assert!(DataType::Character { length: 10 }.is_compatible_with(&DataType::Varchar { max_length: Some(20) }));
+    assert!(DataType::Character { length: 10 }
+        .is_compatible_with(&DataType::Varchar { max_length: Some(20) }));
     assert!(DataType::Name.is_compatible_with(&DataType::Varchar { max_length: Some(50) }));
-    assert!(DataType::Varchar { max_length: Some(10) }.is_compatible_with(&DataType::CharacterLargeObject));
+    assert!(DataType::Varchar { max_length: Some(10) }
+        .is_compatible_with(&DataType::CharacterLargeObject));
 }
 
 // ----------------------------------------------------------------------------
@@ -127,7 +129,8 @@ fn test_time_to_timestamp_coercion() {
 #[test]
 fn test_temporal_types_are_compatible() {
     assert!(DataType::Date.is_compatible_with(&DataType::Timestamp { with_timezone: false }));
-    assert!(DataType::Time { with_timezone: false }.is_compatible_with(&DataType::Timestamp { with_timezone: false }));
+    assert!(DataType::Time { with_timezone: false }
+        .is_compatible_with(&DataType::Timestamp { with_timezone: false }));
 }
 
 // ----------------------------------------------------------------------------
@@ -271,8 +274,8 @@ fn test_type_precedence_ordering() {
     assert_eq!(result, None); // No coercion between numbers and strings
 
     // DOUBLE has precedence over DECIMAL
-    let result = DataType::Decimal { precision: 10, scale: 2 }
-        .coerce_to_common(&DataType::DoublePrecision);
+    let result =
+        DataType::Decimal { precision: 10, scale: 2 }.coerce_to_common(&DataType::DoublePrecision);
     assert_eq!(result, Some(DataType::DoublePrecision));
 
     // DECIMAL has precedence over INTEGER
@@ -290,12 +293,10 @@ fn test_type_precedence_ordering() {
 
 #[test]
 fn test_same_type_coercion_returns_self() {
+    assert_eq!(DataType::Integer.coerce_to_common(&DataType::Integer), Some(DataType::Integer));
     assert_eq!(
-        DataType::Integer.coerce_to_common(&DataType::Integer),
-        Some(DataType::Integer)
-    );
-    assert_eq!(
-        DataType::Varchar { max_length: Some(10) }.coerce_to_common(&DataType::Varchar { max_length: Some(10) }),
+        DataType::Varchar { max_length: Some(10) }
+            .coerce_to_common(&DataType::Varchar { max_length: Some(10) }),
         Some(DataType::Varchar { max_length: Some(10) })
     );
 }

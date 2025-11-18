@@ -1,10 +1,13 @@
 //! SQL Value runtime representation
 
 mod comparison;
-mod hash;
 mod display;
+mod hash;
 
-use crate::{DataType, temporal::{Date, Time, Timestamp, Interval, IntervalField}};
+use crate::{
+    temporal::{Date, Interval, IntervalField, Time, Timestamp},
+    DataType,
+};
 
 /// SQL Values - runtime representation of data
 ///

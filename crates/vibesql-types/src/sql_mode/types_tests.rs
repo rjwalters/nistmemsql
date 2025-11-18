@@ -4,8 +4,7 @@
 //! work correctly according to the selected SQL mode (MySQL vs SQLite).
 
 use super::*;
-use crate::sql_value::SqlValue;
-use crate::DataType;
+use crate::{sql_value::SqlValue, DataType};
 
 // ============================================================================
 // Type Inference Tests
@@ -13,15 +12,10 @@ use crate::DataType;
 
 #[test]
 fn test_division_result_type_mysql() {
-    let mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
+    let mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
 
     // In MySQL mode, division should indicate it returns float
-    assert!(
-        mode.division_returns_float(),
-        "MySQL division should return float type"
-    );
+    assert!(mode.division_returns_float(), "MySQL division should return float type");
 }
 
 #[test]
@@ -29,10 +23,7 @@ fn test_division_result_type_sqlite() {
     let mode = SqlMode::SQLite;
 
     // In SQLite mode, division should indicate it returns integer
-    assert!(
-        !mode.division_returns_float(),
-        "SQLite division should return integer type"
-    );
+    assert!(!mode.division_returns_float(), "SQLite division should return integer type");
 }
 
 // ============================================================================
@@ -44,10 +35,7 @@ fn test_integer_type_detection() {
     let value = SqlValue::Integer(42);
     let data_type = value.get_type();
 
-    assert!(
-        matches!(data_type, DataType::Integer),
-        "Integer value should have Integer data type"
-    );
+    assert!(matches!(data_type, DataType::Integer), "Integer value should have Integer data type");
     assert_eq!(value.type_name(), "INTEGER");
 }
 
@@ -68,10 +56,7 @@ fn test_float_type_detection() {
     let value = SqlValue::Float(3.14);
     let data_type = value.get_type();
 
-    assert!(
-        matches!(data_type, DataType::Float { .. }),
-        "Float value should have Float data type"
-    );
+    assert!(matches!(data_type, DataType::Float { .. }), "Float value should have Float data type");
     assert_eq!(value.type_name(), "FLOAT");
 }
 
@@ -92,10 +77,7 @@ fn test_null_type_detection() {
     let value = SqlValue::Null;
     let data_type = value.get_type();
 
-    assert!(
-        matches!(data_type, DataType::Null),
-        "Null value should have Null data type"
-    );
+    assert!(matches!(data_type, DataType::Null), "Null value should have Null data type");
     assert_eq!(value.type_name(), "NULL");
 }
 
@@ -203,9 +185,7 @@ fn test_boolean_type_detection() {
 
 #[test]
 fn test_mysql_mode_supports_decimal() {
-    let mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
+    let mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
 
     // MySQL mode should indicate it supports decimal/numeric types
     // by returning float for division
@@ -227,12 +207,8 @@ fn test_sqlite_dynamic_typing_expectation() {
 
 #[test]
 fn test_strict_mode_flag_presence() {
-    let permissive = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
-    let strict = SqlMode::MySQL {
-        flags: MySqlModeFlags::with_strict_mode(),
-    };
+    let permissive = SqlMode::MySQL { flags: MySqlModeFlags::default() };
+    let strict = SqlMode::MySQL { flags: MySqlModeFlags::with_strict_mode() };
 
     // Verify strict mode flag is set correctly
     assert!(!permissive.mysql_flags().unwrap().strict_mode);
@@ -268,27 +244,17 @@ fn test_type_detection_consistency() {
         let data_type = value.get_type();
 
         // Both should provide consistent information
-        assert!(
-            !type_name.is_empty(),
-            "Type name should not be empty for {:?}",
-            value
-        );
+        assert!(!type_name.is_empty(), "Type name should not be empty for {:?}", value);
         // DataType Debug output should be meaningful
         let debug_str = format!("{:?}", data_type);
-        assert!(
-            !debug_str.is_empty(),
-            "DataType debug should not be empty for {:?}",
-            value
-        );
+        assert!(!debug_str.is_empty(), "DataType debug should not be empty for {:?}", value);
     }
 }
 
 #[test]
 fn test_mode_independent_type_detection() {
     // Type detection should work the same regardless of mode
-    let mysql_mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
+    let mysql_mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
     let sqlite_mode = SqlMode::SQLite;
 
     // Create same value
@@ -300,10 +266,7 @@ fn test_mode_independent_type_detection() {
     assert!(matches!(value.get_type(), DataType::Integer));
 
     // Modes should have different division behavior
-    assert_ne!(
-        mysql_mode.division_returns_float(),
-        sqlite_mode.division_returns_float()
-    );
+    assert_ne!(mysql_mode.division_returns_float(), sqlite_mode.division_returns_float());
 }
 
 // ============================================================================

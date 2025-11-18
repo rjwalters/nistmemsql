@@ -1,11 +1,8 @@
 //! SQL TIMESTAMP type implementation
 
+use std::{cmp::Ordering, fmt, str::FromStr};
+
 use super::{Date, Time};
-use std::{
-    cmp::Ordering,
-    fmt,
-    str::FromStr,
-};
 
 /// SQL TIMESTAMP type - represents a date and time
 ///
@@ -150,7 +147,6 @@ impl PartialOrd for Timestamp {
 
 impl Ord for Timestamp {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.date.cmp(&other.date)
-            .then_with(|| self.time.cmp(&other.time))
+        self.date.cmp(&other.date).then_with(|| self.time.cmp(&other.time))
     }
 }

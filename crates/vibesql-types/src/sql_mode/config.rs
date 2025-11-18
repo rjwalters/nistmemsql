@@ -30,16 +30,17 @@ pub struct MySqlModeFlags {
     /// - `true`: Strict type checking, errors on invalid data
     /// - `false` (default): Permissive mode with warnings
     pub strict_mode: bool,
-
     // Future flags can be added here as needed
 }
 
+// Keep manual Default implementation to preserve inline documentation comments
+#[allow(clippy::derivable_impls)]
 impl Default for MySqlModeFlags {
     fn default() -> Self {
         Self {
             pipes_as_concat: false, // Default MySQL behavior: || is OR
-            ansi_quotes: false,      // Default MySQL behavior: " is string
-            strict_mode: false,      // Permissive by default
+            ansi_quotes: false,     // Default MySQL behavior: " is string
+            strict_mode: false,     // Permissive by default
         }
     }
 }
@@ -52,35 +53,22 @@ impl MySqlModeFlags {
 
     /// Create MySqlModeFlags with PIPES_AS_CONCAT enabled
     pub fn with_pipes_as_concat() -> Self {
-        Self {
-            pipes_as_concat: true,
-            ..Default::default()
-        }
+        Self { pipes_as_concat: true, ..Default::default() }
     }
 
     /// Create MySqlModeFlags with ANSI_QUOTES enabled
     pub fn with_ansi_quotes() -> Self {
-        Self {
-            ansi_quotes: true,
-            ..Default::default()
-        }
+        Self { ansi_quotes: true, ..Default::default() }
     }
 
     /// Create MySqlModeFlags with STRICT_MODE enabled
     pub fn with_strict_mode() -> Self {
-        Self {
-            strict_mode: true,
-            ..Default::default()
-        }
+        Self { strict_mode: true, ..Default::default() }
     }
 
     /// Create MySqlModeFlags with ANSI mode (combination of ANSI_QUOTES and PIPES_AS_CONCAT)
     pub fn ansi() -> Self {
-        Self {
-            pipes_as_concat: true,
-            ansi_quotes: true,
-            ..Default::default()
-        }
+        Self { pipes_as_concat: true, ansi_quotes: true, ..Default::default() }
     }
 }
 
@@ -92,8 +80,8 @@ mod tests {
     fn test_default_mysql_flags() {
         let flags = MySqlModeFlags::default();
         assert!(!flags.pipes_as_concat); // || is OR by default
-        assert!(!flags.ansi_quotes);      // " is string by default
-        assert!(!flags.strict_mode);      // Permissive by default
+        assert!(!flags.ansi_quotes); // " is string by default
+        assert!(!flags.strict_mode); // Permissive by default
     }
 
     #[test]
@@ -135,11 +123,7 @@ mod tests {
 
     #[test]
     fn test_flag_combinations() {
-        let flags = MySqlModeFlags {
-            pipes_as_concat: true,
-            ansi_quotes: true,
-            strict_mode: true,
-        };
+        let flags = MySqlModeFlags { pipes_as_concat: true, ansi_quotes: true, strict_mode: true };
         assert!(flags.pipes_as_concat);
         assert!(flags.ansi_quotes);
         assert!(flags.strict_mode);

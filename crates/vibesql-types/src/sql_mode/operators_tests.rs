@@ -12,36 +12,22 @@ use crate::sql_value::SqlValue;
 
 #[test]
 fn test_division_returns_float_mysql() {
-    let mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
-    assert!(
-        mode.division_returns_float(),
-        "MySQL mode should return float for division"
-    );
+    let mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
+    assert!(mode.division_returns_float(), "MySQL mode should return float for division");
 }
 
 #[test]
 fn test_division_returns_integer_sqlite() {
     let mode = SqlMode::SQLite;
-    assert!(
-        !mode.division_returns_float(),
-        "SQLite mode should return integer for division"
-    );
+    assert!(!mode.division_returns_float(), "SQLite mode should return integer for division");
 }
 
 #[test]
 fn test_division_behavior_consistency() {
     // Verify that division behavior is consistent across different MySqlModeFlags
-    let default_flags = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
-    let strict_flags = SqlMode::MySQL {
-        flags: MySqlModeFlags::with_strict_mode(),
-    };
-    let ansi_flags = SqlMode::MySQL {
-        flags: MySqlModeFlags::ansi(),
-    };
+    let default_flags = SqlMode::MySQL { flags: MySqlModeFlags::default() };
+    let strict_flags = SqlMode::MySQL { flags: MySqlModeFlags::with_strict_mode() };
+    let ansi_flags = SqlMode::MySQL { flags: MySqlModeFlags::ansi() };
 
     assert_eq!(
         default_flags.division_returns_float(),
@@ -65,20 +51,13 @@ fn test_sqlvalue_null_detection() {
     assert!(null_value.is_null(), "Null value should be detected as NULL");
 
     let integer_value = SqlValue::Integer(42);
-    assert!(
-        !integer_value.is_null(),
-        "Integer value should not be detected as NULL"
-    );
+    assert!(!integer_value.is_null(), "Integer value should not be detected as NULL");
 }
 
 #[test]
 fn test_null_type_name() {
     let null_value = SqlValue::Null;
-    assert_eq!(
-        null_value.type_name(),
-        "NULL",
-        "NULL value should have type name 'NULL'"
-    );
+    assert_eq!(null_value.type_name(), "NULL", "NULL value should have type name 'NULL'");
 }
 
 // ============================================================================
@@ -88,9 +67,7 @@ fn test_null_type_name() {
 /// Test that MySQL mode is configured for MySQL-specific operators
 #[test]
 fn test_mysql_mode_configuration() {
-    let mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
+    let mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
 
     // MySQL should support floating-point division
     assert!(mode.division_returns_float());
@@ -124,11 +101,7 @@ fn test_division_mode_with_all_flag_combinations() {
         MySqlModeFlags::with_ansi_quotes(),
         MySqlModeFlags::with_strict_mode(),
         MySqlModeFlags::ansi(),
-        MySqlModeFlags {
-            pipes_as_concat: true,
-            ansi_quotes: true,
-            strict_mode: true,
-        },
+        MySqlModeFlags { pipes_as_concat: true, ansi_quotes: true, strict_mode: true },
     ];
 
     for flags in flag_combinations {
@@ -166,15 +139,9 @@ fn test_value_type_names() {
 
 #[test]
 fn test_mode_equality() {
-    let mode1 = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
-    let mode2 = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
-    let mode3 = SqlMode::MySQL {
-        flags: MySqlModeFlags::with_strict_mode(),
-    };
+    let mode1 = SqlMode::MySQL { flags: MySqlModeFlags::default() };
+    let mode2 = SqlMode::MySQL { flags: MySqlModeFlags::default() };
+    let mode3 = SqlMode::MySQL { flags: MySqlModeFlags::with_strict_mode() };
 
     assert_eq!(mode1, mode2, "Identical MySQL modes should be equal");
     assert_ne!(mode1, mode3, "MySQL modes with different flags should not be equal");
@@ -186,16 +153,11 @@ fn test_mode_equality() {
 
 #[test]
 fn test_mode_cloning() {
-    let original = SqlMode::MySQL {
-        flags: MySqlModeFlags::with_strict_mode(),
-    };
+    let original = SqlMode::MySQL { flags: MySqlModeFlags::with_strict_mode() };
     let cloned = original.clone();
 
     assert_eq!(original, cloned, "Cloned mode should equal original");
-    assert!(
-        cloned.division_returns_float(),
-        "Cloned mode should have same behavior"
-    );
+    assert!(cloned.division_returns_float(), "Cloned mode should have same behavior");
 }
 
 // ============================================================================
@@ -205,9 +167,7 @@ fn test_mode_cloning() {
 /// Example test demonstrating division behavior differences
 #[test]
 fn test_division_example_from_docs() {
-    let mysql_mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
+    let mysql_mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
     let sqlite_mode = SqlMode::SQLite;
 
     // In MySQL: 83 / 6 should give 13.8333 (float)

@@ -1,7 +1,8 @@
 //! Display implementation for SqlValue
 
-use crate::sql_value::SqlValue;
 use std::fmt;
+
+use crate::sql_value::SqlValue;
 
 /// Display implementation for SqlValue (how values are shown to users)
 impl fmt::Display for SqlValue {

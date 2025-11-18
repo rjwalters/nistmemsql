@@ -44,9 +44,7 @@ pub enum SqlMode {
 impl Default for SqlMode {
     fn default() -> Self {
         // Default to MySQL mode for SQLLogicTest compatibility
-        SqlMode::MySQL {
-            flags: MySqlModeFlags::default(),
-        }
+        SqlMode::MySQL { flags: MySqlModeFlags::default() }
     }
 }
 
@@ -90,9 +88,7 @@ mod tests {
 
     #[test]
     fn test_division_behavior() {
-        let mysql_mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::default(),
-        };
+        let mysql_mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
         assert!(mysql_mode.division_returns_float());
 
         let sqlite_mode = SqlMode::SQLite;
@@ -101,9 +97,7 @@ mod tests {
 
     #[test]
     fn test_mysql_flags_accessor() {
-        let mysql_mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::with_pipes_as_concat(),
-        };
+        let mysql_mode = SqlMode::MySQL { flags: MySqlModeFlags::with_pipes_as_concat() };
         assert!(mysql_mode.mysql_flags().is_some());
         assert!(mysql_mode.mysql_flags().unwrap().pipes_as_concat);
 
@@ -114,10 +108,7 @@ mod tests {
     #[test]
     fn test_sqlmode_with_flags() {
         let mode = SqlMode::MySQL {
-            flags: MySqlModeFlags {
-                pipes_as_concat: true,
-                ..Default::default()
-            },
+            flags: MySqlModeFlags { pipes_as_concat: true, ..Default::default() },
         };
 
         match mode {
@@ -132,9 +123,7 @@ mod tests {
 
     #[test]
     fn test_sqlmode_with_custom_flags() {
-        let mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::ansi(),
-        };
+        let mode = SqlMode::MySQL { flags: MySqlModeFlags::ansi() };
 
         match mode {
             SqlMode::MySQL { flags } => {

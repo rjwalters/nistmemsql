@@ -74,12 +74,8 @@ fn test_character_length_in_type() {
 
 #[test]
 fn test_pipes_as_concat_flag() {
-    let default_mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
-    let concat_mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::with_pipes_as_concat(),
-    };
+    let default_mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
+    let concat_mode = SqlMode::MySQL { flags: MySqlModeFlags::with_pipes_as_concat() };
 
     // Default MySQL mode: || is OR operator
     assert!(!default_mode.mysql_flags().unwrap().pipes_as_concat);
@@ -90,12 +86,8 @@ fn test_pipes_as_concat_flag() {
 
 #[test]
 fn test_ansi_quotes_flag() {
-    let default_mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
-    let ansi_mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::with_ansi_quotes(),
-    };
+    let default_mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
+    let ansi_mode = SqlMode::MySQL { flags: MySqlModeFlags::with_ansi_quotes() };
 
     // Default MySQL mode: " is string literal
     assert!(!default_mode.mysql_flags().unwrap().ansi_quotes);
@@ -106,15 +98,10 @@ fn test_ansi_quotes_flag() {
 
 #[test]
 fn test_ansi_mode_includes_both_string_flags() {
-    let mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::ansi(),
-    };
+    let mode = SqlMode::MySQL { flags: MySqlModeFlags::ansi() };
 
     let flags = mode.mysql_flags().unwrap();
-    assert!(
-        flags.pipes_as_concat,
-        "ANSI mode should enable PIPES_AS_CONCAT"
-    );
+    assert!(flags.pipes_as_concat, "ANSI mode should enable PIPES_AS_CONCAT");
     assert!(flags.ansi_quotes, "ANSI mode should enable ANSI_QUOTES");
 }
 
@@ -139,9 +126,7 @@ fn test_sqlite_has_no_mysql_string_flags() {
 
 #[test]
 fn test_mysql_default_case_insensitive_expectation() {
-    let mode = SqlMode::MySQL {
-        flags: MySqlModeFlags::default(),
-    };
+    let mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
 
     // MySQL default collation (latin1_swedish_ci) is case-insensitive
     // This is a behavioral expectation - actual implementation TBD
@@ -230,11 +215,7 @@ fn test_special_character_strings() {
 #[test]
 fn test_clone_preserves_string_flags() {
     let original = SqlMode::MySQL {
-        flags: MySqlModeFlags {
-            pipes_as_concat: true,
-            ansi_quotes: true,
-            strict_mode: false,
-        },
+        flags: MySqlModeFlags { pipes_as_concat: true, ansi_quotes: true, strict_mode: false },
     };
 
     let cloned = original.clone();

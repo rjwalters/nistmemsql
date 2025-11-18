@@ -7,14 +7,14 @@
 //! - INTERVAL
 
 mod date;
+mod interval;
 mod time;
 mod timestamp;
-mod interval;
 
 pub use date::Date;
+pub use interval::Interval;
 pub use time::Time;
 pub use timestamp::Timestamp;
-pub use interval::Interval;
 
 /// SQL:1999 Interval Fields
 ///
