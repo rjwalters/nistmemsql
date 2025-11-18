@@ -79,7 +79,7 @@ mod order_by_index_optimization_tests;
 mod phase3_join_optimization;
 mod predicate_pushdown;
 mod predicate_tests;
-mod procedure_tests;
+mod procedures;
 mod privilege_checker_tests;
 mod quantified_comparison_tests;
 mod query_timeout_tests;

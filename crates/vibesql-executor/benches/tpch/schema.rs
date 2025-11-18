@@ -1,0 +1,1033 @@
+//! TPC-H Schema Creation and Data Loading
+//!
+//! This module provides schema creation and data loading functions for TPC-H
+//! benchmark tables across multiple database engines (VibeSQL, SQLite, DuckDB).
+
+use super::data::{TPCHData, NATIONS, PRIORITIES, REGIONS, SEGMENTS, SHIP_MODES};
+use vibesql_storage::Database as VibeDB;
+use vibesql_types::Date;
+
+#[cfg(feature = "benchmark-comparison")]
+use duckdb::Connection as DuckDBConn;
+#[cfg(feature = "benchmark-comparison")]
+use rusqlite::Connection as SqliteConn;
+
+use std::str::FromStr;
+
+// =============================================================================
+// Database Loaders
+// =============================================================================
+
+pub fn load_vibesql(scale_factor: f64) -> VibeDB {
+    let mut db = VibeDB::new();
+    let mut data = TPCHData::new(scale_factor);
+
+    // Create schema
+    create_tpch_schema_vibesql(&mut db);
+
+    // Load data
+    load_region_vibesql(&mut db);
+    load_nation_vibesql(&mut db);
+    load_customer_vibesql(&mut db, &mut data);
+    load_supplier_vibesql(&mut db, &mut data);
+    load_orders_vibesql(&mut db, &mut data);
+    load_lineitem_vibesql(&mut db, &mut data);
+
+    db
+}
+
+#[cfg(feature = "benchmark-comparison")]
+pub fn load_sqlite(scale_factor: f64) -> SqliteConn {
+    let conn = SqliteConn::open_in_memory().unwrap();
+    let mut data = TPCHData::new(scale_factor);
+
+    // Create schema
+    create_tpch_schema_sqlite(&conn);
+
+    // Load data
+    load_region_sqlite(&conn);
+    load_nation_sqlite(&conn);
+    load_customer_sqlite(&conn, &mut data);
+    load_supplier_sqlite(&conn, &mut data);
+    load_orders_sqlite(&conn, &mut data);
+    load_lineitem_sqlite(&conn, &mut data);
+
+    conn
+}
+
+#[cfg(feature = "benchmark-comparison")]
+pub fn load_duckdb(scale_factor: f64) -> DuckDBConn {
+    let conn = DuckDBConn::open_in_memory().unwrap();
+    let mut data = TPCHData::new(scale_factor);
+
+    // Create schema
+    create_tpch_schema_duckdb(&conn);
+
+    // Load data
+    load_region_duckdb(&conn);
+    load_nation_duckdb(&conn);
+    load_customer_duckdb(&conn, &mut data);
+    load_supplier_duckdb(&conn, &mut data);
+    load_orders_duckdb(&conn, &mut data);
+    load_lineitem_duckdb(&conn, &mut data);
+
+    conn
+}
+
+// =============================================================================
+// Schema Creation
+// =============================================================================
+
+fn create_tpch_schema_vibesql(db: &mut VibeDB) {
+    use vibesql_catalog::{ColumnSchema, TableSchema};
+    use vibesql_types::DataType;
+
+    // REGION table
+    db.create_table(TableSchema::new(
+        "REGION".to_string(),
+        vec![
+            ColumnSchema {
+                name: "R_REGIONKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "R_NAME".to_string(),
+                data_type: DataType::Varchar { max_length: Some(25) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "R_COMMENT".to_string(),
+                data_type: DataType::Varchar {
+                    max_length: Some(152),
+                },
+                nullable: true,
+                default_value: None,
+            },
+        ],
+    ))
+    .unwrap();
+
+    // NATION table
+    db.create_table(TableSchema::new(
+        "NATION".to_string(),
+        vec![
+            ColumnSchema {
+                name: "N_NATIONKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "N_NAME".to_string(),
+                data_type: DataType::Varchar { max_length: Some(25) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "N_REGIONKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "N_COMMENT".to_string(),
+                data_type: DataType::Varchar {
+                    max_length: Some(152),
+                },
+                nullable: true,
+                default_value: None,
+            },
+        ],
+    ))
+    .unwrap();
+
+    // CUSTOMER table
+    db.create_table(TableSchema::new(
+        "CUSTOMER".to_string(),
+        vec![
+            ColumnSchema {
+                name: "C_CUSTKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "C_NAME".to_string(),
+                data_type: DataType::Varchar { max_length: Some(25) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "C_ADDRESS".to_string(),
+                data_type: DataType::Varchar { max_length: Some(40) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "C_NATIONKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "C_PHONE".to_string(),
+                data_type: DataType::Varchar { max_length: Some(15) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "C_ACCTBAL".to_string(),
+                data_type: DataType::Decimal {
+                    precision: 15,
+                    scale: 2,
+                },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "C_MKTSEGMENT".to_string(),
+                data_type: DataType::Varchar { max_length: Some(10) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "C_COMMENT".to_string(),
+                data_type: DataType::Varchar {
+                    max_length: Some(117),
+                },
+                nullable: true,
+                default_value: None,
+            },
+        ],
+    ))
+    .unwrap();
+
+    // ORDERS table
+    db.create_table(TableSchema::new(
+        "ORDERS".to_string(),
+        vec![
+            ColumnSchema {
+                name: "O_ORDERKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "O_CUSTKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "O_ORDERSTATUS".to_string(),
+                data_type: DataType::Varchar { max_length: Some(1) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "O_TOTALPRICE".to_string(),
+                data_type: DataType::Decimal {
+                    precision: 15,
+                    scale: 2,
+                },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "O_ORDERDATE".to_string(),
+                data_type: DataType::Date,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "O_ORDERPRIORITY".to_string(),
+                data_type: DataType::Varchar { max_length: Some(15) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "O_CLERK".to_string(),
+                data_type: DataType::Varchar { max_length: Some(15) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "O_SHIPPRIORITY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "O_COMMENT".to_string(),
+                data_type: DataType::Varchar { max_length: Some(79) },
+                nullable: true,
+                default_value: None,
+            },
+        ],
+    ))
+    .unwrap();
+
+    // LINEITEM table
+    db.create_table(TableSchema::new(
+        "LINEITEM".to_string(),
+        vec![
+            ColumnSchema {
+                name: "L_ORDERKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_PARTKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_SUPPKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_LINENUMBER".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_QUANTITY".to_string(),
+                data_type: DataType::Decimal {
+                    precision: 15,
+                    scale: 2,
+                },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_EXTENDEDPRICE".to_string(),
+                data_type: DataType::Decimal {
+                    precision: 15,
+                    scale: 2,
+                },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_DISCOUNT".to_string(),
+                data_type: DataType::Decimal {
+                    precision: 15,
+                    scale: 2,
+                },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_TAX".to_string(),
+                data_type: DataType::Decimal {
+                    precision: 15,
+                    scale: 2,
+                },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_RETURNFLAG".to_string(),
+                data_type: DataType::Varchar { max_length: Some(1) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_LINESTATUS".to_string(),
+                data_type: DataType::Varchar { max_length: Some(1) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_SHIPDATE".to_string(),
+                data_type: DataType::Date,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_COMMITDATE".to_string(),
+                data_type: DataType::Date,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_RECEIPTDATE".to_string(),
+                data_type: DataType::Date,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_SHIPINSTRUCT".to_string(),
+                data_type: DataType::Varchar { max_length: Some(25) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_SHIPMODE".to_string(),
+                data_type: DataType::Varchar { max_length: Some(10) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "L_COMMENT".to_string(),
+                data_type: DataType::Varchar { max_length: Some(44) },
+                nullable: true,
+                default_value: None,
+            },
+        ],
+    ))
+    .unwrap();
+
+    // SUPPLIER table
+    db.create_table(TableSchema::new(
+        "SUPPLIER".to_string(),
+        vec![
+            ColumnSchema {
+                name: "S_SUPPKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "S_NAME".to_string(),
+                data_type: DataType::Varchar { max_length: Some(25) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "S_ADDRESS".to_string(),
+                data_type: DataType::Varchar { max_length: Some(40) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "S_NATIONKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "S_PHONE".to_string(),
+                data_type: DataType::Varchar { max_length: Some(15) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "S_ACCTBAL".to_string(),
+                data_type: DataType::Decimal {
+                    precision: 15,
+                    scale: 2,
+                },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "S_COMMENT".to_string(),
+                data_type: DataType::Varchar {
+                    max_length: Some(101),
+                },
+                nullable: true,
+                default_value: None,
+            },
+        ],
+    ))
+    .unwrap();
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn create_tpch_schema_sqlite(conn: &SqliteConn) {
+    conn.execute_batch(
+        r#"
+        CREATE TABLE region (
+            r_regionkey INTEGER PRIMARY KEY,
+            r_name TEXT NOT NULL,
+            r_comment TEXT
+        );
+
+        CREATE TABLE nation (
+            n_nationkey INTEGER PRIMARY KEY,
+            n_name TEXT NOT NULL,
+            n_regionkey INTEGER NOT NULL,
+            n_comment TEXT
+        );
+
+        CREATE TABLE customer (
+            c_custkey INTEGER PRIMARY KEY,
+            c_name TEXT NOT NULL,
+            c_address TEXT NOT NULL,
+            c_nationkey INTEGER NOT NULL,
+            c_phone TEXT NOT NULL,
+            c_acctbal REAL NOT NULL,
+            c_mktsegment TEXT NOT NULL,
+            c_comment TEXT
+        );
+
+        CREATE TABLE orders (
+            o_orderkey INTEGER PRIMARY KEY,
+            o_custkey INTEGER NOT NULL,
+            o_orderstatus TEXT NOT NULL,
+            o_totalprice REAL NOT NULL,
+            o_orderdate TEXT NOT NULL,
+            o_orderpriority TEXT NOT NULL,
+            o_clerk TEXT NOT NULL,
+            o_shippriority INTEGER NOT NULL,
+            o_comment TEXT
+        );
+
+        CREATE TABLE lineitem (
+            l_orderkey INTEGER NOT NULL,
+            l_partkey INTEGER NOT NULL,
+            l_suppkey INTEGER NOT NULL,
+            l_linenumber INTEGER NOT NULL,
+            l_quantity REAL NOT NULL,
+            l_extendedprice REAL NOT NULL,
+            l_discount REAL NOT NULL,
+            l_tax REAL NOT NULL,
+            l_returnflag TEXT NOT NULL,
+            l_linestatus TEXT NOT NULL,
+            l_shipdate TEXT NOT NULL,
+            l_commitdate TEXT NOT NULL,
+            l_receiptdate TEXT NOT NULL,
+            l_shipinstruct TEXT NOT NULL,
+            l_shipmode TEXT NOT NULL,
+            l_comment TEXT,
+            PRIMARY KEY (l_orderkey, l_linenumber)
+        );
+
+        CREATE TABLE supplier (
+            s_suppkey INTEGER PRIMARY KEY,
+            s_name TEXT NOT NULL,
+            s_address TEXT NOT NULL,
+            s_nationkey INTEGER NOT NULL,
+            s_phone TEXT NOT NULL,
+            s_acctbal REAL NOT NULL,
+            s_comment TEXT
+        );
+    "#,
+    )
+    .unwrap();
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn create_tpch_schema_duckdb(conn: &DuckDBConn) {
+    conn.execute_batch(
+        r#"
+        CREATE TABLE region (
+            r_regionkey INTEGER PRIMARY KEY,
+            r_name VARCHAR(25) NOT NULL,
+            r_comment VARCHAR(152)
+        );
+
+        CREATE TABLE nation (
+            n_nationkey INTEGER PRIMARY KEY,
+            n_name VARCHAR(25) NOT NULL,
+            n_regionkey INTEGER NOT NULL,
+            n_comment VARCHAR(152)
+        );
+
+        CREATE TABLE customer (
+            c_custkey INTEGER PRIMARY KEY,
+            c_name VARCHAR(25) NOT NULL,
+            c_address VARCHAR(40) NOT NULL,
+            c_nationkey INTEGER NOT NULL,
+            c_phone VARCHAR(15) NOT NULL,
+            c_acctbal DECIMAL(15,2) NOT NULL,
+            c_mktsegment VARCHAR(10) NOT NULL,
+            c_comment VARCHAR(117)
+        );
+
+        CREATE TABLE orders (
+            o_orderkey INTEGER PRIMARY KEY,
+            o_custkey INTEGER NOT NULL,
+            o_orderstatus VARCHAR(1) NOT NULL,
+            o_totalprice DECIMAL(15,2) NOT NULL,
+            o_orderdate DATE NOT NULL,
+            o_orderpriority VARCHAR(15) NOT NULL,
+            o_clerk VARCHAR(15) NOT NULL,
+            o_shippriority INTEGER NOT NULL,
+            o_comment VARCHAR(79)
+        );
+
+        CREATE TABLE lineitem (
+            l_orderkey INTEGER NOT NULL,
+            l_partkey INTEGER NOT NULL,
+            l_suppkey INTEGER NOT NULL,
+            l_linenumber INTEGER NOT NULL,
+            l_quantity DECIMAL(15,2) NOT NULL,
+            l_extendedprice DECIMAL(15,2) NOT NULL,
+            l_discount DECIMAL(15,2) NOT NULL,
+            l_tax DECIMAL(15,2) NOT NULL,
+            l_returnflag VARCHAR(1) NOT NULL,
+            l_linestatus VARCHAR(1) NOT NULL,
+            l_shipdate DATE NOT NULL,
+            l_commitdate DATE NOT NULL,
+            l_receiptdate DATE NOT NULL,
+            l_shipinstruct VARCHAR(25) NOT NULL,
+            l_shipmode VARCHAR(10) NOT NULL,
+            l_comment VARCHAR(44),
+            PRIMARY KEY (l_orderkey, l_linenumber)
+        );
+
+        CREATE TABLE supplier (
+            s_suppkey INTEGER PRIMARY KEY,
+            s_name VARCHAR(25) NOT NULL,
+            s_address VARCHAR(40) NOT NULL,
+            s_nationkey INTEGER NOT NULL,
+            s_phone VARCHAR(15) NOT NULL,
+            s_acctbal DECIMAL(15,2) NOT NULL,
+            s_comment VARCHAR(101)
+        );
+    "#,
+    )
+    .unwrap();
+}
+
+// =============================================================================
+// Data Loading (REGION - simple reference data)
+// =============================================================================
+
+fn load_region_vibesql(db: &mut VibeDB) {
+    use vibesql_storage::Row;
+    use vibesql_types::SqlValue;
+
+    for (i, &name) in REGIONS.iter().enumerate() {
+        let row = Row::new(vec![
+            SqlValue::Integer(i as i64),
+            SqlValue::Varchar(name.to_string()),
+            SqlValue::Varchar("comment".to_string()),
+        ]);
+        db.insert_row("REGION", row).unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_region_sqlite(conn: &SqliteConn) {
+    for (i, &name) in REGIONS.iter().enumerate() {
+        conn.execute(
+            "INSERT INTO region VALUES (?, ?, ?)",
+            rusqlite::params![i as i64, name, "comment"],
+        )
+        .unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_region_duckdb(conn: &DuckDBConn) {
+    for (i, &name) in REGIONS.iter().enumerate() {
+        conn.execute(
+            "INSERT INTO region VALUES (?, ?, ?)",
+            duckdb::params![i as i64, name, "comment"],
+        )
+        .unwrap();
+    }
+}
+
+// =============================================================================
+// Data Loading (NATION - simple reference data)
+// =============================================================================
+
+fn load_nation_vibesql(db: &mut VibeDB) {
+    use vibesql_storage::Row;
+    use vibesql_types::SqlValue;
+
+    for (i, &(name, region_key)) in NATIONS.iter().enumerate() {
+        let row = Row::new(vec![
+            SqlValue::Integer(i as i64),
+            SqlValue::Varchar(name.to_string()),
+            SqlValue::Integer(region_key as i64),
+            SqlValue::Varchar("comment".to_string()),
+        ]);
+        db.insert_row("NATION", row).unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_nation_sqlite(conn: &SqliteConn) {
+    for (i, &(name, region_key)) in NATIONS.iter().enumerate() {
+        conn.execute(
+            "INSERT INTO nation VALUES (?, ?, ?, ?)",
+            rusqlite::params![i as i64, name, region_key as i64, "comment"],
+        )
+        .unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_nation_duckdb(conn: &DuckDBConn) {
+    for (i, &(name, region_key)) in NATIONS.iter().enumerate() {
+        conn.execute(
+            "INSERT INTO nation VALUES (?, ?, ?, ?)",
+            duckdb::params![i as i64, name, region_key as i64, "comment"],
+        )
+        .unwrap();
+    }
+}
+
+// =============================================================================
+// Data Loading (CUSTOMER - generated data)
+// =============================================================================
+
+fn load_customer_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
+    use vibesql_storage::Row;
+    use vibesql_types::SqlValue;
+    for i in 0..data.customer_count {
+        let nation_key = i % 25;
+        let acctbal = (i as f64 * 17.3) % 10000.0 - 999.99;
+        let row = Row::new(vec![
+            SqlValue::Integer(i as i64 + 1),
+            SqlValue::Varchar(format!("Customer#{:09}", i + 1)),
+            SqlValue::Varchar(data.random_varchar(40)),
+            SqlValue::Integer(nation_key as i64),
+            SqlValue::Varchar(data.random_phone(nation_key)),
+            SqlValue::Numeric(acctbal as f64),
+            SqlValue::Varchar(SEGMENTS[i % SEGMENTS.len()].to_string()),
+            SqlValue::Varchar(data.random_varchar(117)),
+        ]);
+        db.insert_row("CUSTOMER", row).unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_customer_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
+    let mut stmt = conn
+        .prepare("INSERT INTO customer VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .unwrap();
+
+    for i in 0..data.customer_count {
+        let nation_key = i % 25;
+        let acctbal = (i as f64 * 17.3) % 10000.0 - 999.99;
+        stmt.execute(rusqlite::params![
+            i as i64 + 1,
+            format!("Customer#{:09}", i + 1),
+            data.random_varchar(40),
+            nation_key as i64,
+            data.random_phone(nation_key),
+            acctbal,
+            SEGMENTS[i % SEGMENTS.len()],
+            data.random_varchar(117),
+        ])
+        .unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_customer_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
+    let mut stmt = conn
+        .prepare("INSERT INTO customer VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .unwrap();
+
+    for i in 0..data.customer_count {
+        let nation_key = i % 25;
+        let acctbal = (i as f64 * 17.3) % 10000.0 - 999.99;
+        stmt.execute(duckdb::params![
+            i as i64 + 1,
+            format!("Customer#{:09}", i + 1),
+            data.random_varchar(40),
+            nation_key as i64,
+            data.random_phone(nation_key),
+            acctbal,
+            SEGMENTS[i % SEGMENTS.len()],
+            data.random_varchar(117),
+        ])
+        .unwrap();
+    }
+}
+
+// =============================================================================
+// Data Loading (SUPPLIER - generated data)
+// =============================================================================
+
+fn load_supplier_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
+    use vibesql_storage::Row;
+    use vibesql_types::SqlValue;
+    for i in 0..data.supplier_count {
+        let nation_key = i % 25;
+        let acctbal = (i as f64 * 13.7) % 10000.0 - 999.99;
+        let row = Row::new(vec![
+            SqlValue::Integer(i as i64 + 1),
+            SqlValue::Varchar(format!("Supplier#{:09}", i + 1)),
+            SqlValue::Varchar(data.random_varchar(40)),
+            SqlValue::Integer(nation_key as i64),
+            SqlValue::Varchar(data.random_phone(nation_key)),
+            SqlValue::Numeric(acctbal as f64),
+            SqlValue::Varchar(data.random_varchar(101)),
+        ]);
+        db.insert_row("SUPPLIER", row).unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_supplier_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
+    let mut stmt = conn
+        .prepare("INSERT INTO supplier VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .unwrap();
+
+    for i in 0..data.supplier_count {
+        let nation_key = i % 25;
+        let acctbal = (i as f64 * 13.7) % 10000.0 - 999.99;
+        stmt.execute(rusqlite::params![
+            i as i64 + 1,
+            format!("Supplier#{:09}", i + 1),
+            data.random_varchar(40),
+            nation_key as i64,
+            data.random_phone(nation_key),
+            acctbal,
+            data.random_varchar(101),
+        ])
+        .unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_supplier_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
+    let mut stmt = conn
+        .prepare("INSERT INTO supplier VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .unwrap();
+
+    for i in 0..data.supplier_count {
+        let nation_key = i % 25;
+        let acctbal = (i as f64 * 13.7) % 10000.0 - 999.99;
+        stmt.execute(duckdb::params![
+            i as i64 + 1,
+            format!("Supplier#{:09}", i + 1),
+            data.random_varchar(40),
+            nation_key as i64,
+            data.random_phone(nation_key),
+            acctbal,
+            data.random_varchar(101),
+        ])
+        .unwrap();
+    }
+}
+
+// =============================================================================
+// Data Loading (ORDERS - generated data)
+// =============================================================================
+
+fn load_orders_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
+    use vibesql_storage::Row;
+    use vibesql_types::SqlValue;
+    for i in 0..data.orders_count {
+        let cust_key = (i % data.customer_count) + 1;
+        let totalprice = (i as f64 * 271.3) % 500000.0 + 1000.0;
+        let order_date = data.random_date("1992-01-01", "1998-12-31");
+
+        let row = Row::new(vec![
+            SqlValue::Integer(i as i64 + 1),
+            SqlValue::Integer(cust_key as i64),
+            SqlValue::Varchar(["O", "F", "P"][i % 3].to_string()),
+            SqlValue::Numeric(totalprice as f64),
+            SqlValue::Date(Date::from_str(&order_date).unwrap()),
+            SqlValue::Varchar(PRIORITIES[i % PRIORITIES.len()].to_string()),
+            SqlValue::Varchar(format!("Clerk#{:09}", (i * 7) % 1000 + 1)),
+            SqlValue::Integer(0),
+            SqlValue::Varchar(data.random_varchar(79)),
+        ]);
+        db.insert_row("ORDERS", row).unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_orders_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
+    let mut stmt = conn
+        .prepare("INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .unwrap();
+
+    for i in 0..data.orders_count {
+        let cust_key = (i % data.customer_count) + 1;
+        let totalprice = (i as f64 * 271.3) % 500000.0 + 1000.0;
+        let order_date = data.random_date("1992-01-01", "1998-12-31");
+
+        stmt.execute(rusqlite::params![
+            i as i64 + 1,
+            cust_key as i64,
+            ["O", "F", "P"][i % 3],
+            totalprice,
+            order_date,
+            PRIORITIES[i % PRIORITIES.len()],
+            format!("Clerk#{:09}", (i * 7) % 1000 + 1),
+            0,
+            data.random_varchar(79),
+        ])
+        .unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_orders_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
+    let mut stmt = conn
+        .prepare("INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .unwrap();
+
+    for i in 0..data.orders_count {
+        let cust_key = (i % data.customer_count) + 1;
+        let totalprice = (i as f64 * 271.3) % 500000.0 + 1000.0;
+        let order_date = data.random_date("1992-01-01", "1998-12-31");
+
+        stmt.execute(duckdb::params![
+            i as i64 + 1,
+            cust_key as i64,
+            ["O", "F", "P"][i % 3],
+            totalprice,
+            order_date,
+            PRIORITIES[i % PRIORITIES.len()],
+            format!("Clerk#{:09}", (i * 7) % 1000 + 1),
+            0,
+            data.random_varchar(79),
+        ])
+        .unwrap();
+    }
+}
+
+// =============================================================================
+// Data Loading (LINEITEM - generated data, largest table)
+// =============================================================================
+
+fn load_lineitem_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
+    use vibesql_storage::Row;
+    use vibesql_types::SqlValue;
+    let mut line_id = 0;
+    for order_num in 1..=data.orders_count {
+        let num_lines = (order_num * 3 % 7) + 1; // 1-7 lines per order
+
+        for line_num in 1..=num_lines {
+            if line_id >= data.lineitem_count {
+                break;
+            }
+
+            let quantity = ((line_id * 11) % 50 + 1) as f64;
+            let extendedprice = quantity * ((line_id * 97) as f64 % 100000.0 + 900.0);
+            let discount = ((line_id * 7) % 10) as f64 / 100.0;
+            let tax = ((line_id * 3) % 8) as f64 / 100.0;
+            let ship_date = data.random_date("1992-01-01", "1998-12-31");
+            let commit_date = data.random_date("1992-01-01", "1998-12-31");
+            let receipt_date = data.random_date("1992-01-01", "1998-12-31");
+
+            let row = Row::new(vec![
+                SqlValue::Integer(order_num as i64),
+                SqlValue::Integer(((line_id * 13) % 200000 + 1) as i64),
+                SqlValue::Integer(((line_id * 17) % data.supplier_count + 1) as i64),
+                SqlValue::Integer(line_num as i64),
+                SqlValue::Numeric(quantity as f64),
+                SqlValue::Numeric(extendedprice as f64),
+                SqlValue::Numeric(discount as f64),
+                SqlValue::Numeric(tax as f64),
+                SqlValue::Varchar(["N", "R", "A"][line_id % 3].to_string()),
+                SqlValue::Varchar(["O", "F"][line_id % 2].to_string()),
+                SqlValue::Date(Date::from_str(&ship_date).unwrap()),
+                SqlValue::Date(Date::from_str(&commit_date).unwrap()),
+                SqlValue::Date(Date::from_str(&receipt_date).unwrap()),
+                SqlValue::Varchar("DELIVER IN PERSON".to_string()),
+                SqlValue::Varchar(SHIP_MODES[line_id % SHIP_MODES.len()].to_string()),
+                SqlValue::Varchar(data.random_varchar(44)),
+            ]);
+            db.insert_row("LINEITEM", row).unwrap();
+
+            line_id += 1;
+        }
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_lineitem_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
+    let mut stmt = conn
+        .prepare("INSERT INTO lineitem VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .unwrap();
+
+    let mut line_id = 0;
+    for order_num in 1..=data.orders_count {
+        let num_lines = (order_num * 3 % 7) + 1;
+
+        for line_num in 1..=num_lines {
+            if line_id >= data.lineitem_count {
+                break;
+            }
+
+            let quantity = ((line_id * 11) % 50 + 1) as f64;
+            let extendedprice = quantity * ((line_id * 97) as f64 % 100000.0 + 900.0);
+            let discount = ((line_id * 7) % 10) as f64 / 100.0;
+            let tax = ((line_id * 3) % 8) as f64 / 100.0;
+            let ship_date = data.random_date("1992-01-01", "1998-12-31");
+            let commit_date = data.random_date("1992-01-01", "1998-12-31");
+            let receipt_date = data.random_date("1992-01-01", "1998-12-31");
+
+            stmt.execute(rusqlite::params![
+                order_num as i64,
+                ((line_id * 13) % 200000 + 1) as i64,
+                ((line_id * 17) % data.supplier_count + 1) as i64,
+                line_num as i64,
+                quantity,
+                extendedprice,
+                discount,
+                tax,
+                ["N", "R", "A"][line_id % 3],
+                ["O", "F"][line_id % 2],
+                ship_date,
+                commit_date,
+                receipt_date,
+                "DELIVER IN PERSON",
+                SHIP_MODES[line_id % SHIP_MODES.len()],
+                data.random_varchar(44),
+            ])
+            .unwrap();
+
+            line_id += 1;
+        }
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_lineitem_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
+    let mut stmt = conn
+        .prepare("INSERT INTO lineitem VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .unwrap();
+
+    let mut line_id = 0;
+    for order_num in 1..=data.orders_count {
+        let num_lines = (order_num * 3 % 7) + 1;
+
+        for line_num in 1..=num_lines {
+            if line_id >= data.lineitem_count {
+                break;
+            }
+
+            let quantity = ((line_id * 11) % 50 + 1) as f64;
+            let extendedprice = quantity * ((line_id * 97) as f64 % 100000.0 + 900.0);
+            let discount = ((line_id * 7) % 10) as f64 / 100.0;
+            let tax = ((line_id * 3) % 8) as f64 / 100.0;
+            let ship_date = data.random_date("1992-01-01", "1998-12-31");
+            let commit_date = data.random_date("1992-01-01", "1998-12-31");
+            let receipt_date = data.random_date("1992-01-01", "1998-12-31");
+
+            stmt.execute(duckdb::params![
+                order_num as i64,
+                ((line_id * 13) % 200000 + 1) as i64,
+                ((line_id * 17) % data.supplier_count + 1) as i64,
+                line_num as i64,
+                quantity,
+                extendedprice,
+                discount,
+                tax,
+                ["N", "R", "A"][line_id % 3],
+                ["O", "F"][line_id % 2],
+                ship_date,
+                commit_date,
+                receipt_date,
+                "DELIVER IN PERSON",
+                SHIP_MODES[line_id % SHIP_MODES.len()],
+                data.random_varchar(44),
+            ])
+            .unwrap();
+
+            line_id += 1;
+        }
+    }
+}
