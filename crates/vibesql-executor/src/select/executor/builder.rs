@@ -2,9 +2,10 @@
 
 use std::{
     cell::{Cell, RefCell},
-    collections::HashMap,
     time::Instant,
 };
+
+use rustc_hash::FxHashMap;
 
 use crate::{
     errors::ExecutorError,
@@ -32,7 +33,7 @@ pub struct SelectExecutor<'a> {
     /// Key: Hash of the aggregate expression (format: "{name}:{distinct}:{arg_debug}")
     /// Value: Cached aggregate result
     /// Scope: Per-group evaluation (cleared between groups)
-    pub(super) aggregate_cache: RefCell<HashMap<String, vibesql_types::SqlValue>>,
+    pub(super) aggregate_cache: RefCell<FxHashMap<String, vibesql_types::SqlValue>>,
 }
 
 impl<'a> SelectExecutor<'a> {
@@ -48,7 +49,7 @@ impl<'a> SelectExecutor<'a> {
             memory_warning_logged: Cell::new(false),
             start_time: Instant::now(),
             timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
-            aggregate_cache: RefCell::new(HashMap::new()),
+            aggregate_cache: RefCell::new(FxHashMap::default()),
         }
     }
 
@@ -68,7 +69,7 @@ impl<'a> SelectExecutor<'a> {
             memory_warning_logged: Cell::new(false),
             start_time: Instant::now(),
             timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
-            aggregate_cache: RefCell::new(HashMap::new()),
+            aggregate_cache: RefCell::new(FxHashMap::default()),
         }
     }
 
@@ -85,7 +86,7 @@ impl<'a> SelectExecutor<'a> {
             memory_warning_logged: Cell::new(false),
             start_time: Instant::now(),
             timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
-            aggregate_cache: RefCell::new(HashMap::new()),
+            aggregate_cache: RefCell::new(FxHashMap::default()),
         }
     }
 
@@ -121,7 +122,7 @@ impl<'a> SelectExecutor<'a> {
             memory_warning_logged: Cell::new(false),
             start_time: Instant::now(),
             timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
-            aggregate_cache: RefCell::new(HashMap::new()),
+            aggregate_cache: RefCell::new(FxHashMap::default()),
         }
     }
 
@@ -140,7 +141,7 @@ impl<'a> SelectExecutor<'a> {
             memory_warning_logged: Cell::new(false),
             start_time: Instant::now(),
             timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
-            aggregate_cache: RefCell::new(HashMap::new()),
+            aggregate_cache: RefCell::new(FxHashMap::default()),
         }
     }
 

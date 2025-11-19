@@ -20,6 +20,7 @@ rayon = { version = "1.10", optional = true }
 indexmap = "2.0"
 hex = "0.4"
 instant = "0.1"
+rustc-hash = "2.0"
 geo = { version = "0.28", optional = true }
 wkt = { version = "0.10", optional = true }
 rstar = { version = "0.12", optional = true }
