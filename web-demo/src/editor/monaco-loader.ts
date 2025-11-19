@@ -13,6 +13,65 @@ let monacoInstance: Monaco | null = null
 let monacoLoadPromise: Promise<Monaco> | null = null
 
 /**
+ * Configure Monaco Environment before loading
+ * This sets up web workers to avoid UI freezes
+ */
+function configureMonacoEnvironment(): void {
+  // Configure Monaco to use web workers properly
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(window as any).MonacoEnvironment = {
+    getWorker(_: unknown, label: string) {
+      // Create workers using dynamic imports for Vite compatibility
+      const getWorkerModule = (moduleUrl: string, label: string) => {
+        return new Worker(
+          new URL(
+            moduleUrl,
+            import.meta.url
+          ),
+          {
+            name: label,
+            type: 'module'
+          }
+        )
+      }
+
+      switch (label) {
+        case 'json':
+          return getWorkerModule(
+            'monaco-editor/esm/vs/language/json/json.worker?worker',
+            label
+          )
+        case 'css':
+        case 'scss':
+        case 'less':
+          return getWorkerModule(
+            'monaco-editor/esm/vs/language/css/css.worker?worker',
+            label
+          )
+        case 'html':
+        case 'handlebars':
+        case 'razor':
+          return getWorkerModule(
+            'monaco-editor/esm/vs/language/html/html.worker?worker',
+            label
+          )
+        case 'typescript':
+        case 'javascript':
+          return getWorkerModule(
+            'monaco-editor/esm/vs/language/typescript/ts.worker?worker',
+            label
+          )
+        default:
+          return getWorkerModule(
+            'monaco-editor/esm/vs/editor/editor.worker?worker',
+            label
+          )
+      }
+    }
+  }
+}
+
+/**
  * Lazy load Monaco Editor on first use
  * Returns cached instance on subsequent calls
  */
@@ -26,6 +85,9 @@ export async function loadMonaco(): Promise<Monaco> {
   if (monacoLoadPromise) {
     return monacoLoadPromise
   }
+
+  // Configure Monaco environment before loading
+  configureMonacoEnvironment()
 
   // Start loading Monaco
   console.log('[Monaco Loader] Starting Monaco Editor load...')
