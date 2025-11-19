@@ -83,20 +83,6 @@ async function bootstrap(): Promise<void> {
     // Register upgrade listeners (focus/click on editor container)
     app.editor.registerUpgradeListeners(upgradeEditorsToMonaco)
 
-    // Initialize Examples sidebar
-    const examplesComponent = new ExamplesComponent()
-    examplesComponent.onSelect((event: ExampleSelectEvent) => {
-      // Upgrade to Monaco if needed before setting value
-      void upgradeEditorsToMonaco().then(() => {
-        app.editor.getEditor().setValue(event.sql)
-        // Switch database if needed
-        if (event.database !== app.database.getCurrentDatabaseId()) {
-          void app.database.loadDatabase(event.database)
-          databaseSelector.setSelected(event.database)
-        }
-      })
-    })
-
     // Initialize Database Selector with all available sample databases
     const databases: DatabaseOption[] = sampleDatabases.map(db => ({
       id: db.id,
@@ -109,6 +95,20 @@ async function bootstrap(): Promise<void> {
     )
     databaseSelector.onChange((dbId: string) => {
       void app.database.loadDatabase(dbId)
+    })
+
+    // Initialize Examples sidebar
+    const examplesComponent = new ExamplesComponent()
+    examplesComponent.onSelect((event: ExampleSelectEvent) => {
+      // Upgrade to Monaco if needed before setting value
+      void upgradeEditorsToMonaco().then(() => {
+        app.editor.getEditor().setValue(event.sql)
+        // Switch database if needed
+        if (event.database !== app.database.getCurrentDatabaseId()) {
+          void app.database.loadDatabase(event.database)
+          databaseSelector.setSelected(event.database)
+        }
+      })
     })
 
     // Run button triggers upgrade and executes query
