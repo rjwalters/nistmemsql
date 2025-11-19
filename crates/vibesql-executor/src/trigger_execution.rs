@@ -202,8 +202,8 @@ impl TriggerFirer {
     fn execute_trigger_action(
         db: &mut Database,
         trigger: &TriggerDefinition,
-        _old_row: Option<&Row>,
-        _new_row: Option<&Row>,
+        old_row: Option<&Row>,
+        new_row: Option<&Row>,
     ) -> Result<(), ExecutorError> {
         // Extract SQL from trigger action
         let sql = match &trigger.triggered_action {
@@ -211,13 +211,25 @@ impl TriggerFirer {
         };
 
         // Parse the trigger action SQL
-        // For Phase 3, we'll parse and execute the SQL directly
-        // Phase 5 will add OLD/NEW context support
         let statements = Self::parse_trigger_sql(&sql)?;
 
-        // Execute each statement in the trigger body
+        // Get table schema for trigger context (clone to avoid borrow checker issues)
+        let schema = db
+            .catalog
+            .get_table(&trigger.table_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(trigger.table_name.clone()))?
+            .clone();
+
+        // Create trigger context for OLD/NEW pseudo-variable resolution
+        let trigger_context = TriggerContext {
+            old_row,
+            new_row,
+            table_schema: &schema,
+        };
+
+        // Execute each statement in the trigger body with trigger context
         for statement in statements {
-            Self::execute_statement(db, &statement)?;
+            Self::execute_statement(db, &statement, &trigger_context)?;
         }
 
         Ok(())
@@ -275,30 +287,37 @@ impl TriggerFirer {
     /// # Arguments
     /// * `db` - Mutable database reference
     /// * `statement` - Statement to execute
+    /// * `trigger_context` - Trigger context with OLD/NEW row data
     ///
     /// # Returns
     /// Ok(()) if statement executed successfully
     fn execute_statement(
         db: &mut Database,
         statement: &vibesql_ast::Statement,
+        trigger_context: &TriggerContext,
     ) -> Result<(), ExecutorError> {
         use vibesql_ast::Statement;
 
         match statement {
             Statement::Insert(insert_stmt) => {
-                crate::InsertExecutor::execute(db, insert_stmt)?;
+                // Execute INSERT with trigger context support
+                crate::insert::execute_insert_with_trigger_context(db, insert_stmt, trigger_context)?;
                 Ok(())
             }
             Statement::Update(update_stmt) => {
-                crate::UpdateExecutor::execute(update_stmt, db)?;
+                // Execute UPDATE with trigger context support
+                crate::update::execute_update_with_trigger_context(db, update_stmt, trigger_context)?;
                 Ok(())
             }
             Statement::Delete(delete_stmt) => {
-                crate::DeleteExecutor::execute(delete_stmt, db)?;
+                // Execute DELETE with trigger context support
+                crate::delete::execute_delete_with_trigger_context(db, delete_stmt, trigger_context)?;
                 Ok(())
             }
             Statement::Select(select_stmt) => {
                 // Execute SELECT but ignore results (useful for side effects)
+                // Note: SELECT doesn't need special trigger context handling since
+                // it can reference OLD/NEW through normal expression evaluation
                 let executor = crate::SelectExecutor::new(db);
                 executor.execute_with_columns(select_stmt)?;
                 Ok(())

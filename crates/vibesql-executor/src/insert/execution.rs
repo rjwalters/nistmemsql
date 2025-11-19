@@ -6,7 +6,7 @@ pub fn execute_insert(
     db: &mut vibesql_storage::Database,
     stmt: &vibesql_ast::InsertStmt,
 ) -> Result<usize, ExecutorError> {
-    execute_insert_internal(db, stmt, None)
+    execute_insert_internal(db, stmt, None, None)
 }
 
 /// Execute an INSERT statement with procedural context
@@ -16,7 +16,18 @@ pub fn execute_insert_with_procedural_context(
     stmt: &vibesql_ast::InsertStmt,
     procedural_context: &crate::procedural::ExecutionContext,
 ) -> Result<usize, ExecutorError> {
-    execute_insert_internal(db, stmt, Some(procedural_context))
+    execute_insert_internal(db, stmt, Some(procedural_context), None)
+}
+
+/// Execute an INSERT statement with trigger context
+/// This allows INSERT statements within trigger bodies to reference OLD/NEW pseudo-variables
+/// Returns number of rows inserted
+pub fn execute_insert_with_trigger_context(
+    db: &mut vibesql_storage::Database,
+    stmt: &vibesql_ast::InsertStmt,
+    trigger_context: &crate::trigger_execution::TriggerContext,
+) -> Result<usize, ExecutorError> {
+    execute_insert_internal(db, stmt, None, Some(trigger_context))
 }
 
 /// Internal implementation of INSERT execution
@@ -24,6 +35,7 @@ fn execute_insert_internal(
     db: &mut vibesql_storage::Database,
     stmt: &vibesql_ast::InsertStmt,
     procedural_context: Option<&crate::procedural::ExecutionContext>,
+    trigger_context: Option<&crate::trigger_execution::TriggerContext>,
 ) -> Result<usize, ExecutorError> {
     // Check INSERT privilege on the table
     PrivilegeChecker::check_insert(db, &stmt.table_name)?;
@@ -100,11 +112,13 @@ fn execute_insert_internal(
         let mut full_row_values = vec![vibesql_types::SqlValue::Null; schema.columns.len()];
 
         for (expr, (col_idx, data_type)) in value_exprs.iter().zip(target_column_info.iter()) {
-            // Evaluate expression (literals, DEFAULT, and procedural variables if context provided)
-            let value = super::defaults::evaluate_insert_expression(
+            // Evaluate expression (literals, DEFAULT, procedural variables, and trigger pseudo-variables)
+            let value = super::defaults::evaluate_insert_expression_with_trigger_context(
                 expr,
                 &schema.columns[*col_idx],
                 procedural_context,
+                trigger_context,
+                Some(db),
             )?;
 
             // Type check and coerce: ensure value matches column type

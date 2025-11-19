@@ -1,11 +1,23 @@
 use crate::errors::ExecutorError;
 
 /// Evaluate an INSERT expression to SqlValue
-/// Supports literals, DEFAULT keyword, and procedural variables (when context provided)
+/// Supports literals, DEFAULT keyword, procedural variables, and trigger pseudo-variables (OLD/NEW)
 pub fn evaluate_insert_expression(
     expr: &vibesql_ast::Expression,
     column: &vibesql_catalog::ColumnSchema,
     procedural_context: Option<&crate::procedural::ExecutionContext>,
+) -> Result<vibesql_types::SqlValue, ExecutorError> {
+    evaluate_insert_expression_with_trigger_context(expr, column, procedural_context, None, None)
+}
+
+/// Evaluate an INSERT expression with trigger context support
+/// This is used when executing INSERT statements inside trigger bodies
+pub fn evaluate_insert_expression_with_trigger_context(
+    expr: &vibesql_ast::Expression,
+    column: &vibesql_catalog::ColumnSchema,
+    procedural_context: Option<&crate::procedural::ExecutionContext>,
+    trigger_context: Option<&crate::trigger_execution::TriggerContext>,
+    database: Option<&vibesql_storage::Database>,
 ) -> Result<vibesql_types::SqlValue, ExecutorError> {
     match expr {
         vibesql_ast::Expression::Literal(lit) => Ok(lit.clone()),
@@ -33,9 +45,40 @@ pub fn evaluate_insert_expression(
                 col_name
             )))
         }
-        _ => Err(ExecutorError::UnsupportedExpression(
-            "INSERT only supports literal values, DEFAULT, and procedural variables".to_string(),
-        )),
+        vibesql_ast::Expression::PseudoVariable { .. } => {
+            // Pseudo-variables (OLD.x, NEW.y) require full expression evaluation with trigger context
+            if let (Some(ctx), Some(db)) = (trigger_context, database) {
+                // Create a dummy row for evaluation (pseudo-variables don't depend on current row)
+                let dummy_row = vibesql_storage::Row::new(vec![]);
+                let evaluator = crate::ExpressionEvaluator::with_trigger_context(
+                    ctx.table_schema,
+                    db,
+                    ctx,
+                );
+                evaluator.eval(expr, &dummy_row)
+            } else {
+                Err(ExecutorError::UnsupportedExpression(
+                    "Pseudo-variables (OLD/NEW) are only valid within trigger bodies".to_string(),
+                ))
+            }
+        }
+        _ => {
+            // For any other expression type, use full expression evaluator if trigger context available
+            if let (Some(ctx), Some(db)) = (trigger_context, database) {
+                // Create a dummy row for evaluation
+                let dummy_row = vibesql_storage::Row::new(vec![]);
+                let evaluator = crate::ExpressionEvaluator::with_trigger_context(
+                    ctx.table_schema,
+                    db,
+                    ctx,
+                );
+                evaluator.eval(expr, &dummy_row)
+            } else {
+                Err(ExecutorError::UnsupportedExpression(
+                    "Complex expressions in INSERT VALUES are only supported within trigger bodies".to_string(),
+                ))
+            }
+        }
     }
 }
 
