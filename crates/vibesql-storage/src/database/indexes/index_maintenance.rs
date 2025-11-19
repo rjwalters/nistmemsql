@@ -24,7 +24,7 @@ use crate::{Row, StorageError};
 ///
 /// # Returns
 /// Truncated value if applicable, otherwise the original value
-fn apply_prefix_truncation(value: &SqlValue, prefix_length: Option<u64>) -> SqlValue {
+pub(super) fn apply_prefix_truncation(value: &SqlValue, prefix_length: Option<u64>) -> SqlValue {
     // If no prefix length specified, return value as-is
     let Some(prefix_len) = prefix_length else {
         return value.clone();
