@@ -57,6 +57,13 @@ This directory contains all the individual crates that make up the VibeSQL datab
   - Import/export functionality
   - Query history and editing
 
+- **`vibesql-server/`** - Network server
+  - PostgreSQL wire protocol implementation
+  - Remote client connection support
+  - Async I/O with Tokio
+  - Authentication and session management
+  - Compatible with psql, JDBC, ODBC, and other PostgreSQL clients
+
 - **`vibesql-wasm-bindings/`** - WebAssembly bindings
   - WASM-compatible API for browser execution
   - JavaScript interop layer
