@@ -63,3 +63,6 @@ conformance-report.html
 target/benchmarks/
 benchmarks.db
 benchmarks/suite/results/
+
+# Test results database backups
+test_results/

@@ -8,6 +8,13 @@ repository.workspace = true
 description = "SQL database engine with SQL:1999 compliance"
 keywords = ["sql", "database", "query", "engine"]
 categories = ["database"]
+include = [
+    "src/**/*",
+    "Cargo.toml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE-*",
+]
 
 [features]
 memory-tracking = ["memory-stats"]
