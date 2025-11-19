@@ -1,9 +1,9 @@
 {
   "pass_rate": 100.0,
-  "coverage_rate": 0.32,
-  "total_available": 623,
-  "total_tested": 2,
-  "passed": 2,
+  "coverage_rate": 100.0,
+  "total_available": 628,
+  "total_tested": 628,
+  "passed": 628,
   "failed": 0,
-  "untested": 621
+  "untested": 0
 }
