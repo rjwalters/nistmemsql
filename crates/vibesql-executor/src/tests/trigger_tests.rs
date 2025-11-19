@@ -679,3 +679,310 @@ fn test_trigger_with_multiple_statements() {
     // Verify both statements executed
     assert_eq!(count_audit_rows(&db), 2);
 }
+
+// ============================================================================
+// Additional test cases for Phase 3 completion
+// ============================================================================
+
+#[test]
+fn test_when_clause_filters_firing() {
+    let mut db = Database::new();
+
+    // Create table with amount column
+    let table_stmt = vibesql_ast::CreateTableStmt {
+        table_name: "TRANSACTIONS".to_string(),
+        columns: vec![
+            vibesql_ast::ColumnDef {
+                name: "id".to_string(),
+                data_type: vibesql_types::DataType::Integer,
+                nullable: false,
+                constraints: vec![],
+                default_value: None,
+                comment: None,
+            },
+            vibesql_ast::ColumnDef {
+                name: "amount".to_string(),
+                data_type: vibesql_types::DataType::Integer,
+                nullable: true,
+                constraints: vec![],
+                default_value: None,
+                comment: None,
+            },
+        ],
+        table_constraints: vec![],
+        table_options: vec![],
+    };
+    CreateTableExecutor::execute(&table_stmt, &mut db).expect("Failed to create transactions table");
+    create_audit_table(&mut db);
+
+    // Create trigger with WHEN (amount > 100) condition
+    let trigger_stmt = CreateTriggerStmt {
+        trigger_name: "log_high_amount".to_string(),
+        timing: TriggerTiming::After,
+        event: TriggerEvent::Insert,
+        table_name: "TRANSACTIONS".to_string(),
+        granularity: TriggerGranularity::Row,
+        when_condition: Some(Box::new(vibesql_ast::Expression::BinaryOp {
+            op: vibesql_ast::BinaryOperator::GreaterThan,
+            left: Box::new(vibesql_ast::Expression::ColumnRef {
+                column: "amount".to_string(),
+                table: None,
+            }),
+            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(100))),
+        })),
+        triggered_action: TriggerAction::RawSql(
+            "INSERT INTO audit_log (event) VALUES ('High amount')".to_string(),
+        ),
+    };
+    crate::advanced_objects::execute_create_trigger(&trigger_stmt, &mut db)
+        .expect("Failed to create trigger");
+
+    // Insert row with amount=50 (should NOT fire)
+    let insert1 = vibesql_ast::InsertStmt {
+        table_name: "TRANSACTIONS".to_string(),
+        columns: vec!["id".to_string(), "amount".to_string()],
+        source: vibesql_ast::InsertSource::Values(vec![vec![
+            vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
+            vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(50)),
+        ]]),
+        conflict_clause: None,
+        on_duplicate_key_update: None,
+    };
+    InsertExecutor::execute(&mut db, &insert1).expect("Failed to insert");
+
+    // Verify trigger did NOT fire
+    assert_eq!(count_audit_rows(&db), 0);
+
+    // Insert row with amount=150 (should fire)
+    let insert2 = vibesql_ast::InsertStmt {
+        table_name: "TRANSACTIONS".to_string(),
+        columns: vec!["id".to_string(), "amount".to_string()],
+        source: vibesql_ast::InsertSource::Values(vec![vec![
+            vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(2)),
+            vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(150)),
+        ]]),
+        conflict_clause: None,
+        on_duplicate_key_update: None,
+    };
+    InsertExecutor::execute(&mut db, &insert2).expect("Failed to insert");
+
+    // Verify trigger fired only once (for amount=150)
+    assert_eq!(count_audit_rows(&db), 1);
+}
+
+#[test]
+fn test_trigger_failure_causes_rollback() {
+    let mut db = Database::new();
+    create_users_table(&mut db);
+
+    // Create trigger that always fails (inserts into non-existent table)
+    let trigger_stmt = CreateTriggerStmt {
+        trigger_name: "failing_trigger".to_string(),
+        timing: TriggerTiming::After,
+        event: TriggerEvent::Insert,
+        table_name: "USERS".to_string(),
+        granularity: TriggerGranularity::Row,
+        when_condition: None,
+        triggered_action: TriggerAction::RawSql(
+            "INSERT INTO nonexistent_table (col) VALUES (1)".to_string(),
+        ),
+    };
+    crate::advanced_objects::execute_create_trigger(&trigger_stmt, &mut db)
+        .expect("Failed to create trigger");
+
+    // Try to insert - should fail due to trigger error
+    let insert = vibesql_ast::InsertStmt {
+        table_name: "USERS".to_string(),
+        columns: vec!["id".to_string(), "username".to_string()],
+        source: vibesql_ast::InsertSource::Values(vec![vec![
+            vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
+            vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("alice".to_string())),
+        ]]),
+        conflict_clause: None,
+        on_duplicate_key_update: None,
+    };
+    let result = InsertExecutor::execute(&mut db, &insert);
+
+    // Verify insert failed
+    assert!(result.is_err(), "Insert should have failed due to trigger error");
+
+    // Verify row was NOT inserted (rollback occurred)
+    let select = vibesql_ast::SelectStmt {
+        with_clause: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
+        into_table: None,
+        into_variables: None,
+        from: Some(vibesql_ast::FromClause::Table {
+            name: "USERS".to_string(),
+            alias: None,
+        }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        set_operation: None,
+    };
+    let executor = SelectExecutor::new(&db);
+    let rows = executor.execute(&select).expect("Failed to select");
+
+    // Table should be empty (no rows inserted)
+    assert_eq!(rows.len(), 0, "Table should be empty after failed trigger");
+}
+
+#[test]
+fn test_recursion_prevention() {
+    let mut db = Database::new();
+    create_users_table(&mut db);
+
+    // Create trigger that inserts into the same table (infinite loop)
+    let trigger_stmt = CreateTriggerStmt {
+        trigger_name: "recursive_trigger".to_string(),
+        timing: TriggerTiming::After,
+        event: TriggerEvent::Insert,
+        table_name: "USERS".to_string(),
+        granularity: TriggerGranularity::Row,
+        when_condition: None,
+        triggered_action: TriggerAction::RawSql(
+            "INSERT INTO users (id, username) VALUES (999, 'recursive')".to_string(),
+        ),
+    };
+    crate::advanced_objects::execute_create_trigger(&trigger_stmt, &mut db)
+        .expect("Failed to create trigger");
+
+    // Try to insert - should fail with recursion depth error
+    let insert = vibesql_ast::InsertStmt {
+        table_name: "USERS".to_string(),
+        columns: vec!["id".to_string(), "username".to_string()],
+        source: vibesql_ast::InsertSource::Values(vec![vec![
+            vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
+            vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("alice".to_string())),
+        ]]),
+        conflict_clause: None,
+        on_duplicate_key_update: None,
+    };
+    let result = InsertExecutor::execute(&mut db, &insert);
+
+    // Verify insert failed with recursion error
+    assert!(result.is_err(), "Insert should have failed due to recursion limit");
+    let err = result.unwrap_err();
+    let err_msg = format!("{:?}", err);
+    assert!(err_msg.contains("recursion") || err_msg.contains("depth"),
+            "Error should mention recursion or depth: {}", err_msg);
+}
+
+#[test]
+fn test_before_trigger_executes_first() {
+    let mut db = Database::new();
+    create_users_table(&mut db);
+
+    // Create counter table to track execution order
+    let counter_stmt = vibesql_ast::CreateTableStmt {
+        table_name: "COUNTER".to_string(),
+        columns: vec![vibesql_ast::ColumnDef {
+            name: "value".to_string(),
+            data_type: vibesql_types::DataType::Integer,
+            nullable: false,
+            constraints: vec![],
+            default_value: None,
+            comment: None,
+        }],
+        table_constraints: vec![],
+        table_options: vec![],
+    };
+    CreateTableExecutor::execute(&counter_stmt, &mut db).expect("Failed to create counter table");
+
+    // Initialize counter to 0
+    let init_insert = vibesql_ast::InsertStmt {
+        table_name: "COUNTER".to_string(),
+        columns: vec!["value".to_string()],
+        source: vibesql_ast::InsertSource::Values(vec![vec![
+            vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(0)),
+        ]]),
+        conflict_clause: None,
+        on_duplicate_key_update: None,
+    };
+    InsertExecutor::execute(&mut db, &init_insert).expect("Failed to initialize counter");
+
+    // Create BEFORE INSERT trigger that increments counter
+    let before_trigger = CreateTriggerStmt {
+        trigger_name: "before_trigger".to_string(),
+        timing: TriggerTiming::Before,
+        event: TriggerEvent::Insert,
+        table_name: "USERS".to_string(),
+        granularity: TriggerGranularity::Row,
+        when_condition: None,
+        triggered_action: TriggerAction::RawSql(
+            "UPDATE counter SET value = value + 1".to_string(),
+        ),
+    };
+    crate::advanced_objects::execute_create_trigger(&before_trigger, &mut db)
+        .expect("Failed to create before trigger");
+
+    // Insert a row
+    let insert = vibesql_ast::InsertStmt {
+        table_name: "USERS".to_string(),
+        columns: vec!["id".to_string(), "username".to_string()],
+        source: vibesql_ast::InsertSource::Values(vec![vec![
+            vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
+            vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("alice".to_string())),
+        ]]),
+        conflict_clause: None,
+        on_duplicate_key_update: None,
+    };
+    InsertExecutor::execute(&mut db, &insert).expect("Failed to insert");
+
+    // Verify counter was incremented (BEFORE trigger executed)
+    let select = vibesql_ast::SelectStmt {
+        with_clause: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::ColumnRef {
+                column: "value".to_string(),
+                table: None,
+            },
+            alias: None,
+        }],
+        into_table: None,
+        into_variables: None,
+        from: Some(vibesql_ast::FromClause::Table {
+            name: "COUNTER".to_string(),
+            alias: None,
+        }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        set_operation: None,
+    };
+    let executor = SelectExecutor::new(&db);
+    let result = executor.execute(&select).expect("Failed to select counter");
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(1));
+
+    // Verify user was actually inserted (main operation completed)
+    let user_select = vibesql_ast::SelectStmt {
+        with_clause: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
+        into_table: None,
+        into_variables: None,
+        from: Some(vibesql_ast::FromClause::Table {
+            name: "USERS".to_string(),
+            alias: None,
+        }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        set_operation: None,
+    };
+    let user_result = executor.execute(&user_select).expect("Failed to select users");
+    assert_eq!(user_result.len(), 1, "User should be inserted after BEFORE trigger");
+}
