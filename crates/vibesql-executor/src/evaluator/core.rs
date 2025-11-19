@@ -355,7 +355,6 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
             ))),
             enable_cse: Self::is_cse_enabled(),
-            subquery_cache: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
@@ -380,30 +379,6 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
             ))),
             enable_cse: Self::is_cse_enabled(),
-            subquery_cache: Rc::new(RefCell::new(HashMap::new())),
-        }
-    }
-
-    /// Create a new combined expression evaluator with database and shared caches
-    pub(crate) fn with_database_and_caches(
-        schema: &'a CombinedSchema,
-        database: &'a vibesql_storage::Database,
-        subquery_cache: Rc<RefCell<HashMap<u64, Vec<vibesql_storage::Row>>>>,
-    ) -> Self {
-        CombinedExpressionEvaluator {
-            schema,
-            database: Some(database),
-            outer_row: None,
-            outer_schema: None,
-            window_mapping: None,
-            procedural_context: None,
-            column_cache: RefCell::new(HashMap::new()),
-            depth: 0,
-            cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
-            ))),
-            enable_cse: Self::is_cse_enabled(),
-            subquery_cache,
         }
     }
 
@@ -431,7 +406,6 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
             ))),
             enable_cse: Self::is_cse_enabled(),
-            subquery_cache: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
@@ -457,7 +431,6 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
             ))),
             enable_cse: Self::is_cse_enabled(),
-            subquery_cache: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
@@ -483,7 +456,6 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
             ))),
             enable_cse: Self::is_cse_enabled(),
-            subquery_cache: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
@@ -536,7 +508,6 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             depth: self.depth + 1,
             cse_cache: self.cse_cache.clone(),
             enable_cse: self.enable_cse,
-            subquery_cache: self.subquery_cache.clone(),
         };
         f(&evaluator)
     }
@@ -552,15 +523,10 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: self.window_mapping,
             procedural_context: self.procedural_context,
             column_cache: RefCell::new(HashMap::new()),
-            subquery_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
-            ))),
-            depth: self.depth,
-            cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
-            ))),
-            enable_cse: self.enable_cse,
             subquery_cache: self.subquery_cache.clone(),
+            depth: self.depth,
+            cse_cache: self.cse_cache.clone(),
+            enable_cse: self.enable_cse,
         }
     }
 
@@ -603,7 +569,6 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
             ))),
             enable_cse,
-            subquery_cache: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 }

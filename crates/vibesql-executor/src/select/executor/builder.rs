@@ -3,7 +3,6 @@
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
-    rc::Rc,
     time::Instant,
 };
 
