@@ -35,7 +35,7 @@
           <p id="ops-tested" class="text-3xl font-bold text-primary-light dark:text-primary-dark">
             -
           </p>
-          <p class="text-sm text-muted mt-1">micro-benchmarks</p>
+          <p class="text-sm text-muted mt-1">TPC-H queries</p>
         </div>
         <div class="bg-background rounded-lg shadow-lg p-6 border border-border">
           <h3 class="text-sm font-medium text-muted mb-2">Last Updated</h3>
@@ -90,19 +90,34 @@
           Methodology
         </h2>
         <div class="prose prose-sm dark:prose-invert max-w-none text-foreground">
+          <h3 class="text-lg font-semibold text-foreground mb-2">TPC-H Decision Support Benchmark</h3>
+          <p class="text-muted mb-4">
+            These benchmarks use the industry-standard <strong>TPC-H benchmark suite</strong>,
+            which simulates real-world decision support workloads with complex analytical queries
+            involving aggregations, joins, subqueries, and sorting.
+          </p>
+
           <ul class="space-y-2 text-muted">
             <li><strong>Hardware:</strong> GitHub Actions runners (ubuntu-latest, 2-core CPU)</li>
-            <li><strong>Python:</strong> 3.11</li>
-            <li><strong>Framework:</strong> pytest-benchmark v4.0.0</li>
-            <li><strong>Iterations:</strong> Minimum 5 rounds with warmup enabled</li>
-            <li><strong>Data:</strong> Deterministic test data for reproducibility</li>
-            <li><strong>Comparison:</strong> Head-to-head on identical hardware</li>
+            <li><strong>Benchmark Framework:</strong> Criterion.rs (Rust native benchmarking)</li>
+            <li><strong>Scale Factor:</strong> SF 0.01 (~60,000 rows across 6 tables)</li>
+            <li><strong>Data:</strong> Deterministic TPC-H compliant dataset</li>
+            <li><strong>Databases Tested:</strong> VibeSQL, SQLite (via rusqlite), DuckDB (via duckdb-rs)</li>
+            <li><strong>Execution Mode:</strong> All databases run in-memory (no disk I/O)</li>
+            <li><strong>Measurement:</strong> Native Rust API calls (no Python/FFI overhead)</li>
           </ul>
+
           <p class="mt-4 text-muted">
             All benchmarks measure end-to-end query execution time including parsing,
-            execution, and result fetching. Both databases run in-memory to eliminate
-            disk I/O variance. Results are automatically updated on every commit to the
-            main branch.
+            planning, execution, and result materialization. This represents <strong>real-world
+            SQL engine performance</strong> for analytical workloads. Results are automatically
+            updated on every commit to the main branch.
+          </p>
+
+          <p class="mt-2 text-muted text-sm">
+            <strong>Note:</strong> TPC-H queries test different aspects of SQL performance:
+            simple aggregations (Q1, Q6), complex joins (Q2-Q5, Q7-Q10), subqueries (Q11-Q15),
+            and advanced analytics (Q16-Q22). Hover over query names in the table above for descriptions.
           </p>
         </div>
       </div>

@@ -47,16 +47,57 @@ function formatTime(seconds: number): string {
 }
 
 /**
+ * TPC-H Query descriptions
+ */
+const TPCH_DESCRIPTIONS: Record<string, string> = {
+  'q1': 'Pricing Summary Report - Aggregate pricing with GROUP BY and ORDER BY',
+  'q2': 'Minimum Cost Supplier - 3-table JOIN with ORDER BY and LIMIT',
+  'q3': 'Shipping Priority - 3-table JOIN with aggregation',
+  'q4': 'Order Priority Checking - Correlated EXISTS subquery',
+  'q5': 'Local Supplier Volume - 6-table JOIN with complex filtering',
+  'q6': 'Forecasting Revenue Change - WHERE filters with BETWEEN and SUM',
+  'q7': 'Volume Shipping - 6-table JOIN with SUBSTR and date filtering',
+  'q8': 'National Market Share - 7-table JOIN with CASE expressions',
+  'q9': 'Product Type Profit Measure - 4-table JOIN with aggregation',
+  'q10': 'Returned Item Reporting - 4-table JOIN with TOP-N LIMIT',
+  'q11': 'Important Stock Identification - Subquery in HAVING clause',
+  'q12': 'Shipping Modes Priority - CASE aggregation with date logic',
+  'q13': 'Customer Distribution - LEFT OUTER JOIN with subquery',
+  'q14': 'Promotion Effect - Conditional aggregation with CASE',
+  'q15': 'Top Supplier - Nested subqueries with MAX',
+  'q16': 'Parts/Supplier Relationship - NOT IN subquery with DISTINCT',
+  'q17': 'Small-Quantity-Order Revenue - Correlated subquery in WHERE',
+  'q18': 'Large Volume Customer - GROUP BY with HAVING',
+  'q19': 'Discounted Revenue - Complex OR conditions',
+  'q20': 'Potential Part Promotion - IN subquery with GROUP BY/HAVING',
+  'q21': 'Suppliers Who Kept Orders Waiting - Multi-table EXISTS',
+  'q22': 'Global Sales Opportunity - SUBSTR with NOT EXISTS subquery',
+};
+
+/**
  * Parse benchmark name to extract database and operation info
  */
-function parseBenchmarkName(name: string): { operation: string; database: string } {
-  // Example names: "test_simple_select_1k_vibesql", "test_simple_select_1k_sqlite", "test_simple_select_1k_duckdb"
+function parseBenchmarkName(name: string): { operation: string; database: string; queryNum?: string; description?: string } {
+  // TPC-H format: "tpch_q1_pricing_summary_report_vibesql"
+  // Legacy format: "test_simple_select_1k_vibesql"
   const parts = name.split('_');
   const database = parts[parts.length - 1]; // Last part is database name
 
-  // Remove "test_" prefix and database suffix
-  const operation = parts.slice(1, -1).join('_');
+  // Check if this is a TPC-H query
+  if (name.startsWith('tpch_')) {
+    // Extract query number (q1, q2, etc.)
+    const queryNum = parts[1]; // e.g., "q1"
+    const description = TPCH_DESCRIPTIONS[queryNum];
 
+    // Operation name is everything except "tpch_", query number, and database
+    // e.g., "tpch_q1_pricing_summary_report_vibesql" -> "pricing_summary_report"
+    const operation = parts.slice(2, -1).join('_');
+
+    return { operation, database, queryNum, description };
+  }
+
+  // Legacy format
+  const operation = parts.slice(1, -1).join('_');
   return { operation, database };
 }
 
@@ -110,10 +151,28 @@ function renderResultsTable(data: BenchmarkResults) {
     const row = document.createElement('tr');
     row.className = 'hover:bg-card/50 transition-colors';
 
-    // Operation name
+    // Operation name (with tooltip for TPC-H queries)
     const opCell = document.createElement('td');
     opCell.className = 'px-4 py-3 font-medium text-foreground';
-    opCell.textContent = operation.replace(/_/g, ' ').toUpperCase();
+
+    // Get the first benchmark to extract query info
+    const firstBench = vibesql || sqlite || duckdb;
+    if (firstBench) {
+      const parsed = parseBenchmarkName(firstBench.name);
+      if (parsed.queryNum && parsed.description) {
+        // TPC-H query - show query number and add tooltip
+        opCell.innerHTML = `
+          <span class="cursor-help" title="${parsed.description}">
+            TPC-H ${parsed.queryNum.toUpperCase()}
+          </span>
+        `;
+      } else {
+        // Legacy format
+        opCell.textContent = operation.replace(/_/g, ' ').toUpperCase();
+      }
+    } else {
+      opCell.textContent = operation.replace(/_/g, ' ').toUpperCase();
+    }
     row.appendChild(opCell);
 
     // vibesql time
@@ -225,7 +284,17 @@ function renderChart(data: BenchmarkResults) {
     const duckdb = databases.get('duckdb');
 
     if (vibesql || sqlite || duckdb) {
-      labels.push(operation.replace(/_/g, ' ').toUpperCase());
+      // Get label - prefer TPC-H query number if available
+      let label = operation.replace(/_/g, ' ').toUpperCase();
+      const firstBench = vibesql || sqlite || duckdb;
+      if (firstBench) {
+        const parsed = parseBenchmarkName(firstBench.name);
+        if (parsed.queryNum) {
+          label = `TPC-H ${parsed.queryNum.toUpperCase()}`;
+        }
+      }
+
+      labels.push(label);
       vibesqlData.push(vibesql ? vibesql.stats.mean * 1000 : 0); // Convert to ms
       sqliteData.push(sqlite ? sqlite.stats.mean * 1000 : 0);
       duckdbData.push(duckdb ? duckdb.stats.mean * 1000 : 0);
