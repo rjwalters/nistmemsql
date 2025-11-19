@@ -22,4 +22,4 @@ pub mod where_pushdown;
 pub use expressions::*;
 pub use predicate_plan::PredicatePlan;
 pub use subquery_rewrite::rewrite_subquery_optimizations;
-pub use where_pushdown::{combine_with_and, PredicateDecomposition};
+pub use where_pushdown::{combine_with_and, decompose_where_clause, PredicateDecomposition};

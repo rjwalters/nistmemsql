@@ -135,10 +135,37 @@ fn extract_all_conditions(from: &vibesql_ast::FromClause, conditions: &mut Vec<v
 ///
 /// This function recursively walks an expression tree and collects all table names
 /// mentioned in column references. Used to determine which tables a join condition connects.
+/// Handles both explicit table qualifiers and infers tables from column name prefixes.
 fn extract_referenced_tables(expr: &vibesql_ast::Expression, tables: &mut HashSet<String>) {
     match expr {
         vibesql_ast::Expression::ColumnRef { table: Some(table), .. } => {
             tables.insert(table.to_lowercase());
+        }
+        vibesql_ast::Expression::ColumnRef { table: None, column } => {
+            // Infer table from column name prefix (e.g., C_CUSTKEY → CUSTOMER)
+            // This handles TPC-H style naming where columns are prefixed with table initials
+            if let Some(prefix_char) = column.chars().next() {
+                // Find a table that starts with this prefix (case-insensitive)
+                // Note: We use a fixed set of known tables to avoid false matches
+                let prefix_upper = prefix_char.to_uppercase().collect::<String>();
+
+                // Common TPC-H table prefixes
+                let table_name = match prefix_upper.as_str() {
+                    "C" => Some("customer"),
+                    "O" => Some("orders"),
+                    "L" => Some("lineitem"),
+                    "P" => Some("part"),
+                    "S" => Some("supplier"),
+                    "PS" => Some("partsupp"),
+                    "N" => Some("nation"),
+                    "R" => Some("region"),
+                    _ => None,
+                };
+
+                if let Some(name) = table_name {
+                    tables.insert(name.to_string());
+                }
+            }
         }
         vibesql_ast::Expression::BinaryOp { left, right, .. } => {
             extract_referenced_tables(left, tables);
@@ -206,6 +233,72 @@ fn extract_referenced_tables(expr: &vibesql_ast::Expression, tables: &mut HashSe
     }
 }
 
+/// Extract equijoin conditions from a WHERE clause expression
+///
+/// Recursively walks the expression tree looking for binary equality operations
+/// that reference columns from two different tables.
+fn extract_where_equijoins(expr: &vibesql_ast::Expression, tables: &HashSet<String>) -> Vec<vibesql_ast::Expression> {
+    use vibesql_ast::{BinaryOperator, Expression};
+
+    let mut equijoins = Vec::new();
+
+    fn extract_recursive(
+        expr: &Expression,
+        tables: &HashSet<String>,
+        equijoins: &mut Vec<Expression>,
+    ) {
+        match expr {
+            // Binary AND: recurse into both sides
+            Expression::BinaryOp { op: BinaryOperator::And, left, right } => {
+                extract_recursive(left, tables, equijoins);
+                extract_recursive(right, tables, equijoins);
+            }
+            // Binary EQUAL: check if it's an equijoin
+            Expression::BinaryOp { op: BinaryOperator::Equal, left, right } => {
+                // Check if both sides are column references
+                // Handle both explicit table qualifiers and implicit (prefix-based) references
+                let left_table = match left.as_ref() {
+                    Expression::ColumnRef { table: Some(t), .. } => Some(t.to_lowercase()),
+                    Expression::ColumnRef { table: None, column } => {
+                        // Infer table from column name prefix (e.g., C_CUSTKEY → CUSTOMER)
+                        // This handles TPC-H style naming where columns are prefixed with table initials
+                        if let Some(prefix) = column.chars().take_while(|c| *c != '_').collect::<String>().chars().next() {
+                            tables.iter().find(|t| t.to_uppercase().starts_with(&prefix.to_string().to_uppercase())).cloned()
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                };
+                let right_table = match right.as_ref() {
+                    Expression::ColumnRef { table: Some(t), .. } => Some(t.to_lowercase()),
+                    Expression::ColumnRef { table: None, column } => {
+                        // Infer table from column name prefix
+                        if let Some(prefix) = column.chars().take_while(|c| *c != '_').collect::<String>().chars().next() {
+                            tables.iter().find(|t| t.to_uppercase().starts_with(&prefix.to_string().to_uppercase())).cloned()
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                };
+
+                // If both sides reference columns from different tables, it's an equijoin
+                if let (Some(lt), Some(rt)) = (left_table, right_table) {
+                    if lt != rt && tables.contains(&lt) && tables.contains(&rt) {
+                        equijoins.push(expr.clone());
+                    }
+                }
+            }
+            // For other expressions, don't recurse (we only care about top-level ANDs and EQUALs)
+            _ => {}
+        }
+    }
+
+    extract_recursive(expr, tables, &mut equijoins);
+    equijoins
+}
+
 /// Apply join reordering optimization to a multi-table join
 ///
 /// This function:
@@ -248,11 +341,38 @@ where
     }
 
     // Step 5: Analyze WHERE clause predicates if available
-    if let Some(where_expr) = where_clause {
+    // Also extract WHERE clause equijoins for join execution
+    let where_equijoins = if let Some(where_expr) = where_clause {
         analyzer.analyze_predicate(where_expr, &table_set);
-    }
 
-    // Step 6: Use search to find optimal join order (with real statistics)
+        // Debug logging
+        if std::env::var("JOIN_REORDER_VERBOSE").is_ok() {
+            eprintln!("[JOIN_REORDER] WHERE clause present: {:?}", where_expr);
+            eprintln!("[JOIN_REORDER] Table set: {:?}", table_set);
+        }
+
+        // Extract equijoin conditions from WHERE clause manually
+        // This is simpler and more reliable than using decompose_where_clause,
+        // which requires a full schema with column information
+        let equijoins = extract_where_equijoins(where_expr, &table_set);
+
+        if std::env::var("JOIN_REORDER_VERBOSE").is_ok() {
+            eprintln!("[JOIN_REORDER] Extracted {} WHERE equijoins", equijoins.len());
+        }
+
+        equijoins
+    } else {
+        if std::env::var("JOIN_REORDER_VERBOSE").is_ok() {
+            eprintln!("[JOIN_REORDER] No WHERE clause");
+        }
+        Vec::new()
+    };
+
+    // Step 6: Add WHERE equijoins to join_conditions for execution
+    // This ensures WHERE clause equijoins are used during join execution, not just for optimization
+    join_conditions.extend(where_equijoins);
+
+    // Step 7: Use search to find optimal join order (with real statistics)
     let search = JoinOrderSearch::from_analyzer(&analyzer, database);
     let optimal_order = search.find_optimal_order();
 
@@ -260,9 +380,10 @@ where
     if std::env::var("JOIN_REORDER_VERBOSE").is_ok() {
         eprintln!("[JOIN_REORDER] Original order: {:?}", table_names);
         eprintln!("[JOIN_REORDER] Optimal order:  {:?}", optimal_order);
+        eprintln!("[JOIN_REORDER] Join conditions (including WHERE equijoins): {}", join_conditions.len());
     }
 
-    // Step 7: Build a map from table name to TableRef for easy lookup
+    // Step 8: Build a map from table name to TableRef for easy lookup
     // IMPORTANT: Normalize keys to lowercase to match analyzer's normalization
     let table_map: HashMap<String, TableRef> = table_refs
         .into_iter()
@@ -272,10 +393,10 @@ where
         })
         .collect();
 
-    // Step 8: Track column count per table for later column reordering
+    // Step 9: Track column count per table for later column reordering
     let mut table_column_counts: HashMap<String, usize> = HashMap::new();
 
-    // Step 9: Execute tables in optimal order, joining them sequentially
+    // Step 10: Execute tables in optimal order, joining them sequentially
     let mut result: Option<super::FromResult> = None;
     let mut joined_tables: HashSet<String> = HashSet::new();
     let mut applied_conditions: HashSet<usize> = HashSet::new();
@@ -358,7 +479,7 @@ where
 
     let result = result.ok_or_else(|| ExecutorError::UnsupportedFeature("No tables in join".to_string()))?;
 
-    // Step 10: Restore original column ordering if needed
+    // Step 11: Restore original column ordering if needed
     // Build column permutation: map from current position to target position
     let column_permutation = build_column_permutation(&table_names, &optimal_order, &table_column_counts);
 
