@@ -16,6 +16,7 @@ pub enum StorageError {
     NullConstraintViolation { column: String },
     TypeMismatch { column: String, expected: String, actual: String },
     UniqueConstraintViolation(String),
+    InvalidIndexColumn(String),
     NotImplemented(String),
     IoError(String),
     InvalidPageSize { expected: usize, actual: usize },
@@ -54,6 +55,7 @@ impl std::fmt::Display for StorageError {
                 )
             }
             StorageError::UniqueConstraintViolation(msg) => write!(f, "{}", msg),
+            StorageError::InvalidIndexColumn(msg) => write!(f, "{}", msg),
             StorageError::NotImplemented(msg) => write!(f, "Not implemented: {}", msg),
             StorageError::IoError(msg) => write!(f, "I/O error: {}", msg),
             StorageError::InvalidPageSize { expected, actual } => {

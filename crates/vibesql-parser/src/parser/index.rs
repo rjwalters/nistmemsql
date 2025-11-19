@@ -97,15 +97,22 @@ impl Parser {
                         })?;
                         self.advance();
 
-                        // Validate prefix length range
+                        // Validate prefix length range (MySQL compatibility)
                         if value < 1 {
                             return Err(ParseError {
-                                message: "Prefix length must be at least 1".to_string(),
+                                message: format!(
+                                    "Key part '{}' length cannot be 0",
+                                    column_name
+                                ),
                             });
                         }
-                        if value > 10000 {
+                        // MySQL InnoDB limit: 3072 bytes for index prefix length
+                        // This is the maximum for utf8mb4 with innodb_large_prefix enabled
+                        if value > 3072 {
                             return Err(ParseError {
-                                message: "Prefix length must not exceed 10000".to_string(),
+                                message: format!(
+                                    "Specified key was too long; max key length is 3072 bytes"
+                                ),
                             });
                         }
 
