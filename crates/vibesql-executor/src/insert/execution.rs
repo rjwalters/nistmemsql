@@ -235,19 +235,50 @@ fn execute_insert_internal(
                 Some(&row_to_insert),
             )?;
 
+            // Get row count before insert to enable rollback
+            let row_count_before = db.get_table(&stmt.table_name)
+                .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?
+                .row_count();
+
             // Insert the row
             let row = vibesql_storage::Row::new(full_row_values);
             db.insert_row(&stmt.table_name, row.clone())
                 .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;
 
             // Fire AFTER INSERT triggers
-            crate::TriggerFirer::execute_after_triggers(
+            // If AFTER triggers fail, we need to rollback the insert
+            let trigger_result = crate::TriggerFirer::execute_after_triggers(
                 db,
                 &stmt.table_name,
                 vibesql_ast::TriggerEvent::Insert,
                 None,
                 Some(&row),
-            )?;
+            );
+
+            if let Err(trigger_error) = trigger_result {
+                // Rollback: Delete the row we just inserted
+                // Note: This is a simple rollback mechanism for Phase 3
+                // Full transaction support will come in a later phase
+                let table = db.get_table_mut(&stmt.table_name)
+                    .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
+
+                // Delete the last row (the one we just inserted)
+                // Row was inserted at index row_count_before
+                use std::cell::Cell;
+                let current_index = Cell::new(0);
+                let target_index = row_count_before;
+                table.delete_where(|_row| {
+                    let index = current_index.get();
+                    current_index.set(index + 1);
+                    index == target_index
+                });
+
+                // Rebuild indexes since we modified the table
+                db.rebuild_indexes(&stmt.table_name);
+
+                // Re-throw the trigger error
+                return Err(trigger_error);
+            }
 
             rows_inserted += 1;
         }

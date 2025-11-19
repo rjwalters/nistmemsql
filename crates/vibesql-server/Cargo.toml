@@ -1,0 +1,58 @@
+[package]
+name = "vibesql-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Network server with PostgreSQL wire protocol for VibeSQL"
+keywords = ["sql", "database", "server", "postgresql", "network"]
+categories = ["database", "network-programming"]
+
+[[bin]]
+name = "vibesql-server"
+path = "src/main.rs"
+doc = false  # Binaries don't need documentation
+
+[dependencies]
+# Core VibeSQL crates
+vibesql-types = { version = "0.1.0", path = "../vibesql-types" }
+vibesql-ast = { version = "0.1.0", path = "../vibesql-ast" }
+vibesql-catalog = { version = "0.1.0", path = "../vibesql-catalog" }
+vibesql-storage = { version = "0.1.0", path = "../vibesql-storage" }
+vibesql-executor = { version = "0.1.0", path = "../vibesql-executor" }
+vibesql-parser = { version = "0.1.0", path = "../vibesql-parser" }
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+
+# TLS/SSL support
+tokio-rustls = "0.26"
+rustls = "0.23"
+rustls-pemfile = "2.0"
+
+# Authentication
+md-5 = "0.10"
+sha2 = "0.10"
+base64 = "0.22"
+hmac = "0.12"
+pbkdf2 = "0.12"
+
+# Configuration and error handling
+toml = "0.8"
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+bytes = "1.0"
+dirs = "5.0"
+
+[dev-dependencies]
+tempfile = "3"
+tokio-test = "0.4"
