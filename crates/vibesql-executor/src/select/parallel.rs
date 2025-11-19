@@ -10,8 +10,6 @@
 //! Note: This module is only compiled when the `parallel` feature is enabled.
 //! In WASM builds, this feature is disabled as parallelism provides no benefit.
 
-#![cfg(feature = "parallel")]
-
 use std::sync::OnceLock;
 
 /// Global parallel configuration, initialized once on first access
@@ -233,12 +231,12 @@ where
     if config.should_parallelize_scan(rows.len()) {
         // Parallel path: use rayon for efficient parallel mapping
         rows.par_iter()
-            .map(|row| transform(row))
+            .map(&transform)
             .collect()
     } else {
         // Sequential fallback for small datasets
         rows.iter()
-            .map(|row| transform(row))
+            .map(transform)
             .collect()
     }
 }
@@ -276,12 +274,12 @@ where
     if config.should_parallelize_scan(rows.len()) {
         // Parallel path: use rayon for efficient parallel filter-map
         rows.par_iter()
-            .filter_map(|row| filter_map(row))
+            .filter_map(&filter_map)
             .collect()
     } else {
         // Sequential fallback for small datasets
         rows.iter()
-            .filter_map(|row| filter_map(row))
+            .filter_map(filter_map)
             .collect()
     }
 }

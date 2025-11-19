@@ -6,6 +6,7 @@
 /// ## References
 /// - [MySQL 8.0 sql_mode Documentation](https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub struct MySqlModeFlags {
     /// Whether || acts as string concat (vs OR operator)
     ///
@@ -34,15 +35,6 @@ pub struct MySqlModeFlags {
     // Future flags can be added here as needed
 }
 
-impl Default for MySqlModeFlags {
-    fn default() -> Self {
-        Self {
-            pipes_as_concat: false, // Default MySQL behavior: || is OR
-            ansi_quotes: false,      // Default MySQL behavior: " is string
-            strict_mode: false,      // Permissive by default
-        }
-    }
-}
 
 impl MySqlModeFlags {
     /// Create MySqlModeFlags with all default settings

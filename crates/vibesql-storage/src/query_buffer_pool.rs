@@ -17,8 +17,8 @@ const DEFAULT_VALUE_CAPACITY: usize = 16;
 const MAX_POOLED_BUFFERS: usize = 32;
 
 thread_local! {
-    static ROW_POOL: RefCell<Vec<Vec<Row>>> = RefCell::new(Vec::new());
-    static VALUE_POOL: RefCell<Vec<Vec<SqlValue>>> = RefCell::new(Vec::new());
+    static ROW_POOL: RefCell<Vec<Vec<Row>>> = const { RefCell::new(Vec::new()) };
+    static VALUE_POOL: RefCell<Vec<Vec<SqlValue>>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Thread-safe buffer pool for reusing allocations across query executions
@@ -148,11 +148,13 @@ impl RowBufferGuard {
     }
 
     /// Get a reference to the buffer
+    #[allow(clippy::should_implement_trait)]
     pub fn as_ref(&self) -> &Vec<Row> {
         self.buffer.as_ref().expect("buffer already taken")
     }
 
     /// Get a mutable reference to the buffer
+    #[allow(clippy::should_implement_trait)]
     pub fn as_mut(&mut self) -> &mut Vec<Row> {
         self.buffer.as_mut().expect("buffer already taken")
     }
@@ -187,11 +189,13 @@ impl ValueBufferGuard {
     }
 
     /// Get a reference to the buffer
+    #[allow(clippy::should_implement_trait)]
     pub fn as_ref(&self) -> &Vec<SqlValue> {
         self.buffer.as_ref().expect("buffer already taken")
     }
 
     /// Get a mutable reference to the buffer
+    #[allow(clippy::should_implement_trait)]
     pub fn as_mut(&mut self) -> &mut Vec<SqlValue> {
         self.buffer.as_mut().expect("buffer already taken")
     }

@@ -481,8 +481,8 @@ fn extract_variable_name(expr: &Expression) -> Result<String, ExecutorError> {
         Expression::ColumnRef { table: None, column } => {
             // Column reference without table - treat as session variable
             // If it starts with @, strip it; otherwise use as-is
-            let var_name = if column.starts_with('@') {
-                column[1..].to_string()
+            let var_name = if let Some(stripped) = column.strip_prefix('@') {
+                stripped.to_string()
             } else {
                 column.clone()
             };
@@ -677,7 +677,7 @@ pub fn execute_call(
             .ok_or_else(|| ExecutorError::Other(format!("Parameter '{}' not found", param_name)))?;
 
         // Store in session variable
-        db.set_session_variable(&target_var_name, value);
+        db.set_session_variable(target_var_name, value);
     }
 
     Ok(())

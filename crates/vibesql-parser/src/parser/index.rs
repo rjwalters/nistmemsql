@@ -110,9 +110,7 @@ impl Parser {
                         // This is the maximum for utf8mb4 with innodb_large_prefix enabled
                         if value > 3072 {
                             return Err(ParseError {
-                                message: format!(
-                                    "Specified key was too long; max key length is 3072 bytes"
-                                ),
+                                message: "Specified key was too long; max key length is 3072 bytes".to_string(),
                             });
                         }
 

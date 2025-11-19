@@ -158,7 +158,7 @@ impl PageManager {
     pub fn read_page(&self, page_id: PageId) -> Result<Page, StorageError> {
         let mut file = lock!(self.file);
 
-        let offset = (page_id as u64) * (PAGE_SIZE as u64);
+        let offset = page_id * (PAGE_SIZE as u64);
         let mut data = vec![0u8; PAGE_SIZE];
 
         match file.read_at(offset, &mut data) {
@@ -178,7 +178,7 @@ impl PageManager {
     pub fn write_page(&self, page: &mut Page) -> Result<(), StorageError> {
         let mut file = lock!(self.file);
 
-        let offset = (page.id as u64) * (PAGE_SIZE as u64);
+        let offset = page.id * (PAGE_SIZE as u64);
         file.write_at(offset, &page.data)?;
         file.sync_data()?;
 

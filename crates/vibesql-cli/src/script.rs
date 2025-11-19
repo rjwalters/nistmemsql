@@ -154,7 +154,7 @@ fn parse_statements(script: &str) -> Vec<String> {
         // Handle single-line comments
         if !in_string && ch == '-' && chars.peek() == Some(&'-') {
             // Skip until end of line
-            while let Some(c) = chars.next() {
+            for c in chars.by_ref() {
                 if c == '\n' {
                     current_statement.push(c); // preserve newline for formatting
                     break;

@@ -116,11 +116,12 @@ fn execute_simple_return(
         .map_err(|e| ExecutorError::ParseError(format!("Failed to parse RETURN expression: {}", e)))?;
 
     // Extract the expression from the SELECT
+    #[allow(clippy::collapsible_match)]
     if let vibesql_ast::Statement::Select(select_stmt) = stmt {
         if let Some(first_item) = select_stmt.select_list.first() {
             if let vibesql_ast::SelectItem::Expression { expr, alias: _ } = first_item {
                 // Evaluate the expression in the procedural context
-                let value = super::executor::evaluate_expression(&expr, db, ctx)?;
+                let value = super::executor::evaluate_expression(expr, db, ctx)?;
                 return Ok(value);
             }
         }

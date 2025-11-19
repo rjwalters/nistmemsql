@@ -55,7 +55,7 @@ impl TableStatistics {
         use rand::SeedableRng;
 
         let total_rows = rows.len();
-        let config = sampling_config.unwrap_or_else(|| SamplingConfig::adaptive());
+        let config = sampling_config.unwrap_or_else(SamplingConfig::adaptive);
 
         // Determine if sampling is needed
         let (sample_size, should_sample) = config.determine_sample_size(total_rows);

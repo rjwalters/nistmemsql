@@ -223,7 +223,7 @@ impl CombinedExpressionEvaluator<'_> {
         let rows = select_executor.execute(subquery)?;
 
         // Delegate to shared logic
-        let sql_mode = self.database.map(|db| db.sql_mode()).unwrap_or(vibesql_types::SqlMode::default());
+        let sql_mode = self.database.map(|db| db.sql_mode()).unwrap_or_default();
         super::super::subqueries_shared::eval_quantified_core(
             &left_val,
             &rows,
@@ -445,6 +445,7 @@ fn can_use_index_for_in_subquery(
     }
 
     // Get the projected column name
+    #[allow(clippy::collapsible_match)]
     let column_name = match &subquery.select_list[0] {
         vibesql_ast::SelectItem::Expression { expr, .. } => {
             match expr {
@@ -487,6 +488,7 @@ fn try_index_optimized_in_subquery(
         _ => return Ok(None),
     };
 
+    #[allow(clippy::collapsible_match)]
     let column_name = match &subquery.select_list[0] {
         vibesql_ast::SelectItem::Expression { expr, .. } => {
             match expr {
@@ -632,7 +634,7 @@ fn try_index_optimized_in_subquery(
         let eq_result = ExpressionEvaluator::eval_binary_op_static(
             expr_val,
             &vibesql_ast::BinaryOperator::Equal,
-            &value,
+            value,
             sql_mode.clone(),
         )?;
 

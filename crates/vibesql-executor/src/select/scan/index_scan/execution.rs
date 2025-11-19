@@ -167,8 +167,7 @@ pub(crate) fn execute_index_scan(
     // Final step: Clone only the filtered rows
     // This is the only place where cloning happens, and only for rows that survived filtering
     let rows: Vec<Row> = filtered_row_refs
-        .into_iter()
-        .map(|row| row.clone())
+        .into_iter().cloned()
         .collect();
 
     // Return results with sorting metadata if available

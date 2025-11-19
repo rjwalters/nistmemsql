@@ -14,7 +14,7 @@ const MAX_TRIGGER_RECURSION_DEPTH: usize = 16;
 
 thread_local! {
     /// Current trigger recursion depth for this thread
-    static TRIGGER_RECURSION_DEPTH: Cell<usize> = Cell::new(0);
+    static TRIGGER_RECURSION_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 
 /// RAII guard for managing trigger recursion depth

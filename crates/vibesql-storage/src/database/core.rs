@@ -169,7 +169,7 @@ impl Database {
         let catalog = &self.catalog.clone();
         self.lifecycle
             .transaction_manager_mut()
-            .begin_transaction(&catalog, &self.tables)
+            .begin_transaction(catalog, &self.tables)
     }
 
     /// Commit the current transaction
@@ -363,6 +363,7 @@ impl Database {
     /// This is more efficient than calling insert_row repeatedly as it:
     /// - Reduces per-row overhead (table lookups, etc.)
     /// - Updates indexes in batch
+    ///
     /// Returns the number of rows inserted
     pub fn insert_rows_batch(&mut self, table_name: &str, rows: Vec<Row>) -> Result<usize, StorageError> {
         if rows.is_empty() {
@@ -670,7 +671,7 @@ impl Database {
         &mut self,
         name: &str,
     ) -> Result<&vibesql_catalog::ProcedureBody, StorageError> {
-        if !self.metadata.get_cached_procedure_body(name).is_some() {
+        if self.metadata.get_cached_procedure_body(name).is_none() {
             let procedure = &self.catalog.get_procedure(name).ok_or_else(|| {
                 StorageError::CatalogError(format!("Procedure '{}' not found", name))
             })?;

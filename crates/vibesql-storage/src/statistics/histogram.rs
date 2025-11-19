@@ -240,7 +240,7 @@ impl Histogram {
             _ => return 0.33, // Default fallback
         }
 
-        selectivity.min(1.0).max(0.0)
+        selectivity.clamp(0.0, 1.0)
     }
 
     /// Estimate selectivity for BETWEEN predicate: col BETWEEN lower AND upper
@@ -269,7 +269,7 @@ impl Histogram {
             }
         }
 
-        selectivity.min(1.0).max(0.0)
+        selectivity.clamp(0.0, 1.0)
     }
 
     /// Get the number of buckets

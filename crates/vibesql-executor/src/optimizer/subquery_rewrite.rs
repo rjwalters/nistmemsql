@@ -72,12 +72,12 @@ fn expression_has_in_subquery(expr: &Expression) -> bool {
             when_clauses,
             else_result,
         } => {
-            operand.as_ref().map_or(false, |e| expression_has_in_subquery(e))
+            operand.as_ref().is_some_and(|e| expression_has_in_subquery(e))
                 || when_clauses.iter().any(|clause| {
                     clause.conditions.iter().any(expression_has_in_subquery)
                         || expression_has_in_subquery(&clause.result)
                 })
-                || else_result.as_ref().map_or(false, |e| expression_has_in_subquery(e))
+                || else_result.as_ref().is_some_and(|e| expression_has_in_subquery(e))
         }
 
         Expression::ScalarSubquery(subquery) => has_in_subqueries(subquery),
@@ -113,7 +113,7 @@ fn expression_has_in_subquery(expr: &Expression) -> bool {
             string,
             ..
         } => {
-            removal_char.as_ref().map_or(false, |e| expression_has_in_subquery(e))
+            removal_char.as_ref().is_some_and(|e| expression_has_in_subquery(e))
                 || expression_has_in_subquery(string)
         }
 
@@ -139,7 +139,7 @@ fn from_clause_has_in_subquery(from: &vibesql_ast::FromClause) -> bool {
         } => {
             from_clause_has_in_subquery(left)
                 || from_clause_has_in_subquery(right)
-                || condition.as_ref().map_or(false, expression_has_in_subquery)
+                || condition.as_ref().is_some_and(expression_has_in_subquery)
         }
         vibesql_ast::FromClause::Subquery { query, .. } => has_in_subqueries(query),
     }
@@ -214,7 +214,7 @@ pub fn rewrite_subquery_optimizations(stmt: &SelectStmt) -> SelectStmt {
     // Recursively rewrite set operations
     if let Some(set_op) = &stmt.set_operation {
         let mut new_set_op = set_op.clone();
-        new_set_op.right = Box::new(rewrite_subquery_optimizations(&set_op.right));
+        *new_set_op.right = rewrite_subquery_optimizations(&set_op.right);
         rewritten.set_operation = Some(new_set_op);
     }
 
@@ -643,12 +643,12 @@ fn has_external_column_refs(expr: &Expression, subquery: &SelectStmt) -> bool {
             when_clauses,
             else_result,
         } => {
-            operand.as_ref().map_or(false, |e| has_external_column_refs(e, subquery))
+            operand.as_ref().is_some_and(|e| has_external_column_refs(e, subquery))
                 || when_clauses.iter().any(|clause| {
                     clause.conditions.iter().any(|cond| has_external_column_refs(cond, subquery))
                         || has_external_column_refs(&clause.result, subquery)
                 })
-                || else_result.as_ref().map_or(false, |e| has_external_column_refs(e, subquery))
+                || else_result.as_ref().is_some_and(|e| has_external_column_refs(e, subquery))
         }
 
         Expression::ScalarSubquery(_)
@@ -685,7 +685,7 @@ fn has_external_column_refs(expr: &Expression, subquery: &SelectStmt) -> bool {
             string,
             ..
         } => {
-            removal_char.as_ref().map_or(false, |e| has_external_column_refs(e, subquery))
+            removal_char.as_ref().is_some_and(|e| has_external_column_refs(e, subquery))
                 || has_external_column_refs(string, subquery)
         }
 
@@ -724,7 +724,7 @@ fn subquery_references_table(subquery: &SelectStmt, table_name: &str) -> bool {
 fn from_clause_contains_table(from: &vibesql_ast::FromClause, table_name: &str) -> bool {
     match from {
         vibesql_ast::FromClause::Table { name, alias } => {
-            name == table_name || alias.as_ref().map_or(false, |a| a == table_name)
+            name == table_name || alias.as_ref().is_some_and(|a| a == table_name)
         }
         vibesql_ast::FromClause::Join { left, right, .. } => {
             from_clause_contains_table(left, table_name)

@@ -52,7 +52,7 @@ impl BTreeIndex {
         let (leaf, _) = self.find_leaf_path(key)?;
 
         // Search for the key in the leaf node and return all row_ids
-        Ok(leaf.search(key).map(|row_ids| row_ids.clone()).unwrap_or_default())
+        Ok(leaf.search(key).cloned().unwrap_or_default())
     }
 
     /// Perform a range scan on the B+ tree

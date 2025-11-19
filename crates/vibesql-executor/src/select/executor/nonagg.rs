@@ -704,7 +704,7 @@ impl SelectExecutor<'_> {
                 evaluator,
                 schema.clone(),
                 window_mapping.clone(),
-                self.database.query_buffer_pool().clone(),
+                *self.database.query_buffer_pool(),
             );
 
             // Collect projected rows with memory tracking

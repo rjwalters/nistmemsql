@@ -178,7 +178,7 @@ fn estimate_max_key_size(key_schema: &[DataType]) -> usize {
                 // BIT type: tag + length + bits (rounded up to bytes)
                 // MySQL BIT can be 1-64 bits
                 let bit_length = length.unwrap_or(1);
-                let byte_length = (bit_length + 7) / 8;  // Round up to nearest byte
+                let byte_length = bit_length.div_ceil(8);  // Round up to nearest byte
                 1 + 8 + byte_length
             }
             DataType::UserDefined { .. } => {

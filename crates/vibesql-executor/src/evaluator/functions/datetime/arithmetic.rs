@@ -591,7 +591,7 @@ fn calculate_age_components(date1: NaiveDate, date2: NaiveDate) -> (i32, i32, i3
 /// Note: This is a simplified parser for basic INTERVAL expressions.
 /// Compound intervals (e.g., "1-6 YEAR TO MONTH") are not yet supported.
 fn parse_simple_interval(interval_str: &str) -> Result<(i64, String), ExecutorError> {
-    let parts: Vec<&str> = interval_str.trim().split_whitespace().collect();
+    let parts: Vec<&str> = interval_str.split_whitespace().collect();
 
     if parts.len() < 2 {
         return Err(ExecutorError::UnsupportedFeature(format!(

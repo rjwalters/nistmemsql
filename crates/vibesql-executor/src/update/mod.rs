@@ -152,7 +152,7 @@ impl UpdateExecutor {
 
         // Clone schema for PK checking (to avoid borrow checker issues)
         let schema_clone = schema.clone();
-        let pk_indices_clone = schema_clone.get_primary_key_indices().map(|v| v.clone());
+        let pk_indices_clone = schema_clone.get_primary_key_indices();
 
         // Step 2: Get table from storage (for reading rows)
         let table = database

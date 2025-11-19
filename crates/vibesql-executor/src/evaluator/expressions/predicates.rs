@@ -26,7 +26,7 @@ impl ExpressionEvaluator<'_> {
         symmetric: bool,
         row: &vibesql_storage::Row,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
-        let sql_mode = self.database.map(|db| db.sql_mode()).unwrap_or(vibesql_types::SqlMode::default());
+        let sql_mode = self.database.map(|db| db.sql_mode()).unwrap_or_default();
         let expr_val = self.eval(expr, row)?;
         let mut low_val = self.eval(low, row)?;
         let mut high_val = self.eval(high, row)?;

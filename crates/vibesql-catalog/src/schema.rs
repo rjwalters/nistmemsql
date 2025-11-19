@@ -31,10 +31,8 @@ impl Schema {
             if self.tables.contains_key(&table_name) {
                 return Err(CatalogError::TableAlreadyExists(schema.name.clone()));
             }
-        } else {
-            if self.tables.values().any(|t| t.name.to_uppercase() == table_name) {
-                return Err(CatalogError::TableAlreadyExists(schema.name.clone()));
-            }
+        } else if self.tables.values().any(|t| t.name.to_uppercase() == table_name) {
+            return Err(CatalogError::TableAlreadyExists(schema.name.clone()));
         }
 
         self.tables.insert(table_name, schema);

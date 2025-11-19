@@ -451,6 +451,7 @@ impl Parser {
     /// Parse procedure characteristics (optional)
     ///
     /// Returns: (sql_security, comment, language)
+    #[allow(clippy::type_complexity)]
     fn parse_procedure_characteristics(&mut self) -> Result<(Option<SqlSecurity>, Option<String>, Option<String>), ParseError> {
         let mut sql_security = None;
         let mut comment = None;
@@ -493,6 +494,7 @@ impl Parser {
     /// Parse function characteristics (optional)
     ///
     /// Returns: (deterministic, sql_security, comment, language)
+    #[allow(clippy::type_complexity)]
     fn parse_function_characteristics(&mut self) -> Result<(Option<bool>, Option<SqlSecurity>, Option<String>, Option<String>), ParseError> {
         let mut deterministic = None;
         let mut sql_security = None;

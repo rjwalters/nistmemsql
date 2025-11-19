@@ -2,7 +2,6 @@
 ///
 /// This module defines the traits and types that specify how operators
 /// behave differently across SQL dialects (MySQL vs SQLite).
-
 /// Behavior for division operations
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

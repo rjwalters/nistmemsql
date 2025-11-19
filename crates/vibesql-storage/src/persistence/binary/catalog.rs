@@ -112,7 +112,7 @@ pub fn write_catalog<W: Write>(writer: &mut W, db: &Database) -> Result<(), Stor
                         .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
                     write_u32(writer, cols.len() as u32)?;
                     for col in cols {
-                        write_string(writer, &col)?;
+                        write_string(writer, col)?;
                     }
                 }
                 vibesql_ast::TriggerEvent::Delete => {
@@ -150,7 +150,7 @@ pub fn write_catalog<W: Write>(writer: &mut W, db: &Database) -> Result<(), Stor
                     writer
                         .write_all(&[0u8])
                         .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-                    write_string(writer, &sql)?;
+                    write_string(writer, sql)?;
                 }
             }
         }

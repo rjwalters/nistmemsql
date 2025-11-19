@@ -231,6 +231,7 @@ impl Function {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn with_characteristics(
         name: String,
         schema: String,

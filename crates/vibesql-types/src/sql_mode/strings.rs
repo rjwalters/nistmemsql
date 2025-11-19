@@ -2,7 +2,6 @@
 ///
 /// This module defines how string comparisons and collations work across
 /// different SQL modes.
-
 /// Collation type for string comparisons
 ///
 /// Different SQL dialects support different collation strategies for comparing

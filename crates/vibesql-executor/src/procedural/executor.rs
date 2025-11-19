@@ -45,8 +45,8 @@ pub fn execute_procedural_statement(
             let new_value = evaluate_expression(value, db, ctx)?;
 
             // Check if it's a session variable (starts with @)
-            if name.starts_with('@') {
-                let var_name = &name[1..]; // Strip @ prefix
+            if let Some(var_name) = name.strip_prefix('@') {
+                // Strip @ prefix
                 db.set_session_variable(var_name, new_value);
             } else if ctx.has_parameter(name) {
                 // Try to update parameter first (for OUT/INOUT)
@@ -131,8 +131,8 @@ pub fn evaluate_expression(
         // Variable, parameter, or session variable reference
         Expression::ColumnRef { table: None, column } => {
             // Check if it's a session variable (starts with @)
-            if column.starts_with('@') {
-                let var_name = &column[1..]; // Strip @ prefix
+            if let Some(var_name) = column.strip_prefix('@') {
+                // Strip @ prefix
                 _db.get_session_variable(var_name)
                     .cloned()
                     .ok_or_else(|| ExecutorError::VariableNotFound {

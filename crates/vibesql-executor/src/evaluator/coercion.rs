@@ -32,7 +32,7 @@ use crate::errors::ExecutorError;
 pub fn coerce_to_date(value: &SqlValue) -> Result<SqlValue, ExecutorError> {
     match value {
         SqlValue::Date(_) => Ok(value.clone()),
-        SqlValue::Timestamp(ts) => Ok(SqlValue::Date(ts.date.clone())),
+        SqlValue::Timestamp(ts) => Ok(SqlValue::Date(ts.date)),
         SqlValue::Varchar(s) | SqlValue::Character(s) => parse_date_string(s),
         SqlValue::Null => Ok(SqlValue::Null),
         _ => Err(ExecutorError::TypeMismatch {

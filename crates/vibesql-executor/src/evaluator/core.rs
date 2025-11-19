@@ -218,7 +218,7 @@ impl<'a> ExpressionEvaluator<'a> {
         let sql_mode = self
             .database
             .map(|db| db.sql_mode())
-            .unwrap_or(vibesql_types::SqlMode::default());
+            .unwrap_or_default();
 
         Self::eval_binary_op_static(left, op, right, sql_mode)
     }

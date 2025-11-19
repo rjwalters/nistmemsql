@@ -13,10 +13,10 @@ use crate::select::parallel::ParallelConfig;
 const MAX_JOIN_RESULT_ROWS: usize = 100_000_000;
 
 /// Build hash table sequentially (fallback for small inputs)
-fn build_hash_table_sequential<'a>(
-    build_rows: &'a [vibesql_storage::Row],
+fn build_hash_table_sequential(
+    build_rows: &[vibesql_storage::Row],
     build_col_idx: usize,
-) -> HashMap<vibesql_types::SqlValue, Vec<&'a vibesql_storage::Row>> {
+) -> HashMap<vibesql_types::SqlValue, Vec<&vibesql_storage::Row>> {
     let mut hash_table: HashMap<vibesql_types::SqlValue, Vec<&vibesql_storage::Row>> = HashMap::new();
     for row in build_rows {
         let key = row.values[build_col_idx].clone();
@@ -37,10 +37,10 @@ fn build_hash_table_sequential<'a>(
 ///
 /// Performance: 3-6x speedup on large joins (50k+ rows) with 4+ cores
 /// Note: Falls back to sequential when parallel feature is disabled
-fn build_hash_table_parallel<'a>(
-    build_rows: &'a [vibesql_storage::Row],
+fn build_hash_table_parallel(
+    build_rows: &[vibesql_storage::Row],
     build_col_idx: usize,
-) -> HashMap<vibesql_types::SqlValue, Vec<&'a vibesql_storage::Row>> {
+) -> HashMap<vibesql_types::SqlValue, Vec<&vibesql_storage::Row>> {
     #[cfg(feature = "parallel")]
     {
         let config = ParallelConfig::global();

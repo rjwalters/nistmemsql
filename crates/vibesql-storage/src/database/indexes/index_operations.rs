@@ -251,7 +251,7 @@ impl IndexData {
                 if normalized_start.is_some() || normalized_end.is_some() {
                     // Peek at first key to determine if this is a multi-column index
                     // Multi-column indexes have keys with > 1 element
-                    let is_multi_column = data.keys().next().map_or(false, |k| k.len() > 1);
+                    let is_multi_column = data.keys().next().is_some_and(|k| k.len() > 1);
 
                     if is_multi_column {
                         // Multi-column index range query: iterate and compare first column only
@@ -287,7 +287,7 @@ impl IndexData {
                         // Calculate upper bound efficiently instead of using Unbounded + manual checking
                         // For multi-column indexes, we need an upper bound that stops after all keys
                         // starting with end_val (if inclusive) or before them (if exclusive)
-                        let end_key = normalized_end.as_ref().map(|v| {
+                        let end_key = normalized_end.as_ref().and_then(|v| {
                             if inclusive_end {
                                 // For inclusive: try to increment the value to get next prefix
                                 // If successful, use as Excluded bound; otherwise use Unbounded
@@ -296,7 +296,7 @@ impl IndexData {
                                 // For exclusive: use end_val itself as Excluded bound
                                 Some((vec![v.clone()], false))
                             }
-                        }).flatten();
+                        });
 
                         let end_bound: Bound<&[SqlValue]> = match end_key.as_ref() {
                             Some((key, _)) => Bound::Excluded(key.as_slice()),

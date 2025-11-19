@@ -10,6 +10,7 @@ use vibesql_storage::{Database, statistics::{CostEstimator, AccessMethod}};
 ///
 /// Returns Some((index_name, sorted_columns)) if an index should be used, None otherwise.
 /// The sorted_columns vector indicates which columns are pre-sorted by the index scan.
+#[allow(clippy::type_complexity)]
 pub(crate) fn should_use_index_scan(
     table_name: &str,
     where_clause: Option<&Expression>,
@@ -190,6 +191,7 @@ pub(crate) fn can_use_index_for_order_by(
 /// # Fallback Behavior
 /// If statistics are not available or stale, falls back to rule-based selection
 /// using `should_use_index_scan()`.
+#[allow(clippy::type_complexity)]
 pub(crate) fn cost_based_index_selection(
     table_name: &str,
     where_clause: Option<&Expression>,
@@ -215,6 +217,7 @@ pub(crate) fn cost_based_index_selection(
     }
 
     // Try each index and find the one with lowest cost
+    #[allow(clippy::type_complexity)]
     let mut best_index: Option<(String, AccessMethod, Option<Vec<(String, vibesql_ast::OrderDirection)>>)> = None;
     let mut has_applicable_index_without_stats = false;
 
