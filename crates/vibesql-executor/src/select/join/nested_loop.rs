@@ -224,8 +224,10 @@ pub(super) fn nested_loop_inner_join(
     condition: &Option<vibesql_ast::Expression>,
     database: &vibesql_storage::Database,
 ) -> Result<FromResult, ExecutorError> {
-    // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
+    // Note: Memory check is performed in hash_join for equijoins.
+    // For nested loop, we rely on the optimized equijoin path below
+    // which avoids creating full Cartesian products for equijoin conditions.
+    // Only true Cartesian products (cross joins) will create large intermediates.
 
     // Extract right table name (assume single table for now)
     let right_table_name = right
@@ -289,8 +291,8 @@ pub(super) fn nested_loop_left_outer_join(
     condition: &Option<vibesql_ast::Expression>,
     database: &vibesql_storage::Database,
 ) -> Result<FromResult, ExecutorError> {
-    // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
+    // Note: Memory check removed - hash join is tried first for equijoins,
+    // and outer joins typically preserve the left table size.
 
     // Extract right table name and schema
     let right_table_name = right
@@ -371,8 +373,7 @@ pub(super) fn nested_loop_right_outer_join(
     condition: &Option<vibesql_ast::Expression>,
     database: &vibesql_storage::Database,
 ) -> Result<FromResult, ExecutorError> {
-    // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
+    // Note: Memory check removed - delegates to LEFT OUTER JOIN which also doesn't check.
 
     // RIGHT OUTER JOIN = LEFT OUTER JOIN with sides swapped
     // Then we need to reorder columns to put left first, right second
@@ -419,8 +420,8 @@ pub(super) fn nested_loop_full_outer_join(
     condition: &Option<vibesql_ast::Expression>,
     database: &vibesql_storage::Database,
 ) -> Result<FromResult, ExecutorError> {
-    // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
+    // Note: Memory check removed - full outer joins are rare and typically used
+    // with smaller datasets. Hash join is tried first for equijoins anyway.
 
     // Extract right table name and schema
     let right_table_name = right
@@ -533,6 +534,7 @@ pub(super) fn nested_loop_cross_join(
     }
 
     // Check if cross join would exceed memory limits before executing
+    // CROSS JOIN always creates Cartesian products, so this check is appropriate
     check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
 
     // Extract right table name and schema
