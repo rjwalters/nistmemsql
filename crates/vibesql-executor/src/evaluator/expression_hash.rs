@@ -28,6 +28,50 @@ impl ExpressionHasher {
         hasher.finish()
     }
 
+    /// Compute structural hash for a SELECT statement (subquery)
+    ///
+    /// Two structurally identical subqueries will hash to the same value,
+    /// enabling caching of non-correlated subquery results.
+    pub fn hash_select_stmt(stmt: &vibesql_ast::SelectStmt) -> u64 {
+        let mut hasher = DefaultHasher::new();
+
+        // Hash distinct flag
+        stmt.distinct.hash(&mut hasher);
+
+        // Hash select list
+        stmt.select_list.len().hash(&mut hasher);
+        for item in &stmt.select_list {
+            match item {
+                vibesql_ast::SelectItem::Wildcard { .. } => {
+                    "WILDCARD".hash(&mut hasher);
+                }
+                vibesql_ast::SelectItem::QualifiedWildcard { qualifier, .. } => {
+                    "QUALIFIED_WILDCARD".hash(&mut hasher);
+                    qualifier.hash(&mut hasher);
+                }
+                vibesql_ast::SelectItem::Expression { expr, alias } => {
+                    "EXPRESSION".hash(&mut hasher);
+                    Self::hash_expression(expr, &mut hasher);
+                    alias.hash(&mut hasher);
+                }
+            }
+        }
+
+        // Hash FROM clause (simplified - uses debug representation)
+        // Full structural hashing of FROM clause would be complex
+        format!("{:?}", stmt.from).hash(&mut hasher);
+
+        // Hash WHERE clause
+        if let Some(where_expr) = &stmt.where_clause {
+            Self::hash_expression(where_expr, &mut hasher);
+        }
+
+        // Hash GROUP BY, HAVING, ORDER BY, LIMIT (simplified)
+        format!("{:?}", stmt).hash(&mut hasher);
+
+        hasher.finish()
+    }
+
     /// Check if an expression is deterministic (safe to cache)
     ///
     /// Non-deterministic expressions like RAND() or CURRENT_TIMESTAMP should

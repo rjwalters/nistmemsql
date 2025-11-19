@@ -222,18 +222,41 @@ impl CombinedExpressionEvaluator<'_> {
         // Evaluate the left-hand expression
         let expr_val = self.eval(expr, row)?;
 
-        // Execute the subquery with outer context and propagate depth
-        let select_executor = if !self.schema.table_schemas.is_empty() {
-            crate::select::SelectExecutor::new_with_outer_context_and_depth(
+        // Check if this subquery is non-correlated and can be cached
+        // A subquery is non-correlated if we're not passing outer context to it
+        let is_non_correlated = self.schema.table_schemas.is_empty();
+
+        // For non-correlated subqueries, check cache first
+        let rows = if is_non_correlated {
+            // Compute hash of subquery for cache key
+            let subquery_hash = crate::evaluator::expression_hash::ExpressionHasher::hash_select_stmt(subquery);
+
+            // Check if result is already in cache
+            if let Some(cached_rows) = self.subquery_cache.borrow().get(&subquery_hash) {
+                // Cache hit! Reuse the cached result
+                cached_rows.clone()
+            } else {
+                // Cache miss - execute the subquery
+                let select_executor = crate::select::SelectExecutor::new(database);
+                let result_rows = select_executor.execute(subquery)?;
+
+                // Store in cache for future use
+                self.subquery_cache.borrow_mut().insert(subquery_hash, result_rows.clone());
+
+                result_rows
+            }
+        } else {
+            // Correlated subquery - cannot cache, execute normally
+            // Pass shared cache to child executor for nested subqueries
+            let select_executor = crate::select::SelectExecutor::new_with_shared_cache(
                 database,
                 row,
                 self.schema,
                 self.depth,
-            )
-        } else {
-            crate::select::SelectExecutor::new(database)
+                self.subquery_cache.clone(),
+            );
+            select_executor.execute(subquery)?
         };
-        let rows = select_executor.execute(subquery)?;
 
         // SQL standard (R-35033-20570): The subquery must be a scalar subquery
         // (single column) when the left expression is not a row value expression.
