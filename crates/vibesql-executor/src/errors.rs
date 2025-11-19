@@ -552,6 +552,9 @@ impl From<vibesql_storage::StorageError> for ExecutorError {
             vibesql_storage::StorageError::UniqueConstraintViolation(msg) => {
                 ExecutorError::ConstraintViolation(msg)
             }
+            vibesql_storage::StorageError::InvalidIndexColumn(msg) => {
+                ExecutorError::StorageError(msg)
+            }
             vibesql_storage::StorageError::NotImplemented(msg) => {
                 ExecutorError::StorageError(format!("Not implemented: {}", msg))
             }

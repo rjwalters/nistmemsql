@@ -235,6 +235,72 @@ impl Operations {
     // Index Management - Delegates to IndexManager
     // ============================================================================
 
+    /// Validate prefix lengths for indexed columns
+    ///
+    /// Checks:
+    /// 1. Prefix lengths are only used on string/binary types
+    /// 2. Prefix lengths don't exceed column width (for fixed-width types)
+    fn validate_prefix_lengths(
+        table_schema: &vibesql_catalog::TableSchema,
+        columns: &[IndexColumn],
+    ) -> Result<(), StorageError> {
+        use vibesql_types::DataType;
+
+        for index_col in columns {
+            if let Some(prefix_length) = index_col.prefix_length {
+                // Find the column in the table schema
+                let column_schema = table_schema
+                    .columns
+                    .iter()
+                    .find(|col| col.name == index_col.column_name)
+                    .ok_or_else(|| StorageError::ColumnNotFound {
+                        column_name: index_col.column_name.clone(),
+                        table_name: table_schema.name.clone(),
+                    })?;
+
+                // Check if the column type supports prefix indexing
+                match &column_schema.data_type {
+                    // String types that support prefix indexing
+                    DataType::Character { length } => {
+                        // Check if prefix exceeds column width
+                        if prefix_length as usize > *length {
+                            eprintln!(
+                                "Warning: Key part '{}' prefix length ({}) exceeds column width ({})",
+                                index_col.column_name, prefix_length, length
+                            );
+                        }
+                    }
+                    DataType::Varchar { max_length } => {
+                        // Check if prefix exceeds column width (if specified)
+                        if let Some(max_len) = max_length {
+                            if prefix_length as usize > *max_len {
+                                eprintln!(
+                                    "Warning: Key part '{}' prefix length ({}) exceeds column width ({})",
+                                    index_col.column_name, prefix_length, max_len
+                                );
+                            }
+                        }
+                    }
+                    DataType::CharacterLargeObject | DataType::Name => {
+                        // CLOB/TEXT and NAME types support prefix indexing without width check
+                    }
+                    DataType::BinaryLargeObject => {
+                        // BLOB supports prefix indexing
+                    }
+                    // All other types do not support prefix indexing
+                    _ => {
+                        return Err(StorageError::InvalidIndexColumn(format!(
+                            "Incorrect prefix key; the used key part '{}' isn't a string or binary type (type: {:?})",
+                            index_col.column_name, column_schema.data_type
+                        )));
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Create an index
     pub fn create_index(
         &mut self,
@@ -269,6 +335,9 @@ impl Operations {
         let table_schema = catalog
             .get_table(&table_name)
             .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
+
+        // Validate prefix lengths against column types and widths
+        Self::validate_prefix_lengths(table_schema, &columns)?;
 
         let table_rows: Vec<Row> = table.scan().to_vec();
 
