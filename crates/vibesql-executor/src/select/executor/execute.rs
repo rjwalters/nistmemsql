@@ -28,15 +28,21 @@ impl SelectExecutor<'_> {
             });
         }
 
+        // Apply subquery rewriting optimizations (Phase 2 of IN subquery optimization)
+        // - Rewrites correlated IN → EXISTS with LIMIT 1 for early termination
+        // - Adds DISTINCT to uncorrelated IN subqueries to reduce duplicate processing
+        // This works in conjunction with Phase 1 (HashSet optimization, #2136)
+        let optimized_stmt = crate::optimizer::rewrite_subquery_optimizations(stmt);
+
         // Execute CTEs if present
-        let cte_results = if let Some(with_clause) = &stmt.with_clause {
+        let cte_results = if let Some(with_clause) = &optimized_stmt.with_clause {
             execute_ctes(with_clause, |query, cte_ctx| self.execute_with_ctes(query, cte_ctx))?
         } else {
             HashMap::new()
         };
 
         // Execute the main query with CTE context
-        self.execute_with_ctes(stmt, &cte_results)
+        self.execute_with_ctes(&optimized_stmt, &cte_results)
     }
 
     /// Execute a SELECT statement and return an iterator over results

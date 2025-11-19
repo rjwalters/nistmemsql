@@ -6,6 +6,7 @@
 //! - Cost-based predicate ordering for optimal filter performance
 //! - Centralized index planning and strategy selection
 //! - Unified predicate classification and index strategy selection
+//! - Subquery rewriting for IN predicate optimization
 
 mod expressions;
 pub mod index_planner;
@@ -13,10 +14,12 @@ pub mod index_strategy;
 pub mod predicate;
 mod predicate_plan;
 pub mod selectivity;
+pub mod subquery_rewrite;
 #[cfg(test)]
 mod tests;
 pub mod where_pushdown;
 
 pub use expressions::*;
 pub use predicate_plan::PredicatePlan;
+pub use subquery_rewrite::rewrite_subquery_optimizations;
 pub use where_pushdown::{combine_with_and, PredicateDecomposition};
