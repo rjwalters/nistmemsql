@@ -9,7 +9,7 @@ use super::selection::is_column_reference;
 
 /// Range predicate information extracted from WHERE clause
 #[derive(Debug)]
-pub(super) struct RangePredicate {
+pub(crate) struct RangePredicate {
     pub start: Option<SqlValue>,
     pub end: Option<SqlValue>,
     pub inclusive_start: bool,
@@ -18,7 +18,7 @@ pub(super) struct RangePredicate {
 
 /// Index predicate types that can be pushed down to storage layer
 #[derive(Debug)]
-pub(super) enum IndexPredicate {
+pub(crate) enum IndexPredicate {
     /// Range scan with optional bounds (>, <, >=, <=, BETWEEN)
     Range(RangePredicate),
     /// Multi-value lookup (IN predicate)
@@ -207,7 +207,7 @@ fn extract_range_predicate(expr: &Expression, column_name: &str) -> Option<Range
 /// - IN predicates: IN (value1, value2, ...)
 ///
 /// Returns None if no suitable predicate found for the column.
-pub(super) fn extract_index_predicate(expr: &Expression, column_name: &str) -> Option<IndexPredicate> {
+pub(crate) fn extract_index_predicate(expr: &Expression, column_name: &str) -> Option<IndexPredicate> {
     // First try to extract a range predicate
     if let Some(range) = extract_range_predicate(expr, column_name) {
         return Some(IndexPredicate::Range(range));
