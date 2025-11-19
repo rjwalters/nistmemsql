@@ -140,6 +140,15 @@ impl UpdateExecutor {
         // Check UPDATE privilege on the table
         PrivilegeChecker::check_update(database, &stmt.table_name)?;
 
+        // Fire BEFORE STATEMENT triggers (unless we're already inside a trigger context)
+        if trigger_context.is_none() {
+            crate::TriggerFirer::execute_before_statement_triggers(
+                database,
+                &stmt.table_name,
+                vibesql_ast::TriggerEvent::Update(None),
+            )?;
+        }
+
         // Step 1: Get table schema - use provided schema or fetch from catalog
         let schema = if let Some(s) = schema {
             s
@@ -292,6 +301,15 @@ impl UpdateExecutor {
         // Now update user-defined indexes after releasing table borrow
         for (index, old_row, new_row) in index_updates {
             database.update_indexes_for_update(&stmt.table_name, &old_row, &new_row, index);
+        }
+
+        // Fire AFTER STATEMENT triggers (unless we're already inside a trigger context)
+        if trigger_context.is_none() {
+            crate::TriggerFirer::execute_after_statement_triggers(
+                database,
+                &stmt.table_name,
+                vibesql_ast::TriggerEvent::Update(None),
+            )?;
         }
 
         Ok(update_count)

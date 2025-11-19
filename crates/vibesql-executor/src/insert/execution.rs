@@ -163,6 +163,16 @@ fn execute_insert_internal(
     }
 
     // All rows validated successfully, now insert them
+
+    // Fire BEFORE STATEMENT triggers (unless we're already inside a trigger context)
+    if trigger_context.is_none() {
+        crate::TriggerFirer::execute_before_statement_triggers(
+            db,
+            &stmt.table_name,
+            vibesql_ast::TriggerEvent::Insert,
+        )?;
+    }
+
     let mut rows_inserted = 0;
 
     // Check if we can use batch insert optimization
@@ -282,6 +292,15 @@ fn execute_insert_internal(
 
             rows_inserted += 1;
         }
+    }
+
+    // Fire AFTER STATEMENT triggers (unless we're already inside a trigger context)
+    if trigger_context.is_none() {
+        crate::TriggerFirer::execute_after_statement_triggers(
+            db,
+            &stmt.table_name,
+            vibesql_ast::TriggerEvent::Insert,
+        )?;
     }
 
     Ok(rows_inserted)
