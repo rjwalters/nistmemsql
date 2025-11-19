@@ -142,32 +142,32 @@ fn extract_referenced_tables(expr: &vibesql_ast::Expression, tables: &mut HashSe
             tables.insert(table.to_lowercase());
         }
         vibesql_ast::Expression::ColumnRef { table: None, column } => {
-            // Infer table from column name prefix (e.g., C_CUSTKEY → CUSTOMER, PS_PARTKEY → PARTSUPP)
-            // This handles TPC-H style naming where columns are prefixed with table initials
+            // Infer table from column name prefix by matching against actual table names
+            // This handles naming conventions where columns are prefixed with table name/initials
+            // Example: C_CUSTKEY matches CUSTOMER, PS_PARTKEY matches PARTSUPP, emp_id matches employees
+
             // Extract prefix: everything before the first underscore
             let prefix = column
                 .split('_')
                 .next()
-                .unwrap_or("")
-                .to_uppercase();
+                .unwrap_or("");
 
             if !prefix.is_empty() {
-                // Note: We use a fixed set of known tables to avoid false matches
-                // Common TPC-H table prefixes (order matters: check PS before P, S)
-                let table_name = match prefix.as_str() {
-                    "PS" => Some("partsupp"),
-                    "C" => Some("customer"),
-                    "O" => Some("orders"),
-                    "L" => Some("lineitem"),
-                    "P" => Some("part"),
-                    "S" => Some("supplier"),
-                    "N" => Some("nation"),
-                    "R" => Some("region"),
-                    _ => None,
-                };
+                // Try to find a table that starts with this prefix (case-insensitive)
+                // Note: We match against actual tables in the FROM clause, making this general-purpose
+                let prefix_upper = prefix.to_uppercase();
 
-                if let Some(name) = table_name {
-                    tables.insert(name.to_string());
+                // Sort tables by name length (descending) to match longer names first
+                // This ensures "PARTSUPP" matches before "PART" for prefix "PS"
+                let mut table_list: Vec<_> = tables.iter().collect();
+                table_list.sort_by(|a, b| b.len().cmp(&a.len()));
+
+                for table in table_list {
+                    if table.to_uppercase().starts_with(&prefix_upper) {
+                        // Found a match! This column belongs to this table
+                        // (table is already in the set, no need to insert)
+                        break;
+                    }
                 }
             }
         }
@@ -261,31 +261,32 @@ fn extract_where_equijoins(expr: &vibesql_ast::Expression, tables: &HashSet<Stri
             Expression::BinaryOp { op: BinaryOperator::Equal, left, right } => {
                 // Check if both sides are column references
                 // Handle both explicit table qualifiers and implicit (prefix-based) references
+
+                // Helper closure to infer table from column prefix
+                let infer_table = |column: &str| -> Option<String> {
+                    let prefix = column.split('_').next().unwrap_or("").to_uppercase();
+                    if prefix.is_empty() {
+                        return None;
+                    }
+
+                    // Sort tables by length (descending) to match longer names first
+                    // This ensures "PARTSUPP" matches before "PART" for prefix "PS"
+                    let mut table_list: Vec<_> = tables.iter().collect();
+                    table_list.sort_by(|a, b| b.len().cmp(&a.len()));
+
+                    table_list.into_iter()
+                        .find(|t| t.to_uppercase().starts_with(&prefix))
+                        .cloned()
+                };
+
                 let left_table = match left.as_ref() {
                     Expression::ColumnRef { table: Some(t), .. } => Some(t.to_lowercase()),
-                    Expression::ColumnRef { table: None, column } => {
-                        // Infer table from column name prefix (e.g., C_CUSTKEY → CUSTOMER, PS_PARTKEY → PARTSUPP)
-                        // This handles TPC-H style naming where columns are prefixed with table initials
-                        let prefix = column.split('_').next().unwrap_or("").to_uppercase();
-                        if !prefix.is_empty() {
-                            tables.iter().find(|t| t.to_uppercase().starts_with(&prefix)).cloned()
-                        } else {
-                            None
-                        }
-                    }
+                    Expression::ColumnRef { table: None, column } => infer_table(column),
                     _ => None,
                 };
                 let right_table = match right.as_ref() {
                     Expression::ColumnRef { table: Some(t), .. } => Some(t.to_lowercase()),
-                    Expression::ColumnRef { table: None, column } => {
-                        // Infer table from column name prefix (e.g., C_CUSTKEY → CUSTOMER, PS_PARTKEY → PARTSUPP)
-                        let prefix = column.split('_').next().unwrap_or("").to_uppercase();
-                        if !prefix.is_empty() {
-                            tables.iter().find(|t| t.to_uppercase().starts_with(&prefix)).cloned()
-                        } else {
-                            None
-                        }
-                    }
+                    Expression::ColumnRef { table: None, column } => infer_table(column),
                     _ => None,
                 };
 
