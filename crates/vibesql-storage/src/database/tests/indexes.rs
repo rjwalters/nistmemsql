@@ -298,7 +298,7 @@ fn test_lru_eviction_order() {
     use vibesql_types::DataType;
     use crate::Row;
     use std::thread;
-    use std::time::Duration;
+    use instant::Duration;
 
     let columns = vec![ColumnSchema::new("value".to_string(), DataType::Integer, false)];
     let table_schema = TableSchema::new("test_table".to_string(), columns);

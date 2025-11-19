@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use std::time::Instant;
+use instant::Instant;
 
 #[cfg(not(target_arch = "wasm32"))]
 use parking_lot::RwLock;
@@ -251,7 +251,7 @@ impl Default for ResourceTracker {
 mod tests {
     use super::*;
     use std::thread;
-    use std::time::Duration;
+    use instant::Duration;
 
     #[test]
     fn test_resource_tracker_basic() {

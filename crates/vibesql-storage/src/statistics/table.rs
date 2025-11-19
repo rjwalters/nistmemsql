@@ -1,7 +1,7 @@
 //! Table-level statistics
 
 use std::collections::HashMap;
-use std::time::SystemTime;
+use instant::SystemTime;
 use super::{ColumnStatistics, SamplingConfig, SampleMetadata};
 use super::histogram::BucketStrategy;
 
