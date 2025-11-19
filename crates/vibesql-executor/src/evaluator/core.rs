@@ -504,7 +504,10 @@ impl<'a> CombinedExpressionEvaluator<'a> {
     }
 
     /// Clone the evaluator for evaluating a different expression
-    /// Creates a new evaluator with the same schema and context but fresh CSE cache
+    ///
+    /// Shares the subquery cache (safe because non-correlated subqueries produce
+    /// the same results regardless of the current row) but creates a fresh CSE cache
+    /// (necessary because CSE results depend on row values).
     pub fn clone_for_new_expression(&self) -> Self {
         CombinedExpressionEvaluator {
             schema: self.schema,
@@ -516,7 +519,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             column_cache: RefCell::new(HashMap::new()),
             subquery_cache: self.subquery_cache.clone(),
             depth: self.depth,
-            cse_cache: self.cse_cache.clone(),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
             enable_cse: self.enable_cse,
         }
     }
