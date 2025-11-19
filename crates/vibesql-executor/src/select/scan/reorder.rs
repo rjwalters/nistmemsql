@@ -142,21 +142,25 @@ fn extract_referenced_tables(expr: &vibesql_ast::Expression, tables: &mut HashSe
             tables.insert(table.to_lowercase());
         }
         vibesql_ast::Expression::ColumnRef { table: None, column } => {
-            // Infer table from column name prefix (e.g., C_CUSTKEY → CUSTOMER)
+            // Infer table from column name prefix (e.g., C_CUSTKEY → CUSTOMER, PS_PARTKEY → PARTSUPP)
             // This handles TPC-H style naming where columns are prefixed with table initials
-            if let Some(prefix_char) = column.chars().next() {
-                // Find a table that starts with this prefix (case-insensitive)
-                // Note: We use a fixed set of known tables to avoid false matches
-                let prefix_upper = prefix_char.to_uppercase().collect::<String>();
+            // Extract prefix: everything before the first underscore
+            let prefix = column
+                .split('_')
+                .next()
+                .unwrap_or("")
+                .to_uppercase();
 
-                // Common TPC-H table prefixes
-                let table_name = match prefix_upper.as_str() {
+            if !prefix.is_empty() {
+                // Note: We use a fixed set of known tables to avoid false matches
+                // Common TPC-H table prefixes (order matters: check PS before P, S)
+                let table_name = match prefix.as_str() {
+                    "PS" => Some("partsupp"),
                     "C" => Some("customer"),
                     "O" => Some("orders"),
                     "L" => Some("lineitem"),
                     "P" => Some("part"),
                     "S" => Some("supplier"),
-                    "PS" => Some("partsupp"),
                     "N" => Some("nation"),
                     "R" => Some("region"),
                     _ => None,
@@ -260,10 +264,11 @@ fn extract_where_equijoins(expr: &vibesql_ast::Expression, tables: &HashSet<Stri
                 let left_table = match left.as_ref() {
                     Expression::ColumnRef { table: Some(t), .. } => Some(t.to_lowercase()),
                     Expression::ColumnRef { table: None, column } => {
-                        // Infer table from column name prefix (e.g., C_CUSTKEY → CUSTOMER)
+                        // Infer table from column name prefix (e.g., C_CUSTKEY → CUSTOMER, PS_PARTKEY → PARTSUPP)
                         // This handles TPC-H style naming where columns are prefixed with table initials
-                        if let Some(prefix) = column.chars().take_while(|c| *c != '_').collect::<String>().chars().next() {
-                            tables.iter().find(|t| t.to_uppercase().starts_with(&prefix.to_string().to_uppercase())).cloned()
+                        let prefix = column.split('_').next().unwrap_or("").to_uppercase();
+                        if !prefix.is_empty() {
+                            tables.iter().find(|t| t.to_uppercase().starts_with(&prefix)).cloned()
                         } else {
                             None
                         }
@@ -273,9 +278,10 @@ fn extract_where_equijoins(expr: &vibesql_ast::Expression, tables: &HashSet<Stri
                 let right_table = match right.as_ref() {
                     Expression::ColumnRef { table: Some(t), .. } => Some(t.to_lowercase()),
                     Expression::ColumnRef { table: None, column } => {
-                        // Infer table from column name prefix
-                        if let Some(prefix) = column.chars().take_while(|c| *c != '_').collect::<String>().chars().next() {
-                            tables.iter().find(|t| t.to_uppercase().starts_with(&prefix.to_string().to_uppercase())).cloned()
+                        // Infer table from column name prefix (e.g., C_CUSTKEY → CUSTOMER, PS_PARTKEY → PARTSUPP)
+                        let prefix = column.split('_').next().unwrap_or("").to_uppercase();
+                        if !prefix.is_empty() {
+                            tables.iter().find(|t| t.to_uppercase().starts_with(&prefix)).cloned()
                         } else {
                             None
                         }
