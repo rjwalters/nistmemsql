@@ -101,15 +101,6 @@ impl<'a> ExpressionEvaluator<'a> {
             .unwrap_or(DEFAULT_CSE_CACHE_SIZE)
     }
 
-    /// Get subquery cache size from environment variable
-    /// Defaults to DEFAULT_SUBQUERY_CACHE_SIZE, can be overridden by setting SUBQUERY_CACHE_SIZE
-    fn get_subquery_cache_size() -> usize {
-        std::env::var("SUBQUERY_CACHE_SIZE")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(DEFAULT_SUBQUERY_CACHE_SIZE)
-    }
-
     /// Create a new expression evaluator with outer query context for correlated subqueries
     pub fn with_outer_context(
         schema: &'a vibesql_catalog::TableSchema,
@@ -514,7 +505,10 @@ impl<'a> CombinedExpressionEvaluator<'a> {
     }
 
     /// Clone the evaluator for evaluating a different expression
-    /// Creates a new evaluator with the same schema and context but fresh CSE cache
+    ///
+    /// Shares the subquery cache (safe because non-correlated subqueries produce
+    /// the same results regardless of the current row) but creates a fresh CSE cache
+    /// (necessary because CSE results depend on row values).
     pub fn clone_for_new_expression(&self) -> Self {
         CombinedExpressionEvaluator {
             schema: self.schema,
@@ -524,9 +518,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: self.window_mapping,
             procedural_context: self.procedural_context,
             column_cache: RefCell::new(HashMap::new()),
-            subquery_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
-            ))),
+            subquery_cache: self.subquery_cache.clone(),
             depth: self.depth,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
