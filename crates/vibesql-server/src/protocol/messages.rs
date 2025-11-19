@@ -390,7 +390,7 @@ mod tests {
     fn test_query_decoding() {
         let mut buf = BytesMut::new();
         buf.put_u8(b'Q'); // Query message type
-        buf.put_i32(18); // Length (4 + "SELECT 1" + null)
+        buf.put_i32(13); // Length (4 bytes length field + 9 bytes "SELECT 1\0")
         buf.put_slice(b"SELECT 1\0");
 
         let msg = FrontendMessage::decode(&mut buf).unwrap();
