@@ -517,7 +517,8 @@ impl VibeSqlDB {
             | vibesql_ast::Statement::ShowColumns(_)
             | vibesql_ast::Statement::ShowIndex(_)
             | vibesql_ast::Statement::ShowCreateTable(_)
-            | vibesql_ast::Statement::Describe(_) => Ok(DBOutput::StatementComplete(0)),
+            | vibesql_ast::Statement::Describe(_)
+            | vibesql_ast::Statement::AlterTrigger(_) => Ok(DBOutput::StatementComplete(0)),
         }
     }
 

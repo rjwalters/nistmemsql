@@ -126,6 +126,7 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use std::env;
+    #[allow(unused_imports)]
     use crate::sqllogictest::scheduler::get_test_file_timeout;
 
     #[test]
