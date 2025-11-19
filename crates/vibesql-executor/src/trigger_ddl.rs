@@ -1,8 +1,8 @@
 //! Trigger DDL execution module
 //!
-//! Handles CREATE TRIGGER and DROP TRIGGER statements
+//! Handles CREATE TRIGGER, ALTER TRIGGER, and DROP TRIGGER statements
 
-use vibesql_ast::{CreateTriggerStmt, DropTriggerStmt};
+use vibesql_ast::{AlterTriggerAction, AlterTriggerStmt, CreateTriggerStmt, DropTriggerStmt};
 use vibesql_catalog::TriggerDefinition;
 use vibesql_storage::Database;
 
@@ -37,6 +37,33 @@ impl TriggerExecutor {
         db.catalog.create_trigger(trigger)?;
 
         Ok(format!("Trigger '{}' created successfully", stmt.trigger_name))
+    }
+
+    /// Execute an ALTER TRIGGER statement
+    pub fn alter_trigger(
+        db: &mut Database,
+        stmt: &AlterTriggerStmt,
+    ) -> Result<String, ExecutorError> {
+        // Get the trigger (verify it exists)
+        let mut trigger = db
+            .catalog
+            .get_trigger(&stmt.trigger_name)
+            .ok_or_else(|| ExecutorError::TriggerNotFound(stmt.trigger_name.clone()))?
+            .clone();
+
+        // Apply the action
+        match stmt.action {
+            AlterTriggerAction::Enable => {
+                trigger.enable();
+                db.catalog.update_trigger(trigger)?;
+                Ok(format!("Trigger '{}' enabled successfully", stmt.trigger_name))
+            }
+            AlterTriggerAction::Disable => {
+                trigger.disable();
+                db.catalog.update_trigger(trigger)?;
+                Ok(format!("Trigger '{}' disabled successfully", stmt.trigger_name))
+            }
+        }
     }
 
     /// Execute a DROP TRIGGER statement

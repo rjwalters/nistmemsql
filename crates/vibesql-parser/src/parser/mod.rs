@@ -222,9 +222,12 @@ impl Parser {
                 } else if self.peek_next_keyword(Keyword::Sequence) {
                     let alter_stmt = self.parse_alter_sequence_statement()?;
                     Ok(vibesql_ast::Statement::AlterSequence(alter_stmt))
+                } else if self.peek_next_keyword(Keyword::Trigger) {
+                    let alter_stmt = self.parse_alter_trigger_statement()?;
+                    Ok(vibesql_ast::Statement::AlterTrigger(alter_stmt))
                 } else {
                     Err(ParseError {
-                        message: "Expected TABLE or SEQUENCE after ALTER".to_string(),
+                        message: "Expected TABLE, SEQUENCE, or TRIGGER after ALTER".to_string(),
                     })
                 }
             }

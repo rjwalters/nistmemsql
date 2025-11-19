@@ -19,6 +19,8 @@ pub struct TriggerDefinition {
     pub when_condition: Option<Box<vibesql_ast::Expression>>,
     /// Triggered action (procedural SQL)
     pub triggered_action: TriggerAction,
+    /// Whether trigger is enabled (default: true)
+    pub enabled: bool,
 }
 
 impl TriggerDefinition {
@@ -40,6 +42,22 @@ impl TriggerDefinition {
             granularity,
             when_condition,
             triggered_action,
+            enabled: true, // Default to enabled
         }
+    }
+
+    /// Check if the trigger is enabled
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    /// Enable the trigger
+    pub fn enable(&mut self) {
+        self.enabled = true;
+    }
+
+    /// Disable the trigger
+    pub fn disable(&mut self) {
+        self.enabled = false;
     }
 }

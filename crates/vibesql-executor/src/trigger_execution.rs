@@ -133,9 +133,43 @@ impl TriggerFirer {
     ) -> Vec<TriggerDefinition> {
         db.catalog
             .get_triggers_for_table(table_name, Some(event.clone()))
-            .filter(|trigger| trigger.timing == timing)
+            .filter(|trigger| trigger.timing == timing && trigger.enabled) // Skip disabled triggers
             .cloned()
             .collect()
+    }
+
+    /// Check if an UPDATE OF trigger should fire based on which columns changed
+    ///
+    /// # Arguments
+    /// * `trigger` - Trigger definition
+    /// * `old_row` - OLD row values
+    /// * `new_row` - NEW row values
+    /// * `table_schema` - Table schema for column lookup
+    ///
+    /// # Returns
+    /// true if the trigger should fire, false otherwise
+    fn should_fire_update_of(
+        trigger: &TriggerDefinition,
+        old_row: &Row,
+        new_row: &Row,
+        table_schema: &TableSchema,
+    ) -> bool {
+        match &trigger.event {
+            TriggerEvent::Update(Some(columns)) => {
+                // Check if any of the specified columns changed
+                for col_name in columns {
+                    if let Some(col_idx) = table_schema.columns.iter().position(|c| &c.name == col_name) {
+                        if col_idx < old_row.values.len() && col_idx < new_row.values.len() {
+                            if old_row.values[col_idx] != new_row.values[col_idx] {
+                                return true; // At least one monitored column changed
+                            }
+                        }
+                    }
+                }
+                false // None of the monitored columns changed
+            }
+            _ => true, // Not an UPDATE OF trigger, always fire
+        }
     }
 
     /// Execute a single trigger
@@ -372,7 +406,7 @@ impl TriggerFirer {
         }
     }
 
-    /// Execute all BEFORE triggers for an operation
+    /// Execute all BEFORE ROW-level triggers for an operation
     ///
     /// # Arguments
     /// * `db` - Mutable database reference
@@ -395,10 +429,23 @@ impl TriggerFirer {
 
         let triggers = Self::find_triggers(db, table_name, TriggerTiming::Before, event);
 
+        // Get table schema for UPDATE OF checking
+        let table_schema = db
+            .catalog
+            .get_table(table_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?
+            .clone();
+
         for trigger in triggers {
-            // Only execute ROW-level triggers in this phase
-            // STATEMENT-level triggers are future work
+            // Only execute ROW-level triggers in this method
             if trigger.granularity == TriggerGranularity::Row {
+                // For UPDATE OF triggers, check if monitored columns changed
+                if let (Some(old), Some(new)) = (old_row, new_row) {
+                    if !Self::should_fire_update_of(&trigger, old, new, &table_schema) {
+                        continue; // Skip this trigger
+                    }
+                }
+
                 Self::execute_trigger(db, &trigger, old_row, new_row)?;
             }
         }
@@ -406,7 +453,37 @@ impl TriggerFirer {
         Ok(())
     }
 
-    /// Execute all AFTER triggers for an operation
+    /// Execute all BEFORE STATEMENT-level triggers for an operation
+    ///
+    /// # Arguments
+    /// * `db` - Mutable database reference
+    /// * `table_name` - Name of the table
+    /// * `event` - Trigger event (INSERT, UPDATE, DELETE)
+    ///
+    /// # Returns
+    /// Ok(()) if all triggers executed successfully
+    pub fn execute_before_statement_triggers(
+        db: &mut Database,
+        table_name: &str,
+        event: TriggerEvent,
+    ) -> Result<(), ExecutorError> {
+        // Check recursion depth before executing any triggers
+        let _guard = RecursionGuard::new()?;
+
+        let triggers = Self::find_triggers(db, table_name, TriggerTiming::Before, event);
+
+        for trigger in triggers {
+            // Only execute STATEMENT-level triggers in this method
+            if trigger.granularity == TriggerGranularity::Statement {
+                // Statement-level triggers don't have OLD/NEW row access
+                Self::execute_trigger(db, &trigger, None, None)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Execute all AFTER ROW-level triggers for an operation
     ///
     /// # Arguments
     /// * `db` - Mutable database reference
@@ -429,11 +506,54 @@ impl TriggerFirer {
 
         let triggers = Self::find_triggers(db, table_name, TriggerTiming::After, event);
 
+        // Get table schema for UPDATE OF checking
+        let table_schema = db
+            .catalog
+            .get_table(table_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?
+            .clone();
+
         for trigger in triggers {
-            // Only execute ROW-level triggers in this phase
-            // STATEMENT-level triggers are future work
+            // Only execute ROW-level triggers in this method
             if trigger.granularity == TriggerGranularity::Row {
+                // For UPDATE OF triggers, check if monitored columns changed
+                if let (Some(old), Some(new)) = (old_row, new_row) {
+                    if !Self::should_fire_update_of(&trigger, old, new, &table_schema) {
+                        continue; // Skip this trigger
+                    }
+                }
+
                 Self::execute_trigger(db, &trigger, old_row, new_row)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Execute all AFTER STATEMENT-level triggers for an operation
+    ///
+    /// # Arguments
+    /// * `db` - Mutable database reference
+    /// * `table_name` - Name of the table
+    /// * `event` - Trigger event (INSERT, UPDATE, DELETE)
+    ///
+    /// # Returns
+    /// Ok(()) if all triggers executed successfully
+    pub fn execute_after_statement_triggers(
+        db: &mut Database,
+        table_name: &str,
+        event: TriggerEvent,
+    ) -> Result<(), ExecutorError> {
+        // Check recursion depth before executing any triggers
+        let _guard = RecursionGuard::new()?;
+
+        let triggers = Self::find_triggers(db, table_name, TriggerTiming::After, event);
+
+        for trigger in triggers {
+            // Only execute STATEMENT-level triggers in this method
+            if trigger.granularity == TriggerGranularity::Statement {
+                // Statement-level triggers don't have OLD/NEW row access
+                Self::execute_trigger(db, &trigger, None, None)?;
             }
         }
 

@@ -162,6 +162,20 @@ pub struct DropTriggerStmt {
     pub cascade: bool,
 }
 
+/// ALTER TRIGGER statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct AlterTriggerStmt {
+    pub trigger_name: String,
+    pub action: AlterTriggerAction,
+}
+
+/// ALTER TRIGGER action
+#[derive(Debug, Clone, PartialEq)]
+pub enum AlterTriggerAction {
+    Enable,
+    Disable,
+}
+
 /// CREATE INDEX statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateIndexStmt {

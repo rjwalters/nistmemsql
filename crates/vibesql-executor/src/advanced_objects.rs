@@ -704,6 +704,35 @@ pub fn execute_create_trigger(
     Ok(())
 }
 
+/// Execute ALTER TRIGGER statement
+pub fn execute_alter_trigger(
+    stmt: &AlterTriggerStmt,
+    db: &mut Database,
+) -> Result<(), ExecutorError> {
+    use vibesql_ast::AlterTriggerAction;
+
+    // Get the trigger (verify it exists)
+    let mut trigger = db
+        .catalog
+        .get_trigger(&stmt.trigger_name)
+        .ok_or_else(|| ExecutorError::TriggerNotFound(stmt.trigger_name.clone()))?
+        .clone();
+
+    // Apply the action
+    match stmt.action {
+        AlterTriggerAction::Enable => {
+            trigger.enable();
+        }
+        AlterTriggerAction::Disable => {
+            trigger.disable();
+        }
+    }
+
+    // Update in catalog
+    db.catalog.update_trigger(trigger)?;
+    Ok(())
+}
+
 /// Execute DROP TRIGGER statement
 pub fn execute_drop_trigger(
     stmt: &DropTriggerStmt,

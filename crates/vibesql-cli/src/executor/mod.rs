@@ -155,6 +155,14 @@ impl SqlExecutor {
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
             }
+            vibesql_ast::Statement::AlterTrigger(alter_stmt) => {
+                match vibesql_executor::TriggerExecutor::alter_trigger(&mut self.db, &alter_stmt) {
+                    Ok(_) => {
+                        result.row_count = 0; // DDL doesn't return rows
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
             vibesql_ast::Statement::DropTrigger(drop_stmt) => {
                 match vibesql_executor::TriggerExecutor::drop_trigger(&mut self.db, &drop_stmt) {
                     Ok(_) => {

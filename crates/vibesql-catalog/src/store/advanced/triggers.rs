@@ -22,6 +22,16 @@ impl super::super::Catalog {
         self.triggers.get(name)
     }
 
+    /// Update a TRIGGER (for ALTER TRIGGER operations)
+    pub fn update_trigger(&mut self, trigger: TriggerDefinition) -> Result<(), CatalogError> {
+        let name = trigger.name.clone();
+        if !self.triggers.contains_key(&name) {
+            return Err(CatalogError::TriggerNotFound(name));
+        }
+        self.triggers.insert(name, trigger);
+        Ok(())
+    }
+
     /// Drop a TRIGGER
     pub fn drop_trigger(&mut self, name: &str) -> Result<(), CatalogError> {
         self.triggers
