@@ -192,7 +192,16 @@ impl DeleteExecutor {
             )?;
         }
 
-        // Step 3: Fire BEFORE DELETE triggers
+        // Fire BEFORE STATEMENT triggers (unless we're already inside a trigger context)
+        if trigger_context.is_none() {
+            crate::TriggerFirer::execute_before_statement_triggers(
+                database,
+                &stmt.table_name,
+                vibesql_ast::TriggerEvent::Delete,
+            )?;
+        }
+
+        // Step 3: Fire BEFORE DELETE ROW triggers
         for (_, row) in &rows_and_indices_to_delete {
             crate::TriggerFirer::execute_before_triggers(
                 database,
@@ -231,7 +240,7 @@ impl DeleteExecutor {
         // Rebuild user-defined indexes since row indices may have changed
         database.rebuild_indexes(&stmt.table_name);
 
-        // Step 6: Fire AFTER DELETE triggers for each deleted row
+        // Step 6: Fire AFTER DELETE ROW triggers for each deleted row
         for (_, row) in &rows_and_indices_to_delete {
             crate::TriggerFirer::execute_after_triggers(
                 database,
@@ -239,6 +248,15 @@ impl DeleteExecutor {
                 vibesql_ast::TriggerEvent::Delete,
                 Some(row),
                 None,
+            )?;
+        }
+
+        // Fire AFTER STATEMENT triggers (unless we're already inside a trigger context)
+        if trigger_context.is_none() {
+            crate::TriggerFirer::execute_after_statement_triggers(
+                database,
+                &stmt.table_name,
+                vibesql_ast::TriggerEvent::Delete,
             )?;
         }
 

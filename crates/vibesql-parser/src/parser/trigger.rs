@@ -174,6 +174,44 @@ impl Parser {
         Ok(vibesql_ast::TriggerAction::RawSql(raw_sql))
     }
 
+    /// Parse ALTER TRIGGER statement
+    ///
+    /// Syntax:
+    ///   ALTER TRIGGER trigger_name {ENABLE | DISABLE}
+    pub(super) fn parse_alter_trigger_statement(
+        &mut self,
+    ) -> Result<vibesql_ast::AlterTriggerStmt, ParseError> {
+        // Expect ALTER keyword
+        self.expect_keyword(Keyword::Alter)?;
+
+        // Expect TRIGGER keyword
+        self.expect_keyword(Keyword::Trigger)?;
+
+        // Parse trigger name
+        let trigger_name = self.parse_identifier()?;
+
+        // Parse action: ENABLE or DISABLE
+        let action = if self.try_consume_keyword(Keyword::Enable) {
+            vibesql_ast::AlterTriggerAction::Enable
+        } else if self.try_consume_keyword(Keyword::Disable) {
+            vibesql_ast::AlterTriggerAction::Disable
+        } else {
+            return Err(ParseError {
+                message: "Expected ENABLE or DISABLE after trigger name".to_string(),
+            });
+        };
+
+        // Expect semicolon or EOF
+        if matches!(self.peek(), Token::Semicolon) {
+            self.advance();
+        }
+
+        Ok(vibesql_ast::AlterTriggerStmt {
+            trigger_name,
+            action,
+        })
+    }
+
     /// Parse DROP TRIGGER statement
     ///
     /// Syntax:

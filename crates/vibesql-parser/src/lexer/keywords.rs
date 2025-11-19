@@ -163,6 +163,8 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "EACH" => Token::Keyword(Keyword::Each),
         "ROW" => Token::Keyword(Keyword::Row),
         "STATEMENT" => Token::Keyword(Keyword::Statement),
+        "ENABLE" => Token::Keyword(Keyword::Enable),
+        "DISABLE" => Token::Keyword(Keyword::Disable),
         // SEQUENCE specific keywords
         "INCREMENT" => Token::Keyword(Keyword::Increment),
         "MINVALUE" => Token::Keyword(Keyword::Minvalue),

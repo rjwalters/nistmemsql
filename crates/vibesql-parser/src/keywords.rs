@@ -164,6 +164,8 @@ pub enum Keyword {
     Each,
     Row,
     Statement,
+    Enable,
+    Disable,
     // SEQUENCE specific keywords
     Increment,
     Minvalue,
@@ -449,6 +451,8 @@ impl fmt::Display for Keyword {
             Keyword::Each => "EACH",
             Keyword::Row => "ROW",
             Keyword::Statement => "STATEMENT",
+            Keyword::Enable => "ENABLE",
+            Keyword::Disable => "DISABLE",
             Keyword::Increment => "INCREMENT",
             Keyword::Minvalue => "MINVALUE",
             Keyword::Maxvalue => "MAXVALUE",
