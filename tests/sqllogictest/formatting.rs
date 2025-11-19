@@ -37,12 +37,9 @@ pub fn format_sql_value(value: &SqlValue, expected_type: Option<&DefaultColumnTy
         SqlValue::Numeric(n) => {
             // Format based on expected type from test
             if matches!(expected_type, Some(DefaultColumnType::Integer)) {
-                // Test expects integer format - strip decimals
-                if n.fract() == 0.0 && n.abs() < 1e15 {
-                    format!("{:.0}", n)
-                } else {
-                    n.to_string()
-                }
+                // Test expects integer format - round to nearest integer
+                // MySQL behavior: DECIMAL values round to nearest when converted to INTEGER
+                format!("{:.0}", n)
             } else if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
                 // Test expects floating point format - always use 3 decimal places
                 format!("{:.3}", n)
@@ -105,12 +102,9 @@ pub fn format_sql_value_canonical(
         SqlValue::Numeric(n) => {
             // Format based on expected type from test
             if matches!(expected_type, Some(DefaultColumnType::Integer)) {
-                // Test expects integer format - strip decimals
-                if n.fract() == 0.0 && n.abs() < 1e15 {
-                    format!("{:.0}", n)
-                } else {
-                    n.to_string()
-                }
+                // Test expects integer format - round to nearest integer
+                // MySQL behavior: DECIMAL values round to nearest when converted to INTEGER
+                format!("{:.0}", n)
             } else if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
                 // Test expects floating point format - always use 3 decimal places
                 format!("{:.3}", n)
