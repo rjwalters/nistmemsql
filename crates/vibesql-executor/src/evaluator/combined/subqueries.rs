@@ -6,7 +6,31 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 /// Compute a hash for a subquery to use as a cache key
-/// Uses Debug format to create a stable representation
+///
+/// # Implementation Note
+///
+/// Currently uses Debug format for hashing, which has trade-offs:
+///
+/// **Pros:**
+/// - Simple and works with existing AST types
+/// - Sufficient for typical queries in practice
+/// - Hash collisions are rare
+///
+/// **Cons:**
+/// - Fragile: Debug format could change with Rust versions
+/// - Less efficient: Allocates string for each hash
+/// - Not cryptographically secure (uses DefaultHasher)
+///
+/// **Future Improvement:**
+/// Ideally, SelectStmt and child types should derive Hash for:
+/// - Better performance (direct AST traversal)
+/// - Stability (Hash trait is stable)
+/// - Type safety (compiler-enforced consistency)
+///
+/// This requires adding Hash to ~15-20 AST types, which should be
+/// done in a dedicated refactoring PR to minimize risk.
+///
+/// See: https://github.com/rjwalters/vibesql/issues/2137#hash-improvement
 fn compute_subquery_hash(subquery: &vibesql_ast::SelectStmt) -> u64 {
     let mut hasher = DefaultHasher::new();
     // Use the debug format as a stable representation
@@ -251,7 +275,8 @@ impl CombinedExpressionEvaluator<'_> {
                 cached_rows
             } else {
                 // Cache miss - execute and cache
-                let select_executor = crate::select::SelectExecutor::new(database);
+                // IMPORTANT: Propagate depth to prevent bypassing MAX_EXPRESSION_DEPTH
+                let select_executor = crate::select::SelectExecutor::new_with_depth(database, self.depth);
                 let rows = select_executor.execute(subquery)?;
 
                 // Cache the result
