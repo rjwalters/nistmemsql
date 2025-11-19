@@ -72,6 +72,23 @@ impl<'a> SelectExecutor<'a> {
         }
     }
 
+    /// Create a new SELECT executor with explicit depth tracking
+    /// Used for non-correlated subqueries to propagate depth limit enforcement
+    pub fn new_with_depth(database: &'a vibesql_storage::Database, parent_depth: usize) -> Self {
+        SelectExecutor {
+            database,
+            _outer_row: None,
+            _outer_schema: None,
+            procedural_context: None,
+            subquery_depth: parent_depth + 1,
+            memory_used_bytes: Cell::new(0),
+            memory_warning_logged: Cell::new(false),
+            start_time: Instant::now(),
+            timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
+            aggregate_cache: RefCell::new(HashMap::new()),
+        }
+    }
+
     /// Create a new SELECT executor with outer context and explicit depth
     /// Used when creating subquery executors to track nesting depth
     ///

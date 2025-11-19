@@ -6,6 +6,7 @@ pub mod advanced_objects;
 mod alter;
 pub mod cache;
 mod constraint_validator;
+pub mod correlation;
 mod create_table;
 mod delete;
 mod domain_ddl;

@@ -8,6 +8,11 @@ use crate::{errors::ExecutorError, schema::CombinedSchema, select::WindowFunctio
 /// Can be overridden via CSE_CACHE_SIZE environment variable
 const DEFAULT_CSE_CACHE_SIZE: usize = 1000;
 
+/// Default maximum size for subquery result cache (entries)
+/// Smaller than CSE cache since subquery results can be large
+/// Can be overridden via SUBQUERY_CACHE_SIZE environment variable
+const DEFAULT_SUBQUERY_CACHE_SIZE: usize = 100;
+
 /// Components returned by get_parallel_components for parallel execution
 type ParallelComponents<'a> = (
     &'a CombinedSchema,
@@ -47,6 +52,10 @@ pub struct CombinedExpressionEvaluator<'a> {
     pub(super) procedural_context: Option<&'a crate::procedural::ExecutionContext>,
     /// Cache for column lookups to avoid repeated schema traversals
     column_cache: RefCell<HashMap<(Option<String>, String), usize>>,
+    /// Cache for non-correlated subquery results with LRU eviction (key = subquery hash, value = result rows)
+    /// Shared via Rc across child evaluators within a single statement execution.
+    /// Cache lifetime is tied to the evaluator instance - each new evaluator gets a fresh cache.
+    pub(super) subquery_cache: Rc<RefCell<LruCache<u64, Vec<vibesql_storage::Row>>>>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
     /// CSE cache for common sub-expression elimination with LRU eviction (shared via Rc across depth levels)
@@ -89,6 +98,15 @@ impl<'a> ExpressionEvaluator<'a> {
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(DEFAULT_CSE_CACHE_SIZE)
+    }
+
+    /// Get subquery cache size from environment variable
+    /// Defaults to DEFAULT_SUBQUERY_CACHE_SIZE, can be overridden by setting SUBQUERY_CACHE_SIZE
+    fn get_subquery_cache_size() -> usize {
+        std::env::var("SUBQUERY_CACHE_SIZE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(DEFAULT_SUBQUERY_CACHE_SIZE)
     }
 
     /// Create a new expression evaluator with outer query context for correlated subqueries
@@ -308,6 +326,15 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             .unwrap_or(DEFAULT_CSE_CACHE_SIZE)
     }
 
+    /// Get subquery cache size from environment variable
+    /// Defaults to DEFAULT_SUBQUERY_CACHE_SIZE, can be overridden by setting SUBQUERY_CACHE_SIZE
+    fn get_subquery_cache_size() -> usize {
+        std::env::var("SUBQUERY_CACHE_SIZE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(DEFAULT_SUBQUERY_CACHE_SIZE)
+    }
+
     /// Create a new combined expression evaluator
     /// Note: Currently unused as all callers use with_database(), but kept for API completeness
     #[allow(dead_code)]
@@ -320,6 +347,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+            ))),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -341,6 +371,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+            ))),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -365,6 +398,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+            ))),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -387,6 +423,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: Some(window_mapping),
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+            ))),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -409,6 +448,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             procedural_context: Some(procedural_context),
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+            ))),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -461,6 +503,8 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: self.procedural_context,
             // Share the column cache between parent and child evaluators
             column_cache: RefCell::new(self.column_cache.borrow().clone()),
+            // Share the subquery cache - subqueries can be reused across depths
+            subquery_cache: self.subquery_cache.clone(),
             depth: self.depth + 1,
             cse_cache: self.cse_cache.clone(),
             enable_cse: self.enable_cse,
@@ -479,6 +523,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: self.window_mapping,
             procedural_context: self.procedural_context,
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+            ))),
             depth: self.depth,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -518,6 +565,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping,
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+            ))),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
