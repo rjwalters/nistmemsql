@@ -156,7 +156,7 @@ EOF
     local start_time=$(date +%s)
     local output_log="/tmp/sqllogictest_test_output_$$.log"
 
-    if SQLLOGICTEST_FILES="$full_path" cargo test --release run_sqllogictest_file 2>&1 | tee "$output_log" | grep -q "test result: ok"; then
+    if SQLLOGICTEST_FILES="$test_file" cargo test --release --package vibesql --test sqllogictest_suite 2>&1 | tee "$output_log"; then
         local end_time=$(date +%s)
         local elapsed=$((end_time - start_time))
         print_success "Passed (${elapsed}s)"
