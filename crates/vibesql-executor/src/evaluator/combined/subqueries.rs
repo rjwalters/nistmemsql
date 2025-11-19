@@ -242,17 +242,20 @@ impl CombinedExpressionEvaluator<'_> {
             // Non-correlated subquery - try cache first
             let cache_key = compute_subquery_hash(subquery);
 
-            // Check cache
-            if let Some(cached_rows) = self.subquery_cache.borrow().get(&cache_key) {
+            // Check cache (explicitly scope the borrow to avoid holding it during execution)
+            // Use peek() for readonly access (get() requires &mut for LRU tracking)
+            let cached_result = self.subquery_cache.borrow().peek(&cache_key).cloned();
+
+            if let Some(cached_rows) = cached_result {
                 // Cache hit - use cached result
-                cached_rows.clone()
+                cached_rows
             } else {
                 // Cache miss - execute and cache
                 let select_executor = crate::select::SelectExecutor::new(database);
                 let rows = select_executor.execute(subquery)?;
 
                 // Cache the result
-                self.subquery_cache.borrow_mut().insert(cache_key, rows.clone());
+                self.subquery_cache.borrow_mut().put(cache_key, rows.clone());
                 rows
             }
         } else {
