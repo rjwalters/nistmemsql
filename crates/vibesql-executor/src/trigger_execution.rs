@@ -1,11 +1,54 @@
 //! Trigger execution logic for firing triggers on DML operations
 
+use std::cell::Cell;
+
 use vibesql_ast::{PseudoTable, TriggerEvent, TriggerGranularity, TriggerTiming};
 use vibesql_catalog::{TableSchema, TriggerDefinition};
 use vibesql_storage::{Database, Row};
 use vibesql_types::SqlValue;
 
 use crate::errors::ExecutorError;
+
+/// Maximum trigger recursion depth to prevent infinite loops
+const MAX_TRIGGER_RECURSION_DEPTH: usize = 16;
+
+thread_local! {
+    /// Current trigger recursion depth for this thread
+    static TRIGGER_RECURSION_DEPTH: Cell<usize> = Cell::new(0);
+}
+
+/// RAII guard for managing trigger recursion depth
+/// Increments depth on creation, decrements on drop
+struct RecursionGuard;
+
+impl RecursionGuard {
+    /// Create a new recursion guard, incrementing the depth
+    ///
+    /// # Returns
+    /// Ok(RecursionGuard) if depth is within limits, Err if limit exceeded
+    fn new() -> Result<Self, ExecutorError> {
+        TRIGGER_RECURSION_DEPTH.with(|depth| {
+            let current = depth.get();
+            if current >= MAX_TRIGGER_RECURSION_DEPTH {
+                Err(ExecutorError::UnsupportedExpression(format!(
+                    "Trigger recursion depth limit exceeded (max: {}). Possible infinite trigger loop.",
+                    MAX_TRIGGER_RECURSION_DEPTH
+                )))
+            } else {
+                depth.set(current + 1);
+                Ok(RecursionGuard)
+            }
+        })
+    }
+}
+
+impl Drop for RecursionGuard {
+    fn drop(&mut self) {
+        TRIGGER_RECURSION_DEPTH.with(|depth| {
+            depth.set(depth.get().saturating_sub(1));
+        });
+    }
+}
 
 /// Execution context for triggers with OLD/NEW row access
 /// Provides pseudo-variable resolution for trigger bodies
@@ -328,6 +371,9 @@ impl TriggerFirer {
         old_row: Option<&Row>,
         new_row: Option<&Row>,
     ) -> Result<(), ExecutorError> {
+        // Check recursion depth before executing any triggers
+        let _guard = RecursionGuard::new()?;
+
         let triggers = Self::find_triggers(db, table_name, TriggerTiming::Before, event);
 
         for trigger in triggers {
@@ -359,6 +405,9 @@ impl TriggerFirer {
         old_row: Option<&Row>,
         new_row: Option<&Row>,
     ) -> Result<(), ExecutorError> {
+        // Check recursion depth before executing any triggers
+        let _guard = RecursionGuard::new()?;
+
         let triggers = Self::find_triggers(db, table_name, TriggerTiming::After, event);
 
         for trigger in triggers {
