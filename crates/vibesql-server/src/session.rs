@@ -41,6 +41,36 @@ pub enum ExecutionResult {
     },
 }
 
+impl ExecutionResult {
+    /// Get the statement type as a string for metrics
+    pub fn statement_type(&self) -> &str {
+        match self {
+            ExecutionResult::Select { .. } => "SELECT",
+            ExecutionResult::Insert { .. } => "INSERT",
+            ExecutionResult::Update { .. } => "UPDATE",
+            ExecutionResult::Delete { .. } => "DELETE",
+            ExecutionResult::CreateTable => "CREATE_TABLE",
+            ExecutionResult::CreateIndex => "CREATE_INDEX",
+            ExecutionResult::CreateView => "CREATE_VIEW",
+            ExecutionResult::DropTable => "DROP_TABLE",
+            ExecutionResult::DropIndex => "DROP_INDEX",
+            ExecutionResult::DropView => "DROP_VIEW",
+            ExecutionResult::Other { .. } => "OTHER",
+        }
+    }
+
+    /// Get the number of rows affected
+    pub fn rows_affected(&self) -> u64 {
+        match self {
+            ExecutionResult::Select { rows, .. } => rows.len() as u64,
+            ExecutionResult::Insert { rows_affected } => *rows_affected as u64,
+            ExecutionResult::Update { rows_affected } => *rows_affected as u64,
+            ExecutionResult::Delete { rows_affected } => *rows_affected as u64,
+            _ => 0,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Column {
     pub name: String,

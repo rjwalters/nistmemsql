@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::observability::ObservabilityProvider;
 use crate::protocol::{BackendMessage, FieldDescription, FrontendMessage, TransactionStatus};
 use crate::session::{ExecutionResult, Session};
 use anyhow::Result;
@@ -6,6 +7,7 @@ use bytes::BytesMut;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tracing::{debug, error, info, warn};
@@ -15,21 +17,30 @@ pub struct ConnectionHandler {
     stream: TcpStream,
     peer_addr: SocketAddr,
     config: Arc<Config>,
+    observability: Arc<ObservabilityProvider>,
     read_buf: BytesMut,
     write_buf: BytesMut,
     session: Option<Session>,
+    connection_start: Instant,
 }
 
 impl ConnectionHandler {
     /// Create a new connection handler
-    pub fn new(stream: TcpStream, peer_addr: SocketAddr, config: Arc<Config>) -> Self {
+    pub fn new(
+        stream: TcpStream,
+        peer_addr: SocketAddr,
+        config: Arc<Config>,
+        observability: Arc<ObservabilityProvider>,
+    ) -> Self {
         Self {
             stream,
             peer_addr,
             config,
+            observability,
             read_buf: BytesMut::with_capacity(8192),
             write_buf: BytesMut::with_capacity(8192),
             session: None,
+            connection_start: Instant::now(),
         }
     }
 
@@ -188,9 +199,21 @@ impl ConnectionHandler {
             return Ok(());
         }
 
+        // Track query execution time
+        let query_start = Instant::now();
+
         // Execute query
         match session.execute(query) {
             Ok(result) => {
+                let query_duration = query_start.elapsed();
+                let stmt_type = result.statement_type();
+                let rows_affected = result.rows_affected();
+
+                // Record metrics
+                if let Some(metrics) = self.observability.metrics() {
+                    metrics.record_query(query_duration, stmt_type, true, rows_affected);
+                }
+
                 self.send_query_result(result).await?;
                 self.send_ready_for_query(TransactionStatus::Idle).await?;
                 Ok(())
@@ -198,6 +221,12 @@ impl ConnectionHandler {
 
             Err(e) => {
                 error!("Query error: {}", e);
+
+                // Record error metric
+                if let Some(metrics) = self.observability.metrics() {
+                    metrics.record_query_error("execution_error", None);
+                }
+
                 self.send_error_response(&format!("{}", e)).await?;
                 self.send_ready_for_query(TransactionStatus::Idle).await?;
                 Ok(())
@@ -351,5 +380,14 @@ impl ConnectionHandler {
         self.stream.flush().await?;
         self.write_buf.clear();
         Ok(())
+    }
+}
+
+impl Drop for ConnectionHandler {
+    fn drop(&mut self) {
+        // Record connection duration when connection closes
+        if let Some(metrics) = self.observability.metrics() {
+            metrics.record_connection_duration(self.connection_start.elapsed());
+        }
     }
 }

@@ -3,12 +3,16 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+use crate::observability::ObservabilityConfig;
+
 /// Server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub server: ServerConfig,
     pub auth: AuthConfig,
     pub logging: LoggingConfig,
+    #[serde(default)]
+    pub observability: ObservabilityConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,6 +66,7 @@ impl Default for Config {
                 level: "info".to_string(),
                 file: None,
             },
+            observability: ObservabilityConfig::default(),
         }
     }
 }
