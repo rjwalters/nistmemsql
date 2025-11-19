@@ -199,6 +199,15 @@ impl CombinedExpressionEvaluator<'_> {
 
     /// Evaluate IN operator with subquery
     /// SQL:1999 Section 8.4: IN predicate with subquery
+    ///
+    /// # Implementation Note
+    ///
+    /// Currently uses linear search through subquery results. HashSet optimization
+    /// is not feasible because SQL equality semantics (with type coercion) differ
+    /// from Rust's PartialEq trait, making HashSet.contains() unsuitable.
+    ///
+    /// Future optimization: Use lazy execution via execute_iter() to enable
+    /// early termination of subquery execution after finding first match.
     pub(super) fn eval_in_subquery(
         &self,
         expr: &vibesql_ast::Expression,
@@ -283,9 +292,12 @@ impl CombinedExpressionEvaluator<'_> {
             return Ok(vibesql_types::SqlValue::Null);
         }
 
+        // Linear search through all rows
+        // (We cannot use HashSet.contains() because SQL equality performs type coercion
+        // which differs from Rust's PartialEq - e.g., Integer(5) == Float(5.0) in SQL
+        // but Integer(5) != Float(5.0) in Rust PartialEq)
         let mut found_null = false;
 
-        // Check each row from subquery
         for subquery_row in &rows {
             let subquery_val =
                 subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;

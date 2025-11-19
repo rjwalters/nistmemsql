@@ -39,6 +39,30 @@ impl SelectExecutor<'_> {
         self.execute_with_ctes(stmt, &cte_results)
     }
 
+    /// Execute a SELECT statement and return an iterator over results
+    ///
+    /// This enables early termination when the full result set is not needed,
+    /// such as for IN subqueries where we stop after finding the first match.
+    ///
+    /// # Phase 1 Implementation (Early Termination for IN subqueries)
+    ///
+    /// Current implementation materializes results then returns an iterator.
+    /// This still enables early termination in the consumer (e.g., eval_in_subquery)
+    /// by stopping iteration when a match is found.
+    ///
+    /// Future optimization: Leverage the existing RowIterator infrastructure
+    /// (crate::select::iterator) for truly lazy evaluation that stops execution
+    /// early, not just iteration.
+    pub fn execute_iter(
+        &self,
+        stmt: &vibesql_ast::SelectStmt,
+    ) -> Result<impl Iterator<Item = vibesql_storage::Row>, ExecutorError> {
+        // For Phase 1, materialize then return iterator
+        // This still enables early termination in the consumer
+        let rows = self.execute(stmt)?;
+        Ok(rows.into_iter())
+    }
+
     /// Execute a SELECT statement and return both columns and rows
     pub fn execute_with_columns(
         &self,
