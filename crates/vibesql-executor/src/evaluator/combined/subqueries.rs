@@ -187,12 +187,13 @@ impl CombinedExpressionEvaluator<'_> {
         let rows = select_executor.execute(subquery)?;
 
         // Delegate to shared logic
+        let sql_mode = self.database.map(|db| db.sql_mode()).unwrap_or(vibesql_types::SqlMode::default());
         super::super::subqueries_shared::eval_quantified_core(
             &left_val,
             &rows,
             op,
             quantifier,
-            |left, op, right| ExpressionEvaluator::eval_binary_op_static(left, op, right, vibesql_types::SqlMode::default()),
+            |left, op, right| ExpressionEvaluator::eval_binary_op_static(left, op, right, sql_mode.clone()),
         )
     }
 
@@ -216,6 +217,7 @@ impl CombinedExpressionEvaluator<'_> {
         let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
             "IN with subquery requires database reference".to_string(),
         ))?;
+        let sql_mode = database.sql_mode();
 
         // Evaluate the left-hand expression
         let expr_val = self.eval(expr, row)?;
@@ -299,7 +301,7 @@ impl CombinedExpressionEvaluator<'_> {
                 &expr_val,
                 &vibesql_ast::BinaryOperator::Equal,
                 subquery_val,
-                vibesql_types::SqlMode::default(),
+                sql_mode.clone(),
             )?;
 
             // If we found a match, return TRUE (or FALSE if negated)

@@ -28,6 +28,7 @@ impl CombinedExpressionEvaluator<'_> {
         symmetric: bool,
         row: &vibesql_storage::Row,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
+        let sql_mode = self.database.map(|db| db.sql_mode()).unwrap_or(vibesql_types::SqlMode::default());
         let expr_val = self.eval(expr, row)?;
         let mut low_val = self.eval(low, row)?;
         let mut high_val = self.eval(high, row)?;
@@ -37,7 +38,7 @@ impl CombinedExpressionEvaluator<'_> {
             &low_val,
             &vibesql_ast::BinaryOperator::GreaterThan,
             &high_val,
-            vibesql_types::SqlMode::default(),
+            sql_mode.clone(),
         )?;
 
         if let vibesql_types::SqlValue::Boolean(true) = gt_result {
@@ -65,7 +66,7 @@ impl CombinedExpressionEvaluator<'_> {
             &expr_val,
             &vibesql_ast::BinaryOperator::GreaterThanOrEqual,
             &low_val,
-            vibesql_types::SqlMode::default(),
+            sql_mode.clone(),
         )?;
 
         // Check if expr <= high
@@ -73,7 +74,7 @@ impl CombinedExpressionEvaluator<'_> {
             &expr_val,
             &vibesql_ast::BinaryOperator::LessThanOrEqual,
             &high_val,
-            vibesql_types::SqlMode::default(),
+            sql_mode.clone(),
         )?;
 
         // Combine with AND/OR depending on negated
@@ -83,18 +84,18 @@ impl CombinedExpressionEvaluator<'_> {
                 &expr_val,
                 &vibesql_ast::BinaryOperator::LessThan,
                 &low_val,
-                vibesql_types::SqlMode::default(),
+                sql_mode.clone(),
             )?;
             let gt_high = ExpressionEvaluator::eval_binary_op_static(
                 &expr_val,
                 &vibesql_ast::BinaryOperator::GreaterThan,
                 &high_val,
-                vibesql_types::SqlMode::default(),
+                sql_mode.clone(),
             )?;
-            ExpressionEvaluator::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high, vibesql_types::SqlMode::default())
+            ExpressionEvaluator::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high, sql_mode)
         } else {
             // BETWEEN: expr >= low AND expr <= high
-            ExpressionEvaluator::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high, vibesql_types::SqlMode::default())
+            ExpressionEvaluator::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high, sql_mode)
         }
     }
 
@@ -254,6 +255,7 @@ impl CombinedExpressionEvaluator<'_> {
             return Ok(vibesql_types::SqlValue::Boolean(negated));
         }
 
+        let sql_mode = self.database.map(|db| db.sql_mode()).unwrap_or(vibesql_types::SqlMode::default());
         let expr_val = self.eval(expr, row)?;
 
         // If left expression is NULL, result is NULL (per SQL three-valued logic)
@@ -278,7 +280,7 @@ impl CombinedExpressionEvaluator<'_> {
                 &expr_val,
                 &vibesql_ast::BinaryOperator::Equal,
                 &value,
-                vibesql_types::SqlMode::default(),
+                sql_mode.clone(),
             )?;
 
             // If we found a match, return TRUE (or FALSE if negated)

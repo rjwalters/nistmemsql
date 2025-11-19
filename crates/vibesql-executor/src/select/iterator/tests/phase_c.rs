@@ -162,6 +162,7 @@ fn test_phase_c_proof_of_concept_join_pipeline() {
         customers_rows,
         vibesql_ast::JoinType::Inner,
         Some(join_condition),
+        None, // No database for test
     );
 
     // Stage 3: WHERE orders.amount > 100

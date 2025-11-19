@@ -56,7 +56,7 @@ pub(super) fn evaluate(
     } else {
         // No rows - evaluate function with empty context
         let temp_schema = vibesql_catalog::TableSchema::new("temp".to_string(), vec![]);
-        let temp_evaluator = ExpressionEvaluator::new(&temp_schema);
+        let temp_evaluator = ExpressionEvaluator::with_database(&temp_schema, executor.database);
         temp_evaluator.eval(&new_func_expr, &vibesql_storage::Row::new(vec![]))
     }
 }

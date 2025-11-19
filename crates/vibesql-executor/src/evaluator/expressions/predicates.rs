@@ -26,13 +26,14 @@ impl ExpressionEvaluator<'_> {
         symmetric: bool,
         row: &vibesql_storage::Row,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
+        let sql_mode = self.database.map(|db| db.sql_mode()).unwrap_or(vibesql_types::SqlMode::default());
         let expr_val = self.eval(expr, row)?;
         let mut low_val = self.eval(low, row)?;
         let mut high_val = self.eval(high, row)?;
 
         // Check if bounds are reversed (low > high)
         let gt_result =
-            Self::eval_binary_op_static(&low_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val, vibesql_types::SqlMode::default())?;
+            Self::eval_binary_op_static(&low_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val, sql_mode.clone())?;
 
         if let vibesql_types::SqlValue::Boolean(true) = gt_result {
             if symmetric {
@@ -55,19 +56,19 @@ impl ExpressionEvaluator<'_> {
         }
 
         let ge_low =
-            Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::GreaterThanOrEqual, &low_val, vibesql_types::SqlMode::default())?;
+            Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::GreaterThanOrEqual, &low_val, sql_mode.clone())?;
 
         let le_high =
-            Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::LessThanOrEqual, &high_val, vibesql_types::SqlMode::default())?;
+            Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::LessThanOrEqual, &high_val, sql_mode.clone())?;
 
         if negated {
             let lt_low =
-                Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::LessThan, &low_val, vibesql_types::SqlMode::default())?;
+                Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::LessThan, &low_val, sql_mode.clone())?;
             let gt_high =
-                Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val, vibesql_types::SqlMode::default())?;
-            Self::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high, vibesql_types::SqlMode::default())
+                Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val, sql_mode.clone())?;
+            Self::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high, sql_mode)
         } else {
-            Self::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high, vibesql_types::SqlMode::default())
+            Self::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high, sql_mode)
         }
     }
 

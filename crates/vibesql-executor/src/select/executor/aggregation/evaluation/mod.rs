@@ -158,7 +158,7 @@ impl SelectExecutor<'_> {
             total_columns: result_table_schema.columns.len(),
         };
 
-        let result_evaluator = CombinedExpressionEvaluator::new(&result_schema);
+        let result_evaluator = CombinedExpressionEvaluator::with_database(&result_schema, self.database);
 
         // Evaluate ORDER BY expressions and attach sort keys to rows
         let mut rows_with_keys: Vec<(vibesql_storage::Row, Vec<(vibesql_types::SqlValue, vibesql_ast::OrderDirection)>)> =

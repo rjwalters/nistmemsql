@@ -62,6 +62,8 @@ pub struct LazyNestedLoopJoin<'schema, I: RowIterator> {
     condition: Option<vibesql_ast::Expression>,
     /// Combined schema for output rows
     combined_schema: CombinedSchema,
+    /// Database reference (needed for SQL mode in expression evaluation)
+    database: Option<&'schema vibesql_storage::Database>,
     /// Evaluator for join conditions (reused across rows to avoid per-row allocation)
     evaluator: RefCell<CombinedExpressionEvaluator<'schema>>,
 
@@ -89,12 +91,14 @@ impl<'schema, I: RowIterator> LazyNestedLoopJoin<'schema, I> {
     /// * `right_rows` - Materialized right side rows
     /// * `join_type` - Type of join (INNER, LEFT, RIGHT, FULL, CROSS)
     /// * `condition` - Optional join condition expression
+    /// * `database` - Optional database reference (needed for SQL mode in expression evaluation)
     pub fn new(
         left: I,
         right_schema: CombinedSchema,
         right_rows: Vec<vibesql_storage::Row>,
         join_type: vibesql_ast::JoinType,
         condition: Option<vibesql_ast::Expression>,
+        database: Option<&'schema vibesql_storage::Database>,
     ) -> Self {
         // Build combined schema (left columns + right columns)
         let left_schema = left.schema().clone();
@@ -125,8 +129,20 @@ impl<'schema, I: RowIterator> LazyNestedLoopJoin<'schema, I> {
             Box::leak(Box::new(combined_schema.clone()));
 
         // Create evaluator once for reuse across all row evaluations
-        // This avoids per-row HashMap allocations that caused memory leaks
-        let evaluator = CombinedExpressionEvaluator::new(evaluator_schema_ref);
+        // Use with_database if available to ensure correct SQL mode
+        let evaluator = if let Some(db) = database {
+            // SAFETY: We're transmuting the database reference to 'static lifetime to match
+            // the leaked schema. This is safe because:
+            // 1. The evaluator is only used within Self's lifetime ('schema)
+            // 2. The database reference ('schema) outlives the iterator
+            // 3. We never expose this 'static lifetime outside the struct
+            let db_static: &'static vibesql_storage::Database = unsafe {
+                std::mem::transmute::<&'schema vibesql_storage::Database, &'static vibesql_storage::Database>(db)
+            };
+            CombinedExpressionEvaluator::with_database(evaluator_schema_ref, db_static)
+        } else {
+            CombinedExpressionEvaluator::new(evaluator_schema_ref)
+        };
 
         Self {
             left,
@@ -135,6 +151,7 @@ impl<'schema, I: RowIterator> LazyNestedLoopJoin<'schema, I> {
             join_type,
             condition,
             combined_schema,
+            database,
             evaluator: RefCell::new(evaluator),
             current_left: None,
             right_index: 0,

@@ -23,6 +23,7 @@ fn test_lazy_nested_loop_join_cross() {
         right_rows,
         vibesql_ast::JoinType::Cross,
         None, // No condition for CROSS JOIN
+        None, // No database for test
     );
 
     // CROSS JOIN: 2 left x 2 right = 4 rows
@@ -87,6 +88,7 @@ fn test_lazy_nested_loop_join_inner_with_condition() {
         right_rows,
         vibesql_ast::JoinType::Inner,
         Some(condition),
+        None, // No database for test
     );
 
     // INNER JOIN with condition: only (1,1) and (2,2) match
@@ -147,6 +149,7 @@ fn test_lazy_nested_loop_join_left_outer() {
         right_rows,
         vibesql_ast::JoinType::LeftOuter,
         Some(condition),
+        None, // No database for test
     );
 
     let results: Vec<_> = join.by_ref().collect::<Result<Vec<_>, _>>().unwrap();
@@ -192,6 +195,7 @@ fn test_lazy_nested_loop_join_early_termination() {
         right_rows,
         vibesql_ast::JoinType::Cross,
         None,
+        None, // No database for test
     );
 
     // Only take first 5 rows - should not materialize all 1000 left rows

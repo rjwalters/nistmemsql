@@ -21,7 +21,7 @@ pub(super) fn evaluate_binary(
 
     // Reuse the binary op evaluation logic from ExpressionEvaluator
     let temp_schema = vibesql_catalog::TableSchema::new("temp".to_string(), vec![]);
-    let temp_evaluator = ExpressionEvaluator::new(&temp_schema);
+    let temp_evaluator = ExpressionEvaluator::with_database(&temp_schema, executor.database);
     temp_evaluator.eval_binary_op(&left_val, op, &right_val)
 }
 

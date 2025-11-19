@@ -134,8 +134,9 @@ impl CombinedExpressionEvaluator<'_> {
                                     return Ok(SqlValue::Boolean(false));
                                 }
 
+                                let sql_mode = self.database.map(|db| db.sql_mode()).unwrap_or(vibesql_types::SqlMode::default());
                                 ExpressionEvaluator::eval_binary_op_static(
-                                    &left_val, op, &right_val, vibesql_types::SqlMode::default(),
+                                    &left_val, op, &right_val, sql_mode,
                                 )
                             }
                         }
@@ -160,8 +161,9 @@ impl CombinedExpressionEvaluator<'_> {
                                     return Ok(SqlValue::Boolean(true));
                                 }
 
+                                let sql_mode = self.database.map(|db| db.sql_mode()).unwrap_or(vibesql_types::SqlMode::default());
                                 ExpressionEvaluator::eval_binary_op_static(
-                                    &left_val, op, &right_val, vibesql_types::SqlMode::default(),
+                                    &left_val, op, &right_val, sql_mode,
                                 )
                             }
                         }
@@ -170,7 +172,8 @@ impl CombinedExpressionEvaluator<'_> {
                     _ => {
                         let left_val = self.eval(left, row)?;
                         let right_val = self.eval(right, row)?;
-                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val, vibesql_types::SqlMode::default())
+                        let sql_mode = self.database.map(|db| db.sql_mode()).unwrap_or(vibesql_types::SqlMode::default());
+                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val, sql_mode)
                     }
                 }
             }
