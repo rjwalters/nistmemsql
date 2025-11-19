@@ -54,11 +54,10 @@ fn get_pooled_database() -> Database {
                 db
             }
             None => {
-                // First use - create new database with SQLite mode
-                // The SQLLogicTest suite expects SQLite semantics (integer division)
-                let mut config = vibesql_storage::DatabaseConfig::test_default();
-                config.sql_mode = vibesql_types::SqlMode::SQLite;
-                vibesql_storage::Database::with_config(config)
+                // First use - create new database with MySQL mode (default)
+                // The SQLLogicTest suite was generated from MySQL 8 and expects MySQL semantics
+                // including decimal division (INTEGER / INTEGER → DECIMAL)
+                vibesql_storage::Database::new()
             }
         }
     })
