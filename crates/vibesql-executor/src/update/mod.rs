@@ -84,7 +84,7 @@ impl UpdateExecutor {
     /// assert_eq!(count, 1);
     /// ```
     pub fn execute(stmt: &UpdateStmt, database: &mut Database) -> Result<usize, ExecutorError> {
-        Self::execute_with_schema(stmt, database, None)
+        Self::execute_internal(stmt, database, None, None, None)
     }
 
     /// Execute an UPDATE statement with procedural context
@@ -94,7 +94,17 @@ impl UpdateExecutor {
         database: &mut Database,
         procedural_context: &crate::procedural::ExecutionContext,
     ) -> Result<usize, ExecutorError> {
-        Self::execute_internal(stmt, database, None, Some(procedural_context))
+        Self::execute_internal(stmt, database, None, Some(procedural_context), None)
+    }
+
+    /// Execute an UPDATE statement with trigger context
+    /// This allows UPDATE statements within trigger bodies to reference OLD/NEW pseudo-variables
+    pub fn execute_with_trigger_context(
+        stmt: &UpdateStmt,
+        database: &mut Database,
+        trigger_context: &crate::trigger_execution::TriggerContext,
+    ) -> Result<usize, ExecutorError> {
+        Self::execute_internal(stmt, database, None, None, Some(trigger_context))
     }
 
     /// Execute an UPDATE statement with optional pre-fetched schema
@@ -116,15 +126,16 @@ impl UpdateExecutor {
         database: &mut Database,
         schema: Option<&vibesql_catalog::TableSchema>,
     ) -> Result<usize, ExecutorError> {
-        Self::execute_internal(stmt, database, schema, None)
+        Self::execute_internal(stmt, database, schema, None, None)
     }
 
-    /// Internal implementation supporting both schema caching and procedural context
+    /// Internal implementation supporting both schema caching, procedural context, and trigger context
     fn execute_internal(
         stmt: &UpdateStmt,
         database: &mut Database,
         schema: Option<&vibesql_catalog::TableSchema>,
         procedural_context: Option<&crate::procedural::ExecutionContext>,
+        trigger_context: Option<&crate::trigger_execution::TriggerContext>,
     ) -> Result<usize, ExecutorError> {
         // Check UPDATE privilege on the table
         PrivilegeChecker::check_update(database, &stmt.table_name)?;
@@ -149,8 +160,11 @@ impl UpdateExecutor {
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
         // Step 3: Create expression evaluator with database reference for subquery support
-        //         and optional procedural context for variable resolution
-        let evaluator = if let Some(ctx) = procedural_context {
+        //         and optional procedural/trigger context for variable resolution
+        let evaluator = if let Some(ctx) = trigger_context {
+            // Trigger context takes precedence (trigger statements can't have procedural context)
+            ExpressionEvaluator::with_trigger_context(schema, database, ctx)
+        } else if let Some(ctx) = procedural_context {
             ExpressionEvaluator::with_procedural_context(schema, database, ctx)
         } else {
             ExpressionEvaluator::with_database(schema, database)
@@ -282,4 +296,15 @@ impl UpdateExecutor {
 
         Ok(update_count)
     }
+}
+
+/// Execute an UPDATE statement with trigger context
+/// This function is used when executing UPDATE statements within trigger bodies
+/// to support OLD/NEW pseudo-variable references
+pub fn execute_update_with_trigger_context(
+    database: &mut Database,
+    stmt: &UpdateStmt,
+    trigger_context: &crate::trigger_execution::TriggerContext,
+) -> Result<usize, ExecutorError> {
+    UpdateExecutor::execute_with_trigger_context(stmt, database, trigger_context)
 }

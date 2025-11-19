@@ -78,7 +78,7 @@ impl DeleteExecutor {
     /// assert_eq!(count, 1);
     /// ```
     pub fn execute(stmt: &DeleteStmt, database: &mut Database) -> Result<usize, ExecutorError> {
-        Self::execute_internal(stmt, database, None)
+        Self::execute_internal(stmt, database, None, None)
     }
 
     /// Execute a DELETE statement with procedural context
@@ -88,14 +88,25 @@ impl DeleteExecutor {
         database: &mut Database,
         procedural_context: &crate::procedural::ExecutionContext,
     ) -> Result<usize, ExecutorError> {
-        Self::execute_internal(stmt, database, Some(procedural_context))
+        Self::execute_internal(stmt, database, Some(procedural_context), None)
     }
 
-    /// Internal implementation supporting procedural context
+    /// Execute a DELETE statement with trigger context
+    /// This allows DELETE statements within trigger bodies to reference OLD/NEW pseudo-variables
+    pub fn execute_with_trigger_context(
+        stmt: &DeleteStmt,
+        database: &mut Database,
+        trigger_context: &crate::trigger_execution::TriggerContext,
+    ) -> Result<usize, ExecutorError> {
+        Self::execute_internal(stmt, database, None, Some(trigger_context))
+    }
+
+    /// Internal implementation supporting procedural context and trigger context
     fn execute_internal(
         stmt: &DeleteStmt,
         database: &mut Database,
         procedural_context: Option<&crate::procedural::ExecutionContext>,
+        trigger_context: Option<&crate::trigger_execution::TriggerContext>,
     ) -> Result<usize, ExecutorError> {
         // Note: stmt.only is currently ignored (treated as false)
         // ONLY keyword is used in table inheritance to exclude derived tables.
@@ -129,8 +140,11 @@ impl DeleteExecutor {
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
         // Create evaluator with database reference for subquery support (EXISTS, NOT EXISTS, IN
-        // with subquery, etc.) and optional procedural context for variable resolution
-        let evaluator = if let Some(ctx) = procedural_context {
+        // with subquery, etc.) and optional procedural/trigger context for variable resolution
+        let evaluator = if let Some(ctx) = trigger_context {
+            // Trigger context takes precedence (trigger statements can't have procedural context)
+            ExpressionEvaluator::with_trigger_context(&schema, database, ctx)
+        } else if let Some(ctx) = procedural_context {
             ExpressionEvaluator::with_procedural_context(&schema, database, ctx)
         } else {
             ExpressionEvaluator::with_database(&schema, database)
@@ -329,4 +343,15 @@ fn execute_truncate(database: &mut Database, table_name: &str) -> Result<usize, 
     table.clear();
 
     Ok(row_count)
+}
+
+/// Execute a DELETE statement with trigger context
+/// This function is used when executing DELETE statements within trigger bodies
+/// to support OLD/NEW pseudo-variable references
+pub fn execute_delete_with_trigger_context(
+    database: &mut Database,
+    stmt: &DeleteStmt,
+    trigger_context: &crate::trigger_execution::TriggerContext,
+) -> Result<usize, ExecutorError> {
+    DeleteExecutor::execute_with_trigger_context(stmt, database, trigger_context)
 }

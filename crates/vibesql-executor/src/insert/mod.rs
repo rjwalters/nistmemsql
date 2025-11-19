@@ -34,3 +34,14 @@ impl InsertExecutor {
         execution::execute_insert_with_procedural_context(db, stmt, procedural_context)
     }
 }
+
+/// Execute an INSERT statement with trigger context
+/// This function is used when executing INSERT statements within trigger bodies
+/// to support OLD/NEW pseudo-variable references
+pub fn execute_insert_with_trigger_context(
+    db: &mut vibesql_storage::Database,
+    stmt: &vibesql_ast::InsertStmt,
+    trigger_context: &crate::trigger_execution::TriggerContext,
+) -> Result<usize, ExecutorError> {
+    execution::execute_insert_with_trigger_context(db, stmt, trigger_context)
+}
