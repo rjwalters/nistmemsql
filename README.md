@@ -208,177 +208,28 @@ CREATE FULLTEXT INDEX idx_search ON documents(title, content);
 
 #### Indexed Column Prefix Syntax (MySQL/SQLite Compatibility)
 
-VibeSQL supports MySQL/SQLite indexed column prefix syntax for compatibility with existing SQL code:
+VibeSQL supports MySQL/SQLite indexed column prefix syntax for compatibility:
 
 ```sql
--- Index on first N characters of a column
-CREATE TABLE users (
-    email VARCHAR(255),
-    UNIQUE (email(50))  -- Index first 50 characters
-);
-
--- Works with PRIMARY KEY constraints
-CREATE TABLE products (
-    name VARCHAR(100),
-    PRIMARY KEY (name(50))
-);
-
--- Works with CREATE INDEX statements
+CREATE TABLE users (email VARCHAR(255), UNIQUE (email(50)));
 CREATE INDEX idx_email ON users (email(100));
-
--- Works with composite indexes
-CREATE INDEX idx_name ON contacts (first_name(20), last_name(20));
 ```
 
-**Current Behavior (as of v0.1.0)**:
-- ✅ Syntax is accepted and parsed correctly
-- ✅ Prefix length is stored in the AST (`IndexColumn.prefix_length`)
-- ⚠️  Indexes currently operate on **full column values** (prefix not enforced)
-- ⚠️  No validation on prefix length values yet
-
-**Why This Matters**:
-- **MySQL/SQLite Compatibility**: Allows existing schemas to parse without errors
-- **Forward Compatibility**: Syntax is ready for future optimization work
-- **Test Suite Compatibility**: Enables passing SQLLogicTest cases that use this syntax
-
-**Future Enhancements**:
-- See issue #1623 for actual prefix indexing implementation
-- See issue #1624 for prefix length validation
-
-**MySQL/SQLite Comparison**:
-- **MySQL**: Supports prefix indexes with storage-engine-specific limits (e.g., InnoDB has 767-byte limit)
-- **SQLite**: Accepts similar syntax for compatibility
-- **VibeSQL**: Currently accepts syntax but indexes full column (implementation planned)
+**Current Status**: Syntax is parsed and accepted, but indexes currently operate on full column values. See issues #1623 and #1624 for future implementation.
 
 ### Non-Unique Indexes and Duplicate Keys (✅ Complete)
 
-VibeSQL fully supports non-unique indexes with duplicate key values in both in-memory and disk-backed implementations:
-
-#### Use Cases for Non-Unique Indexes
-
-Non-unique indexes are ideal for columns with many duplicate values:
-- **Department/category columns** - Many employees in same department
-- **Tag or label columns** - Multiple items with same tag
-- **Foreign key columns** - Many-to-one relationships
-- **Status/state columns** - Limited distinct values (active/inactive, pending/complete)
-- **Date columns** - Many events on same date
-- **Boolean flags** - Only two possible values
-
-#### Unique vs Non-Unique Indexes
+VibeSQL fully supports non-unique indexes with duplicate key values:
 
 ```sql
 -- Non-unique index (default - allows duplicates)
 CREATE INDEX idx_department ON employees(department);
 
--- Unique index (prevents duplicates)
-CREATE UNIQUE INDEX idx_email ON users(email);
-```
-
-| Feature | Non-Unique Index | Unique Index |
-|---------|------------------|--------------|
-| Duplicate keys | ✅ Allowed | ❌ Rejected |
-| Storage | Vec<RowId> per key | Single RowId per key |
-| Use case | Categories, tags, foreign keys | Primary keys, email addresses |
-| INSERT behavior | Always succeeds (appends to Vec) | Fails if key exists |
-
-#### Basic Example
-
-```sql
--- Create non-unique index (default behavior)
-CREATE INDEX idx_department ON employees(department);
-
--- Insert duplicate key values
-INSERT INTO employees VALUES (1, 'Engineering', 100000);
-INSERT INTO employees VALUES (2, 'Engineering', 120000);
-INSERT INTO employees VALUES (3, 'Engineering', 110000);
-
--- Queries return all matching rows
-SELECT * FROM employees WHERE department = 'Engineering';
--- Returns all 3 rows
-```
-
-#### Multi-Column Non-Unique Indexes
-
-Composite indexes work with duplicate key combinations:
-
-```sql
--- Create table
-CREATE TABLE employees (
-    id INTEGER PRIMARY KEY,
-    name VARCHAR(100),
-    department VARCHAR(50),
-    salary INTEGER
-);
-
--- Composite non-unique index
+-- Composite non-unique indexes
 CREATE INDEX idx_dept_salary ON employees(department, salary);
-
--- Insert data with duplicate (department, salary) combinations
-INSERT INTO employees VALUES (1, 'Alice', 'Engineering', 100000);
-INSERT INTO employees VALUES (2, 'Bob', 'Engineering', 100000);
-INSERT INTO employees VALUES (3, 'Carol', 'Engineering', 120000);
-
--- Query efficiently uses composite index
-SELECT * FROM employees
-WHERE department = 'Engineering'
-  AND salary BETWEEN 100000 AND 150000;
--- Returns all 3 rows efficiently using index
 ```
 
-#### Disk-Backed Index Duplicate Key Support
-
-Disk-backed B+ tree indexes efficiently store duplicate keys by grouping multiple row IDs per key:
-
-**Storage Format** (per entry):
-```
-key_len (2 bytes) → key_values (variable) → num_row_ids (2 bytes) → row_id × num_row_ids (8 bytes each)
-```
-
-**Storage Overhead**:
-- **Per unique key**: 2 bytes (for row count)
-- **Per row ID**: 8 bytes
-- **Example**: 1 key with 100 duplicates = 2 + (8 × 100) = 802 bytes (~0.25% overhead)
-
-**Performance Characteristics**:
-- **Insert with new key**: O(log n) where n = number of unique keys
-- **Insert with duplicate key**: O(log n) + O(1) to append to existing Vec
-- **Lookup**: O(log n + k) where k = number of duplicates to return
-- **Range scan**: O(log n + m + k) where m = keys in range, k = total duplicates
-- **Delete**: O(log n) - removes all row IDs for a key
-
-#### Comparison: In-Memory vs Disk-Backed
-
-Both implementations handle duplicates identically from a user perspective:
-
-| Feature | In-Memory | Disk-Backed |
-|---------|-----------|-------------|
-| Duplicate keys | ✅ HashMap<Key, Vec<RowId>> | ✅ B+ tree with Vec<RowId> per key |
-| Insert duplicate | O(1) append | O(log n) + O(1) append |
-| Lookup | O(1) hash lookup | O(log n) tree traversal |
-| Range scan | O(n) full scan | O(log n + m) leaf traversal |
-| Memory usage | All in RAM | Paged to disk |
-| Persistence | Volatile | Durable |
-
-**When to use disk-backed indexes**:
-- Large datasets that don't fit in memory
-- Need for persistence across restarts
-- Range query performance is critical
-- Memory-constrained environments
-
-**When to use in-memory indexes**:
-- Small to medium datasets (< 1M rows)
-- Maximum lookup performance needed
-- Temporary/session-only data
-- Memory is plentiful
-
-#### For Developers
-
-Implementation details and comprehensive tests:
-- Integration tests: `crates/vibesql-executor/src/tests/non_unique_disk_index_tests.rs`
-- Disk-backed B+ tree: `crates/vibesql-btree/src/lib.rs`
-- Test coverage: 7 integration tests including heavy duplicate scenarios (1,000+ duplicates)
-
-See PR #1571 (implementation) and PR #1591 (tests) for technical details.
+Both in-memory (HashMap) and disk-backed (B+ tree) implementations support efficient duplicate key storage. See `crates/vibesql-executor/src/tests/non_unique_disk_index_tests.rs` for implementation details.
 
 ### Triggers (🔄 In Progress)
 Event-driven database actions:
@@ -402,83 +253,23 @@ END;
 
 ---
 
-### 🐕 Dogfooding: SQLLogicTest Database Integration (NEW!)
+### 🐕 Dogfooding: SQLLogicTest Database Integration
 
-**VibeSQL now stores its own test results in VibeSQL!** We've implemented a complete database-integrated workflow for SQLLogicTest, demonstrating real-world usage.
+**VibeSQL stores its own test results in VibeSQL!** Database-integrated workflow for ~5.9M test cases.
 
-**Quick Start**:
 ```bash
-# Run full test suite (serial mode)
-# Note: Serial mode is SLOW - expect ~30+ minutes for all 628 files
-# Recommend using --time limit for quick testing
-./scripts/sqllogictest run --force --time 300
-
-# Quick test run (10 seconds) - tests a subset of files
-./scripts/sqllogictest run --force --time 10
-
-# Test a single file (fast iteration during development)
-./scripts/sqllogictest test select1.test
-
-# Parallel mode (10-15x faster than serial)
+# Run tests (parallel mode recommended, 10-20 minutes on 8 CPUs)
 ./scripts/sqllogictest run --parallel --workers 8
 
-# Query results with SQL!
+# Query results with SQL
 ./scripts/sqllogictest query --preset failed-files
 ./scripts/sqllogictest query --preset by-category
 
-# Custom queries
-./scripts/sqllogictest query --query "
-    SELECT category, COUNT(*) FROM test_files
-    WHERE status='FAIL' GROUP BY category
-"
+# Test individual files
+./scripts/sqllogictest test select1.test
 ```
 
-**Analyzing Results (Database-First Workflow)**:
-
-After running tests, **always use the database to analyze results** - don't parse JSON files manually!
-
-```bash
-# View all failures
-./scripts/sqllogictest query --query "
-    SELECT file_path, category
-    FROM test_files
-    WHERE status = 'FAIL'
-    ORDER BY category, file_path
-"
-
-# Get pass rate by category
-./scripts/sqllogictest query --query "
-    SELECT category,
-           COUNT(*) as total,
-           SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) as passed,
-           ROUND(SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as pass_pct
-    FROM test_files
-    GROUP BY category
-"
-
-# Use preset queries for common analyses
-./scripts/sqllogictest query --preset failed-files
-./scripts/sqllogictest query --preset progress
-./scripts/sqllogictest query --preset flaky-tests
-```
-
-**Why database-first?**
-- ✅ Single source of truth for test results
-- ✅ Historical tracking across runs
-- ✅ Powerful SQL for complex analysis
-- ✅ Dogfooding VibeSQL with real data
-
-**Features**:
-- 📊 **3 tables**: test_files, test_runs, test_results
-- 🔍 **9 preset queries**: failed-files, by-category, progress, flaky-tests, etc.
-- 📈 **Historical tracking**: Track pass rate over time with git commits
-- 🎯 **Manual testing workflow**: Query your progress as you work through tests
-- 🔄 **--force flag**: Repopulates work queue with all 628 test files for fresh runs
-- ⚡ **Parallel mode**: Run full suite with `--parallel --workers 8` (10-15x speedup vs serial, 10-20+ minutes depending on system)
-
-**Documentation**:
-- [Quick Start Guide](docs/sqllogictest/SQLLOGICTEST_QUICKSTART.md) - 30-second introduction
-- [Complete Documentation](docs/sqllogictest/SQLLOGICTEST_DATABASE.md) - Architecture, schema, queries, workflow
+**Documentation**: [Quick Start](docs/sqllogictest/SQLLOGICTEST_QUICKSTART.md) | [Complete Guide](docs/sqllogictest/SQLLOGICTEST_DATABASE.md)
 
 ### Running Tests
 
@@ -486,221 +277,31 @@ After running tests, **always use the database to analyze results** - don't pars
 # Run all tests with coverage
 cargo coverage
 
-# Run SQL:1999 conformance tests
-cargo test --test sqltest_conformance -- --nocapture
-
-# Run SQLLogicTest baseline verification
-cargo test --test sqllogictest_basic
-
 # Run comprehensive SQLLogicTest suite (recommended)
-# Tests all 628 files in parallel (10-20+ minutes on 8 CPUs)
 ./scripts/sqllogictest run --parallel --workers 8
 
-# Or specify custom time budget per worker (in seconds)
-./scripts/sqllogictest run --parallel --workers 8 --time 600
-
-# Single file testing for debugging
+# Test individual files for debugging
 ./scripts/sqllogictest test random/select/slt_good_19.test
 ```
 
-**SQLLogicTest Systematic Testing Strategy**: The suite contains ~5.9 million test cases across 628 files. We achieved **100% conformance** using a **systematic punchlist approach**:
-
-- **Punchlist system**: Comprehensive tracking of all 628 test files by category and status
-- **Manual testing**: Test files one at a time to identify and fix root causes
-- **Badge updates**: Shows `{passed}✓ {failed}✗ {untested}? ({pass_rate}%)`
-- **Progress tracking**: All results tracked in `target/sqllogictest_punchlist.json`
-- **Achievement**: 100% pass rate (628/628 files) with all categories at 100%
-
-### Fast Local Testing Workflow
-
-With work queue parallelization, the full test suite runs much faster than serial mode:
-
-```bash
-# Run full suite (all 628 files in 10-20+ minutes on 8 CPUs)
-./scripts/sqllogictest run --parallel --workers 8
-
-# View results
-./scripts/sqllogictest status
-
-# Query failures by category
-./scripts/sqllogictest query --preset by-category
-
-# Test individual files for debugging
-./scripts/sqllogictest test index/delete/10/slt_good_0.test
-
-# View the full punchlist
-cat target/sqllogictest_punchlist.csv
-
-# Test a single file to understand the current failures
-./scripts/sqllogictest test index/delete/10/slt_good_0.test
-
-# Refresh the punchlist after fixes
-python3 scripts/generate_punchlist.py
-```
-
-### Analyzing Test Results
-
-Test results are stored in a SQL database at `~/.vibesql/test_results/sqllogictest_results.sql`. Query and analyze results using built-in presets:
-
-```bash
-# View summary of latest test run
-./scripts/sqllogictest query --preset=analyze-summary
-
-# Show all failures from latest run
-./scripts/sqllogictest query --preset=latest-failures
-
-# Group failures by category
-./scripts/sqllogictest query --preset=failing-by-category
-
-# Find slow tests
-./scripts/sqllogictest query --preset=slow-tests
-
-# Run custom SQL query
-./scripts/sqllogictest query --query "SELECT file_path, status FROM test_results WHERE status='failed' LIMIT 10"
-
-# List all available presets
-./scripts/sqllogictest query --list-presets
-```
-
-### Backing Up Test Results
-
-Test results are tracked in version control to maintain history across git worktrees:
-
-```bash
-# Create a timestamped backup in test_results/ directory
-./scripts/backup_test_results.sh
-
-# Backup is automatically created with timestamp
-# Example: test_results/sqllogictest_results-20251117-143052.sql
-
-# Only the 5 most recent backups are kept
-# Older backups are automatically deleted
-
-# Commit the backup to git
-git add test_results/
-git commit -m "Update test results database backup"
-git push
-```
-
-**Database Locations**:
-- **Working database**: `~/.vibesql/test_results/sqllogictest_results.sql` - actively updated by test runs
-- **Version-controlled backups**: `test_results/sqllogictest_results-*.sql` - timestamped snapshots in git
-
-**Documentation**:
-- **[docs/testing/sqllogictest/QUICK_START.md](docs/testing/sqllogictest/QUICK_START.md)** - 2-minute overview with key commands
-- **[docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md](docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md)** - Full strategic guide with workflow and phase breakdown
-- **[docs/roadmaps/PUNCHLIST_README.md](docs/roadmaps/PUNCHLIST_README.md)** - Complete setup documentation and detailed instructions
-- **[docs/roadmaps/PUNCHLIST_MANIFEST.md](docs/roadmaps/PUNCHLIST_MANIFEST.md)** - Manifest of all deliverables and their purposes
-- **[.loom/punchlist_guide.md](.loom/punchlist_guide.md)** - Builder-specific reference for implementing fixes
-
-**Current Status**:
-| Category | Total | Passing | % | Status |
-|----------|-------|---------|---|--------|
-| select | 5 | 5 | 100% | ✅ Complete |
-| evidence | 12 | 12 | 100% | ✅ Complete |
-| debug | 5 | 5 | 100% | ✅ Complete |
-| index | 219 | 219 | 100% | ✅ Complete |
-| random | 391 | 391 | 100% | ✅ Complete |
-| ddl | 1 | 1 | 100% | ✅ Complete |
-| **TOTAL** | **628** | **628** | **100%** | ✅ **COMPLETE** |
+**Achievement**: 100% conformance (628/628 files, ~5.9M tests) using systematic punchlist approach. See [testing docs](docs/testing/sqllogictest/QUICK_START.md) for complete workflow.
 
 ---
 
 ## 📊 Performance Benchmarking
 
-VibeSQL includes comprehensive benchmarking tools for measuring and tracking performance across the full SQLLogicTest suite (628 files, ~5.9M test cases).
+Comprehensive benchmarking tools for the full SQLLogicTest suite (628 files, ~5.9M tests).
 
-### Quick Start
-
-```bash
-# Run full suite benchmark (all 628 files with 3 iterations each)
-cd benchmarks/suite
-./suite.sh
-
-# Sample 50 random files for quick testing
-./suite.sh --sample 50
-
-# Benchmark specific categories
-./suite.sh --categories "select,random"
-
-# Head-to-head comparison (VibeSQL vs SQLite - in progress)
-./head-to-head.sh
-```
-
-### Features
-
-- **Full suite benchmarking**: All 628 SQLLogicTest files
-- **Statistical measurements**: 3 runs per file (min/max/avg)
-- **JSON output**: Structured results for analysis and tracking
-- **Category filtering**: Test specific categories or random samples
-- **Graceful interruption**: Clean JSON output even if interrupted
-- **Progress tracking**: Real-time status with pass/fail counts
-
-### Example Output
-
-```bash
-[  1/628] evidence/slt_lang_aggfunc.test                     ✓ 0.198s (min=0.198 max=0.199)
-[  2/628] evidence/slt_lang_createtrigger.test              ✓ 0.087s (min=0.086 max=0.088)
-[  3/628] random/select/slt_good_0.test                     ✓ 0.142s (min=0.141 max=0.143)
-
-================================
-BENCHMARK SUMMARY
-================================
-Total files:    628
-Passed:         628
-Failed:         0
-Pass rate:      100%
-Total time:     87.45s
-Average time:   0.140s per file
-
-Results saved to: target/benchmarks/comparison_20251112_034521.json
-```
-
-### Analyzing Results
-
-**Quick Python analysis:**
-```python
-import json
-
-# Load results
-with open('target/benchmarks/comparison_20251112_034521.json') as f:
-    data = json.load(f)
-
-# Overall stats
-times = [r['vibesql']['avg_secs'] for r in data['results'] if r['vibesql']['success']]
-print(f"Average: {sum(times)/len(times):.3f}s")
-print(f"Pass rate: {len(times)}/{data['total_files']}")
-
-# Find slowest files
-slowest = sorted(data['results'],
-                 key=lambda x: x['vibesql'].get('avg_secs', 0),
-                 reverse=True)[:10]
-for r in slowest:
-    print(f"{r['vibesql']['avg_secs']:.3f}s - {r['file']}")
-```
-
-**Database analysis** (dogfooding VibeSQL for benchmark analysis):
 ```bash
 cd benchmarks/suite
-./analyze.py ../../target/benchmarks/comparison_20251112_034521.json --notes "Baseline"
+./suite.sh                           # Full suite (3 iterations each)
+./suite.sh --sample 50               # Sample 50 random files
+./suite.sh --categories "select,random"  # Specific categories
 ```
 
-### Performance Tracking
+**Recent Performance**: 87.45s total, 0.140s avg (628/628 passing, 100%)
 
-| Date | Total Time | Avg Time | Pass Rate | Notes |
-|------|-----------|----------|-----------|-------|
-| 2025-11-19 | - | - | 628/628 (100%) | 100% conformance achieved! (5 new debug tests, all categories at 100%) |
-| 2025-11-12 | 87.45s | 0.140s | 623/623 (100%) | After evaluator optimization |
-| 2025-11-12 | 120.48s | 0.193s | 623/623 (100%) | Initial baseline |
-
-### Documentation
-
-See [benchmarks/suite/README.md](benchmarks/suite/README.md) for:
-- Complete tool reference
-- Output format details
-- Analysis workflows
-- Benchmark best practices
-- Historical results
+See [benchmarks/suite/README.md](benchmarks/suite/README.md) for complete documentation.
 
 ---
 
@@ -1165,80 +766,17 @@ vibesql -c "\save production.sql"
 
 ## 🔧 Troubleshooting
 
-### Build Errors and Compilation Issues
+### Build Errors
 
-If you encounter unexplained compilation errors, especially after switching branches or pulling updates, the issue may be caused by **stale build cache**.
-
-#### Symptoms of Stale Build Cache
-
-- Compilation errors about missing imports or functions that clearly exist
-- Errors like `unresolved import` for functions that are properly exported
-- Build failures that don't match the actual code state
-- Inconsistent build behavior across different worktrees
-
-#### Quick Fix: Clean Build
-
-The fastest way to resolve stale cache issues:
+If you encounter compilation errors after switching branches or pulling updates, try a clean build:
 
 ```bash
-# Clean and rebuild (debug mode)
-cargo clean && cargo build
-
-# Clean and rebuild (release mode)
 cargo clean && cargo build --release
-
 # Or use the convenience script
 ./scripts/clean-build.sh --release
 ```
 
-#### Using the Clean Build Script
-
-The `scripts/clean-build.sh` script provides a user-friendly way to perform clean builds:
-
-```bash
-# Basic usage - clean and build in debug mode
-./scripts/clean-build.sh
-
-# Clean and build in release mode
-./scripts/clean-build.sh --release
-
-# Clean, build, and run tests
-./scripts/clean-build.sh --release --test
-
-# Verbose output for debugging
-./scripts/clean-build.sh --release --verbose
-
-# Show help and all options
-./scripts/clean-build.sh --help
-```
-
-**Script Features**:
-- Color-coded progress output
-- Multiple build modes (debug/release)
-- Optional test execution
-- Verbose mode for detailed cargo output
-- Clear error reporting
-
-#### When to Clean Build
-
-Consider running a clean build when:
-- Switching between feature branches with significant changes
-- After pulling major updates from main
-- When encountering unexplained compilation errors
-- After updating dependencies in Cargo.toml
-- Working with git worktrees (cache conflicts between worktrees)
-
-#### CI/CD Considerations
-
-CI builds should periodically use clean builds to avoid cache-related failures:
-
-```yaml
-# GitHub Actions example
-- name: Clean build
-  run: cargo clean && cargo build --release
-```
-
-For more troubleshooting help, see the [issue tracker](https://github.com/rjwalters/vibesql/issues).
+For more help, see the [issue tracker](https://github.com/rjwalters/vibesql/issues).
 
 ---
 
