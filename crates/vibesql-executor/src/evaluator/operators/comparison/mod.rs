@@ -7,6 +7,7 @@
 pub mod equality;
 pub mod ordering;
 
+use std::str::FromStr;
 use vibesql_types::SqlValue;
 use crate::{
     errors::ExecutorError,
@@ -131,6 +132,77 @@ where
         }
 
         _ => {} // Fall through to existing comparison logic
+    }
+
+    // String-to-date implicit conversion
+    // Handle: DATE compared to VARCHAR/CHARACTER
+    // Allows: WHERE date_column <= '1998-09-01'
+    match (left, right) {
+        // Date compared to Varchar - parse varchar as date
+        (Date(date_val), Varchar(s)) => {
+            match vibesql_types::Date::from_str(s) {
+                Ok(parsed_date) => {
+                    return Ok(Boolean(predicate(date_val.cmp(&parsed_date))));
+                }
+                Err(_) => {
+                    return Err(ExecutorError::TypeMismatch {
+                        left: left.clone(),
+                        op: op_str.to_string(),
+                        right: right.clone(),
+                    });
+                }
+            }
+        }
+
+        // Varchar compared to Date - parse varchar as date (symmetric case)
+        (Varchar(s), Date(date_val)) => {
+            match vibesql_types::Date::from_str(s) {
+                Ok(parsed_date) => {
+                    return Ok(Boolean(predicate(parsed_date.cmp(date_val))));
+                }
+                Err(_) => {
+                    return Err(ExecutorError::TypeMismatch {
+                        left: left.clone(),
+                        op: op_str.to_string(),
+                        right: right.clone(),
+                    });
+                }
+            }
+        }
+
+        // Date compared to Character - parse character as date
+        (Date(date_val), Character(s)) => {
+            match vibesql_types::Date::from_str(s) {
+                Ok(parsed_date) => {
+                    return Ok(Boolean(predicate(date_val.cmp(&parsed_date))));
+                }
+                Err(_) => {
+                    return Err(ExecutorError::TypeMismatch {
+                        left: left.clone(),
+                        op: op_str.to_string(),
+                        right: right.clone(),
+                    });
+                }
+            }
+        }
+
+        // Character compared to Date - parse character as date (symmetric case)
+        (Character(s), Date(date_val)) => {
+            match vibesql_types::Date::from_str(s) {
+                Ok(parsed_date) => {
+                    return Ok(Boolean(predicate(parsed_date.cmp(date_val))));
+                }
+                Err(_) => {
+                    return Err(ExecutorError::TypeMismatch {
+                        left: left.clone(),
+                        op: op_str.to_string(),
+                        right: right.clone(),
+                    });
+                }
+            }
+        }
+
+        _ => {} // Fall through to regular comparison logic
     }
 
     match (left, right) {
