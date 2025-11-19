@@ -11,7 +11,7 @@ use crate::{
 use vibesql_storage::Row;
 use vibesql_ast::Expression;
 
-use super::{DEFAULT_CHUNK_SIZE, VECTORIZE_THRESHOLD};
+use super::VECTORIZE_THRESHOLD;
 
 /// Apply WHERE clause filter using chunk-based evaluation
 ///
@@ -51,24 +51,21 @@ pub fn apply_where_filter_vectorized<'a>(
     let mut rows_processed = 0;
     const CHECK_INTERVAL: usize = 1000;
 
-    // Process rows in chunks (single-pass for cache efficiency)
-    for chunk in rows.chunks(DEFAULT_CHUNK_SIZE) {
+    // Process rows by consuming the input vector to avoid cloning
+    for row in rows.into_iter() {
         // Check timeout periodically
-        rows_processed += chunk.len();
-        if rows_processed % CHECK_INTERVAL < DEFAULT_CHUNK_SIZE {
+        rows_processed += 1;
+        if rows_processed % CHECK_INTERVAL == 0 {
             executor.check_timeout()?;
         }
 
-        // Single-pass evaluation and filtering within chunk
-        // This keeps the predicate expression hot in instruction cache
-        // while processing the chunk in one pass
-        for row in chunk {
-            let include_row = evaluate_predicate(row, where_expr, evaluator)?;
+        // Evaluate predicate for this row
+        let include_row = evaluate_predicate(&row, where_expr, evaluator)?;
 
-            if include_row {
-                filtered_rows.push(row.clone());
-            }
+        if include_row {
+            filtered_rows.push(row);  // Move row, no clone needed
         }
+        // Row is dropped if filtered out
     }
 
     // Clear CSE cache at end of query to prevent cross-query pollution
@@ -87,7 +84,7 @@ pub fn apply_where_filter_vectorized<'a>(
 /// Extracted as a helper function to keep it hot in instruction cache
 /// when processing chunks. The tight loop in the caller enables better
 /// CPU pipeline efficiency.
-#[inline]
+#[inline(always)]
 fn evaluate_predicate(
     row: &Row,
     where_expr: &Expression,
@@ -99,22 +96,34 @@ fn evaluate_predicate(
     // This allows constant sub-expressions like (1 + 2) to be cached across all rows,
     // significantly improving performance for expression-heavy queries.
 
-    match evaluator.eval(where_expr, row)? {
-        vibesql_types::SqlValue::Boolean(true) => Ok(true),
-        vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => Ok(false),
-        // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
-        vibesql_types::SqlValue::Integer(0) => Ok(false),
-        vibesql_types::SqlValue::Integer(_) => Ok(true),
-        vibesql_types::SqlValue::Smallint(0) => Ok(false),
-        vibesql_types::SqlValue::Smallint(_) => Ok(true),
-        vibesql_types::SqlValue::Bigint(0) => Ok(false),
-        vibesql_types::SqlValue::Bigint(_) => Ok(true),
-        vibesql_types::SqlValue::Float(0.0) => Ok(false),
-        vibesql_types::SqlValue::Float(_) => Ok(true),
-        vibesql_types::SqlValue::Real(0.0) => Ok(false),
-        vibesql_types::SqlValue::Real(_) => Ok(true),
-        vibesql_types::SqlValue::Double(0.0) => Ok(false),
-        vibesql_types::SqlValue::Double(_) => Ok(true),
+    let value = evaluator.eval(where_expr, row)?;
+    is_truthy(&value)
+}
+
+/// Fast truthy evaluation optimized for hot path
+///
+/// Inlined aggressively and optimized for the common case (Boolean values).
+/// Uses early returns to minimize branching in the hot path.
+#[inline(always)]
+fn is_truthy(value: &vibesql_types::SqlValue) -> Result<bool, ExecutorError> {
+    use vibesql_types::SqlValue;
+
+    match value {
+        // Fast path: Boolean values (most common case for WHERE predicates)
+        SqlValue::Boolean(b) => Ok(*b),
+        SqlValue::Null => Ok(false),
+
+        // Integer types (SQLLogicTest compatibility)
+        SqlValue::Integer(n) => Ok(*n != 0),
+        SqlValue::Smallint(n) => Ok(*n != 0),
+        SqlValue::Bigint(n) => Ok(*n != 0),
+
+        // Float types
+        SqlValue::Float(f) => Ok(*f != 0.0),
+        SqlValue::Real(f) => Ok(*f != 0.0),
+        SqlValue::Double(f) => Ok(*f != 0.0),
+
+        // Error case (should be rare)
         other => Err(ExecutorError::InvalidWhereClause(format!(
             "WHERE clause must evaluate to boolean, got: {:?}",
             other
@@ -127,20 +136,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_chunk_size_threshold() {
-        // Verify constants are reasonable for cache optimization
+    fn test_vectorize_threshold() {
+        // Verify threshold is reasonable for cache optimization
         assert!(VECTORIZE_THRESHOLD > 0);
-        assert!(VECTORIZE_THRESHOLD < DEFAULT_CHUNK_SIZE);
-        assert!(DEFAULT_CHUNK_SIZE > 0);
-        assert!(DEFAULT_CHUNK_SIZE <= 1024); // Reasonable upper bound for L1 cache
-    }
-
-    #[test]
-    fn test_chunk_size_cache_friendly() {
-        // 256 rows * ~64 bytes/row = ~16KB, fits in typical L1 cache (32KB)
-        assert_eq!(DEFAULT_CHUNK_SIZE, 256);
-
-        // Threshold should be high enough to amortize chunking overhead
         assert!(VECTORIZE_THRESHOLD >= 100);
     }
 }
