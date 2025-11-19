@@ -47,6 +47,9 @@ pub struct CombinedExpressionEvaluator<'a> {
     pub(super) procedural_context: Option<&'a crate::procedural::ExecutionContext>,
     /// Cache for column lookups to avoid repeated schema traversals
     column_cache: RefCell<HashMap<(Option<String>, String), usize>>,
+    /// Cache for non-correlated subquery results (key = subquery hash, value = result rows)
+    /// Cleared after each statement execution to ensure freshness
+    pub(super) subquery_cache: RefCell<HashMap<u64, Vec<vibesql_storage::Row>>>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
     /// CSE cache for common sub-expression elimination with LRU eviction (shared via Rc across depth levels)
@@ -320,6 +323,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: RefCell::new(HashMap::new()),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -341,6 +345,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: RefCell::new(HashMap::new()),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -365,6 +370,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: RefCell::new(HashMap::new()),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -387,6 +393,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: Some(window_mapping),
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: RefCell::new(HashMap::new()),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -409,6 +416,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             procedural_context: Some(procedural_context),
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: RefCell::new(HashMap::new()),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -461,6 +469,8 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: self.procedural_context,
             // Share the column cache between parent and child evaluators
             column_cache: RefCell::new(self.column_cache.borrow().clone()),
+            // Share the subquery cache - subqueries can be reused across depths
+            subquery_cache: RefCell::new(self.subquery_cache.borrow().clone()),
             depth: self.depth + 1,
             cse_cache: self.cse_cache.clone(),
             enable_cse: self.enable_cse,
@@ -479,6 +489,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: self.window_mapping,
             procedural_context: self.procedural_context,
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: RefCell::new(HashMap::new()),
             depth: self.depth,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -518,6 +529,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping,
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: RefCell::new(HashMap::new()),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()

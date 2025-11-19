@@ -2,6 +2,18 @@
 
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use crate::errors::ExecutorError;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+/// Compute a hash for a subquery to use as a cache key
+/// Uses Debug format to create a stable representation
+fn compute_subquery_hash(subquery: &vibesql_ast::SelectStmt) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    // Use the debug format as a stable representation
+    // This works because SelectStmt derives Debug and PartialEq
+    format!("{:?}", subquery).hash(&mut hasher);
+    hasher.finish()
+}
 
 /// Compute the number of columns in a SELECT statement's result
 /// Handles wildcards by expanding them using table schemas from the database
@@ -222,18 +234,41 @@ impl CombinedExpressionEvaluator<'_> {
         // Evaluate the left-hand expression
         let expr_val = self.eval(expr, row)?;
 
-        // Execute the subquery with outer context and propagate depth
-        let select_executor = if !self.schema.table_schemas.is_empty() {
-            crate::select::SelectExecutor::new_with_outer_context_and_depth(
-                database,
-                row,
-                self.schema,
-                self.depth,
-            )
+        // Check if this is a non-correlated subquery that can be cached
+        let is_correlated = crate::correlation::is_correlated(subquery, self.schema);
+
+        // Execute or retrieve from cache
+        let rows = if !is_correlated {
+            // Non-correlated subquery - try cache first
+            let cache_key = compute_subquery_hash(subquery);
+
+            // Check cache
+            if let Some(cached_rows) = self.subquery_cache.borrow().get(&cache_key) {
+                // Cache hit - use cached result
+                cached_rows.clone()
+            } else {
+                // Cache miss - execute and cache
+                let select_executor = crate::select::SelectExecutor::new(database);
+                let rows = select_executor.execute(subquery)?;
+
+                // Cache the result
+                self.subquery_cache.borrow_mut().insert(cache_key, rows.clone());
+                rows
+            }
         } else {
-            crate::select::SelectExecutor::new(database)
+            // Correlated subquery - execute with outer context (can't cache)
+            let select_executor = if !self.schema.table_schemas.is_empty() {
+                crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                    database,
+                    row,
+                    self.schema,
+                    self.depth,
+                )
+            } else {
+                crate::select::SelectExecutor::new(database)
+            };
+            select_executor.execute(subquery)?
         };
-        let rows = select_executor.execute(subquery)?;
 
         // SQL standard (R-35033-20570): The subquery must be a scalar subquery
         // (single column) when the left expression is not a row value expression.
