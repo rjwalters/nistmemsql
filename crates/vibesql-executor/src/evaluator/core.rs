@@ -100,15 +100,6 @@ impl<'a> ExpressionEvaluator<'a> {
             .unwrap_or(DEFAULT_CSE_CACHE_SIZE)
     }
 
-    /// Get subquery cache size from environment variable
-    /// Defaults to DEFAULT_SUBQUERY_CACHE_SIZE, can be overridden by setting SUBQUERY_CACHE_SIZE
-    fn get_subquery_cache_size() -> usize {
-        std::env::var("SUBQUERY_CACHE_SIZE")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(DEFAULT_SUBQUERY_CACHE_SIZE)
-    }
-
     /// Create a new expression evaluator with outer query context for correlated subqueries
     pub fn with_outer_context(
         schema: &'a vibesql_catalog::TableSchema,
