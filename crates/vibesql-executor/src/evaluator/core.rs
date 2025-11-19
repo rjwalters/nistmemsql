@@ -9,9 +9,10 @@ use crate::{errors::ExecutorError, schema::CombinedSchema, select::WindowFunctio
 const DEFAULT_CSE_CACHE_SIZE: usize = 1000;
 
 /// Default maximum size for subquery result cache (entries)
-/// Smaller than CSE cache since subquery results can be large
+/// Increased from 100 to 5000 to handle complex test files with 400+ unique subqueries
+/// (e.g., index/between/1000/slt_good_0.test has 401 subqueries)
 /// Can be overridden via SUBQUERY_CACHE_SIZE environment variable
-const DEFAULT_SUBQUERY_CACHE_SIZE: usize = 100;
+const DEFAULT_SUBQUERY_CACHE_SIZE: usize = 5000;
 
 /// Components returned by get_parallel_components for parallel execution
 type ParallelComponents<'a> = (
