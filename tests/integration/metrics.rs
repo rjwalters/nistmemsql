@@ -1,5 +1,6 @@
 //! Unit tests for the metrics module
 
+#[path = "../sqllogictest/mod.rs"]
 mod sqllogictest;
 
 use sqllogictest::metrics::{BenchmarkMetrics, MemoryTracker, QueryStopwatch};

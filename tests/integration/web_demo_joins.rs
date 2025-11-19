@@ -1,8 +1,9 @@
-//! Tests for aggregation web demo SQL examples
+//! Tests for join web demo SQL examples
 //!
-//! This test suite validates SQL aggregation examples (GROUP BY, HAVING, COUNT, SUM, AVG, etc.)
-//! from the web demo by parsing the TypeScript example files and executing queries.
+//! This test suite validates SQL join examples (INNER JOIN, LEFT JOIN, RIGHT JOIN, FULL JOIN, CROSS
+//! JOIN) from the web demo by parsing the TypeScript example files and executing queries.
 
+#[path = "../common/mod.rs"]
 mod common;
 
 use common::web_demo_helpers::{
@@ -11,38 +12,36 @@ use common::web_demo_helpers::{
 use vibesql_executor::SelectExecutor;
 use vibesql_parser::Parser;
 
-/// Test aggregation SQL examples from web demo
-/// Includes examples with IDs: agg*, group*, having*, count*, sum*, avg*, min*, max*
+/// Test join SQL examples from web demo
+/// Includes examples with IDs: join*, inner*, left*, right*, full*, cross*
 #[test]
-fn test_aggregation_sql_examples() {
+fn test_join_sql_examples() {
     // Parse all examples from web demo
     let examples = parse_example_files().expect("Failed to parse example files");
 
-    // Filter for aggregation examples
-    let aggregation_examples: Vec<&WebDemoExample> = examples
+    // Filter for join examples
+    let join_examples: Vec<&WebDemoExample> = examples
         .iter()
         .filter(|ex| {
-            ex.id.starts_with("agg")
-                || ex.id.starts_with("group")
-                || ex.id.starts_with("having")
-                || ex.id.starts_with("count")
-                || ex.id.starts_with("sum")
-                || ex.id.starts_with("avg")
-                || ex.id.starts_with("min")
-                || ex.id.starts_with("max")
+            ex.id.starts_with("join")
+                || ex.id.starts_with("inner")
+                || ex.id.starts_with("left")
+                || ex.id.starts_with("right")
+                || ex.id.starts_with("full")
+                || ex.id.starts_with("cross")
         })
         .collect();
 
     assert!(
-        !aggregation_examples.is_empty(),
-        "No aggregation examples found - check web demo examples file exists"
+        !join_examples.is_empty(),
+        "No join examples found - check web demo examples file exists"
     );
 
     let mut passed = 0;
     let mut failed = 0;
     let mut skipped = 0;
 
-    for example in &aggregation_examples {
+    for example in &join_examples {
         // Load the appropriate database
         let db = match load_database(&example.database) {
             Some(db) => db,
@@ -66,7 +65,7 @@ fn test_aggregation_sql_examples() {
             }
         };
 
-        // Execute the query (aggregation queries are SELECT statements)
+        // Execute the query (join queries are SELECT statements)
         let result = match stmt {
             vibesql_ast::Statement::Select(select_stmt) => {
                 let executor = SelectExecutor::new(&db);
@@ -107,17 +106,17 @@ fn test_aggregation_sql_examples() {
     }
 
     // Print summary
-    println!("\n=== Aggregation Examples Test Summary ===");
-    println!("Total:   {}", aggregation_examples.len());
+    println!("\n=== Join Examples Test Summary ===");
+    println!("Total:   {}", join_examples.len());
     println!("Passed:  {}", passed);
     println!("Failed:  {}", failed);
     println!("Skipped: {}", skipped);
-    println!("=========================================\n");
+    println!("==================================\n");
 
     // Require at least some tests to pass (will be stricter once all examples have expected data)
     assert!(
         passed >= 1,
-        "Expected at least 1 aggregation example to pass, got {}",
+        "Expected at least 1 join example to pass, got {}",
         passed
     );
 }

@@ -11,14 +11,14 @@
 //! - `storage_errors`: Storage-level error tests (column count, index bounds, etc.)
 //! - `display_and_conversion`: Error display formatting and type conversion tests
 
-#[path = "test_error_handling/catalog_errors.rs"]
+#[path = "../test_error_handling/catalog_errors.rs"]
 mod catalog_errors;
 
-#[path = "test_error_handling/executor_errors.rs"]
+#[path = "../test_error_handling/executor_errors.rs"]
 mod executor_errors;
 
-#[path = "test_error_handling/storage_errors.rs"]
+#[path = "../test_error_handling/storage_errors.rs"]
 mod storage_errors;
 
-#[path = "test_error_handling/display_and_conversion.rs"]
+#[path = "../test_error_handling/display_and_conversion.rs"]
 mod display_and_conversion;

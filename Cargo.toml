@@ -69,30 +69,316 @@ repository = "https://github.com/rjwalters/vibesql"
 # Will add dependencies as needed for each phase
 pyo3 = { version = "0.27", features = ["extension-module"] }
 
-[[test]]
-name = "sqllogictest_suite"
-path = "tests/sqllogictest_suite.rs"
-harness = false
+# Test declarations for integration tests
 
+# Existing test configurations (not reorganized)
 [[test]]
 name = "e2e_data_types"
 path = "tests/e2e_data_types/mod.rs"
 
+# Reorganized integration tests by feature area
+
+# Executor tests - Query execution and operations
 [[test]]
-name = "test_revoke_nonexistent"
-path = "tests/test_revoke_nonexistent.rs"
+name = "aggregate_patterns"
+path = "tests/executor/aggregate_patterns.rs"
 
 [[test]]
-name = "test_issue_1618"
-path = "tests/test_issue_1618.rs"
+name = "basic_crud"
+path = "tests/executor/basic_crud.rs"
 
 [[test]]
-name = "aggregate_random_patterns"
-path = "tests/aggregate_random_patterns.rs"
+name = "complex_queries"
+path = "tests/executor/complex_queries.rs"
 
 [[test]]
-name = "test_error_handling"
-path = "tests/test_error_handling.rs"
+name = "complex_where_clauses"
+path = "tests/executor/complex_where_clauses.rs"
+
+[[test]]
+name = "count_star_parsing"
+path = "tests/executor/count_star_parsing.rs"
+
+[[test]]
+name = "count_star_without_from"
+path = "tests/executor/count_star_without_from.rs"
+
+[[test]]
+name = "count_star"
+path = "tests/executor/count_star.rs"
+
+[[test]]
+name = "cte"
+path = "tests/executor/cte.rs"
+
+[[test]]
+name = "northwind_joins"
+path = "tests/executor/northwind_joins.rs"
+
+[[test]]
+name = "order_by_position"
+path = "tests/executor/order_by_position.rs"
+
+[[test]]
+name = "predicates"
+path = "tests/executor/predicates.rs"
+
+[[test]]
+name = "select_without_from_columns"
+path = "tests/executor/select_without_from_columns.rs"
+
+[[test]]
+name = "select_without_from"
+path = "tests/executor/select_without_from.rs"
+
+[[test]]
+name = "select5_verification"
+path = "tests/executor/select5_verification.rs"
+
+[[test]]
+name = "set_operations"
+path = "tests/executor/set_operations.rs"
+
+[[test]]
+name = "subquery_without_from"
+path = "tests/executor/subquery_without_from.rs"
+
+[[test]]
+name = "window_functions"
+path = "tests/executor/window_functions.rs"
+
+# Functions tests - Built-in SQL functions
+[[test]]
+name = "assertions"
+path = "tests/functions/assertions.rs"
+
+[[test]]
+name = "boolean_short_circuit"
+path = "tests/functions/boolean_short_circuit.rs"
+
+[[test]]
+name = "coalesce"
+path = "tests/functions/coalesce.rs"
+
+[[test]]
+name = "functions"
+path = "tests/functions/functions.rs"
+
+[[test]]
+name = "is_null_expressions"
+path = "tests/functions/is_null_expressions.rs"
+
+[[test]]
+name = "not_is_null_fix"
+path = "tests/functions/not_is_null_fix.rs"
+
+[[test]]
+name = "null_boolean_logic"
+path = "tests/functions/null_boolean_logic.rs"
+
+[[test]]
+name = "nullif_basic"
+path = "tests/functions/nullif_basic.rs"
+
+[[test]]
+name = "nullif_coalesce"
+path = "tests/functions/nullif_coalesce.rs"
+
+[[test]]
+name = "numeric_formatting"
+path = "tests/functions/numeric_formatting.rs"
+
+[[test]]
+name = "pr180_functions"
+path = "tests/functions/pr180_functions.rs"
+
+[[test]]
+name = "spatial_functions"
+path = "tests/functions/spatial_functions.rs"
+
+[[test]]
+name = "string_functions"
+path = "tests/functions/string_functions.rs"
+
+# DDL tests - Data Definition Language
+[[test]]
+name = "advanced_objects"
+path = "tests/ddl/advanced_objects.rs"
+
+[[test]]
+name = "alter_table"
+path = "tests/ddl/alter_table.rs"
+
+[[test]]
+name = "create_domain"
+path = "tests/ddl/create_domain.rs"
+
+[[test]]
+name = "create_schema_embedded"
+path = "tests/ddl/create_schema_embedded.rs"
+
+[[test]]
+name = "create_type"
+path = "tests/ddl/create_type.rs"
+
+[[test]]
+name = "create_view"
+path = "tests/ddl/create_view.rs"
+
+[[test]]
+name = "schema_ddl"
+path = "tests/ddl/schema_ddl.rs"
+
+# Storage tests - Storage engine and indexes
+[[test]]
+name = "cascade_operations"
+path = "tests/storage/cascade_operations.rs"
+
+[[test]]
+name = "insert_constraint_performance"
+path = "tests/storage/insert_constraint_performance.rs"
+
+[[test]]
+name = "referential_integrity"
+path = "tests/storage/referential_integrity.rs"
+
+[[test]]
+name = "transaction_features"
+path = "tests/storage/transaction_features.rs"
+
+[[test]]
+name = "update_hash_indexes"
+path = "tests/storage/update_hash_indexes.rs"
+
+[[test]]
+name = "update_pk_performance"
+path = "tests/storage/update_pk_performance.rs"
+
+# Security tests - Access control and privileges
+[[test]]
+name = "grant_tests"
+path = "tests/security/grant_tests.rs"
+
+[[test]]
+name = "revoke_nonexistent"
+path = "tests/security/revoke_nonexistent.rs"
+
+[[test]]
+name = "revoke_privileges"
+path = "tests/security/revoke_privileges.rs"
+
+# Compliance tests - SQL standard conformance
+[[test]]
+name = "sqllogictest_basic"
+path = "tests/compliance/sqllogictest_basic.rs"
+
+[[test]]
+name = "sqllogictest_benchmark"
+path = "tests/compliance/sqllogictest_benchmark.rs"
+
+[[test]]
+name = "sqllogictest_runner"
+path = "tests/compliance/sqllogictest_runner.rs"
+
+[[test]]
+name = "sqllogictest_sqlite"
+path = "tests/compliance/sqllogictest_sqlite.rs"
+
+[[test]]
+name = "sqllogictest_suite"
+path = "tests/compliance/sqllogictest_suite.rs"
+harness = false
+
+[[test]]
+name = "sqltest_conformance"
+path = "tests/compliance/sqltest_conformance.rs"
+
+# Integration tests - End-to-end scenarios
+[[test]]
+name = "benchmark_example"
+path = "tests/integration/benchmark_example.rs"
+
+[[test]]
+name = "metrics"
+path = "tests/integration/metrics.rs"
+
+[[test]]
+name = "preprocessing"
+path = "tests/integration/preprocessing.rs"
+
+[[test]]
+name = "resource_limits"
+path = "tests/integration/resource_limits.rs"
+
+[[test]]
+name = "results_schema"
+path = "tests/integration/results_schema.rs"
+
+[[test]]
+name = "web_demo_advanced"
+path = "tests/integration/web_demo_advanced.rs"
+
+[[test]]
+name = "web_demo_aggregation"
+path = "tests/integration/web_demo_aggregation.rs"
+
+[[test]]
+name = "web_demo_basic"
+path = "tests/integration/web_demo_basic.rs"
+
+[[test]]
+name = "web_demo_joins"
+path = "tests/integration/web_demo_joins.rs"
+
+[[test]]
+name = "web_demo_subqueries"
+path = "tests/integration/web_demo_subqueries.rs"
+
+# Regression tests - Issue-specific test cases
+[[test]]
+name = "issue_1618"
+path = "tests/regression/issue_1618.rs"
+
+[[test]]
+name = "issue_1660"
+path = "tests/regression/issue_1660.rs"
+
+[[test]]
+name = "issue_898"
+path = "tests/regression/issue_898.rs"
+
+[[test]]
+name = "issue_923"
+path = "tests/regression/issue_923.rs"
+
+[[test]]
+name = "issue_948"
+path = "tests/regression/issue_948.rs"
+
+[[test]]
+name = "issue_953"
+path = "tests/regression/issue_953.rs"
+
+[[test]]
+name = "issue_990"
+path = "tests/regression/issue_990.rs"
+
+# Parser tests - SQL parsing and syntax
+[[test]]
+name = "coverage_improvements"
+path = "tests/parser/coverage_improvements.rs"
+
+[[test]]
+name = "delimited_identifiers"
+path = "tests/parser/delimited_identifiers.rs"
+
+[[test]]
+name = "directive_comments"
+path = "tests/parser/directive_comments.rs"
+
+[[test]]
+name = "error_handling"
+path = "tests/parser/error_handling.rs"
 
 # Custom release profile optimized for WASM size
 [profile.wasm-release]

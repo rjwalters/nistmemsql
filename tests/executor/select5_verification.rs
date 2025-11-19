@@ -24,6 +24,7 @@ use ::sqllogictest::Runner;
 use std::path::Path;
 use std::time::Duration;
 
+#[path = "../sqllogictest/mod.rs"]
 mod sqllogictest;
 
 use crate::sqllogictest::db_adapter::VibeSqlDB;

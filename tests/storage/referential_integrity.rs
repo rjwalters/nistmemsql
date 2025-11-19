@@ -7,6 +7,7 @@
 //! - ON UPDATE actions: CASCADE, SET NULL, SET DEFAULT, NO ACTION, RESTRICT
 //! - Edge cases: circular FKs, self-referential tables, multi-column FKs, NULL values
 
+#[path = "../common/mod.rs"]
 mod common;
 
 use vibesql_catalog::{ColumnSchema, ReferentialAction, TableSchema};

@@ -1,8 +1,10 @@
-//! Tests for join web demo SQL examples
+//! Tests for advanced web demo SQL examples
 //!
-//! This test suite validates SQL join examples (INNER JOIN, LEFT JOIN, RIGHT JOIN, FULL JOIN, CROSS
-//! JOIN) from the web demo by parsing the TypeScript example files and executing queries.
+//! This test suite validates advanced SQL examples (CTEs, window functions, complex scenarios,
+//! string functions, etc.) from the web demo by parsing the TypeScript example files and executing
+//! queries.
 
+#[path = "../common/mod.rs"]
 mod common;
 
 use common::web_demo_helpers::{
@@ -11,36 +13,41 @@ use common::web_demo_helpers::{
 use vibesql_executor::SelectExecutor;
 use vibesql_parser::Parser;
 
-/// Test join SQL examples from web demo
-/// Includes examples with IDs: join*, inner*, left*, right*, full*, cross*
+/// Test advanced SQL examples from web demo
+/// Includes examples with IDs: cte*, with*, window*, partition*, string*, concat*, advanced*,
+/// complex*, uni*, company*
 #[test]
-fn test_join_sql_examples() {
+fn test_advanced_sql_examples() {
     // Parse all examples from web demo
     let examples = parse_example_files().expect("Failed to parse example files");
 
-    // Filter for join examples
-    let join_examples: Vec<&WebDemoExample> = examples
+    // Filter for advanced examples
+    let advanced_examples: Vec<&WebDemoExample> = examples
         .iter()
         .filter(|ex| {
-            ex.id.starts_with("join")
-                || ex.id.starts_with("inner")
-                || ex.id.starts_with("left")
-                || ex.id.starts_with("right")
-                || ex.id.starts_with("full")
-                || ex.id.starts_with("cross")
+            ex.id.starts_with("cte")
+                || ex.id.starts_with("with")
+                || ex.id.starts_with("window")
+                || ex.id.starts_with("partition")
+                || ex.id.starts_with("string")
+                || ex.id.starts_with("concat")
+                || ex.id.starts_with("advanced")
+                || ex.id.starts_with("complex")
+                || ex.id.starts_with("uni")
+                || ex.id.starts_with("company")
         })
         .collect();
 
     assert!(
-        !join_examples.is_empty(),
-        "No join examples found - check web demo examples file exists"
+        !advanced_examples.is_empty(),
+        "No advanced examples found - check web demo examples file exists"
     );
 
     let mut passed = 0;
     let mut failed = 0;
     let mut skipped = 0;
 
-    for example in &join_examples {
+    for example in &advanced_examples {
         // Load the appropriate database
         let db = match load_database(&example.database) {
             Some(db) => db,
@@ -64,7 +71,7 @@ fn test_join_sql_examples() {
             }
         };
 
-        // Execute the query (join queries are SELECT statements)
+        // Execute the query (advanced queries are typically SELECT statements)
         let result = match stmt {
             vibesql_ast::Statement::Select(select_stmt) => {
                 let executor = SelectExecutor::new(&db);
@@ -105,17 +112,18 @@ fn test_join_sql_examples() {
     }
 
     // Print summary
-    println!("\n=== Join Examples Test Summary ===");
-    println!("Total:   {}", join_examples.len());
+    println!("\n=== Advanced Examples Test Summary ===");
+    println!("Total:   {}", advanced_examples.len());
     println!("Passed:  {}", passed);
     println!("Failed:  {}", failed);
     println!("Skipped: {}", skipped);
-    println!("==================================\n");
+    println!("======================================\n");
 
-    // Require at least some tests to pass (will be stricter once all examples have expected data)
+    // Many advanced features are still being implemented
+    // For now, just require at least some tests to pass
     assert!(
         passed >= 1,
-        "Expected at least 1 join example to pass, got {}",
+        "Expected at least 1 advanced example to pass, got {}",
         passed
     );
 }

@@ -6,6 +6,7 @@
 
 use std::time::Duration;
 
+#[path = "../sqllogictest/mod.rs"]
 mod sqllogictest;
 
 use sqllogictest::{
