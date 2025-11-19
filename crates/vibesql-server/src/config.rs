@@ -99,6 +99,7 @@ impl Config {
     }
 
     /// Load configuration from specific file
+    #[allow(dead_code)]
     pub fn load_from(path: &PathBuf) -> Result<Self> {
         let contents = fs::read_to_string(path)?;
         let config: Config = toml::from_str(&contents)?;

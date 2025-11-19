@@ -8,12 +8,12 @@ This directory contains Architecture Decision Records documenting important tech
 
 - **[0001-language-choice.md](0001-language-choice.md)** - **Choose Rust as Implementation Language**
   - *Decision*: Use Rust for type safety, pattern matching, and correctness guarantees
-  - *Date*: 2024-10-25
+  - *Date*: 2025-10-25
   - *Status*: Accepted
 
 - **[0002-parser-strategy.md](0002-parser-strategy.md)** - **Parser Strategy for SQL:1999**
   - *Decision*: Use hand-written recursive descent parser with nom combinators
-  - *Date*: 2024-10-25
+  - *Date*: 2025-10-25
   - *Status*: Accepted
   - *Rationale*: Handles SQL:1999 grammar complexity, context-sensitive parsing, and error recovery
 

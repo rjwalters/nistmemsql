@@ -13,12 +13,14 @@ pub enum ProtocolError {
     InvalidMessageType(u8),
 
     #[error("Message too short")]
+    #[allow(dead_code)]
     MessageTooShort,
 
     #[error("Invalid string encoding")]
     InvalidString,
 
     #[error("Unexpected message: {0}")]
+    #[allow(dead_code)]
     UnexpectedMessage(String),
 }
 
@@ -27,7 +29,9 @@ pub enum ProtocolError {
 pub enum BackendMessage {
     /// Authentication request
     AuthenticationOk,
+    #[allow(dead_code)]
     AuthenticationCleartextPassword,
+    #[allow(dead_code)]
     AuthenticationMD5Password { salt: [u8; 4] },
 
     /// Parameter status
@@ -52,6 +56,7 @@ pub enum BackendMessage {
     ErrorResponse { fields: HashMap<u8, String> },
 
     /// Notice response
+    #[allow(dead_code)]
     NoticeResponse { fields: HashMap<u8, String> },
 
     /// Empty query response
@@ -64,8 +69,10 @@ pub enum TransactionStatus {
     /// Idle (not in a transaction)
     Idle,
     /// In a transaction block
+    #[allow(dead_code)]
     InTransaction,
     /// In a failed transaction block
+    #[allow(dead_code)]
     FailedTransaction,
 }
 

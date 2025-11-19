@@ -477,7 +477,7 @@ For each gotcha:
 
 ---
 
-**Last Updated**: 2024-10-25
+**Last Updated**: 2025-10-25
 **Total Gotchas**: 15
 **Status**: Growing as we implement features
 

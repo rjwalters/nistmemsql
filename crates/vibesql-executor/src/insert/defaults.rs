@@ -2,6 +2,7 @@ use crate::errors::ExecutorError;
 
 /// Evaluate an INSERT expression to SqlValue
 /// Supports literals, DEFAULT keyword, procedural variables, and trigger pseudo-variables (OLD/NEW)
+#[allow(dead_code)]
 pub fn evaluate_insert_expression(
     expr: &vibesql_ast::Expression,
     column: &vibesql_catalog::ColumnSchema,

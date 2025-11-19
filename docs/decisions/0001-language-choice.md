@@ -2,7 +2,7 @@
 
 **Status**: Accepted
 
-**Date**: 2024-10-25
+**Date**: 2025-10-25
 
 **Deciders**: Claude Code + rwalters
 
@@ -474,7 +474,7 @@ We'll validate this choice after Phase 1 (Parser implementation). If Rust proves
 
 **Status**: ACCEPTED ✅
 
-**Date Accepted**: 2024-10-25
+**Date Accepted**: 2025-10-25
 
 **Next Steps**:
 1. Initialize Cargo workspace

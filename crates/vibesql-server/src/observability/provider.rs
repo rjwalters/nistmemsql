@@ -15,7 +15,9 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 /// OpenTelemetry observability provider
 pub struct ObservabilityProvider {
+    #[allow(dead_code)]
     meter_provider: Option<SdkMeterProvider>,
+    #[allow(dead_code)]
     tracer_provider: Option<TracerProvider>,
     metrics: Option<ServerMetrics>,
 }
@@ -140,6 +142,7 @@ impl ObservabilityProvider {
     ///
     /// This should be called before the application exits to ensure all telemetry
     /// data is flushed to the OTLP endpoint.
+    #[allow(dead_code)]
     pub fn shutdown(mut self) -> Result<()> {
         if let Some(provider) = self.meter_provider.take() {
             provider

@@ -26,7 +26,7 @@ You specified `license = "MIT OR Apache-2.0"` but the files don't exist.
 cat > LICENSE-MIT << 'EOF'
 MIT License
 
-Copyright (c) 2024 vibesql contributors
+Copyright (c) 2025 vibesql contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

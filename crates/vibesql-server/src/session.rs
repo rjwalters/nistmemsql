@@ -5,12 +5,15 @@ use vibesql_storage::Database;
 /// Session state for a database connection
 pub struct Session {
     /// Database name
+    #[allow(dead_code)]
     pub database: String,
     /// User name
+    #[allow(dead_code)]
     pub user: String,
     /// Database instance
     db: Database,
     /// Transaction state
+    #[allow(dead_code)]
     pub in_transaction: bool,
 }
 
@@ -178,6 +181,7 @@ impl Session {
     }
 
     /// Begin a transaction
+    #[allow(dead_code)]
     pub fn begin_transaction(&mut self) -> Result<()> {
         if self.in_transaction {
             return Err(anyhow::anyhow!("Already in transaction"));
@@ -187,6 +191,7 @@ impl Session {
     }
 
     /// Commit the current transaction
+    #[allow(dead_code)]
     pub fn commit(&mut self) -> Result<()> {
         if !self.in_transaction {
             return Err(anyhow::anyhow!("No transaction in progress"));
@@ -196,6 +201,7 @@ impl Session {
     }
 
     /// Rollback the current transaction
+    #[allow(dead_code)]
     pub fn rollback(&mut self) -> Result<()> {
         if !self.in_transaction {
             return Err(anyhow::anyhow!("No transaction in progress"));

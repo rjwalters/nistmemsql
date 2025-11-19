@@ -20,14 +20,14 @@ See `docs/templates/ADR_TEMPLATE.md` for the full template.
 
 | ID | Title | Status | Date | Summary |
 |----|-------|--------|------|---------|
-| 0001 | **Language Choice: Rust** | ✅ **Accepted** | 2024-10-25 | **Rust chosen** for type safety, pattern matching, compiler feedback, and correctness focus |
-| 0002 | **Parser Strategy: Hand-Written** | ✅ **Accepted** | 2024-10-25 | **Hand-written recursive descent + Pratt parser** chosen for full control, TDD alignment, and SQL:1999 flexibility |
+| 0001 | **Language Choice: Rust** | ✅ **Accepted** | 2025-10-25 | **Rust chosen** for type safety, pattern matching, compiler feedback, and correctness focus |
+| 0002 | **Parser Strategy: Hand-Written** | ✅ **Accepted** | 2025-10-25 | **Hand-written recursive descent + Pratt parser** chosen for full control, TDD alignment, and SQL:1999 flexibility |
 
 ## Decisions by Category
 
 ### Core Technology Stack
-- [ADR-0001](docs/decisions/0001-language-choice.md) - **Language Choice: Rust** ✅ (Accepted 2024-10-25)
-- [ADR-0002](docs/decisions/0002-parser-strategy.md) - **Parser Strategy: Hand-Written** ✅ (Accepted 2024-10-25)
+- [ADR-0001](docs/decisions/0001-language-choice.md) - **Language Choice: Rust** ✅ (Accepted 2025-10-25)
+- [ADR-0002](docs/decisions/0002-parser-strategy.md) - **Parser Strategy: Hand-Written** ✅ (Accepted 2025-10-25)
 
 ## Decision Process
 
@@ -58,8 +58,8 @@ Create an ADR when:
 ## Quick Reference
 
 ### Recently Accepted
-- **ADR-0001**: Language Choice - Rust (2024-10-25)
-- **ADR-0002**: Parser Strategy - Hand-Written Recursive Descent (2024-10-25)
+- **ADR-0001**: Language Choice - Rust (2025-10-25)
+- **ADR-0002**: Parser Strategy - Hand-Written Recursive Descent (2025-10-25)
 
 ### Pending Review
 [None yet - future ADRs will be created as architectural decisions arise]

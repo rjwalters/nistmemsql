@@ -7,6 +7,7 @@ use std::time::Duration;
 pub struct ServerMetrics {
     // Connection metrics
     connections_total: Counter<u64>,
+    #[allow(dead_code)]
     connection_errors_total: Counter<u64>,
     connection_duration: Histogram<f64>,
 
@@ -17,9 +18,13 @@ pub struct ServerMetrics {
     query_rows_affected: Histogram<u64>,
 
     // Protocol metrics
+    #[allow(dead_code)]
     messages_received_total: Counter<u64>,
+    #[allow(dead_code)]
     messages_sent_total: Counter<u64>,
+    #[allow(dead_code)]
     bytes_received_total: Counter<u64>,
+    #[allow(dead_code)]
     bytes_sent_total: Counter<u64>,
 }
 
@@ -118,6 +123,7 @@ impl ServerMetrics {
     }
 
     /// Record a connection error
+    #[allow(dead_code)]
     pub fn record_connection_error(&self, error_type: &str) {
         self.connection_errors_total.add(
             1,
@@ -169,23 +175,27 @@ impl ServerMetrics {
     // Protocol metrics methods
 
     /// Record a received message
+    #[allow(dead_code)]
     pub fn record_message_received(&self, message_type: &str) {
         self.messages_received_total
             .add(1, &[KeyValue::new("message_type", message_type.to_string())]);
     }
 
     /// Record a sent message
+    #[allow(dead_code)]
     pub fn record_message_sent(&self, message_type: &str) {
         self.messages_sent_total
             .add(1, &[KeyValue::new("message_type", message_type.to_string())]);
     }
 
     /// Record bytes received
+    #[allow(dead_code)]
     pub fn record_bytes_received(&self, bytes: u64) {
         self.bytes_received_total.add(bytes, &[]);
     }
 
     /// Record bytes sent
+    #[allow(dead_code)]
     pub fn record_bytes_sent(&self, bytes: u64) {
         self.bytes_sent_total.add(bytes, &[]);
     }
