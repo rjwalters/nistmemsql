@@ -1,0 +1,269 @@
+//! Expression rewriting and traversal
+//!
+//! This module provides recursive expression rewriting to apply IN subquery
+//! optimizations throughout the entire query AST.
+
+use vibesql_ast::{Expression, SelectItem, SelectStmt};
+
+use super::correlation::is_correlated;
+use super::transformations::{add_distinct_to_in_subquery, rewrite_in_to_exists};
+
+/// Rewrite an expression to optimize IN subqueries
+///
+/// This function recursively traverses the expression tree and applies
+/// the appropriate optimization for each IN subquery encountered.
+pub(super) fn rewrite_expression(
+    expr: &Expression,
+    rewrite_subquery_fn: &impl Fn(&SelectStmt) -> SelectStmt,
+) -> Expression {
+    match expr {
+        // Optimize IN subquery
+        Expression::In {
+            expr: in_expr,
+            subquery,
+            negated,
+        } => {
+            // Validate that this is a single-column IN subquery
+            // Multi-column IN requires tuple comparison which we don't optimize
+            if subquery.select_list.len() != 1 {
+                // Multi-column IN: skip optimization
+                return Expression::In {
+                    expr: Box::new(rewrite_expression(in_expr, rewrite_subquery_fn)),
+                    subquery: Box::new(rewrite_subquery_fn(subquery)),
+                    negated: *negated,
+                };
+            }
+
+            // Check if subquery SELECT expression is a simple column reference
+            // Complex expressions (e.g., UPPER(col)) can't be safely used in correlation predicates
+            let is_simple_column = matches!(
+                subquery.select_list.first(),
+                Some(SelectItem::Expression {
+                    expr: Expression::ColumnRef { .. },
+                    ..
+                })
+            );
+
+            // Check if subquery is correlated
+            if is_correlated(subquery) && is_simple_column {
+                // Correlated subquery with simple column: Rewrite IN → EXISTS
+                // This allows database to stop after first match and better leverage indexes
+                rewrite_in_to_exists(in_expr, subquery, *negated)
+            } else if is_correlated(subquery) && !is_simple_column {
+                // Correlated subquery with complex expression: skip IN → EXISTS
+                // Complex expressions can't be safely used in correlation predicates
+                // Fall back to DISTINCT optimization only
+                let optimized_subquery = add_distinct_to_in_subquery(subquery);
+                let optimized_subquery = rewrite_subquery_fn(&optimized_subquery);
+                Expression::In {
+                    expr: Box::new(rewrite_expression(in_expr, rewrite_subquery_fn)),
+                    subquery: Box::new(optimized_subquery),
+                    negated: *negated,
+                }
+            } else {
+                // Uncorrelated subquery: Add DISTINCT to reduce duplicate processing
+                let optimized_subquery = add_distinct_to_in_subquery(subquery);
+                let optimized_subquery = rewrite_subquery_fn(&optimized_subquery);
+                Expression::In {
+                    expr: Box::new(rewrite_expression(in_expr, rewrite_subquery_fn)),
+                    subquery: Box::new(optimized_subquery),
+                    negated: *negated,
+                }
+            }
+        }
+
+        // Recursively rewrite nested expressions
+        Expression::BinaryOp { op, left, right } => Expression::BinaryOp {
+            op: *op,
+            left: Box::new(rewrite_expression(left, rewrite_subquery_fn)),
+            right: Box::new(rewrite_expression(right, rewrite_subquery_fn)),
+        },
+
+        Expression::UnaryOp { op, expr } => Expression::UnaryOp {
+            op: *op,
+            expr: Box::new(rewrite_expression(expr, rewrite_subquery_fn)),
+        },
+
+        Expression::IsNull { expr, negated } => Expression::IsNull {
+            expr: Box::new(rewrite_expression(expr, rewrite_subquery_fn)),
+            negated: *negated,
+        },
+
+        Expression::Case {
+            operand,
+            when_clauses,
+            else_result,
+        } => Expression::Case {
+            operand: operand.as_ref().map(|e| Box::new(rewrite_expression(e, rewrite_subquery_fn))),
+            when_clauses: when_clauses
+                .iter()
+                .map(|clause| vibesql_ast::CaseWhen {
+                    conditions: clause
+                        .conditions
+                        .iter()
+                        .map(|c| rewrite_expression(c, rewrite_subquery_fn))
+                        .collect(),
+                    result: rewrite_expression(&clause.result, rewrite_subquery_fn),
+                })
+                .collect(),
+            else_result: else_result.as_ref().map(|e| Box::new(rewrite_expression(e, rewrite_subquery_fn))),
+        },
+
+        Expression::ScalarSubquery(subquery) => {
+            Expression::ScalarSubquery(Box::new(rewrite_subquery_fn(subquery)))
+        }
+
+        Expression::Exists { subquery, negated } => Expression::Exists {
+            subquery: Box::new(rewrite_subquery_fn(subquery)),
+            negated: *negated,
+        },
+
+        Expression::QuantifiedComparison {
+            expr,
+            op,
+            quantifier,
+            subquery,
+        } => Expression::QuantifiedComparison {
+            expr: Box::new(rewrite_expression(expr, rewrite_subquery_fn)),
+            op: *op,
+            quantifier: quantifier.clone(),
+            subquery: Box::new(rewrite_subquery_fn(subquery)),
+        },
+
+        Expression::InList {
+            expr,
+            values,
+            negated,
+        } => Expression::InList {
+            expr: Box::new(rewrite_expression(expr, rewrite_subquery_fn)),
+            values: values.iter().map(|v| rewrite_expression(v, rewrite_subquery_fn)).collect(),
+            negated: *negated,
+        },
+
+        Expression::Between {
+            expr,
+            low,
+            high,
+            negated,
+            symmetric,
+        } => Expression::Between {
+            expr: Box::new(rewrite_expression(expr, rewrite_subquery_fn)),
+            low: Box::new(rewrite_expression(low, rewrite_subquery_fn)),
+            high: Box::new(rewrite_expression(high, rewrite_subquery_fn)),
+            negated: *negated,
+            symmetric: *symmetric,
+        },
+
+        Expression::Cast { expr, data_type } => Expression::Cast {
+            expr: Box::new(rewrite_expression(expr, rewrite_subquery_fn)),
+            data_type: data_type.clone(),
+        },
+
+        Expression::Function {
+            name,
+            args,
+            character_unit,
+        } => Expression::Function {
+            name: name.clone(),
+            args: args.iter().map(|a| rewrite_expression(a, rewrite_subquery_fn)).collect(),
+            character_unit: character_unit.clone(),
+        },
+
+        Expression::AggregateFunction {
+            name,
+            distinct,
+            args,
+        } => Expression::AggregateFunction {
+            name: name.clone(),
+            distinct: *distinct,
+            args: args.iter().map(|a| rewrite_expression(a, rewrite_subquery_fn)).collect(),
+        },
+
+        Expression::Position {
+            substring,
+            string,
+            character_unit,
+        } => Expression::Position {
+            substring: Box::new(rewrite_expression(substring, rewrite_subquery_fn)),
+            string: Box::new(rewrite_expression(string, rewrite_subquery_fn)),
+            character_unit: character_unit.clone(),
+        },
+
+        Expression::Trim {
+            position,
+            removal_char,
+            string,
+        } => Expression::Trim {
+            position: position.clone(),
+            removal_char: removal_char.as_ref().map(|e| Box::new(rewrite_expression(e, rewrite_subquery_fn))),
+            string: Box::new(rewrite_expression(string, rewrite_subquery_fn)),
+        },
+
+        Expression::Like {
+            expr,
+            pattern,
+            negated,
+        } => Expression::Like {
+            expr: Box::new(rewrite_expression(expr, rewrite_subquery_fn)),
+            pattern: Box::new(rewrite_expression(pattern, rewrite_subquery_fn)),
+            negated: *negated,
+        },
+
+        Expression::Interval {
+            value,
+            unit,
+            leading_precision,
+            fractional_precision,
+        } => Expression::Interval {
+            value: Box::new(rewrite_expression(value, rewrite_subquery_fn)),
+            unit: unit.clone(),
+            leading_precision: *leading_precision,
+            fractional_precision: *fractional_precision,
+        },
+
+        // Literals, column refs, and special expressions don't need rewriting
+        Expression::Literal(_)
+        | Expression::ColumnRef { .. }
+        | Expression::Wildcard
+        | Expression::CurrentDate
+        | Expression::CurrentTime { .. }
+        | Expression::CurrentTimestamp { .. }
+        | Expression::Default
+        | Expression::DuplicateKeyValue { .. }
+        | Expression::WindowFunction { .. }
+        | Expression::NextValue { .. }
+        | Expression::MatchAgainst { .. }
+        | Expression::PseudoVariable { .. }
+        | Expression::SessionVariable { .. } => expr.clone(),
+    }
+}
+
+/// Recursively rewrite FROM clause subqueries
+pub(super) fn rewrite_from_clause(
+    from: &vibesql_ast::FromClause,
+    rewrite_subquery_fn: &impl Fn(&SelectStmt) -> SelectStmt,
+) -> vibesql_ast::FromClause {
+    match from {
+        vibesql_ast::FromClause::Table { name, alias } => vibesql_ast::FromClause::Table {
+            name: name.clone(),
+            alias: alias.clone(),
+        },
+        vibesql_ast::FromClause::Join {
+            left,
+            right,
+            join_type,
+            condition,
+            natural,
+        } => vibesql_ast::FromClause::Join {
+            left: Box::new(rewrite_from_clause(left, rewrite_subquery_fn)),
+            right: Box::new(rewrite_from_clause(right, rewrite_subquery_fn)),
+            join_type: join_type.clone(),
+            condition: condition.as_ref().map(|c| rewrite_expression(c, rewrite_subquery_fn)),
+            natural: *natural,
+        },
+        vibesql_ast::FromClause::Subquery { query, alias } => vibesql_ast::FromClause::Subquery {
+            query: Box::new(rewrite_subquery_fn(query)),
+            alias: alias.clone(),
+        },
+    }
+}
