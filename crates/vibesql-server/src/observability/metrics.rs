@@ -1,6 +1,5 @@
-use opentelemetry::metrics::{Counter, Histogram, Meter, ObservableGauge};
+use opentelemetry::metrics::{Counter, Histogram, Meter};
 use opentelemetry::KeyValue;
-use std::sync::Arc;
 use std::time::Duration;
 
 /// Server metrics collection

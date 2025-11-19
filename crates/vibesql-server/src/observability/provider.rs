@@ -94,11 +94,8 @@ impl ObservabilityProvider {
 
             let provider = TracerProvider::builder()
                 .with_batch_exporter(exporter, runtime::Tokio)
-                .with_config(
-                    opentelemetry_sdk::trace::Config::default()
-                        .with_sampler(sampler)
-                        .with_resource(resource.clone()),
-                )
+                .with_sampler(sampler)
+                .with_resource(resource.clone())
                 .build();
 
             // Set global tracer provider

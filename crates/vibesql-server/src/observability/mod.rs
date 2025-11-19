@@ -39,5 +39,6 @@ pub mod metrics;
 pub mod provider;
 
 pub use config::ObservabilityConfig;
+#[allow(unused_imports)] // Re-exported for public API
 pub use metrics::ServerMetrics;
 pub use provider::ObservabilityProvider;
