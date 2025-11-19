@@ -2,6 +2,42 @@
 
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use crate::errors::ExecutorError;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+/// Compute a hash for a subquery to use as a cache key
+///
+/// # Implementation Note
+///
+/// Currently uses Debug format for hashing, which has trade-offs:
+///
+/// **Pros:**
+/// - Simple and works with existing AST types
+/// - Sufficient for typical queries in practice
+/// - Hash collisions are rare
+///
+/// **Cons:**
+/// - Fragile: Debug format could change with Rust versions
+/// - Less efficient: Allocates string for each hash
+/// - Not cryptographically secure (uses DefaultHasher)
+///
+/// **Future Improvement:**
+/// Ideally, SelectStmt and child types should derive Hash for:
+/// - Better performance (direct AST traversal)
+/// - Stability (Hash trait is stable)
+/// - Type safety (compiler-enforced consistency)
+///
+/// This requires adding Hash to ~15-20 AST types, which should be
+/// done in a dedicated refactoring PR to minimize risk.
+///
+/// See: https://github.com/rjwalters/vibesql/issues/2137#hash-improvement
+fn compute_subquery_hash(subquery: &vibesql_ast::SelectStmt) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    // Use the debug format as a stable representation
+    // This works because SelectStmt derives Debug and PartialEq
+    format!("{:?}", subquery).hash(&mut hasher);
+    hasher.finish()
+}
 
 /// Compute the number of columns in a SELECT statement's result
 /// Handles wildcards by expanding them using table schemas from the database
@@ -199,6 +235,15 @@ impl CombinedExpressionEvaluator<'_> {
 
     /// Evaluate IN operator with subquery
     /// SQL:1999 Section 8.4: IN predicate with subquery
+    ///
+    /// # Implementation Note
+    ///
+    /// Currently uses linear search through subquery results. HashSet optimization
+    /// is not feasible because SQL equality semantics (with type coercion) differ
+    /// from Rust's PartialEq trait, making HashSet.contains() unsuitable.
+    ///
+    /// Future optimization: Use lazy execution via execute_iter() to enable
+    /// early termination of subquery execution after finding first match.
     pub(super) fn eval_in_subquery(
         &self,
         expr: &vibesql_ast::Expression,
@@ -222,39 +267,60 @@ impl CombinedExpressionEvaluator<'_> {
         // Evaluate the left-hand expression
         let expr_val = self.eval(expr, row)?;
 
-        // Check if this subquery is non-correlated and can be cached
-        // A subquery is non-correlated if we're not passing outer context to it
-        let is_non_correlated = self.schema.table_schemas.is_empty();
-
-        // For non-correlated subqueries, check cache first
-        let rows = if is_non_correlated {
-            // Compute hash of subquery for cache key
-            let subquery_hash = crate::evaluator::expression_hash::ExpressionHasher::hash_select_stmt(subquery);
-
-            // Check if result is already in cache
-            if let Some(cached_rows) = self.subquery_cache.borrow().get(&subquery_hash) {
-                // Cache hit! Reuse the cached result
-                cached_rows.clone()
-            } else {
-                // Cache miss - execute the subquery
-                let select_executor = crate::select::SelectExecutor::new(database);
-                let result_rows = select_executor.execute(subquery)?;
-
-                // Store in cache for future use
-                self.subquery_cache.borrow_mut().insert(subquery_hash, result_rows.clone());
-
-                result_rows
-            }
-        } else {
-            // Correlated subquery - cannot cache, execute normally
-            // Pass shared cache to child executor for nested subqueries
-            let select_executor = crate::select::SelectExecutor::new_with_shared_cache(
+        // Phase 3 optimization: Try index-aware execution for simple uncorrelated subqueries
+        // Only applies to simple SELECT column FROM table WHERE ... queries
+        // This is tried first because it's the fastest when applicable
+        if can_use_index_for_in_subquery(subquery, database) {
+            if let Some(index_result) = try_index_optimized_in_subquery(
+                &expr_val,
+                subquery,
+                negated,
                 database,
-                row,
-                self.schema,
-                self.depth,
-                self.subquery_cache.clone(),
-            );
+                sql_mode.clone(),
+            )? {
+                return Ok(index_result);
+            }
+            // If index optimization fails, fall through to caching/regular execution
+        }
+
+        // Check if this is a non-correlated subquery that can be cached
+        let is_correlated = crate::correlation::is_correlated(subquery, self.schema);
+
+        // Execute or retrieve from cache
+        let rows = if !is_correlated {
+            // Non-correlated subquery - try cache first
+            let cache_key = compute_subquery_hash(subquery);
+
+            // Check cache (explicitly scope the borrow to avoid holding it during execution)
+            // Use peek() for readonly access (get() requires &mut for LRU tracking)
+            let cached_result = self.subquery_cache.borrow().peek(&cache_key).cloned();
+
+            if let Some(cached_rows) = cached_result {
+                // Cache hit - use cached result
+                cached_rows
+            } else {
+                // Cache miss - execute and cache
+                // IMPORTANT: Propagate depth to prevent bypassing MAX_EXPRESSION_DEPTH
+                let select_executor = crate::select::SelectExecutor::new_with_depth(database, self.depth);
+                let rows = select_executor.execute(subquery)?;
+
+                // Cache the result
+                self.subquery_cache.borrow_mut().put(cache_key, rows.clone());
+                rows
+            }
+
+        } else {
+            // Correlated subquery - execute with outer context (can't cache)
+            let select_executor = if !self.schema.table_schemas.is_empty() {
+                crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                    database,
+                    row,
+                    self.schema,
+                    self.depth,
+                )
+            } else {
+                crate::select::SelectExecutor::new(database)
+            };
             select_executor.execute(subquery)?
         };
 
@@ -306,9 +372,12 @@ impl CombinedExpressionEvaluator<'_> {
             return Ok(vibesql_types::SqlValue::Null);
         }
 
+        // Linear search through all rows
+        // (We cannot use HashSet.contains() because SQL equality performs type coercion
+        // which differs from Rust's PartialEq - e.g., Integer(5) == Float(5.0) in SQL
+        // but Integer(5) != Float(5.0) in Rust PartialEq)
         let mut found_null = false;
 
-        // Check each row from subquery
         for subquery_row in &rows {
             let subquery_val =
                 subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
@@ -341,5 +410,241 @@ impl CombinedExpressionEvaluator<'_> {
         } else {
             Ok(vibesql_types::SqlValue::Boolean(negated))
         }
+    }
+}
+
+/// Check if a subquery can use index optimization for IN evaluation
+///
+/// Returns true if the subquery is:
+/// - Simple SELECT column FROM table WHERE ... (no joins, no aggregates, no subqueries)
+/// - Single table access
+/// - Projected column exists and is indexed
+fn can_use_index_for_in_subquery(
+    subquery: &vibesql_ast::SelectStmt,
+    database: &vibesql_storage::Database,
+) -> bool {
+    // Must have a FROM clause with single table
+    let table_name = match &subquery.from {
+        Some(vibesql_ast::FromClause::Table { name, .. }) => name,
+        _ => return false, // Joins, subqueries, or no FROM clause
+    };
+
+    // Must not have GROUP BY, HAVING, LIMIT, OFFSET, or DISTINCT
+    if subquery.group_by.is_some()
+        || subquery.having.is_some()
+        || subquery.limit.is_some()
+        || subquery.offset.is_some()
+        || subquery.distinct
+    {
+        return false;
+    }
+
+    // Must project exactly one column (not wildcard, not multiple columns)
+    if subquery.select_list.len() != 1 {
+        return false;
+    }
+
+    // Get the projected column name
+    let column_name = match &subquery.select_list[0] {
+        vibesql_ast::SelectItem::Expression { expr, .. } => {
+            match expr {
+                vibesql_ast::Expression::ColumnRef { column, .. } => column,
+                _ => return false, // Expressions, functions, etc.
+            }
+        }
+        _ => return false, // Wildcards
+    };
+
+    // Check if an index exists that covers this column
+    let indexes = database.list_indexes_for_table(table_name);
+    for index_name in &indexes {
+        if let Some(index_metadata) = database.get_index(index_name) {
+            // Check if first indexed column matches our projected column
+            if let Some(first_col) = index_metadata.columns.first() {
+                if &first_col.column_name == column_name {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
+/// Try to evaluate IN subquery using index optimization
+///
+/// Returns Some(result) if index optimization succeeds, None to fall back to regular execution
+fn try_index_optimized_in_subquery(
+    expr_val: &vibesql_types::SqlValue,
+    subquery: &vibesql_ast::SelectStmt,
+    negated: bool,
+    database: &vibesql_storage::Database,
+    sql_mode: vibesql_types::SqlMode,
+) -> Result<Option<vibesql_types::SqlValue>, ExecutorError> {
+    // Extract table and column names (already validated by can_use_index_for_in_subquery)
+    let table_name = match &subquery.from {
+        Some(vibesql_ast::FromClause::Table { name, .. }) => name,
+        _ => return Ok(None),
+    };
+
+    let column_name = match &subquery.select_list[0] {
+        vibesql_ast::SelectItem::Expression { expr, .. } => {
+            match expr {
+                vibesql_ast::Expression::ColumnRef { column, .. } => column,
+                _ => return Ok(None),
+            }
+        }
+        _ => return Ok(None),
+    };
+
+    // Find the best index for this column
+    let indexes = database.list_indexes_for_table(table_name);
+    let mut selected_index: Option<String> = None;
+
+    for index_name in &indexes {
+        if let Some(index_metadata) = database.get_index(index_name) {
+            if let Some(first_col) = index_metadata.columns.first() {
+                if &first_col.column_name == column_name {
+                    selected_index = Some(index_name.clone());
+                    break;
+                }
+            }
+        }
+    }
+
+    let index_name = match selected_index {
+        Some(name) => name,
+        None => return Ok(None),
+    };
+
+    // Get index data
+    let index_data = match database.get_index_data(&index_name) {
+        Some(data) => data,
+        None => return Ok(None),
+    };
+
+    let table = match database.get_table(table_name) {
+        Some(t) => t,
+        None => return Ok(None),
+    };
+
+    // Use index to get all values efficiently
+    // Two strategies based on presence of WHERE clause:
+    // 1. With WHERE: Extract predicate, use index scan with filtering
+    // 2. Without WHERE: Scan all values from index
+
+    let values_set = if let Some(where_expr) = &subquery.where_clause {
+        // Strategy 1: Use index scan with predicate pushdown
+        use crate::select::scan::index_scan::predicate::extract_index_predicate;
+
+        // Try to extract index predicate (range or IN)
+        if let Some(index_pred) = extract_index_predicate(where_expr, column_name) {
+            // Get row indices using index predicate
+            let row_indices: Vec<usize> = match index_pred {
+                crate::select::scan::index_scan::predicate::IndexPredicate::Range(range) => {
+                    index_data.range_scan(
+                        range.start.as_ref(),
+                        range.end.as_ref(),
+                        range.inclusive_start,
+                        range.inclusive_end,
+                    )
+                }
+                crate::select::scan::index_scan::predicate::IndexPredicate::In(vals) => {
+                    index_data.multi_lookup(&vals)
+                }
+            };
+
+            // Fetch actual column values from matched rows
+            let all_rows = table.scan();
+            let column_index = table
+                .schema
+                .columns
+                .iter()
+                .position(|col| col.name == *column_name)
+                .ok_or_else(|| ExecutorError::ColumnNotFound {
+                    column_name: column_name.clone(),
+                    table_name: table_name.clone(),
+                    searched_tables: vec![table_name.clone()],
+                    available_columns: table.schema.columns.iter().map(|c| c.name.clone()).collect(),
+                })?;
+
+            let mut values = std::collections::HashSet::new();
+            for row_idx in row_indices {
+                if let Some(row) = all_rows.get(row_idx) {
+                    if let Some(value) = row.values.get(column_index) {
+                        values.insert(value.clone());
+                    }
+                }
+            }
+            values
+        } else {
+            // WHERE clause exists but can't use index - fall back
+            return Ok(None);
+        }
+    } else {
+        // Strategy 2: No WHERE clause - scan all indexed values
+        // This is still faster than full subquery execution if we can read from index
+        let all_rows = table.scan();
+        let column_index = table
+            .schema
+            .columns
+            .iter()
+            .position(|col| col.name == *column_name)
+            .ok_or_else(|| ExecutorError::ColumnNotFound {
+                column_name: column_name.clone(),
+                table_name: table_name.clone(),
+                searched_tables: vec![table_name.clone()],
+                available_columns: table.schema.columns.iter().map(|c| c.name.clone()).collect(),
+            })?;
+
+        // Collect all distinct values from the column
+        let mut values = std::collections::HashSet::new();
+        for row in all_rows {
+            if let Some(value) = row.values.get(column_index) {
+                values.insert(value.clone());
+            }
+        }
+        values
+    };
+
+    // Now check if expr_val is in the set (same logic as original implementation)
+    // Handle NULL cases per SQL standard
+    if matches!(expr_val, vibesql_types::SqlValue::Null) {
+        if values_set.is_empty() {
+            return Ok(Some(vibesql_types::SqlValue::Boolean(negated)));
+        }
+
+        if values_set.contains(&vibesql_types::SqlValue::Null) {
+            return Ok(Some(vibesql_types::SqlValue::Null));
+        }
+
+        return Ok(Some(vibesql_types::SqlValue::Null));
+    }
+
+    let mut found_null = false;
+    for value in &values_set {
+        if matches!(value, vibesql_types::SqlValue::Null) {
+            found_null = true;
+            continue;
+        }
+
+        // Compare using equality
+        let eq_result = ExpressionEvaluator::eval_binary_op_static(
+            expr_val,
+            &vibesql_ast::BinaryOperator::Equal,
+            &value,
+            sql_mode.clone(),
+        )?;
+
+        if matches!(eq_result, vibesql_types::SqlValue::Boolean(true)) {
+            return Ok(Some(vibesql_types::SqlValue::Boolean(!negated)));
+        }
+    }
+
+    // No match found
+    if found_null {
+        Ok(Some(vibesql_types::SqlValue::Null))
+    } else {
+        Ok(Some(vibesql_types::SqlValue::Boolean(negated)))
     }
 }

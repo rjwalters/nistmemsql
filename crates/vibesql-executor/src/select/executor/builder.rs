@@ -34,12 +34,6 @@ pub struct SelectExecutor<'a> {
     /// Value: Cached aggregate result
     /// Scope: Per-group evaluation (cleared between groups)
     pub(super) aggregate_cache: RefCell<HashMap<String, vibesql_types::SqlValue>>,
-    /// Cache for non-correlated subquery results (shared across nested executors)
-    /// Key: Hash of the subquery AST
-    /// Value: Cached subquery result rows
-    /// Scope: Per-query execution (prevents redundant subquery re-execution)
-    /// Shared via Rc to enable cache reuse across nested subquery evaluations
-    pub(super) subquery_cache: Rc<RefCell<HashMap<u64, Vec<vibesql_storage::Row>>>>,
 }
 
 impl<'a> SelectExecutor<'a> {
@@ -56,7 +50,6 @@ impl<'a> SelectExecutor<'a> {
             start_time: Instant::now(),
             timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
             aggregate_cache: RefCell::new(HashMap::new()),
-            subquery_cache: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
@@ -77,7 +70,23 @@ impl<'a> SelectExecutor<'a> {
             start_time: Instant::now(),
             timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
             aggregate_cache: RefCell::new(HashMap::new()),
-            subquery_cache: Rc::new(RefCell::new(HashMap::new())),
+        }
+    }
+
+    /// Create a new SELECT executor with explicit depth tracking
+    /// Used for non-correlated subqueries to propagate depth limit enforcement
+    pub fn new_with_depth(database: &'a vibesql_storage::Database, parent_depth: usize) -> Self {
+        SelectExecutor {
+            database,
+            _outer_row: None,
+            _outer_schema: None,
+            procedural_context: None,
+            subquery_depth: parent_depth + 1,
+            memory_used_bytes: Cell::new(0),
+            memory_warning_logged: Cell::new(false),
+            start_time: Instant::now(),
+            timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
+            aggregate_cache: RefCell::new(HashMap::new()),
         }
     }
 
@@ -114,31 +123,6 @@ impl<'a> SelectExecutor<'a> {
             start_time: Instant::now(),
             timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
             aggregate_cache: RefCell::new(HashMap::new()),
-            subquery_cache: Rc::new(RefCell::new(HashMap::new())),
-        }
-    }
-
-    /// Create a new SELECT executor with shared subquery cache
-    /// Used when creating nested subquery executors to share cache with parent
-    pub fn new_with_shared_cache(
-        database: &'a vibesql_storage::Database,
-        outer_row: &'a vibesql_storage::Row,
-        outer_schema: &'a crate::schema::CombinedSchema,
-        parent_depth: usize,
-        subquery_cache: Rc<RefCell<HashMap<u64, Vec<vibesql_storage::Row>>>>,
-    ) -> Self {
-        SelectExecutor {
-            database,
-            _outer_row: Some(outer_row),
-            _outer_schema: Some(outer_schema),
-            procedural_context: None,
-            subquery_depth: parent_depth + 1,
-            memory_used_bytes: Cell::new(0),
-            memory_warning_logged: Cell::new(false),
-            start_time: Instant::now(),
-            timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
-            aggregate_cache: RefCell::new(HashMap::new()),
-            subquery_cache,
         }
     }
 
@@ -158,7 +142,6 @@ impl<'a> SelectExecutor<'a> {
             start_time: Instant::now(),
             timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
             aggregate_cache: RefCell::new(HashMap::new()),
-            subquery_cache: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
