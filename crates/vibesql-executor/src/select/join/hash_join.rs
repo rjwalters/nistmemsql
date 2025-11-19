@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use rayon::prelude::*;
 
 use super::{combine_rows, FromResult};
-use crate::{errors::ExecutorError, limits::MAX_MEMORY_BYTES, schema::CombinedSchema};
+use crate::{errors::ExecutorError, schema::CombinedSchema};
 
 #[cfg(feature = "parallel")]
 use crate::select::parallel::ParallelConfig;

@@ -14,9 +14,13 @@ fn check_join_size_limit(
     left_count: usize,
     right_count: usize,
     condition: &Option<vibesql_ast::Expression>,
+    has_equijoin_hint: bool,
 ) -> Result<(), ExecutorError> {
     // Estimate result size based on join condition type
-    let estimated_result_rows = if is_equijoin_condition(condition) {
+    // Check both the explicit condition AND whether the caller knows an equijoin exists
+    let has_equijoin = is_equijoin_condition(condition) || has_equijoin_hint;
+
+    let estimated_result_rows = if has_equijoin {
         // For equijoins (a.col = b.col), estimate based on join selectivity
         // With equijoins on indexed columns, expect 1:1 or 1:N selectivity
         // Conservative estimate: use the size of the larger input
@@ -261,6 +265,10 @@ pub(super) fn nested_loop_inner_join(
         EquijoinEvalStrategy::Complex
     };
 
+    // Memory check - with equijoin awareness
+    let has_equijoin = matches!(eval_strategy, EquijoinEvalStrategy::Simple { .. });
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition, has_equijoin)?;
+
     // Execute join with optimized strategy
     let result_rows = match eval_strategy {
         EquijoinEvalStrategy::Simple { left_col_idx, right_col_idx, remaining_condition } => {
@@ -317,6 +325,10 @@ pub(super) fn nested_loop_left_outer_join(
     let combined_schema = CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
     let evaluator = CombinedExpressionEvaluator::with_database(&combined_schema, database);
 
+    // Memory check - detect equijoin in condition
+    let has_equijoin = is_equijoin_condition(condition);
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition, has_equijoin)?;
+
     // Nested loop LEFT OUTER JOIN algorithm
     let mut result_rows = Vec::new();
     for left_row in left.rows() {
@@ -368,8 +380,8 @@ pub(super) fn nested_loop_left_outer_join(
 
 /// Nested loop RIGHT OUTER JOIN implementation
 pub(super) fn nested_loop_right_outer_join(
-    mut left: FromResult,
-    mut right: FromResult,
+    left: FromResult,
+    right: FromResult,
     condition: &Option<vibesql_ast::Expression>,
     database: &vibesql_storage::Database,
 ) -> Result<FromResult, ExecutorError> {
@@ -455,6 +467,10 @@ pub(super) fn nested_loop_full_outer_join(
     let combined_schema = CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
     let evaluator = CombinedExpressionEvaluator::with_database(&combined_schema, database);
 
+    // Memory check - detect equijoin in condition
+    let has_equijoin = is_equijoin_condition(condition);
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition, has_equijoin)?;
+
     // FULL OUTER JOIN = LEFT OUTER JOIN + unmatched rows from right
     let mut result_rows = Vec::new();
     let mut right_matched = vec![false; right.rows().len()];
@@ -535,7 +551,7 @@ pub(super) fn nested_loop_cross_join(
 
     // Check if cross join would exceed memory limits before executing
     // CROSS JOIN always creates Cartesian products, so this check is appropriate
-    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition, false)?;
 
     // Extract right table name and schema
     let right_table_name = right
