@@ -291,53 +291,12 @@ impl CombinedExpressionEvaluator<'_> {
             return Ok(vibesql_types::SqlValue::Null);
         }
 
-        // Phase 1 Optimization: Use HashSet for large result sets (non-negated IN only)
-        // Threshold: 10 rows (arbitrary, can be tuned based on benchmarks)
-        const HASH_SET_THRESHOLD: usize = 10;
-
+        // Linear search through all rows
+        // (We cannot use HashSet.contains() because SQL equality performs type coercion
+        // which differs from Rust's PartialEq - e.g., Integer(5) == Float(5.0) in SQL
+        // but Integer(5) != Float(5.0) in Rust PartialEq)
         let mut found_null = false;
 
-        if !negated && rows.len() > HASH_SET_THRESHOLD {
-            // Build HashSet for O(1) lookup instead of O(n) linear search
-            use std::collections::HashSet;
-
-            let mut value_set = HashSet::new();
-
-            for subquery_row in &rows {
-                let subquery_val =
-                    subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
-
-                if matches!(subquery_val, vibesql_types::SqlValue::Null) {
-                    found_null = true;
-                } else {
-                    value_set.insert(subquery_val.clone());
-                }
-            }
-
-            // Check if expr_val is in the set (using equality comparison for SQL semantics)
-            for subquery_val in &value_set {
-                let eq_result = ExpressionEvaluator::eval_binary_op_static(
-                    &expr_val,
-                    &vibesql_ast::BinaryOperator::Equal,
-                    subquery_val,
-                    sql_mode.clone(),
-                )?;
-
-                if matches!(eq_result, vibesql_types::SqlValue::Boolean(true)) {
-                    return Ok(vibesql_types::SqlValue::Boolean(true));
-                }
-            }
-
-            // No match found - return NULL if NULLs exist, FALSE otherwise
-            if found_null {
-                return Ok(vibesql_types::SqlValue::Null);
-            } else {
-                return Ok(vibesql_types::SqlValue::Boolean(false));
-            }
-        }
-
-        // Linear search for small result sets or negated IN
-        // (NOT IN requires checking all values due to NULL semantics)
         for subquery_row in &rows {
             let subquery_val =
                 subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
