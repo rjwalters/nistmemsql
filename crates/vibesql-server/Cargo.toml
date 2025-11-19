@@ -49,6 +49,12 @@ serde = { version = "1.0", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+# OpenTelemetry observability
+opentelemetry = { version = "0.27", features = ["metrics", "trace", "logs"] }
+opentelemetry-otlp = { version = "0.27", features = ["grpc-tonic", "metrics", "trace", "logs"] }
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
+tracing-opentelemetry = "0.28"
+
 # Utilities
 bytes = "1.0"
 dirs = "5.0"
