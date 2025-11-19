@@ -101,9 +101,7 @@ impl Database {
         let config = vibesql_storage::DatabaseConfig::browser_default();
         let path = std::path::PathBuf::from("/vibesql-data");
 
-        let db = vibesql_storage::Database::with_path_and_config_async(path, config)
-            .await
-            .map_err(|e| JsError::new(&format!("Failed to initialize OPFS storage: {:?}", e)))?;
+        let db = vibesql_storage::Database::with_path_and_config(path, config);
 
         Ok(Database { db })
     }
