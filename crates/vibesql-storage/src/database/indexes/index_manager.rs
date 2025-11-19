@@ -352,6 +352,13 @@ impl IndexManager {
         };
 
         // Replace with disk-backed version
+        #[cfg(not(target_arch = "wasm32"))]
+        let disk_backed = IndexData::DiskBacked {
+            btree: Arc::new(parking_lot::Mutex::new(btree)),
+            page_manager,
+        };
+
+        #[cfg(target_arch = "wasm32")]
         let disk_backed = IndexData::DiskBacked {
             btree: Arc::new(std::sync::Mutex::new(btree)),
             page_manager,

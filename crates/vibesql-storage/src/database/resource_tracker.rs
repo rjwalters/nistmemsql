@@ -4,8 +4,40 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use std::sync::RwLock;
 use std::time::Instant;
+
+#[cfg(not(target_arch = "wasm32"))]
+use parking_lot::RwLock;
+
+#[cfg(target_arch = "wasm32")]
+use std::sync::RwLock;
+
+// Helper macros to abstract over parking_lot vs std::sync RwLock differences
+macro_rules! read_lock {
+    ($rwlock:expr) => {{
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            $rwlock.read()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            $rwlock.read().unwrap()
+        }
+    }};
+}
+
+macro_rules! write_lock {
+    ($rwlock:expr) => {{
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            $rwlock.write()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            $rwlock.write().unwrap()
+        }
+    }};
+}
 
 /// Which backend an index is currently using
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -87,7 +119,7 @@ impl Clone for ResourceTracker {
         ResourceTracker {
             memory_used: AtomicUsize::new(self.memory_used.load(Ordering::Relaxed)),
             disk_used: AtomicUsize::new(self.disk_used.load(Ordering::Relaxed)),
-            index_stats: RwLock::new(self.index_stats.read().unwrap().clone()),
+            index_stats: RwLock::new(read_lock!(self.index_stats).clone()),
         }
     }
 }
@@ -129,14 +161,14 @@ impl ResourceTracker {
 
         // Create stats entry
         let stats = IndexStats::new(memory_bytes, disk_bytes, backend);
-        self.index_stats.write().unwrap().insert(normalized, stats);
+        write_lock!(self.index_stats).insert(normalized, stats);
     }
 
     /// Remove an index from tracking
     pub fn unregister_index(&mut self, index_name: &str) {
         // Normalize index name to uppercase for lookup
         let normalized = index_name.to_uppercase();
-        if let Some(stats) = self.index_stats.write().unwrap().remove(&normalized) {
+        if let Some(stats) = write_lock!(self.index_stats).remove(&normalized) {
             // Subtract from totals
             self.memory_used.fetch_sub(stats.memory_bytes, Ordering::Relaxed);
             self.disk_used.fetch_sub(stats.disk_bytes, Ordering::Relaxed);
@@ -148,7 +180,7 @@ impl ResourceTracker {
     pub fn record_access(&self, index_name: &str) {
         // Normalize index name to uppercase for lookup
         let normalized = index_name.to_uppercase();
-        if let Some(stats) = self.index_stats.write().unwrap().get_mut(&normalized) {
+        if let Some(stats) = write_lock!(self.index_stats).get_mut(&normalized) {
             stats.record_access();
         }
     }
@@ -157,7 +189,7 @@ impl ResourceTracker {
     pub fn mark_spilled(&mut self, index_name: &str, new_disk_bytes: usize) {
         // Normalize index name to uppercase for lookup
         let normalized = index_name.to_uppercase();
-        if let Some(stats) = self.index_stats.write().unwrap().get_mut(&normalized) {
+        if let Some(stats) = write_lock!(self.index_stats).get_mut(&normalized) {
             // Subtract memory usage
             self.memory_used.fetch_sub(stats.memory_bytes, Ordering::Relaxed);
 
@@ -176,15 +208,13 @@ impl ResourceTracker {
     pub fn get_index_stats(&self, index_name: &str) -> Option<IndexStats> {
         // Normalize index name to uppercase for lookup (consistent with create_index)
         let normalized = index_name.to_uppercase();
-        self.index_stats.read().unwrap().get(&normalized).cloned()
+        read_lock!(self.index_stats).get(&normalized).cloned()
     }
 
     /// Find the coldest (least recently used) in-memory index
     /// Returns the index name and its last access time
     pub fn find_coldest_in_memory_index(&self) -> Option<(String, Instant)> {
-        self.index_stats
-            .read()
-            .unwrap()
+        read_lock!(self.index_stats)
             .iter()
             .filter(|(_, stats)| stats.backend == IndexBackend::InMemory)
             .min_by_key(|(_, stats)| stats.last_access)
@@ -193,9 +223,7 @@ impl ResourceTracker {
 
     /// Get all in-memory indexes sorted by last access (oldest first)
     pub fn get_in_memory_indexes_by_lru(&self) -> Vec<String> {
-        let mut indexes: Vec<_> = self.index_stats
-            .read()
-            .unwrap()
+        let mut indexes: Vec<_> = read_lock!(self.index_stats)
             .iter()
             .filter(|(_, stats)| stats.backend == IndexBackend::InMemory)
             .map(|(name, stats)| (name.clone(), stats.last_access))
@@ -209,7 +237,7 @@ impl ResourceTracker {
     pub fn get_backend(&self, index_name: &str) -> Option<IndexBackend> {
         // Normalize index name to uppercase for lookup
         let normalized = index_name.to_uppercase();
-        self.index_stats.read().unwrap().get(&normalized).map(|stats| stats.backend)
+        read_lock!(self.index_stats).get(&normalized).map(|stats| stats.backend)
     }
 }
 

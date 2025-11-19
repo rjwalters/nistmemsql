@@ -4,6 +4,8 @@
 //! Phase 3: Basic spatial predicates with proper DE-9IM semantics.
 //! Phase 4+: Full DE-9IM support for complex patterns and optimizations.
 
+#![cfg(feature = "spatial")]
+
 use vibesql_types::SqlValue;
 use crate::errors::ExecutorError;
 use super::{sql_value_to_geometry, Geometry};

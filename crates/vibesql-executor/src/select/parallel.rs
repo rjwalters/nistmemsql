@@ -6,6 +6,11 @@
 //! - Row count
 //! - Operation type
 //! - User overrides via PARALLEL_THRESHOLD environment variable
+//!
+//! Note: This module is only compiled when the `parallel` feature is enabled.
+//! In WASM builds, this feature is disabled as parallelism provides no benefit.
+
+#![cfg(feature = "parallel")]
 
 use std::sync::OnceLock;
 

@@ -7,9 +7,15 @@ use std::{
     num::NonZeroUsize,
     sync::{
         atomic::{AtomicU64, Ordering},
-        Arc, Mutex,
+        Arc,
     },
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use parking_lot::Mutex;
+
+#[cfg(target_arch = "wasm32")]
+use std::sync::Mutex;
 
 use lru::LruCache;
 
@@ -17,6 +23,22 @@ use crate::{
     page::{Page, PageId, PageManager},
     StorageError,
 };
+
+/// Helper macro to handle platform-specific mutex locking
+/// - parking_lot::Mutex::lock() returns guard directly
+/// - std::sync::Mutex::lock() returns Result<Guard, PoisonError>
+macro_rules! lock {
+    ($mutex:expr) => {{
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            $mutex.lock()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            $mutex.lock().unwrap()
+        }
+    }};
+}
 
 /// Statistics for buffer pool performance monitoring
 #[derive(Debug, Default)]
@@ -114,10 +136,7 @@ impl BufferPool {
     pub fn get_page(&self, page_id: PageId) -> Result<Page, StorageError> {
         // Try to get from cache first
         {
-            let mut cache = self
-                .cache
-                .lock()
-                .map_err(|e| StorageError::LockError(format!("Failed to lock cache: {}", e)))?;
+            let mut cache = lock!(self.cache);
 
             if let Some(page) = cache.get(&page_id) {
                 self.stats.record_hit();
@@ -145,10 +164,7 @@ impl BufferPool {
 
     /// Internal method to put a page into the cache
     fn put_page_internal(&self, page: Page) -> Result<(), StorageError> {
-        let mut cache = self
-            .cache
-            .lock()
-            .map_err(|e| StorageError::LockError(format!("Failed to lock cache: {}", e)))?;
+        let mut cache = lock!(self.cache);
 
         // If cache is at capacity, LRU will evict automatically
         if let Some((_evicted_id, mut evicted_page)) = cache.push(page.id, page) {
@@ -165,10 +181,7 @@ impl BufferPool {
 
     /// Flush all dirty pages to disk
     pub fn flush_dirty(&self) -> Result<(), StorageError> {
-        let cache = self
-            .cache
-            .lock()
-            .map_err(|e| StorageError::LockError(format!("Failed to lock cache: {}", e)))?;
+        let cache = lock!(self.cache);
 
         // Collect dirty pages (we need to release the lock before writing)
         let dirty_pages: Vec<(PageId, Page)> = cache
@@ -184,10 +197,7 @@ impl BufferPool {
             self.page_manager.write_page(&mut page)?;
 
             // Update the page in cache to mark it clean
-            let mut cache = self
-                .cache
-                .lock()
-                .map_err(|e| StorageError::LockError(format!("Failed to lock cache: {}", e)))?;
+            let mut cache = lock!(self.cache);
             if let Some(cached_page) = cache.get_mut(&page.id) {
                 cached_page.mark_clean();
             }
@@ -201,10 +211,7 @@ impl BufferPool {
     /// # Arguments
     /// * `page_id` - ID of the page to evict
     pub fn evict(&self, page_id: PageId) -> Result<(), StorageError> {
-        let mut cache = self
-            .cache
-            .lock()
-            .map_err(|e| StorageError::LockError(format!("Failed to lock cache: {}", e)))?;
+        let mut cache = lock!(self.cache);
 
         if let Some(mut page) = cache.pop(&page_id) {
             // If page is dirty, write to disk
@@ -225,10 +232,7 @@ impl BufferPool {
 
     /// Get the current number of pages in the cache
     pub fn size(&self) -> Result<usize, StorageError> {
-        let cache = self
-            .cache
-            .lock()
-            .map_err(|e| StorageError::LockError(format!("Failed to lock cache: {}", e)))?;
+        let cache = lock!(self.cache);
         Ok(cache.len())
     }
 

@@ -2,8 +2,9 @@
 
 use super::{
     builder::SelectExecutor,
-    index_optimization::try_spatial_index_optimization,
 };
+#[cfg(feature = "spatial")]
+use super::index_optimization::try_spatial_index_optimization;
 use crate::{
     errors::ExecutorError,
     evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
@@ -282,24 +283,42 @@ impl SelectExecutor<'_> {
 
         if needs_implicit_sort {
             use crate::select::grouping::compare_sql_values;
-            use crate::select::parallel::ParallelConfig;
 
-            // Use parallel sorting for larger datasets
-            let should_parallel = ParallelConfig::global().should_parallelize_sort(filtered_rows.len());
-
-            if should_parallel {
+            #[cfg(feature = "parallel")]
+            {
+                use crate::select::parallel::ParallelConfig;
                 use rayon::prelude::*;
-                filtered_rows.par_sort_by(|row_a, row_b| {
-                    // Compare column by column until we find a difference
-                    for i in 0..row_a.values.len().min(row_b.values.len()) {
-                        let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
-                        if cmp != std::cmp::Ordering::Equal {
-                            return cmp;
+
+                // Use parallel sorting for larger datasets
+                let should_parallel = ParallelConfig::global().should_parallelize_sort(filtered_rows.len());
+
+                if should_parallel {
+                    filtered_rows.par_sort_by(|row_a, row_b| {
+                        // Compare column by column until we find a difference
+                        for i in 0..row_a.values.len().min(row_b.values.len()) {
+                            let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
+                            if cmp != std::cmp::Ordering::Equal {
+                                return cmp;
+                            }
                         }
-                    }
-                    std::cmp::Ordering::Equal
-                });
-            } else {
+                        std::cmp::Ordering::Equal
+                    });
+                } else {
+                    filtered_rows.sort_by(|row_a, row_b| {
+                        // Compare column by column until we find a difference
+                        for i in 0..row_a.values.len().min(row_b.values.len()) {
+                            let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
+                            if cmp != std::cmp::Ordering::Equal {
+                                return cmp;
+                            }
+                        }
+                        std::cmp::Ordering::Equal
+                    });
+                }
+            }
+
+            #[cfg(not(feature = "parallel"))]
+            {
                 filtered_rows.sort_by(|row_a, row_b| {
                     // Compare column by column until we find a difference
                     for i in 0..row_a.values.len().min(row_b.values.len()) {
@@ -405,34 +424,65 @@ impl SelectExecutor<'_> {
         // always be pushed to scan level. All other index optimizations happen in FROM.
         let mut filtered_rows = if where_filtered {
             rows
-        } else if let Some(spatial_filtered) = try_spatial_index_optimization(
-            self.database,
-            stmt.where_clause.as_ref(),
-            &rows,
-            &schema,
-        )? {
-            // Spatial index optimization (ST_Contains, ST_Intersects, etc.)
-            spatial_filtered
         } else {
-            // Fall back to full WHERE clause evaluation
-            let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
+            // Try spatial index optimization if feature is enabled
+            #[cfg(feature = "spatial")]
+            {
+                if let Some(spatial_filtered) = try_spatial_index_optimization(
+                    self.database,
+                    stmt.where_clause.as_ref(),
+                    &rows,
+                    &schema,
+                )? {
+                    // Spatial index optimization (ST_Contains, ST_Intersects, etc.)
+                    spatial_filtered
+                } else {
+                    // Fall back to full WHERE clause evaluation
+                    let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
 
-            match where_optimization {
-                crate::optimizer::WhereOptimization::AlwaysTrue => {
-                    // WHERE TRUE - no filtering needed
-                    rows
+                    match where_optimization {
+                        crate::optimizer::WhereOptimization::AlwaysTrue => {
+                            // WHERE TRUE - no filtering needed
+                            rows
+                        }
+                        crate::optimizer::WhereOptimization::AlwaysFalse => {
+                            // WHERE FALSE - return empty result
+                            Vec::new()
+                        }
+                        crate::optimizer::WhereOptimization::Optimized(ref expr) => {
+                            // Apply optimized WHERE clause (uses parallel if enabled)
+                            apply_where_filter_combined_auto(rows, Some(expr), &evaluator, self)?
+                        }
+                        crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
+                            // Apply original WHERE clause (uses parallel if enabled)
+                            apply_where_filter_combined_auto(rows, where_expr.as_ref(), &evaluator, self)?
+                        }
+                    }
                 }
-                crate::optimizer::WhereOptimization::AlwaysFalse => {
-                    // WHERE FALSE - return empty result
-                    Vec::new()
-                }
-                crate::optimizer::WhereOptimization::Optimized(ref expr) => {
-                    // Apply optimized WHERE clause (uses parallel if enabled)
-                    apply_where_filter_combined_auto(rows, Some(expr), &evaluator, self)?
-                }
-                crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
-                    // Apply original WHERE clause (uses parallel if enabled)
-                    apply_where_filter_combined_auto(rows, where_expr.as_ref(), &evaluator, self)?
+            }
+
+            #[cfg(not(feature = "spatial"))]
+            {
+                // Fall back to full WHERE clause evaluation
+                let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
+
+                match where_optimization {
+                    crate::optimizer::WhereOptimization::AlwaysTrue => {
+                        // WHERE TRUE - no filtering needed
+                        rows
+                    }
+                    crate::optimizer::WhereOptimization::AlwaysFalse => {
+                        // WHERE FALSE - return empty result
+                        Vec::new()
+                    }
+                    crate::optimizer::WhereOptimization::Optimized(ref expr) => {
+                        // Apply optimized WHERE clause (uses parallel if enabled)
+                        apply_where_filter_combined_auto(rows, Some(expr), &evaluator, self)?
+                    }
+                    crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
+                        // Apply original WHERE clause (uses parallel if enabled)
+                        apply_where_filter_combined_auto(rows, where_expr.as_ref(), &evaluator, self)?
+                    }
                 }
             }
         };
@@ -543,24 +593,42 @@ impl SelectExecutor<'_> {
             // This ensures SQLLogicTest compatibility and deterministic behavior
             // Skip sorting if data is already sorted from index scan
             use crate::select::grouping::compare_sql_values;
-            use crate::select::parallel::ParallelConfig;
 
-            // Use parallel sorting for larger datasets
-            let should_parallel = ParallelConfig::global().should_parallelize_sort(result_rows.len());
-
-            if should_parallel {
+            #[cfg(feature = "parallel")]
+            {
+                use crate::select::parallel::ParallelConfig;
                 use rayon::prelude::*;
-                result_rows.par_sort_by(|(row_a, _), (row_b, _)| {
-                    // Compare column by column until we find a difference
-                    for i in 0..row_a.values.len().min(row_b.values.len()) {
-                        let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
-                        if cmp != std::cmp::Ordering::Equal {
-                            return cmp;
+
+                // Use parallel sorting for larger datasets
+                let should_parallel = ParallelConfig::global().should_parallelize_sort(result_rows.len());
+
+                if should_parallel {
+                    result_rows.par_sort_by(|(row_a, _), (row_b, _)| {
+                        // Compare column by column until we find a difference
+                        for i in 0..row_a.values.len().min(row_b.values.len()) {
+                            let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
+                            if cmp != std::cmp::Ordering::Equal {
+                                return cmp;
+                            }
                         }
-                    }
-                    std::cmp::Ordering::Equal
-                });
-            } else {
+                        std::cmp::Ordering::Equal
+                    });
+                } else {
+                    result_rows.sort_by(|(row_a, _), (row_b, _)| {
+                        // Compare column by column until we find a difference
+                        for i in 0..row_a.values.len().min(row_b.values.len()) {
+                            let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
+                            if cmp != std::cmp::Ordering::Equal {
+                                return cmp;
+                            }
+                        }
+                        std::cmp::Ordering::Equal
+                    });
+                }
+            }
+
+            #[cfg(not(feature = "parallel"))]
+            {
                 result_rows.sort_by(|(row_a, _), (row_b, _)| {
                     // Compare column by column until we find a difference
                     for i in 0..row_a.values.len().min(row_b.values.len()) {

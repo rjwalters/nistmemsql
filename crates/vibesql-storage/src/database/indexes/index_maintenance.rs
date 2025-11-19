@@ -138,6 +138,13 @@ impl IndexManager {
                 0
             };
 
+            #[cfg(not(target_arch = "wasm32"))]
+            let data = IndexData::DiskBacked {
+                btree: Arc::new(parking_lot::Mutex::new(btree)),
+                page_manager,
+            };
+
+            #[cfg(target_arch = "wasm32")]
             let data = IndexData::DiskBacked {
                 btree: Arc::new(std::sync::Mutex::new(btree)),
                 page_manager,

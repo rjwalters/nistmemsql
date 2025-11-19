@@ -24,6 +24,7 @@ mod null_handling;
 mod numeric;
 pub(crate) mod string;
 mod system;
+#[cfg(feature = "spatial")]
 pub(crate) mod spatial;
 
 /// Evaluate a scalar function on given argument values
@@ -118,62 +119,106 @@ pub(super) fn eval_scalar_function(
         "USER" | "CURRENT_USER" => system::user(args, name),
 
         // Spatial/Geometric functions
+        #[cfg(feature = "spatial")]
         // Constructor functions - WKT (Phase 1)
         "ST_GEOMFROMTEXT" | "ST_GEOM_FROM_TEXT" => spatial::constructors::st_geom_from_text(args),
+        #[cfg(feature = "spatial")]
         "ST_POINTFROMTEXT" | "ST_POINT_FROM_TEXT" => spatial::constructors::st_point_from_text(args),
+        #[cfg(feature = "spatial")]
         "ST_LINEFROMTEXT" | "ST_LINE_FROM_TEXT" => spatial::constructors::st_line_from_text(args),
+        #[cfg(feature = "spatial")]
         "ST_POLYGONFROMTEXT" | "ST_POLYGON_FROM_TEXT" => spatial::constructors::st_polygon_from_text(args),
 
+        #[cfg(feature = "spatial")]
         // Constructor functions - WKB (Phase 2)
         "ST_GEOMFROMWKB" | "ST_GEOM_FROM_WKB" => spatial::constructors::st_geom_from_wkb(args),
+        #[cfg(feature = "spatial")]
         "ST_POINTFROMWKB" | "ST_POINT_FROM_WKB" => spatial::constructors::st_point_from_wkb(args),
+        #[cfg(feature = "spatial")]
         "ST_LINEFROMWKB" | "ST_LINE_FROM_WKB" => spatial::constructors::st_line_from_wkb(args),
+        #[cfg(feature = "spatial")]
         "ST_POLYGONFROMWKB" | "ST_POLYGON_FROM_WKB" => spatial::constructors::st_polygon_from_wkb(args),
 
+        #[cfg(feature = "spatial")]
         // Accessor functions
         "ST_X" => spatial::accessors::st_x(args),
+        #[cfg(feature = "spatial")]
         "ST_Y" => spatial::accessors::st_y(args),
+        #[cfg(feature = "spatial")]
         "ST_GEOMETRYTYPE" | "ST_GEOMETRY_TYPE" => spatial::accessors::st_geometry_type(args),
+        #[cfg(feature = "spatial")]
         "ST_DIMENSION" => spatial::accessors::st_dimension(args),
+        #[cfg(feature = "spatial")]
         "ST_ASTEXT" | "ST_AS_TEXT" => spatial::accessors::st_as_text(args),
+        #[cfg(feature = "spatial")]
         "ST_ASBINARY" | "ST_AS_BINARY" => spatial::accessors::st_as_binary(args),
+        #[cfg(feature = "spatial")]
         "ST_ASGEOJSON" | "ST_AS_GEOJSON" => spatial::accessors::st_as_geojson(args),
 
+        #[cfg(feature = "spatial")]
         // SRID functions (Phase 2)
         "ST_SETSRID" | "ST_SET_SRID" => spatial::srid::st_set_srid(args),
+        #[cfg(feature = "spatial")]
         "ST_SRID" => spatial::srid::st_srid(args),
 
+        #[cfg(feature = "spatial")]
         // Spatial predicates
         "ST_CONTAINS" => spatial::predicates::st_contains(args),
+        #[cfg(feature = "spatial")]
         "ST_WITHIN" => spatial::predicates::st_within(args),
+        #[cfg(feature = "spatial")]
         "ST_INTERSECTS" => spatial::predicates::st_intersects(args),
+        #[cfg(feature = "spatial")]
         "ST_DISJOINT" => spatial::predicates::st_disjoint(args),
+        #[cfg(feature = "spatial")]
         "ST_EQUALS" => spatial::predicates::st_equals(args),
+        #[cfg(feature = "spatial")]
         "ST_TOUCHES" => spatial::predicates::st_touches(args),
+        #[cfg(feature = "spatial")]
         "ST_CROSSES" => spatial::predicates::st_crosses(args),
+        #[cfg(feature = "spatial")]
         "ST_OVERLAPS" => spatial::predicates::st_overlaps(args),
+        #[cfg(feature = "spatial")]
         "ST_COVERS" => spatial::predicates::st_covers(args),
+        #[cfg(feature = "spatial")]
         "ST_COVEREDBY" | "ST_COVERED_BY" => spatial::predicates::st_coveredby(args),
+        #[cfg(feature = "spatial")]
         "ST_DWITHIN" | "ST_D_WITHIN" => spatial::predicates::st_dwithin(args),
+        #[cfg(feature = "spatial")]
         "ST_RELATE" => spatial::predicates::st_relate(args),
 
+        #[cfg(feature = "spatial")]
         // Spatial measurement functions
         "ST_DISTANCE" => spatial::measurements::st_distance(args),
+        #[cfg(feature = "spatial")]
         "ST_LENGTH" => spatial::measurements::st_length(args),
+        #[cfg(feature = "spatial")]
         "ST_PERIMETER" => spatial::measurements::st_perimeter(args),
+        #[cfg(feature = "spatial")]
         "ST_AREA" => spatial::measurements::st_area(args),
+        #[cfg(feature = "spatial")]
         "ST_CENTROID" => spatial::measurements::st_centroid(args),
+        #[cfg(feature = "spatial")]
         "ST_ENVELOPE" => spatial::measurements::st_envelope(args),
+        #[cfg(feature = "spatial")]
         "ST_CONVEXHULL" | "ST_CONVEX_HULL" => spatial::measurements::st_convex_hull(args),
+        #[cfg(feature = "spatial")]
         "ST_POINTONSURFACE" | "ST_POINT_ON_SURFACE" => spatial::measurements::st_point_on_surface(args),
+        #[cfg(feature = "spatial")]
         "ST_BOUNDARY" => spatial::measurements::st_boundary(args),
+        #[cfg(feature = "spatial")]
         "ST_HAUSDORFFDISTANCE" | "ST_HAUSDORFF_DISTANCE" => spatial::measurements::st_hausdorff_distance(args),
 
+        #[cfg(feature = "spatial")]
         // Spatial operation functions
         "ST_SIMPLIFY" => spatial::operations::st_simplify(args),
+        #[cfg(feature = "spatial")]
         "ST_UNION" => spatial::operations::st_union(args),
+        #[cfg(feature = "spatial")]
         "ST_INTERSECTION" => spatial::operations::st_intersection(args),
+        #[cfg(feature = "spatial")]
         "ST_DIFFERENCE" => spatial::operations::st_difference(args),
+        #[cfg(feature = "spatial")]
         "ST_SYMDIFFERENCE" | "ST_SYM_DIFFERENCE" => spatial::operations::st_sym_difference(args),
 
         // Unknown function

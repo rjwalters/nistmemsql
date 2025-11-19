@@ -4,9 +4,14 @@ use crate::{
     errors::ExecutorError,
     evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
 };
+
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
+
+#[cfg(feature = "parallel")]
 use std::sync::Arc;
 
+#[cfg(feature = "parallel")]
 use super::parallel::ParallelConfig;
 
 /// Apply WHERE clause filter to rows (Combined evaluator version)
@@ -167,6 +172,7 @@ pub(super) fn apply_where_filter_basic<'a>(
 
 /// Parallel version of apply_where_filter_combined
 /// Uses rayon to evaluate WHERE predicates across multiple threads
+#[cfg(feature = "parallel")]
 #[allow(dead_code)]
 pub(super) fn apply_where_filter_combined_parallel<'a>(
     rows: Vec<vibesql_storage::Row>,
@@ -268,11 +274,14 @@ pub(super) fn apply_where_filter_combined_auto<'a>(
     }
 
     let row_count = rows.len();
-    let config = ParallelConfig::global();
 
     // For very large datasets, use parallel execution
-    if config.should_parallelize_scan(row_count) {
-        return apply_where_filter_combined_parallel(rows, where_expr, evaluator, executor);
+    #[cfg(feature = "parallel")]
+    {
+        let config = ParallelConfig::global();
+        if config.should_parallelize_scan(row_count) {
+            return apply_where_filter_combined_parallel(rows, where_expr, evaluator, executor);
+        }
     }
 
     // For medium datasets, use vectorized (chunk-based) execution

@@ -3,6 +3,8 @@
 //! Implements set operations like union, intersection, difference, simplification, and buffering.
 //! Uses geo-types and geo crate algorithms.
 
+#![cfg(feature = "spatial")]
+
 use vibesql_types::SqlValue;
 use crate::errors::ExecutorError;
 use super::{sql_value_to_geometry, geometry_to_sql_value, Geometry};

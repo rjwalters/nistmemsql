@@ -2,9 +2,12 @@
 
 use std::cmp::Ordering;
 
+#[cfg(feature = "parallel")]
 use rayon::slice::ParallelSliceMut;
 
-use super::{grouping::compare_sql_values, parallel::ParallelConfig};
+#[cfg(feature = "parallel")]
+use super::parallel::ParallelConfig;
+use super::grouping::compare_sql_values;
 use crate::{errors::ExecutorError, evaluator::CombinedExpressionEvaluator};
 
 /// Row with optional sort keys for ORDER BY
@@ -43,8 +46,7 @@ pub(super) fn apply_order_by(
         *sort_keys = Some(keys);
     }
 
-    // Sort by the evaluated keys (with automatic parallelism based on row count)
-    let config = ParallelConfig::global();
+    // Sort by the evaluated keys (with automatic parallelism based on row count when feature enabled)
     let comparison_fn = |(_, keys_a): &RowWithSortKeys, (_, keys_b): &RowWithSortKeys| {
         let keys_a = keys_a.as_ref().unwrap();
         let keys_b = keys_b.as_ref().unwrap();
@@ -71,11 +73,21 @@ pub(super) fn apply_order_by(
         Ordering::Equal
     };
 
-    if config.should_parallelize_sort(rows.len()) {
-        // Parallel sort for large datasets
-        rows.par_sort_by(comparison_fn);
-    } else {
-        // Sequential sort for small datasets
+    #[cfg(feature = "parallel")]
+    {
+        let config = ParallelConfig::global();
+        if config.should_parallelize_sort(rows.len()) {
+            // Parallel sort for large datasets
+            rows.par_sort_by(comparison_fn);
+        } else {
+            // Sequential sort for small datasets
+            rows.sort_by(comparison_fn);
+        }
+    }
+
+    #[cfg(not(feature = "parallel"))]
+    {
+        // Always use sequential sort when parallel feature is disabled
         rows.sort_by(comparison_fn);
     }
 
@@ -154,7 +166,6 @@ mod tests {
         ];
 
         // Apply sorting logic (mimics what apply_order_by does after key evaluation)
-        let config = ParallelConfig::global();
         let comparison_fn = |(_, keys_a): &RowWithSortKeys, (_, keys_b): &RowWithSortKeys| {
             let keys_a = keys_a.as_ref().unwrap();
             let keys_b = keys_b.as_ref().unwrap();
@@ -177,9 +188,18 @@ mod tests {
             Ordering::Equal
         };
 
-        if config.should_parallelize_sort(rows.len()) {
-            rows.par_sort_by(comparison_fn);
-        } else {
+        #[cfg(feature = "parallel")]
+        {
+            let config = ParallelConfig::global();
+            if config.should_parallelize_sort(rows.len()) {
+                rows.par_sort_by(comparison_fn);
+            } else {
+                rows.sort_by(comparison_fn);
+            }
+        }
+
+        #[cfg(not(feature = "parallel"))]
+        {
             rows.sort_by(comparison_fn);
         }
 
@@ -202,7 +222,6 @@ mod tests {
             ));
         }
 
-        let config = ParallelConfig::global();
         let comparison_fn = |(_, keys_a): &RowWithSortKeys, (_, keys_b): &RowWithSortKeys| {
             let keys_a = keys_a.as_ref().unwrap();
             let keys_b = keys_b.as_ref().unwrap();
@@ -225,9 +244,18 @@ mod tests {
             Ordering::Equal
         };
 
-        if config.should_parallelize_sort(rows.len()) {
-            rows.par_sort_by(comparison_fn);
-        } else {
+        #[cfg(feature = "parallel")]
+        {
+            let config = ParallelConfig::global();
+            if config.should_parallelize_sort(rows.len()) {
+                rows.par_sort_by(comparison_fn);
+            } else {
+                rows.sort_by(comparison_fn);
+            }
+        }
+
+        #[cfg(not(feature = "parallel"))]
+        {
             rows.sort_by(comparison_fn);
         }
 
@@ -263,7 +291,6 @@ mod tests {
             ),
         ];
 
-        let config = ParallelConfig::global();
         let comparison_fn = |(_, keys_a): &RowWithSortKeys, (_, keys_b): &RowWithSortKeys| {
             let keys_a = keys_a.as_ref().unwrap();
             let keys_b = keys_b.as_ref().unwrap();
@@ -286,9 +313,18 @@ mod tests {
             Ordering::Equal
         };
 
-        if config.should_parallelize_sort(rows.len()) {
-            rows.par_sort_by(comparison_fn);
-        } else {
+        #[cfg(feature = "parallel")]
+        {
+            let config = ParallelConfig::global();
+            if config.should_parallelize_sort(rows.len()) {
+                rows.par_sort_by(comparison_fn);
+            } else {
+                rows.sort_by(comparison_fn);
+            }
+        }
+
+        #[cfg(not(feature = "parallel"))]
+        {
             rows.sort_by(comparison_fn);
         }
 
@@ -321,7 +357,6 @@ mod tests {
             ),
         ];
 
-        let config = ParallelConfig::global();
         let comparison_fn = |(_, keys_a): &RowWithSortKeys, (_, keys_b): &RowWithSortKeys| {
             let keys_a = keys_a.as_ref().unwrap();
             let keys_b = keys_b.as_ref().unwrap();
@@ -353,6 +388,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "parallel")]
     fn test_parallel_config_threshold() {
         let config = ParallelConfig::global();
 

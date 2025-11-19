@@ -4,6 +4,8 @@
 //! Uses two-phase filtering: R-tree MBR query (fast, approximate) followed by
 //! full spatial predicate evaluation (slower, exact).
 
+#![cfg(feature = "spatial")]
+
 use rstar::AABB;
 use vibesql_ast::Expression;
 use vibesql_storage::{Database, Row};

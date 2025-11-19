@@ -3,6 +3,8 @@
 //! Implements distance, area, length, centroid, and other measurement functions.
 //! Uses geo-types and geo crate algorithms.
 
+#![cfg(feature = "spatial")]
+
 use vibesql_types::SqlValue;
 use crate::errors::ExecutorError;
 use super::{sql_value_to_geometry, Geometry};

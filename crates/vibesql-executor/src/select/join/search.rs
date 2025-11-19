@@ -35,6 +35,7 @@
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 use super::reorder::{JoinEdge, JoinOrderAnalyzer};
@@ -350,10 +351,22 @@ impl JoinOrderSearch {
 
             // Generate next layer in parallel
             let best_cost_snapshot = best_cost.load(Ordering::Relaxed);
-            let next_layer: Vec<SearchState> = current_layer
-                .into_par_iter()
-                .flat_map(|state| self.expand_state_parallel(&state, best_cost_snapshot))
-                .collect();
+            let next_layer: Vec<SearchState> = {
+                #[cfg(feature = "parallel")]
+                {
+                    current_layer
+                        .into_par_iter()
+                        .flat_map(|state| self.expand_state_parallel(&state, best_cost_snapshot))
+                        .collect()
+                }
+                #[cfg(not(feature = "parallel"))]
+                {
+                    current_layer
+                        .into_iter()
+                        .flat_map(|state| self.expand_state_parallel(&state, best_cost_snapshot))
+                        .collect()
+                }
+            };
 
             // Prune layer to prevent memory explosion
             current_layer = self.prune_layer(next_layer, &best_cost, &mut best_order);
