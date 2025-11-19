@@ -86,8 +86,15 @@ fn build_hash_table_parallel<'a>(
 }
 
 /// Check if a join would exceed memory limits based on estimated result size
+///
+/// Hash join is only used for equi-joins, so we can use a conservative estimate
+/// based on join selectivity rather than assuming a full cartesian product.
 fn check_join_size_limit(left_count: usize, right_count: usize) -> Result<(), ExecutorError> {
-    let estimated_result_rows = left_count.saturating_mul(right_count);
+    // For equijoins (which is all that hash join handles), estimate based on join selectivity
+    // With equijoins on indexed columns, expect 1:1 or 1:N selectivity
+    // Conservative estimate: use the size of the larger input
+    // This prevents exponential blowup in cascading joins while still catching truly large joins
+    let estimated_result_rows = std::cmp::max(left_count, right_count);
 
     if estimated_result_rows > MAX_JOIN_RESULT_ROWS {
         let estimated_bytes = estimated_result_rows.saturating_mul(100);

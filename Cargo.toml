@@ -50,6 +50,7 @@ members = [
     "crates/vibesql-storage",
     "crates/vibesql-executor",
     "crates/vibesql-cli",
+    "crates/vibesql-server",
     "crates/vibesql-wasm-bindings",
     "crates/vibesql-python-bindings",
     "crates/vibesql-sqllogictest",
