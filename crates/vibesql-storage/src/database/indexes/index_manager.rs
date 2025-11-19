@@ -181,7 +181,7 @@ impl IndexManager {
             if metadata.table_name == table_name && metadata.unique {
                 if let Some(index_data) = self.index_data.get(index_name) {
                     // Build composite key from the indexed columns
-                    // Normalize numeric types to ensure consistent comparison
+                    // Apply prefix truncation and normalize numeric types to ensure consistent comparison
                     let key_values: Vec<SqlValue> = metadata
                         .columns
                         .iter()
@@ -190,7 +190,8 @@ impl IndexManager {
                                 .get_column_index(&col.column_name)
                                 .expect("Index column should exist");
                             let value = &row.values[col_idx];
-                            crate::database::indexes::index_operations::normalize_for_comparison(value)
+                            let truncated = super::index_maintenance::apply_prefix_truncation(value, col.prefix_length);
+                            crate::database::indexes::index_operations::normalize_for_comparison(&truncated)
                         })
                         .collect();
 
