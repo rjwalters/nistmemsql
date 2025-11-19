@@ -1,9 +1,7 @@
 use std::{
     cmp::Ordering,
-    collections::HashSet,
+    collections::{HashMap, HashSet},
 };
-
-use rustc_hash::FxHashMap;
 
 /// Accumulator for aggregate functions
 #[derive(Debug, Clone)]
@@ -490,11 +488,12 @@ pub(super) fn group_rows<'a>(
     evaluator: &crate::evaluator::CombinedExpressionEvaluator,
     executor: &crate::SelectExecutor<'a>,
 ) -> Result<GroupedRows, crate::errors::ExecutorError> {
-    // Use FxHashMap for O(1) group lookups with faster hashing
+    // Use HashMap for O(1) group lookups
     // Pre-allocate with reasonable capacity to reduce rehashing
-    // Most GROUP BY queries have < 1000 groups; we start with 64 as a good balance
-    let mut groups_map: FxHashMap<Vec<vibesql_types::SqlValue>, Vec<vibesql_storage::Row>> =
-        FxHashMap::with_capacity_and_hasher(64, Default::default());
+    // Most GROUP BY queries have < 1000 groups; estimate 10% of rows as groups
+    let estimated_groups = (rows.len() / 10).max(16);
+    let mut groups_map: HashMap<Vec<vibesql_types::SqlValue>, Vec<vibesql_storage::Row>> =
+        HashMap::with_capacity(estimated_groups);
     let mut rows_processed = 0;
     const CHECK_INTERVAL: usize = 1000;
 
