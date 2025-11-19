@@ -24,23 +24,57 @@ pub fn is_correlated(subquery: &SelectStmt, outer_schema: &CombinedSchema) -> bo
         return false;
     }
 
+    // Extract table names from the subquery's FROM clause
+    let subquery_tables = extract_table_names_from_from_clause(subquery.from.as_ref());
+
     // Check all expressions in the subquery for column references
-    // that belong to the outer schema
-    is_select_stmt_correlated(subquery, outer_schema)
+    // that belong to the outer schema (excluding subquery's own tables)
+    is_select_stmt_correlated_impl(subquery, outer_schema, &subquery_tables)
+}
+
+/// Extract all table/alias names from a FROM clause
+fn extract_table_names_from_from_clause(from: Option<&FromClause>) -> Vec<String> {
+    let mut tables = Vec::new();
+    if let Some(from_clause) = from {
+        extract_table_names_recursive(from_clause, &mut tables);
+    }
+    tables
+}
+
+/// Recursively extract table names from a FROM clause
+fn extract_table_names_recursive(from: &FromClause, tables: &mut Vec<String>) {
+    match from {
+        FromClause::Table { name, alias } => {
+            // Use alias if present, otherwise use table name
+            tables.push(alias.clone().unwrap_or_else(|| name.clone()));
+        }
+        FromClause::Join { left, right, .. } => {
+            extract_table_names_recursive(left, tables);
+            extract_table_names_recursive(right, tables);
+        }
+        FromClause::Subquery { alias, .. } => {
+            // Derived tables are referenced by their alias
+            tables.push(alias.clone());
+        }
+    }
 }
 
 /// Check if a SELECT statement references columns from outer schema
-fn is_select_stmt_correlated(stmt: &SelectStmt, outer_schema: &CombinedSchema) -> bool {
+fn is_select_stmt_correlated_impl(
+    stmt: &SelectStmt,
+    outer_schema: &CombinedSchema,
+    subquery_tables: &[String],
+) -> bool {
     // Check SELECT list
     for item in &stmt.select_list {
-        if is_select_item_correlated(item, outer_schema) {
+        if is_select_item_correlated(item, outer_schema, subquery_tables) {
             return true;
         }
     }
 
     // Check WHERE clause
     if let Some(where_expr) = &stmt.where_clause {
-        if is_expression_correlated(where_expr, outer_schema) {
+        if is_expression_correlated(where_expr, outer_schema, subquery_tables) {
             return true;
         }
     }
@@ -48,7 +82,7 @@ fn is_select_stmt_correlated(stmt: &SelectStmt, outer_schema: &CombinedSchema) -
     // Check GROUP BY
     if let Some(group_by) = &stmt.group_by {
         for expr in group_by {
-            if is_expression_correlated(expr, outer_schema) {
+            if is_expression_correlated(expr, outer_schema, subquery_tables) {
                 return true;
             }
         }
@@ -56,7 +90,7 @@ fn is_select_stmt_correlated(stmt: &SelectStmt, outer_schema: &CombinedSchema) -
 
     // Check HAVING
     if let Some(having) = &stmt.having {
-        if is_expression_correlated(having, outer_schema) {
+        if is_expression_correlated(having, outer_schema, subquery_tables) {
             return true;
         }
     }
@@ -64,7 +98,7 @@ fn is_select_stmt_correlated(stmt: &SelectStmt, outer_schema: &CombinedSchema) -
     // Check ORDER BY
     if let Some(order_by) = &stmt.order_by {
         for item in order_by {
-            if is_expression_correlated(&item.expr, outer_schema) {
+            if is_expression_correlated(&item.expr, outer_schema, subquery_tables) {
                 return true;
             }
         }
@@ -72,7 +106,7 @@ fn is_select_stmt_correlated(stmt: &SelectStmt, outer_schema: &CombinedSchema) -
 
     // Check FROM clause (subqueries in FROM can reference outer columns)
     if let Some(from) = &stmt.from {
-        if is_from_clause_correlated(from, outer_schema) {
+        if is_from_clause_correlated(from, outer_schema, subquery_tables) {
             return true;
         }
     }
@@ -80,7 +114,9 @@ fn is_select_stmt_correlated(stmt: &SelectStmt, outer_schema: &CombinedSchema) -
     // Check WITH clause (CTEs)
     if let Some(with_clause) = &stmt.with_clause {
         for cte in with_clause {
-            if is_select_stmt_correlated(&cte.query, outer_schema) {
+            // CTEs have their own scope, so we need to extract their tables too
+            let cte_tables = extract_table_names_from_from_clause(cte.query.from.as_ref());
+            if is_select_stmt_correlated_impl(&cte.query, outer_schema, &cte_tables) {
                 return true;
             }
         }
@@ -88,7 +124,8 @@ fn is_select_stmt_correlated(stmt: &SelectStmt, outer_schema: &CombinedSchema) -
 
     // Check set operations (UNION, INTERSECT, EXCEPT)
     if let Some(set_op) = &stmt.set_operation {
-        if is_select_stmt_correlated(&set_op.right, outer_schema) {
+        // Set operations combine results, but both sides should use same subquery tables
+        if is_select_stmt_correlated_impl(&set_op.right, outer_schema, subquery_tables) {
             return true;
         }
     }
@@ -97,9 +134,15 @@ fn is_select_stmt_correlated(stmt: &SelectStmt, outer_schema: &CombinedSchema) -
 }
 
 /// Check if a SELECT item references columns from outer schema
-fn is_select_item_correlated(item: &SelectItem, outer_schema: &CombinedSchema) -> bool {
+fn is_select_item_correlated(
+    item: &SelectItem,
+    outer_schema: &CombinedSchema,
+    subquery_tables: &[String],
+) -> bool {
     match item {
-        SelectItem::Expression { expr, .. } => is_expression_correlated(expr, outer_schema),
+        SelectItem::Expression { expr, .. } => {
+            is_expression_correlated(expr, outer_schema, subquery_tables)
+        }
         SelectItem::Wildcard { .. } | SelectItem::QualifiedWildcard { .. } => {
             // Wildcards expand to columns from the subquery's own FROM clause
             // They don't directly reference outer columns
@@ -109,7 +152,11 @@ fn is_select_item_correlated(item: &SelectItem, outer_schema: &CombinedSchema) -
 }
 
 /// Check if a FROM clause references columns from outer schema
-fn is_from_clause_correlated(from: &FromClause, outer_schema: &CombinedSchema) -> bool {
+fn is_from_clause_correlated(
+    from: &FromClause,
+    outer_schema: &CombinedSchema,
+    subquery_tables: &[String],
+) -> bool {
     match from {
         FromClause::Table { .. } => false,
         FromClause::Join {
@@ -119,49 +166,81 @@ fn is_from_clause_correlated(from: &FromClause, outer_schema: &CombinedSchema) -
             ..
         } => {
             // Check left and right sides of join
-            if is_from_clause_correlated(left, outer_schema)
-                || is_from_clause_correlated(right, outer_schema)
+            if is_from_clause_correlated(left, outer_schema, subquery_tables)
+                || is_from_clause_correlated(right, outer_schema, subquery_tables)
             {
                 return true;
             }
             // Check join condition
             if let Some(cond) = condition {
-                if is_expression_correlated(cond, outer_schema) {
+                if is_expression_correlated(cond, outer_schema, subquery_tables) {
                     return true;
                 }
             }
             false
         }
-        FromClause::Subquery { query, .. } => is_select_stmt_correlated(query, outer_schema),
+        FromClause::Subquery { query, .. } => {
+            // Subqueries in FROM can be correlated with the outer query
+            // Extract their tables and check recursively
+            let nested_tables = extract_table_names_from_from_clause(query.from.as_ref());
+            is_select_stmt_correlated_impl(query, outer_schema, &nested_tables)
+        }
     }
 }
 
 /// Check if an expression references columns from outer schema
-fn is_expression_correlated(expr: &Expression, outer_schema: &CombinedSchema) -> bool {
+fn is_expression_correlated(
+    expr: &Expression,
+    outer_schema: &CombinedSchema,
+    subquery_tables: &[String],
+) -> bool {
     match expr {
         Expression::Literal(_) | Expression::Wildcard => false,
 
         Expression::ColumnRef { table, column } => {
             // Check if this column reference belongs to the outer schema
-            // A column is from the outer schema if we can find it there
+            // But exclude references to the subquery's own tables
+
+            // If table is explicitly specified, check if it's one of the subquery's own tables
+            if let Some(table_name) = table {
+                // Case-insensitive check if this table is in the subquery's FROM clause
+                let table_lower = table_name.to_lowercase();
+                if subquery_tables.iter().any(|t| t.to_lowercase() == table_lower) {
+                    // This references the subquery's own table, not outer query
+                    return false;
+                }
+            } else {
+                // Unqualified column reference
+                // If the subquery has its own FROM clause (has tables), assume the column
+                // belongs to the subquery per SQL scoping rules (inner scope shadows outer)
+                if !subquery_tables.is_empty() {
+                    return false;
+                }
+            }
+
+            // Check if this column exists in outer schema
             outer_schema
                 .get_column_index(table.as_deref(), column)
                 .is_some()
         }
 
         Expression::BinaryOp { left, right, .. } => {
-            is_expression_correlated(left, outer_schema)
-                || is_expression_correlated(right, outer_schema)
+            is_expression_correlated(left, outer_schema, subquery_tables)
+                || is_expression_correlated(right, outer_schema, subquery_tables)
         }
 
-        Expression::UnaryOp { expr, .. } => is_expression_correlated(expr, outer_schema),
+        Expression::UnaryOp { expr, .. } => {
+            is_expression_correlated(expr, outer_schema, subquery_tables)
+        }
 
         Expression::Function { args, .. } | Expression::AggregateFunction { args, .. } => {
             args.iter()
-                .any(|arg| is_expression_correlated(arg, outer_schema))
+                .any(|arg| is_expression_correlated(arg, outer_schema, subquery_tables))
         }
 
-        Expression::IsNull { expr, .. } => is_expression_correlated(expr, outer_schema),
+        Expression::IsNull { expr, .. } => {
+            is_expression_correlated(expr, outer_schema, subquery_tables)
+        }
 
         Expression::Case {
             operand,
@@ -170,73 +249,87 @@ fn is_expression_correlated(expr: &Expression, outer_schema: &CombinedSchema) ->
         } => {
             // Check operand
             if let Some(op) = operand {
-                if is_expression_correlated(op, outer_schema) {
+                if is_expression_correlated(op, outer_schema, subquery_tables) {
                     return true;
                 }
             }
             // Check WHEN clauses
             for when in when_clauses {
                 for condition in &when.conditions {
-                    if is_expression_correlated(condition, outer_schema) {
+                    if is_expression_correlated(condition, outer_schema, subquery_tables) {
                         return true;
                     }
                 }
-                if is_expression_correlated(&when.result, outer_schema) {
+                if is_expression_correlated(&when.result, outer_schema, subquery_tables) {
                     return true;
                 }
             }
             // Check ELSE
             if let Some(else_expr) = else_result {
-                if is_expression_correlated(else_expr, outer_schema) {
+                if is_expression_correlated(else_expr, outer_schema, subquery_tables) {
                     return true;
                 }
             }
             false
         }
 
-        Expression::ScalarSubquery(subquery) => is_select_stmt_correlated(subquery, outer_schema),
+        Expression::ScalarSubquery(subquery) => {
+            let nested_tables = extract_table_names_from_from_clause(subquery.from.as_ref());
+            is_select_stmt_correlated_impl(subquery, outer_schema, &nested_tables)
+        }
 
         Expression::In { expr, subquery, .. } => {
-            is_expression_correlated(expr, outer_schema)
-                || is_select_stmt_correlated(subquery, outer_schema)
+            if is_expression_correlated(expr, outer_schema, subquery_tables) {
+                return true;
+            }
+            let nested_tables = extract_table_names_from_from_clause(subquery.from.as_ref());
+            is_select_stmt_correlated_impl(subquery, outer_schema, &nested_tables)
         }
 
         Expression::InList { expr, values, .. } => {
-            is_expression_correlated(expr, outer_schema)
+            is_expression_correlated(expr, outer_schema, subquery_tables)
                 || values
                     .iter()
-                    .any(|val| is_expression_correlated(val, outer_schema))
+                    .any(|val| is_expression_correlated(val, outer_schema, subquery_tables))
         }
 
         Expression::Between {
             expr, low, high, ..
         } => {
-            is_expression_correlated(expr, outer_schema)
-                || is_expression_correlated(low, outer_schema)
-                || is_expression_correlated(high, outer_schema)
+            is_expression_correlated(expr, outer_schema, subquery_tables)
+                || is_expression_correlated(low, outer_schema, subquery_tables)
+                || is_expression_correlated(high, outer_schema, subquery_tables)
         }
 
         Expression::Like { expr, pattern, .. } => {
-            is_expression_correlated(expr, outer_schema)
-                || is_expression_correlated(pattern, outer_schema)
+            is_expression_correlated(expr, outer_schema, subquery_tables)
+                || is_expression_correlated(pattern, outer_schema, subquery_tables)
         }
 
-        Expression::Exists { subquery, .. } => is_select_stmt_correlated(subquery, outer_schema),
+        Expression::Exists { subquery, .. } => {
+            let nested_tables = extract_table_names_from_from_clause(subquery.from.as_ref());
+            is_select_stmt_correlated_impl(subquery, outer_schema, &nested_tables)
+        }
 
         Expression::QuantifiedComparison {
             expr, subquery, ..
         } => {
-            is_expression_correlated(expr, outer_schema)
-                || is_select_stmt_correlated(subquery, outer_schema)
+            if is_expression_correlated(expr, outer_schema, subquery_tables) {
+                return true;
+            }
+            let nested_tables = extract_table_names_from_from_clause(subquery.from.as_ref());
+            is_select_stmt_correlated_impl(subquery, outer_schema, &nested_tables)
         }
 
-        Expression::Cast { expr, .. } => is_expression_correlated(expr, outer_schema),
+        Expression::Cast { expr, .. } => {
+            is_expression_correlated(expr, outer_schema, subquery_tables)
+        }
 
         Expression::Position {
             substring, string, ..
         } => {
-            is_expression_correlated(substring, outer_schema)
-                || is_expression_correlated(string, outer_schema)
+            is_expression_correlated(substring, outer_schema, subquery_tables)
+                || is_expression_correlated(string, outer_schema, subquery_tables)
         }
 
         Expression::Trim {
@@ -246,9 +339,9 @@ fn is_expression_correlated(expr: &Expression, outer_schema: &CombinedSchema) ->
         } => {
             removal_char
                 .as_ref()
-                .map(|c| is_expression_correlated(c, outer_schema))
+                .map(|c| is_expression_correlated(c, outer_schema, subquery_tables))
                 .unwrap_or(false)
-                || is_expression_correlated(string, outer_schema)
+                || is_expression_correlated(string, outer_schema, subquery_tables)
         }
 
         Expression::WindowFunction { function, over } => {
@@ -256,10 +349,9 @@ fn is_expression_correlated(expr: &Expression, outer_schema: &CombinedSchema) ->
             let func_correlated = match function {
                 vibesql_ast::WindowFunctionSpec::Aggregate { args, .. }
                 | vibesql_ast::WindowFunctionSpec::Ranking { args, .. }
-                | vibesql_ast::WindowFunctionSpec::Value { args, .. } => {
-                    args.iter()
-                        .any(|arg| is_expression_correlated(arg, outer_schema))
-                }
+                | vibesql_ast::WindowFunctionSpec::Value { args, .. } => args
+                    .iter()
+                    .any(|arg| is_expression_correlated(arg, outer_schema, subquery_tables)),
             };
 
             // Check PARTITION BY
@@ -269,7 +361,7 @@ fn is_expression_correlated(expr: &Expression, outer_schema: &CombinedSchema) ->
                 .map(|parts| {
                     parts
                         .iter()
-                        .any(|p| is_expression_correlated(p, outer_schema))
+                        .any(|p| is_expression_correlated(p, outer_schema, subquery_tables))
                 })
                 .unwrap_or(false);
 
@@ -278,16 +370,18 @@ fn is_expression_correlated(expr: &Expression, outer_schema: &CombinedSchema) ->
                 .order_by
                 .as_ref()
                 .map(|orders| {
-                    orders
-                        .iter()
-                        .any(|o| is_expression_correlated(&o.expr, outer_schema))
+                    orders.iter().any(|o| {
+                        is_expression_correlated(&o.expr, outer_schema, subquery_tables)
+                    })
                 })
                 .unwrap_or(false);
 
             func_correlated || partition_correlated || order_correlated
         }
 
-        Expression::Interval { value, .. } => is_expression_correlated(value, outer_schema),
+        Expression::Interval { value, .. } => {
+            is_expression_correlated(value, outer_schema, subquery_tables)
+        }
 
         Expression::PseudoVariable { .. }
         | Expression::SessionVariable { .. }
@@ -380,12 +474,9 @@ mod tests {
             set_operation: None,
         };
 
-        // With our current implementation, this will be detected as correlated
-        // because the column "col4" exists in the outer schema
-        // This is a limitation - we'd need to track the subquery's own schema
-        // to properly distinguish between columns from the subquery's FROM
-        // and columns from the outer query
-        assert!(is_correlated(&subquery, &outer_schema));
+        // With the fixed implementation, this is correctly detected as non-correlated
+        // because both col0 and col4 exist in the subquery's own FROM clause (tab0)
+        assert!(!is_correlated(&subquery, &outer_schema));
     }
 
     #[test]

@@ -53,8 +53,8 @@ pub struct CombinedExpressionEvaluator<'a> {
     /// Cache for column lookups to avoid repeated schema traversals
     column_cache: RefCell<HashMap<(Option<String>, String), usize>>,
     /// Cache for non-correlated subquery results with LRU eviction (key = subquery hash, value = result rows)
-    /// Shared via Rc across all evaluator instances to prevent RefCell borrow conflicts
-    /// Cleared after each statement execution to ensure freshness
+    /// Shared via Rc across child evaluators within a single statement execution.
+    /// Cache lifetime is tied to the evaluator instance - each new evaluator gets a fresh cache.
     pub(super) subquery_cache: Rc<RefCell<LruCache<u64, Vec<vibesql_storage::Row>>>>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
