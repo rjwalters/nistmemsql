@@ -9,6 +9,7 @@
 //! - random/: Randomized query tests
 //! - ddl/: Data Definition Language tests
 
+#[path = "../sqllogictest/mod.rs"]
 mod sqllogictest;
 
 use std::{

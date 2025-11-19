@@ -3,6 +3,7 @@
 //! This test suite validates SQL subquery examples (scalar subqueries, correlated subqueries,
 //! EXISTS, IN) from the web demo by parsing the TypeScript example files and executing queries.
 
+#[path = "../common/mod.rs"]
 mod common;
 
 use common::web_demo_helpers::{
