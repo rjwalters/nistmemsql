@@ -40,8 +40,8 @@ class FallbackDatabase implements DatabaseInterface {
 }
 
 const FallbackDatabaseConstructor = Object.assign(FallbackDatabase, {
-  newWithPersistence: () => new FallbackDatabase(),
-}) as { new (): DatabaseInterface; newWithPersistence(): DatabaseInterface }
+  newWithPersistence: async () => new FallbackDatabase(),
+}) as { new (): DatabaseInterface; newWithPersistence(): Promise<DatabaseInterface> }
 
 const fallbackModule: WasmModule = {
   default: async () => {
