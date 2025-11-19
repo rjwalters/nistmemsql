@@ -2,6 +2,42 @@
 
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use crate::errors::ExecutorError;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+/// Compute a hash for a subquery to use as a cache key
+///
+/// # Implementation Note
+///
+/// Currently uses Debug format for hashing, which has trade-offs:
+///
+/// **Pros:**
+/// - Simple and works with existing AST types
+/// - Sufficient for typical queries in practice
+/// - Hash collisions are rare
+///
+/// **Cons:**
+/// - Fragile: Debug format could change with Rust versions
+/// - Less efficient: Allocates string for each hash
+/// - Not cryptographically secure (uses DefaultHasher)
+///
+/// **Future Improvement:**
+/// Ideally, SelectStmt and child types should derive Hash for:
+/// - Better performance (direct AST traversal)
+/// - Stability (Hash trait is stable)
+/// - Type safety (compiler-enforced consistency)
+///
+/// This requires adding Hash to ~15-20 AST types, which should be
+/// done in a dedicated refactoring PR to minimize risk.
+///
+/// See: https://github.com/rjwalters/vibesql/issues/2137#hash-improvement
+fn compute_subquery_hash(subquery: &vibesql_ast::SelectStmt) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    // Use the debug format as a stable representation
+    // This works because SelectStmt derives Debug and PartialEq
+    format!("{:?}", subquery).hash(&mut hasher);
+    hasher.finish()
+}
 
 /// Compute the number of columns in a SELECT statement's result
 /// Handles wildcards by expanding them using table schemas from the database
@@ -231,18 +267,45 @@ impl CombinedExpressionEvaluator<'_> {
         // Evaluate the left-hand expression
         let expr_val = self.eval(expr, row)?;
 
-        // Execute the subquery with outer context and propagate depth
-        let select_executor = if !self.schema.table_schemas.is_empty() {
-            crate::select::SelectExecutor::new_with_outer_context_and_depth(
-                database,
-                row,
-                self.schema,
-                self.depth,
-            )
+        // Check if this is a non-correlated subquery that can be cached
+        let is_correlated = crate::correlation::is_correlated(subquery, self.schema);
+
+        // Execute or retrieve from cache
+        let rows = if !is_correlated {
+            // Non-correlated subquery - try cache first
+            let cache_key = compute_subquery_hash(subquery);
+
+            // Check cache (explicitly scope the borrow to avoid holding it during execution)
+            // Use peek() for readonly access (get() requires &mut for LRU tracking)
+            let cached_result = self.subquery_cache.borrow().peek(&cache_key).cloned();
+
+            if let Some(cached_rows) = cached_result {
+                // Cache hit - use cached result
+                cached_rows
+            } else {
+                // Cache miss - execute and cache
+                // IMPORTANT: Propagate depth to prevent bypassing MAX_EXPRESSION_DEPTH
+                let select_executor = crate::select::SelectExecutor::new_with_depth(database, self.depth);
+                let rows = select_executor.execute(subquery)?;
+
+                // Cache the result
+                self.subquery_cache.borrow_mut().put(cache_key, rows.clone());
+                rows
+            }
         } else {
-            crate::select::SelectExecutor::new(database)
+            // Correlated subquery - execute with outer context (can't cache)
+            let select_executor = if !self.schema.table_schemas.is_empty() {
+                crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                    database,
+                    row,
+                    self.schema,
+                    self.depth,
+                )
+            } else {
+                crate::select::SelectExecutor::new(database)
+            };
+            select_executor.execute(subquery)?
         };
-        let rows = select_executor.execute(subquery)?;
 
         // SQL standard (R-35033-20570): The subquery must be a scalar subquery
         // (single column) when the left expression is not a row value expression.
