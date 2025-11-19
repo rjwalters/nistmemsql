@@ -9,7 +9,9 @@ pub mod join;
 mod join_executor;
 mod join_reorder_wrapper;
 mod order;
+#[cfg(feature = "parallel")]
 mod parallel;
+#[cfg(feature = "parallel")]
 mod predicate_graph;
 mod vectorized;
 mod projection;

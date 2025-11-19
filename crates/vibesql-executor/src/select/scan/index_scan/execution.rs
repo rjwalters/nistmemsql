@@ -222,14 +222,17 @@ fn apply_where_filter_zerocopy<'a>(
     let evaluator = CombinedExpressionEvaluator::with_database(schema, database);
 
     // Check if we should use parallel filtering
-    let config = crate::select::parallel::ParallelConfig::global();
-    if config.should_parallelize_scan(row_refs.len()) {
-        return apply_where_filter_zerocopy_parallel(
-            row_refs,
-            schema,
-            combined_where,
-            evaluator,
-        );
+    #[cfg(feature = "parallel")]
+    {
+        let config = crate::select::parallel::ParallelConfig::global();
+        if config.should_parallelize_scan(row_refs.len()) {
+            return apply_where_filter_zerocopy_parallel(
+                row_refs,
+                schema,
+                combined_where,
+                evaluator,
+            );
+        }
     }
 
     // Sequential path for small datasets - filter rows using references (no cloning)
@@ -277,6 +280,7 @@ fn apply_where_filter_zerocopy<'a>(
 /// # Performance
 /// Parallelization is beneficial for datasets where `ParallelConfig::should_parallelize_scan()` returns true,
 /// typically for 10,000+ rows. The overhead of thread spawning is amortized across many rows.
+#[cfg(feature = "parallel")]
 fn apply_where_filter_zerocopy_parallel<'a>(
     row_refs: Vec<&'a Row>,
     _schema: &CombinedSchema,

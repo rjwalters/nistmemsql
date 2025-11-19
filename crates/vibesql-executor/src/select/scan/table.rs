@@ -11,8 +11,11 @@ use std::collections::HashMap;
 use super::predicates::apply_table_local_predicates;
 use crate::{
     errors::ExecutorError, optimizer::PredicatePlan, privilege_checker::PrivilegeChecker,
-    schema::CombinedSchema, select::cte::CteResult, select::parallel::parallel_scan_materialize,
+    schema::CombinedSchema, select::cte::CteResult,
 };
+
+#[cfg(feature = "parallel")]
+use crate::select::parallel::parallel_scan_materialize;
 
 /// Execute a table scan (handles CTEs, views, and regular tables)
 pub(crate) fn execute_table_scan(
@@ -140,8 +143,12 @@ pub(crate) fn execute_table_scan(
     let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
     let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
 
-    // Use parallel scan for materialization when beneficial for large tables
+    // Use parallel scan for materialization when beneficial for large tables (when parallel feature enabled)
+    #[cfg(feature = "parallel")]
     let rows = parallel_scan_materialize(table.scan());
+
+    #[cfg(not(feature = "parallel"))]
+    let rows = table.scan().to_vec();
 
     // Check if we need to apply table-local predicates (Phase 1 optimization)
     if where_clause.is_some() {

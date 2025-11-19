@@ -3,9 +3,29 @@
 //! This module provides page-based storage management for disk-backed indexes.
 //! Pages are fixed-size blocks (4KB) that form the foundation of persistent storage.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+
+#[cfg(not(target_arch = "wasm32"))]
+use parking_lot::Mutex;
+
+#[cfg(target_arch = "wasm32")]
+use std::sync::Mutex;
 
 use crate::{StorageBackend, StorageError, StorageFile};
+
+/// Helper macro to lock a mutex, handling both parking_lot and std::sync variants
+macro_rules! lock {
+    ($mutex:expr) => {{
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            $mutex.lock()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            $mutex.lock().unwrap()
+        }
+    }};
+}
 
 /// Page size in bytes (4KB standard)
 pub const PAGE_SIZE: usize = 4096;
@@ -72,8 +92,9 @@ pub struct PageManager {
 
 impl std::fmt::Debug for PageManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let state = lock!(self.state);
         f.debug_struct("PageManager")
-            .field("state", &self.state.lock().map(|s| format!("next_page_id: {}, free_pages: {}", s.next_page_id, s.free_pages.len())))
+            .field("state", &format!("next_page_id: {}, free_pages: {}", state.next_page_id, state.free_pages.len()))
             .finish()
     }
 }
@@ -108,10 +129,7 @@ impl PageManager {
 
     /// Allocate a new page
     pub fn allocate_page(&self) -> Result<PageId, StorageError> {
-        let mut state = self
-            .state
-            .lock()
-            .map_err(|e| StorageError::LockError(format!("Failed to lock state: {}", e)))?;
+        let mut state = lock!(self.state);
 
         // Reuse a free page if available
         if let Some(page_id) = state.free_pages.pop() {
@@ -130,10 +148,7 @@ impl PageManager {
             return Err(StorageError::InvalidPageId(page_id));
         }
 
-        let mut state = self
-            .state
-            .lock()
-            .map_err(|e| StorageError::LockError(format!("Failed to lock state: {}", e)))?;
+        let mut state = lock!(self.state);
 
         state.free_pages.push(page_id);
         Ok(())
@@ -141,10 +156,7 @@ impl PageManager {
 
     /// Read a page from disk
     pub fn read_page(&self, page_id: PageId) -> Result<Page, StorageError> {
-        let mut file = self
-            .file
-            .lock()
-            .map_err(|e| StorageError::LockError(format!("Failed to lock file: {}", e)))?;
+        let mut file = lock!(self.file);
 
         let offset = (page_id as u64) * (PAGE_SIZE as u64);
         let mut data = vec![0u8; PAGE_SIZE];
@@ -164,10 +176,7 @@ impl PageManager {
 
     /// Write a page to disk
     pub fn write_page(&self, page: &mut Page) -> Result<(), StorageError> {
-        let mut file = self
-            .file
-            .lock()
-            .map_err(|e| StorageError::LockError(format!("Failed to lock file: {}", e)))?;
+        let mut file = lock!(self.file);
 
         let offset = (page.id as u64) * (PAGE_SIZE as u64);
         file.write_at(offset, &page.data)?;
@@ -179,10 +188,7 @@ impl PageManager {
 
     /// Save metadata to page 0
     pub fn save_metadata(&self) -> Result<(), StorageError> {
-        let state = self
-            .state
-            .lock()
-            .map_err(|e| StorageError::LockError(format!("Failed to lock state: {}", e)))?;
+        let state = lock!(self.state);
 
         let mut metadata_page = Page::new(0);
 
@@ -215,10 +221,7 @@ impl PageManager {
 
     /// Load metadata from page 0
     fn load_metadata(&self, metadata_page: &Page) -> Result<(), StorageError> {
-        let mut state = self
-            .state
-            .lock()
-            .map_err(|e| StorageError::LockError(format!("Failed to lock state: {}", e)))?;
+        let mut state = lock!(self.state);
 
         let mut offset = 0;
 
@@ -251,22 +254,19 @@ impl PageManager {
     /// Flush all pending writes and metadata
     pub fn flush(&self) -> Result<(), StorageError> {
         self.save_metadata()?;
-        let mut file = self
-            .file
-            .lock()
-            .map_err(|e| StorageError::LockError(format!("Failed to lock file: {}", e)))?;
+        let mut file = lock!(self.file);
         file.sync_all()?;
         Ok(())
     }
 
     /// Get the next page ID that would be allocated
     pub fn next_page_id(&self) -> PageId {
-        self.state.lock().unwrap().next_page_id
+        lock!(self.state).next_page_id
     }
 
     /// Get the number of free pages
     pub fn free_page_count(&self) -> usize {
-        self.state.lock().unwrap().free_pages.len()
+        lock!(self.state).free_pages.len()
     }
 }
 

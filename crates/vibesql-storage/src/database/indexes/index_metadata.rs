@@ -5,6 +5,12 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+#[cfg(not(target_arch = "wasm32"))]
+use parking_lot::Mutex;
+
+#[cfg(target_arch = "wasm32")]
+use std::sync::Mutex;
+
 use vibesql_ast::IndexColumn;
 use vibesql_types::SqlValue;
 
@@ -45,8 +51,16 @@ pub(super) const DISK_BACKED_THRESHOLD: usize = usize::MAX;
 /// When a thread panics while holding a mutex, the mutex becomes "poisoned" to indicate
 /// potential data corruption. This function returns an error rather than attempting recovery,
 /// forcing callers to handle the exceptional condition explicitly.
+#[cfg(not(target_arch = "wasm32"))]
 pub(super) fn acquire_btree_lock(
-    btree: &Arc<std::sync::Mutex<BTreeIndex>>,
+    btree: &Arc<Mutex<BTreeIndex>>,
+) -> Result<parking_lot::MutexGuard<'_, BTreeIndex>, StorageError> {
+    Ok(btree.lock())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(super) fn acquire_btree_lock(
+    btree: &Arc<Mutex<BTreeIndex>>,
 ) -> Result<std::sync::MutexGuard<'_, BTreeIndex>, StorageError> {
     btree.lock().map_err(|e| {
         StorageError::LockError(format!(
@@ -76,7 +90,7 @@ pub enum IndexData {
     /// Note: The B+ tree stores (key, row_id) pairs. For non-unique indexes,
     /// we serialize Vec<usize> as the row_id value to support multiple rows per key.
     DiskBacked {
-        btree: Arc<std::sync::Mutex<BTreeIndex>>,
+        btree: Arc<Mutex<BTreeIndex>>,
         page_manager: Arc<PageManager>,
     },
 }

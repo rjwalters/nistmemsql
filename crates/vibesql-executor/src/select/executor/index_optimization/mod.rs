@@ -11,6 +11,8 @@
 //! to avoid row-index mismatch problems when predicate pushdown is enabled.
 //! This module now only contains spatial index optimization as a special case.
 
+#[cfg(feature = "spatial")]
 mod spatial;
 
+#[cfg(feature = "spatial")]
 pub(in crate::select::executor) use spatial::try_spatial_index_optimization;

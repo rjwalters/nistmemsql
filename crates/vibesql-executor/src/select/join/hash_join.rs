@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 use super::{combine_rows, FromResult};
 use crate::{errors::ExecutorError, limits::MAX_MEMORY_BYTES, schema::CombinedSchema};
+
+#[cfg(feature = "parallel")]
 use crate::select::parallel::ParallelConfig;
 
 /// Maximum number of rows allowed in a join result to prevent memory exhaustion
@@ -27,49 +30,59 @@ fn build_hash_table_sequential<'a>(
 
 /// Build hash table in parallel using partitioned approach
 ///
-/// Algorithm:
+/// Algorithm (when parallel feature enabled):
 /// 1. Divide build_rows into chunks (one per thread)
 /// 2. Each thread builds a local hash table from its chunk (no synchronization)
 /// 3. Merge partial hash tables sequentially (fast because only touching shared keys)
 ///
 /// Performance: 3-6x speedup on large joins (50k+ rows) with 4+ cores
+/// Note: Falls back to sequential when parallel feature is disabled
 fn build_hash_table_parallel<'a>(
     build_rows: &'a [vibesql_storage::Row],
     build_col_idx: usize,
 ) -> HashMap<vibesql_types::SqlValue, Vec<&'a vibesql_storage::Row>> {
-    let config = ParallelConfig::global();
+    #[cfg(feature = "parallel")]
+    {
+        let config = ParallelConfig::global();
 
-    // Use sequential fallback for small inputs
-    if !config.should_parallelize_join(build_rows.len()) {
-        return build_hash_table_sequential(build_rows, build_col_idx);
+        // Use sequential fallback for small inputs
+        if !config.should_parallelize_join(build_rows.len()) {
+            return build_hash_table_sequential(build_rows, build_col_idx);
+        }
+
+        // Phase 1: Parallel build of partial hash tables
+        // Each thread processes a chunk and builds its own hash table
+        let chunk_size = (build_rows.len() / config.num_threads).max(1000);
+        let partial_tables: Vec<HashMap<_, _>> = build_rows
+            .par_chunks(chunk_size)
+            .map(|chunk| {
+                let mut local_table: HashMap<vibesql_types::SqlValue, Vec<&vibesql_storage::Row>> = HashMap::new();
+                for row in chunk {
+                    let key = row.values[build_col_idx].clone();
+                    if key != vibesql_types::SqlValue::Null {
+                        local_table.entry(key).or_default().push(row);
+                    }
+                }
+                local_table
+            })
+            .collect();
+
+        // Phase 2: Sequential merge of partial tables
+        // This is fast because we only touch keys that appear in multiple partitions
+        partial_tables.into_iter()
+            .fold(HashMap::new(), |mut acc, partial| {
+                for (key, mut rows) in partial {
+                    acc.entry(key).or_default().append(&mut rows);
+                }
+                acc
+            })
     }
 
-    // Phase 1: Parallel build of partial hash tables
-    // Each thread processes a chunk and builds its own hash table
-    let chunk_size = (build_rows.len() / config.num_threads).max(1000);
-    let partial_tables: Vec<HashMap<_, _>> = build_rows
-        .par_chunks(chunk_size)
-        .map(|chunk| {
-            let mut local_table: HashMap<vibesql_types::SqlValue, Vec<&vibesql_storage::Row>> = HashMap::new();
-            for row in chunk {
-                let key = row.values[build_col_idx].clone();
-                if key != vibesql_types::SqlValue::Null {
-                    local_table.entry(key).or_default().push(row);
-                }
-            }
-            local_table
-        })
-        .collect();
-
-    // Phase 2: Sequential merge of partial tables
-    // This is fast because we only touch keys that appear in multiple partitions
-    partial_tables.into_iter()
-        .fold(HashMap::new(), |mut acc, partial| {
-            for (key, mut rows) in partial {
-                acc.entry(key).or_default().append(&mut rows);
-            }
-            acc
-        })
+    #[cfg(not(feature = "parallel"))]
+    {
+        // Always use sequential build when parallel feature is disabled
+        build_hash_table_sequential(build_rows, build_col_idx)
+    }
 }
 
 /// Check if a join would exceed memory limits based on estimated result size

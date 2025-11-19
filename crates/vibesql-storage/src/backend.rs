@@ -116,6 +116,11 @@ pub mod native {
     use std::fs::{File, OpenOptions};
     use std::io::{Read, Seek, SeekFrom, Write};
     use std::path::{Path, PathBuf};
+
+    #[cfg(not(target_arch = "wasm32"))]
+    use parking_lot::Mutex;
+
+    #[cfg(target_arch = "wasm32")]
     use std::sync::Mutex;
 
     use super::*;
@@ -127,8 +132,7 @@ pub mod native {
 
     impl StorageFile for NativeFile {
         fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize, StorageError> {
-            let mut file =
-                self.file.lock().map_err(|e| StorageError::LockError(e.to_string()))?;
+            let mut file = self.file.lock();
 
             file.seek(SeekFrom::Start(offset))
                 .map_err(|e| StorageError::IoError(e.to_string()))?;
@@ -146,8 +150,7 @@ pub mod native {
         }
 
         fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<usize, StorageError> {
-            let mut file =
-                self.file.lock().map_err(|e| StorageError::LockError(e.to_string()))?;
+            let mut file = self.file.lock();
 
             file.seek(SeekFrom::Start(offset))
                 .map_err(|e| StorageError::IoError(e.to_string()))?;
@@ -157,17 +160,17 @@ pub mod native {
         }
 
         fn sync_all(&mut self) -> Result<(), StorageError> {
-            let file = self.file.lock().map_err(|e| StorageError::LockError(e.to_string()))?;
+            let file = self.file.lock();
             file.sync_all().map_err(|e| StorageError::IoError(e.to_string()))
         }
 
         fn sync_data(&mut self) -> Result<(), StorageError> {
-            let file = self.file.lock().map_err(|e| StorageError::LockError(e.to_string()))?;
+            let file = self.file.lock();
             file.sync_data().map_err(|e| StorageError::IoError(e.to_string()))
         }
 
         fn size(&self) -> Result<u64, StorageError> {
-            let file = self.file.lock().map_err(|e| StorageError::LockError(e.to_string()))?;
+            let file = self.file.lock();
             Ok(file.metadata().map_err(|e| StorageError::IoError(e.to_string()))?.len())
         }
     }

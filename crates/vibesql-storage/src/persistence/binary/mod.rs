@@ -93,19 +93,26 @@ impl Database {
         Ok(db)
     }
 
-    /// Save database in default compressed binary format
+    /// Save database in default format
     ///
-    /// This is the preferred save method - creates zstd-compressed binary files
-    /// with `.vbsqlz` extension for optimal space efficiency.
+    /// Uses compressed format when `compression` feature is enabled (default),
+    /// otherwise falls back to uncompressed binary format.
     ///
     /// # Example
     /// ```no_run
     /// # use vibesql_storage::Database;
     /// let db = Database::new();
-    /// db.save("database.vbsqlz").unwrap(); // Compressed by default
+    /// db.save("database.vbsql").unwrap();
     /// ```
     pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), StorageError> {
-        self.save_compressed(path)
+        #[cfg(feature = "compression")]
+        {
+            self.save_compressed(path)
+        }
+        #[cfg(not(feature = "compression"))]
+        {
+            self.save_binary(path)
+        }
     }
 
     /// Save database in uncompressed binary format
@@ -128,12 +135,15 @@ impl Database {
     /// Creates a `.vbsqlz` file containing zstd-compressed binary data.
     /// Typically 50-70% smaller than uncompressed `.vbsql` files.
     ///
+    /// Note: This method requires the `compression` feature to be enabled.
+    ///
     /// # Example
     /// ```no_run
     /// # use vibesql_storage::Database;
     /// let db = Database::new();
     /// db.save_compressed("database.vbsqlz").unwrap();
     /// ```
+    #[cfg(feature = "compression")]
     pub fn save_compressed<P: AsRef<Path>>(&self, path: P) -> Result<(), StorageError> {
         // First, save to temporary in-memory buffer
         let mut uncompressed_data = Vec::new();
@@ -169,11 +179,14 @@ impl Database {
     ///
     /// Reads a zstd-compressed `.vbsqlz` file and reconstructs the database.
     ///
+    /// Note: This method requires the `compression` feature to be enabled.
+    ///
     /// # Example
     /// ```no_run
     /// # use vibesql_storage::Database;
     /// let db = Database::load_compressed("database.vbsqlz").unwrap();
     /// ```
+    #[cfg(feature = "compression")]
     pub fn load_compressed<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
         // Read compressed file
         let compressed_data = std::fs::read(path.as_ref()).map_err(|e| {

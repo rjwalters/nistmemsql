@@ -10,9 +10,15 @@
 use crate::{
     errors::ExecutorError, evaluator::CombinedExpressionEvaluator,
     optimizer::PredicatePlan, schema::CombinedSchema,
-    select::parallel::ParallelConfig,
 };
+
+#[cfg(feature = "parallel")]
+use crate::select::parallel::ParallelConfig;
+
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
+
+#[cfg(feature = "parallel")]
 use std::sync::Arc;
 
 /// Apply table-local predicates from a pre-computed predicate plan
@@ -49,9 +55,12 @@ pub(crate) fn apply_table_local_predicates(
         let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
 
         // Check if we should use parallel filtering
-        let config = ParallelConfig::global();
-        if config.should_parallelize_scan(rows.len()) {
-            return apply_predicates_parallel(rows, combined_where, evaluator);
+        #[cfg(feature = "parallel")]
+        {
+            let config = ParallelConfig::global();
+            if config.should_parallelize_scan(rows.len()) {
+                return apply_predicates_parallel(rows, combined_where, evaluator);
+            }
         }
 
         // Sequential path for small datasets
@@ -95,6 +104,7 @@ pub(crate) fn apply_table_local_predicates(
 }
 
 /// Apply predicates using parallel execution
+#[cfg(feature = "parallel")]
 fn apply_predicates_parallel(
     rows: Vec<vibesql_storage::Row>,
     combined_where: vibesql_ast::Expression,
