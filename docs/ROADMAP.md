@@ -1,6 +1,6 @@
 # VibeSQL Development Roadmap
 
-**Last Updated**: 2025-11-18
+**Last Updated**: 2025-11-19
 **Project Status**: 100% SQL:1999 Conformance Achieved ✨
 
 ---
@@ -18,6 +18,7 @@ VibeSQL has achieved **complete SQL:1999 compliance** through a phased approach,
 | **Extended SQL:1999 Features** | ✅ Complete | Views, procedures, spatial, FTS | Nov 1-12, 2025 |
 | **Parallelism (Phase 1)** | ✅ Complete | Auto-parallel execution | Hardware-aware heuristics |
 | **Query Performance Infrastructure** | ✅ Complete | Caching, pooling, optimization | Epic #2057 complete |
+| **Web Demo Performance** | 🟢 Major Progress | 40% size reduction, page loads | Phases 0-1 complete, #2126 ongoing |
 
 ---
 
@@ -141,6 +142,40 @@ VibeSQL has achieved **complete SQL:1999 compliance** through a phased approach,
 **Performance Impact**: 4-8x speedup on analytical queries with multi-core systems
 
 **Documentation**: [`docs/roadmaps/PARALLELISM_ROADMAP.md`](roadmaps/PARALLELISM_ROADMAP.md)
+
+---
+
+### ✅ Web Demo Performance Optimization (Nov 18-19, 2025)
+
+**Achievement**: Fixed critical performance issues, reduced WASM bundle by 40%
+
+**Epic**: #2127 - Web Demo Performance Optimization Roadmap
+
+**What was delivered:**
+
+**Phase 0: Critical Fix (Nov 18)**
+- Fixed OPFS deadlock that caused 30-second timeout (PR #2128, Issue #2123)
+- Made database initialization properly async
+- Page now loads successfully instead of timing out
+
+**Phase 1: Bundle Optimization (Nov 19)**
+- Reduced WASM bundle from 2.8 MB to 1.68 MB - 40% reduction! (PR #2130, Issue #2124)
+- Added size-optimized Cargo profile (`opt-level="z"`, LTO, strip symbols)
+- Fixed wasm-opt feature flags for modern WebAssembly
+- Load time improvements: 4G (2.5s → 1.4s), 3G (16s → 9s), Slow 3G (60s → 36s)
+
+**Phase 2 (Partial): Monaco Editor Lazy Loading (Nov 18)**
+- Monaco Editor now loads on demand, not during initial page load (PR #2129, Issue #2125)
+- Reduced initial JavaScript bundle size
+- Faster time-to-interactive
+
+**Impact**:
+- ✅ Page loads successfully (was timing out before)
+- ✅ 40% smaller WASM bundle (2.8 MB → 1.68 MB)
+- ✅ Users can now actually use the web demo!
+
+**In Progress**:
+- Issue #2126 - Remove heavy dependencies (rayon, spatial libs) for additional 30-40% size reduction
 
 ---
 
@@ -511,6 +546,6 @@ With 100% conformance achieved, focus areas are:
 
 ---
 
-**Last Updated**: 2025-11-18
+**Last Updated**: 2025-11-19
 **Maintained By**: [Loom AI Agents](https://github.com/loomhq/loom)
 **License**: MIT
