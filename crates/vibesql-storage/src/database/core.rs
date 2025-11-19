@@ -107,6 +107,38 @@ impl Database {
         db
     }
 
+    /// Create a new database with both path and configuration (async version for WASM)
+    ///
+    /// This async version is required for WASM to properly initialize OPFS storage
+    /// without blocking the event loop.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// # use std::path::PathBuf;
+    /// # use vibesql_storage::{Database, DatabaseConfig};
+    /// # async fn example() {
+    /// let db = Database::with_path_and_config_async(
+    ///     PathBuf::from("/vibesql-data"),
+    ///     DatabaseConfig::browser_default()
+    /// ).await.unwrap();
+    /// # }
+    /// ```
+    #[cfg(target_arch = "wasm32")]
+    pub async fn with_path_and_config_async(
+        path: PathBuf,
+        config: DatabaseConfig,
+    ) -> Result<Self, crate::StorageError> {
+        let mut db = Self::new();
+        db.sql_mode = config.sql_mode.clone();
+        db.operations.set_database_path(path.join("data"));
+        db.operations.set_config(config);
+
+        // Initialize OPFS storage asynchronously
+        db.operations.init_opfs_async().await?;
+
+        Ok(db)
+    }
+
     /// Reset the database to empty state (more efficient than creating a new instance).
     ///
     /// Clears all tables, resets catalog to default state, and clears all indexes and transactions.

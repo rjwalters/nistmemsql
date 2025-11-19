@@ -47,6 +47,15 @@ impl Operations {
         self.index_manager.set_config(config);
     }
 
+    /// Initialize OPFS storage asynchronously (WASM only)
+    ///
+    /// This replaces the temporary in-memory storage with persistent OPFS storage.
+    /// Must be called from an async context.
+    #[cfg(target_arch = "wasm32")]
+    pub async fn init_opfs_async(&mut self) -> Result<(), crate::StorageError> {
+        self.index_manager.init_opfs_async().await
+    }
+
     // ============================================================================
     // Table Operations
     // ============================================================================

@@ -63,6 +63,6 @@ export interface WasmModule {
   /** Database constructor */
   Database: {
     new (): Database
-    newWithPersistence(): Database
+    newWithPersistence(): Promise<Database>
   }
 }

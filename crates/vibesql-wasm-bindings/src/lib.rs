@@ -84,19 +84,28 @@ impl Database {
     ///
     /// Data persists across browser sessions using Origin Private File System (OPFS).
     ///
+    /// Returns a Promise that resolves to a Database instance.
+    ///
     /// # Browser Compatibility
     /// - Chrome 86+
     /// - Firefox 111+
     /// - Safari 15.2+
+    ///
+    /// # Example
+    /// ```javascript
+    /// const db = await Database.newWithPersistence();
+    /// ```
     #[wasm_bindgen(js_name = newWithPersistence)]
-    pub fn new_with_persistence() -> Database {
+    pub async fn new_with_persistence() -> Result<Database, JsError> {
         // Use browser-default configuration with OPFS persistence
         let config = vibesql_storage::DatabaseConfig::browser_default();
         let path = std::path::PathBuf::from("/vibesql-data");
 
-        Database {
-            db: vibesql_storage::Database::with_path_and_config(path, config)
-        }
+        let db = vibesql_storage::Database::with_path_and_config_async(path, config)
+            .await
+            .map_err(|e| JsError::new(&format!("Failed to initialize OPFS storage: {:?}", e)))?;
+
+        Ok(Database { db })
     }
 
     /// Returns the version string

@@ -365,4 +365,4 @@ pub mod opfs;
 
 /// Re-export OPFS storage for convenience
 #[cfg(target_arch = "wasm32")]
-pub use opfs::{OpfsFile, OpfsStorage};
+pub use opfs::{OpfsFile, OpfsStorage, MemoryStorage, MemoryFile};
