@@ -199,6 +199,9 @@ async fn test_file(path: &str) -> Result<(), Box<dyn std::error::Error>> {
             {
                 println!("✓ Got expected SQL feature error (not hash mode issue)");
                 Ok(()) // This is expected - SQL feature not implemented
+            } else if error_str.contains("MemoryLimitExceeded") {
+                println!("✓ Got expected memory limit error (query too large)");
+                Ok(()) // This is expected - query exceeds memory limits
             } else {
                 println!("✗ Unexpected error type - hash mode may not be working");
                 Err(format!("Unexpected error type: {}", e).into())

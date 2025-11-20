@@ -3,6 +3,77 @@
 //! Tests for filtering aggregate results with HAVING.
 
 use super::super::*;
+use vibesql_parser::Parser;
+use vibesql_ast::Statement;
+
+#[test]
+fn test_having_with_count_star_simple() {
+    // Simplified test to debug COUNT(*) in HAVING clause
+    let mut db = vibesql_storage::Database::new();
+
+    // Create simple table
+    let create_sql = "CREATE TABLE test (id INTEGER, status VARCHAR(20))";
+    let stmt = Parser::parse_sql(create_sql).unwrap();
+    match stmt {
+        Statement::CreateTable(create_stmt) => {
+            CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
+        }
+        _ => panic!("Expected CREATE TABLE"),
+    }
+
+    // Insert 7 rows with status 'A' and 3 rows with status 'B'
+    for i in 1..=7 {
+        let insert_sql = format!("INSERT INTO test VALUES ({}, 'A')", i);
+        let stmt = Parser::parse_sql(&insert_sql).unwrap();
+        match stmt {
+            Statement::Insert(insert_stmt) => {
+                InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
+            }
+            _ => panic!("Expected INSERT"),
+        }
+    }
+
+    for i in 8..=10 {
+        let insert_sql = format!("INSERT INTO test VALUES ({}, 'B')", i);
+        let stmt = Parser::parse_sql(&insert_sql).unwrap();
+        match stmt {
+            Statement::Insert(insert_stmt) => {
+                InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
+            }
+            _ => panic!("Expected INSERT"),
+        }
+    }
+
+    // Test without HAVING - should return 2 groups
+    let query1 = "SELECT status, COUNT(*) FROM test GROUP BY status";
+    let stmt = Parser::parse_sql(query1).unwrap();
+    match stmt {
+        Statement::Select(select_stmt) => {
+            let executor = SelectExecutor::new(&db);
+            let rows = executor.execute(&select_stmt).unwrap();
+            assert_eq!(rows.len(), 2, "Should have 2 groups without HAVING");
+        }
+        _ => panic!("Expected SELECT"),
+    }
+
+    // Test with HAVING COUNT(*) > 5 - should return 1 group (status 'A' with 7 rows)
+    let query2 = "SELECT status, COUNT(*) FROM test GROUP BY status HAVING COUNT(*) > 5";
+    let stmt = Parser::parse_sql(query2).unwrap();
+    match stmt {
+        Statement::Select(select_stmt) => {
+            eprintln!("\n=== HAVING clause debug ===");
+            eprintln!("HAVING: {:?}", select_stmt.having);
+            let executor = SelectExecutor::new(&db);
+            let rows = executor.execute(&select_stmt).unwrap();
+            eprintln!("Result rows: {}", rows.len());
+            for (i, row) in rows.iter().enumerate() {
+                eprintln!("  Row {}: {:?}", i, row.values);
+            }
+            assert_eq!(rows.len(), 1, "Should have 1 group with count > 5");
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
 
 #[test]
 fn test_having_clause() {

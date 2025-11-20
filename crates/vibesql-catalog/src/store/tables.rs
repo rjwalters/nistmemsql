@@ -289,6 +289,7 @@ mod tests {
             granularity: TriggerGranularity::Row,
             when_condition: None,
             triggered_action: TriggerAction::RawSql("".to_string()),
+            enabled: true,
         };
         catalog.create_trigger(trigger).unwrap();
 
@@ -326,6 +327,7 @@ mod tests {
             granularity: TriggerGranularity::Row,
             when_condition: None,
             triggered_action: TriggerAction::RawSql("".to_string()),
+            enabled: true,
         };
         catalog.create_trigger(trigger).unwrap();
 
@@ -357,6 +359,7 @@ mod tests {
                 granularity: TriggerGranularity::Row,
                 when_condition: None,
                 triggered_action: TriggerAction::RawSql("".to_string()),
+                enabled: true,
             };
             catalog.create_trigger(trigger).unwrap();
         }
@@ -397,6 +400,7 @@ mod tests {
             granularity: TriggerGranularity::Row,
             when_condition: None,
             triggered_action: TriggerAction::RawSql("".to_string()),
+            enabled: true,
         };
         let trigger2 = TriggerDefinition {
             name: "tr2".to_string(),
@@ -406,6 +410,7 @@ mod tests {
             granularity: TriggerGranularity::Row,
             when_condition: None,
             triggered_action: TriggerAction::RawSql("".to_string()),
+            enabled: true,
         };
         catalog.create_trigger(trigger1).unwrap();
         catalog.create_trigger(trigger2).unwrap();

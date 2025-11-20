@@ -114,6 +114,41 @@ impl Row {
         }
     }
 
+    /// Get numeric value as f64 without enum matching
+    ///
+    /// # Safety
+    ///
+    /// Caller must ensure the value at `idx` is a numeric variant (Integer, Bigint, Smallint, Unsigned, Numeric, Double, Float, or Real).
+    /// Violating this will cause undefined behavior in release builds.
+    /// Debug builds will panic with assertion failure.
+    #[inline(always)]
+    pub unsafe fn get_numeric_as_f64_unchecked(&self, idx: usize) -> f64 {
+        debug_assert!(
+            matches!(
+                self.values[idx],
+                SqlValue::Integer(_)
+                    | SqlValue::Bigint(_)
+                    | SqlValue::Smallint(_)
+                    | SqlValue::Unsigned(_)
+                    | SqlValue::Numeric(_)
+                    | SqlValue::Double(_)
+                    | SqlValue::Float(_)
+                    | SqlValue::Real(_)
+            ),
+            "get_numeric_as_f64_unchecked called on non-numeric value: {:?}",
+            self.values[idx]
+        );
+
+        match &self.values[idx] {
+            SqlValue::Integer(i) | SqlValue::Bigint(i) => *i as f64,
+            SqlValue::Smallint(s) => *s as f64,
+            SqlValue::Unsigned(u) => *u as f64,
+            SqlValue::Numeric(n) | SqlValue::Double(n) => *n,
+            SqlValue::Float(f) | SqlValue::Real(f) => *f as f64,
+            _ => std::hint::unreachable_unchecked(),
+        }
+    }
+
     /// Get Date value without enum matching
     ///
     /// # Safety

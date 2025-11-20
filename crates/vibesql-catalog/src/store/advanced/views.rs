@@ -53,7 +53,7 @@ impl super::super::Catalog {
             return Err(CatalogError::ViewNotFound(name.to_string()));
         }
 
-        // If CASCADE, drop all dependent views recursively (SQLite extension)
+        // If CASCADE, drop all dependent views recursively
         if cascade {
             // Find all views that depend on this view or table
             // Use the original name for dependency checking (not the normalized key)
@@ -63,9 +63,16 @@ impl super::super::Catalog {
                 // Recursively drop dependent views (they might have their own dependents)
                 self.drop_view(&dependent_view, true)?;
             }
+        } else {
+            // If RESTRICT (not CASCADE): Check for dependent views and fail if any exist
+            let dependent_views = self.find_dependent_views(name);
+            if !dependent_views.is_empty() {
+                return Err(CatalogError::ViewInUse {
+                    view_name: name.to_string(),
+                    dependent_views,
+                });
+            }
         }
-        // If not CASCADE: SQLite behavior is to ignore dependencies and just drop the view
-        // This leaves dependent views in a broken state, but matches SQLite compatibility
 
         // Finally, drop the view itself using the normalized key
         self.views.remove(&key);

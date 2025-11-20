@@ -29,7 +29,7 @@ impl Division {
         // SQLite: INTEGER / INTEGER → INTEGER (truncated division)
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
-                return Ok(SqlValue::Null);
+                return Err(ExecutorError::DivisionByZero);
             }
 
             // Use TypeBehavior trait to determine result type
@@ -53,7 +53,7 @@ impl Division {
         // Use helper for type coercion
         let coerced = coerce_numeric_values(left, right, "/")?;
 
-        // Check for division by zero and return NULL (SQL standard behavior)
+        // Check for division by zero and raise error
         let is_zero = match &coerced {
             super::CoercedValues::ExactNumeric(_, right) => *right == 0,
             super::CoercedValues::ApproximateNumeric(_, right) => *right == 0.0,
@@ -61,7 +61,7 @@ impl Division {
         };
 
         if is_zero {
-            return Ok(SqlValue::Null);
+            return Err(ExecutorError::DivisionByZero);
         }
 
         // Use TypeBehavior trait to determine result type based on original operands
@@ -112,7 +112,7 @@ impl Division {
         // Fast path for integers (both modes)
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
-                return Ok(SqlValue::Null);
+                return Err(ExecutorError::DivisionByZero);
             }
             // Integer division truncates toward zero (not floor division)
             let result = ((*a as f64) / (*b as f64)).trunc() as i64;
@@ -122,7 +122,7 @@ impl Division {
         // Use helper for type coercion
         let coerced = coerce_numeric_values(left, right, "DIV")?;
 
-        // Check for division by zero and return NULL (SQL standard behavior)
+        // Check for division by zero and raise error
         let is_zero = match &coerced {
             super::CoercedValues::ExactNumeric(_, right) => *right == 0,
             super::CoercedValues::ApproximateNumeric(_, right) => *right == 0.0,
@@ -130,7 +130,7 @@ impl Division {
         };
 
         if is_zero {
-            return Ok(SqlValue::Null);
+            return Err(ExecutorError::DivisionByZero);
         }
 
         // Integer division truncates toward zero
