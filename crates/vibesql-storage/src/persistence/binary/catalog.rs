@@ -133,11 +133,9 @@ pub fn write_catalog<W: Write>(writer: &mut W, db: &Database) -> Result<(), Stor
 
             // Write when_condition (optional)
             match &trigger.when_condition {
-                Some(_expr) => {
+                Some(expr) => {
                     write_bool(writer, true)?;
-                    // For now, we'll skip serializing the expression tree
-                    // This can be implemented later with proper expression serialization
-                    write_string(writer, "TODO: expression serialization")?;
+                    super::expression::write_expression(writer, expr)?;
                 }
                 None => {
                     write_bool(writer, false)?;
@@ -315,10 +313,7 @@ pub fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
         // Read when_condition
         let has_when = read_bool(reader)?;
         let when_condition = if has_when {
-            let _expr_str = read_string(reader)?;
-            // For now, we can't deserialize the expression
-            // This will be implemented when proper expression serialization is added
-            None
+            Some(Box::new(super::expression::read_expression(reader)?))
         } else {
             None
         };
@@ -359,7 +354,7 @@ pub fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
 }
 
 /// Parse data type string back to DataType enum
-fn parse_data_type(type_str: &str) -> Result<vibesql_types::DataType, StorageError> {
+pub(super) fn parse_data_type(type_str: &str) -> Result<vibesql_types::DataType, StorageError> {
     use vibesql_types::DataType;
 
     let upper = type_str.to_uppercase();
