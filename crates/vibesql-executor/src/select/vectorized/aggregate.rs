@@ -3,6 +3,9 @@
 //! This module provides vectorized aggregation operations using Apache Arrow's
 //! compute kernels for SIMD acceleration.
 
+// Experimental SIMD optimizations - allow dead code warnings for future use
+#![allow(dead_code)]
+
 use crate::errors::ExecutorError;
 use arrow::array::{Array, ArrayRef, Float64Array, Int64Array, Date32Array, TimestampMicrosecondArray};
 use arrow::compute::kernels::aggregate::{sum, min, max};

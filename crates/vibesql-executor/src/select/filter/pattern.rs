@@ -45,6 +45,7 @@ pub(crate) enum PredicatePattern {
 
     /// General predicate that doesn't match any fast path
     /// Falls back to standard SqlValue enum matching
+    #[allow(dead_code)]
     General(Expression),
 }
 

@@ -77,6 +77,7 @@ pub trait MonomorphicPlan: Send + Sync {
     ) -> Result<Vec<Row>, ExecutorError>;
 
     /// Get a description of this plan for debugging/profiling
+    #[allow(dead_code)]
     fn description(&self) -> &str;
 }
 

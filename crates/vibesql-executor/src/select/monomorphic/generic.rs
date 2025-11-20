@@ -301,7 +301,7 @@ fn extract_filters_from_expr(
 
                     // Special case: detect date range patterns (col >= date1 AND col < date2)
                     if column_type == DataType::Date {
-                        if let SqlValue::Date(date) = value {
+                        if let SqlValue::Date(_date) = value {
                             // This might be part of a date range, but we'll just add it as a comparison
                             // Date range optimization will happen if we find matching predicates
                             return Some(vec![FilterPredicate::Comparison {
@@ -501,6 +501,7 @@ pub struct GenericFilteredAggregationPlan {
     aggregation: AggregationSpec,
 
     /// Description for debugging
+    #[allow(dead_code)]
     description: String,
 }
 
@@ -701,6 +702,7 @@ impl MonomorphicPlan for GenericFilteredAggregationPlan {
 }
 
 /// Pattern matcher for generic filtered aggregation queries
+#[allow(dead_code)]
 pub struct GenericFilteredAggregationMatcher;
 
 impl QueryPattern for GenericFilteredAggregationMatcher {
@@ -816,6 +818,7 @@ pub struct GenericGroupedAggregationPlan {
     aggregates: Vec<GroupAggregateSpec>,
 
     /// Description for debugging
+    #[allow(dead_code)]
     description: String,
 }
 

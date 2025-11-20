@@ -38,11 +38,8 @@ use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, Linkage, Module};
 
 use crate::errors::ExecutorError;
-use crate::select::monomorphic::MonomorphicPlan;
 use vibesql_storage::Row;
-use vibesql_types::{Date, SqlValue};
 
-use std::mem;
 
 #[cfg(feature = "jit")]
 use std::time::Instant;
@@ -471,10 +468,12 @@ impl MonomorphicPlan for TpchQ6JitPlan {
 
 // Stub implementation when JIT feature is disabled
 #[cfg(not(feature = "jit"))]
+#[allow(dead_code)]
 pub struct TpchQ6JitPlan;
 
 #[cfg(not(feature = "jit"))]
 impl TpchQ6JitPlan {
+    #[allow(dead_code)]
     pub fn new() -> Result<Self, ExecutorError> {
         Err(ExecutorError::UnsupportedFeature(
             "JIT compilation not enabled. Compile with --features jit".to_string(),
