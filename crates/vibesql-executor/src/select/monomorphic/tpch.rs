@@ -321,8 +321,8 @@ impl MonomorphicPlan for TpchQ1Plan {
 
                 Row {
                     values: vec![
-                        SqlValue::Varchar(returnflag.clone()),
-                        SqlValue::Varchar(linestatus.clone()),
+                        SqlValue::Varchar(returnflag),
+                        SqlValue::Varchar(linestatus),
                         SqlValue::Double(agg.sum_qty),
                         SqlValue::Double(agg.sum_base_price),
                         SqlValue::Double(agg.sum_disc_price),
