@@ -14,6 +14,8 @@
 //! This provides the same performance benefits (~230ns/row improvement) while
 //! working for any user query with similar structure.
 
+use std::str::FromStr;
+
 use vibesql_ast::{BinaryOperator, Expression, SelectStmt};
 use vibesql_storage::Row;
 use vibesql_types::{DataType, Date, SqlValue};
@@ -129,6 +131,13 @@ impl FilterPredicate {
                 let row_value = row.get_date_unchecked(column_idx);
                 let compare_value = match value {
                     SqlValue::Date(d) => *d,
+                    SqlValue::Varchar(s) => {
+                        // Parse Varchar date string (e.g., "2024-01-01")
+                        match Date::from_str(s) {
+                            Ok(d) => d,
+                            Err(_) => return false,
+                        }
+                    }
                     _ => return false,
                 };
                 Self::compare_date(row_value, op, compare_value)
@@ -626,12 +635,59 @@ impl GenericFilteredAggregationPlan {
 
         accumulator
     }
+
+    /// Execute using streaming fast path (lazy filtering)
+    ///
+    /// This method filters rows during iteration, only processing rows that match
+    /// all predicates. This eliminates the overhead of materializing rows that
+    /// will be filtered out.
+    ///
+    /// # Safety
+    ///
+    /// Uses unchecked accessors for performance. Safe because column indices
+    /// and types are validated at plan creation time.
+    #[inline(never)] // Don't inline to make profiling easier
+    unsafe fn execute_stream_unsafe(&self, rows: Box<dyn Iterator<Item = Row>>) -> f64 {
+        let mut accumulator = self.aggregation.initial_value();
+
+        // Stream through rows, filtering inline
+        for row in rows {
+            // Evaluate all filters
+            let mut pass = true;
+            for filter in &self.filters {
+                if !filter.evaluate(&row) {
+                    pass = false;
+                    break;
+                }
+            }
+
+            // If all filters pass, accumulate
+            if pass {
+                accumulator = self.aggregation.accumulate(accumulator, &row);
+            }
+        }
+
+        accumulator
+    }
 }
 
 impl MonomorphicPlan for GenericFilteredAggregationPlan {
     fn execute(&self, rows: &[Row]) -> Result<Vec<Row>, ExecutorError> {
         // Execute using unsafe fast path
         let result = unsafe { self.execute_unsafe(rows) };
+
+        // Return single-row result
+        Ok(vec![Row {
+            values: vec![SqlValue::Double(result)],
+        }])
+    }
+
+    fn execute_stream(
+        &self,
+        rows: Box<dyn Iterator<Item = Row>>,
+    ) -> Result<Vec<Row>, ExecutorError> {
+        // Execute using streaming fast path
+        let result = unsafe { self.execute_stream_unsafe(rows) };
 
         // Return single-row result
         Ok(vec![Row {
@@ -1038,12 +1094,139 @@ impl GenericGroupedAggregationPlan {
 
         groups
     }
+
+    /// Execute using streaming fast path (lazy filtering)
+    ///
+    /// This method filters rows during iteration, only processing rows that match
+    /// all predicates. This eliminates the overhead of materializing rows that
+    /// will be filtered out.
+    ///
+    /// # Safety
+    ///
+    /// Uses unchecked accessors for performance. Safe because column indices
+    /// and types are validated at plan creation time.
+    #[inline(never)] // Don't inline to make profiling easier
+    unsafe fn execute_stream_unsafe(
+        &self,
+        rows: Box<dyn Iterator<Item = Row>>,
+    ) -> HashMap<Vec<SqlValue>, Vec<f64>> {
+        let mut groups: HashMap<Vec<SqlValue>, Vec<f64>> = HashMap::new();
+
+        // Stream through rows, filtering inline
+        for row in rows {
+            // Evaluate all filters
+            let mut pass = true;
+            for filter in &self.filters {
+                if !filter.evaluate(&row) {
+                    pass = false;
+                    break;
+                }
+            }
+
+            if !pass {
+                continue;
+            }
+
+            // Extract group key
+            let mut key = Vec::with_capacity(self.group_by_columns.len());
+            for group_col in &self.group_by_columns {
+                let value = match &group_col.col_type {
+                    DataType::Varchar { .. } => {
+                        SqlValue::Varchar(row.get_string_unchecked(group_col.col_idx).to_string())
+                    }
+                    DataType::Integer | DataType::Bigint => {
+                        SqlValue::Integer(row.get_i64_unchecked(group_col.col_idx))
+                    }
+                    DataType::DoublePrecision | DataType::Real | DataType::Decimal { .. } => {
+                        SqlValue::Double(row.get_f64_unchecked(group_col.col_idx))
+                    }
+                    DataType::Date => SqlValue::Date(row.get_date_unchecked(group_col.col_idx)),
+                    DataType::Boolean => SqlValue::Boolean(row.get_bool_unchecked(group_col.col_idx)),
+                    _ => continue,
+                };
+                key.push(value);
+            }
+
+            // Get or create group aggregates
+            let agg_values = groups
+                .entry(key)
+                .or_insert_with(|| vec![0.0; self.aggregates.len()]);
+
+            // Accumulate each aggregate
+            for (i, spec) in self.aggregates.iter().enumerate() {
+                agg_values[i] = spec.accumulate(agg_values[i], &row);
+            }
+        }
+
+        groups
+    }
 }
 
 impl MonomorphicPlan for GenericGroupedAggregationPlan {
     fn execute(&self, rows: &[Row]) -> Result<Vec<Row>, ExecutorError> {
         // Execute using unsafe fast path
         let groups = unsafe { self.execute_unsafe(rows) };
+
+        // Convert to result rows
+        let mut results: Vec<Row> = groups
+            .into_iter()
+            .map(|(key, agg_values)| {
+                let mut values = key;
+
+                // Add aggregate results, converting AVG to actual average
+                for (i, spec) in self.aggregates.iter().enumerate() {
+                    let val = match spec {
+                        GroupAggregateSpec::Avg { .. } => {
+                            // Get count from the last aggregate (should be COUNT)
+                            let count = if let Some(GroupAggregateSpec::Count) =
+                                self.aggregates.last()
+                            {
+                                agg_values[self.aggregates.len() - 1]
+                            } else {
+                                // If no COUNT, we can't compute AVG correctly
+                                1.0
+                            };
+                            SqlValue::Double(agg_values[i] / count)
+                        }
+                        GroupAggregateSpec::Count => SqlValue::Integer(agg_values[i] as i64),
+                        _ => SqlValue::Double(agg_values[i]),
+                    };
+                    values.push(val);
+                }
+
+                Row { values }
+            })
+            .collect();
+
+        // Sort by group key for consistent output
+        results.sort_by(|a, b| {
+            for i in 0..self.group_by_columns.len() {
+                let cmp = match (&a.values[i], &b.values[i]) {
+                    (SqlValue::Varchar(a), SqlValue::Varchar(b)) => a.cmp(b),
+                    (SqlValue::Integer(a), SqlValue::Integer(b)) => a.cmp(b),
+                    (SqlValue::Double(a), SqlValue::Double(b)) => {
+                        a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+                    }
+                    (SqlValue::Date(a), SqlValue::Date(b)) => a.cmp(b),
+                    (SqlValue::Boolean(a), SqlValue::Boolean(b)) => a.cmp(b),
+                    _ => std::cmp::Ordering::Equal,
+                };
+                if cmp != std::cmp::Ordering::Equal {
+                    return cmp;
+                }
+            }
+            std::cmp::Ordering::Equal
+        });
+
+        Ok(results)
+    }
+
+    fn execute_stream(
+        &self,
+        rows: Box<dyn Iterator<Item = Row>>,
+    ) -> Result<Vec<Row>, ExecutorError> {
+        // Execute using streaming fast path
+        let groups = unsafe { self.execute_stream_unsafe(rows) };
 
         // Convert to result rows
         let mut results: Vec<Row> = groups
