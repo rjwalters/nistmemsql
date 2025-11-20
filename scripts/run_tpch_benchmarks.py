@@ -56,11 +56,17 @@ def run_tpch_benchmarks(quick: bool = False) -> Dict:
         "--features", "benchmark-comparison",
     ]
 
-    # For quick mode, only run a few representative queries
-    # Use regex to match q1, q3, q6 benchmarks (all databases)
+    # For quick mode, only run a few representative queries with VibeSQL only
+    # (skip SQLite/DuckDB comparisons to reduce CI time)
     if quick:
-        # Match: benchmark_q1_*, benchmark_q3_*, benchmark_q6_*
-        cmd.extend(["--", "tpch_q[136]"])
+        # Match: q6_vibesql only (fastest query, single database)
+        # Use --sample-size and --measurement-time to reduce iterations
+        cmd.extend([
+            "--",
+            "--sample-size", "10",
+            "--measurement-time", "5",
+            "tpch_q6_vibesql"
+        ])
 
     # Run benchmarks
     result = subprocess.run(
