@@ -14,6 +14,8 @@
 //! This provides the same performance benefits (~230ns/row improvement) while
 //! working for any user query with similar structure.
 
+use std::str::FromStr;
+
 use vibesql_ast::{BinaryOperator, Expression, SelectStmt};
 use vibesql_storage::Row;
 use vibesql_types::{DataType, Date, SqlValue};
@@ -129,6 +131,13 @@ impl FilterPredicate {
                 let row_value = row.get_date_unchecked(column_idx);
                 let compare_value = match value {
                     SqlValue::Date(d) => *d,
+                    SqlValue::Varchar(s) => {
+                        // Parse Varchar date string (e.g., "2024-01-01")
+                        match Date::from_str(s) {
+                            Ok(d) => d,
+                            Err(_) => return false,
+                        }
+                    }
                     _ => return false,
                 };
                 Self::compare_date(row_value, op, compare_value)
@@ -638,11 +647,11 @@ impl GenericFilteredAggregationPlan {
     /// Uses unchecked accessors for performance. Safe because column indices
     /// and types are validated at plan creation time.
     #[inline(never)] // Don't inline to make profiling easier
-    unsafe fn execute_stream_unsafe(&self, mut rows: Box<dyn Iterator<Item = Row>>) -> f64 {
+    unsafe fn execute_stream_unsafe(&self, rows: Box<dyn Iterator<Item = Row>>) -> f64 {
         let mut accumulator = self.aggregation.initial_value();
 
         // Stream through rows, filtering inline
-        while let Some(row) = rows.next() {
+        for row in rows {
             // Evaluate all filters
             let mut pass = true;
             for filter in &self.filters {
