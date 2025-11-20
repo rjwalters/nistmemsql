@@ -33,6 +33,7 @@ use vibesql_storage::Row;
 use crate::{errors::ExecutorError, schema::CombinedSchema};
 
 pub mod generic;
+pub mod jit;
 pub mod pattern;
 pub mod tpch;
 
