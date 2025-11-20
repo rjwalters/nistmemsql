@@ -214,9 +214,9 @@ impl ExpressionEvaluator<'_> {
                 // Create an Interval SqlValue
                 // The format is "value unit" (e.g., "5 DAY", "1-6 YEAR TO MONTH")
                 let interval_str = format!("{} {}", interval_value, unit_str);
-                Ok(SqlValue::Interval(vibesql_types::Interval {
-                    value: interval_str,
-                }))
+                Ok(SqlValue::Interval(vibesql_types::Interval::new(
+                    interval_str,
+                )))
             }
 
             // Unsupported expressions
