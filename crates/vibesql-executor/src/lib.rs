@@ -20,6 +20,7 @@ mod grant;
 pub mod index_ddl;
 mod insert;
 pub mod limits;
+pub mod memory;
 mod optimizer;
 pub mod persistence;
 mod privilege_checker;
@@ -53,6 +54,7 @@ pub use index_ddl::{
     AnalyzeExecutor, CreateIndexExecutor, DropIndexExecutor, IndexExecutor, ReindexExecutor,
 };
 pub use insert::InsertExecutor;
+pub use memory::QueryArena;
 pub use persistence::load_sql_dump;
 pub use privilege_checker::PrivilegeChecker;
 pub use revoke::RevokeExecutor;
