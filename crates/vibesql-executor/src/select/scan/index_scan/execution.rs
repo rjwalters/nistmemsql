@@ -94,10 +94,10 @@ pub(crate) fn execute_index_scan(
         None => {
             // Full index scan - collect all row indices from the index in index key order
             // (Will be sorted by row index later if needed, see lines 425-427)
+            // Note: values() now returns owned Vec<usize>, so no need for .copied()
             index_data
                 .values()
                 .flatten()
-                .copied()
                 .collect()
         }
     };
