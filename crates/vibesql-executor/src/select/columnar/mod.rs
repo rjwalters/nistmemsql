@@ -36,7 +36,7 @@ mod filter;
 mod aggregate;
 
 pub use scan::ColumnarScan;
-pub use filter::apply_columnar_filter;
+pub use filter::{apply_columnar_filter, extract_column_predicates, ColumnPredicate};
 pub use aggregate::compute_columnar_aggregate;
 
 use crate::errors::ExecutorError;

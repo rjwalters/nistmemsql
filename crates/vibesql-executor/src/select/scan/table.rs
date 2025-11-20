@@ -147,14 +147,22 @@ pub(crate) fn execute_table_scan(
     let row_slice = table.scan();
 
     // Check if we need to apply table-local predicates (Phase 1 optimization)
-    if where_clause.is_some() {
+    if let Some(where_expr) = where_clause {
         // Build predicate plan once for this table
-        let predicate_plan = PredicatePlan::from_where_clause(where_clause, &schema)
+        let predicate_plan = PredicatePlan::from_where_clause(Some(where_expr), &schema)
             .map_err(ExecutorError::InvalidWhereClause)?;
 
         // Check if there are actually table-local predicates for this table
         if predicate_plan.has_table_filters(table_name) {
-            // Have table-local predicates: filter using references, only clone passing rows
+            // Try columnar filter optimization first (for simple predicates)
+            if let Some(column_predicates) = crate::select::columnar::extract_column_predicates(where_expr, &schema) {
+                // Use fast columnar filtering
+                let indices = crate::select::columnar::apply_columnar_filter(row_slice, &column_predicates)?;
+                let filtered_rows: Vec<_> = indices.into_iter().filter_map(|idx| row_slice.get(idx).cloned()).collect();
+                return Ok(super::FromResult::from_rows(schema, filtered_rows));
+            }
+
+            // Fall back to generic predicate evaluation for complex expressions
             let filtered_rows = apply_table_local_predicates_ref(
                 row_slice,
                 schema.clone(),
