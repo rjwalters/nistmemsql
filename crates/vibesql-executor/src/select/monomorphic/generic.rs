@@ -771,6 +771,11 @@ impl GenericGroupedAggregationPlan {
             return None;
         }
 
+        // HAVING clause not yet supported in monomorphic path - fall back to standard execution
+        if stmt.having.is_some() {
+            return None;
+        }
+
         // Must have GROUP BY
         let group_by = stmt.group_by.as_ref()?;
 
