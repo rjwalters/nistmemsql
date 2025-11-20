@@ -17,6 +17,11 @@ use crate::{
 impl SelectExecutor<'_> {
     /// Execute a SELECT statement
     pub fn execute(&self, stmt: &vibesql_ast::SelectStmt) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+        // Reset arena for fresh query execution (only at top level)
+        if self.subquery_depth == 0 {
+            self.reset_arena();
+        }
+
         // Check timeout before starting execution
         self.check_timeout()?;
 
