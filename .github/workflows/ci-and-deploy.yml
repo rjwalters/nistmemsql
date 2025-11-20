@@ -120,9 +120,13 @@ jobs:
 
   # ============================================================================
   # JOB 3: Deploy (calls centralized workflow)
+  # NOTE: Only depends on test, not benchmark. Deploy workflow will use:
+  #   - New benchmark data if the benchmark job finishes in time
+  #   - Historical benchmark data from Pages site otherwise
+  # This prevents slow benchmarks from blocking deployment.
   # ============================================================================
   deploy:
-    needs: [test, benchmark]
+    needs: [test]
     uses: ./.github/workflows/deploy-pages.yml
     permissions:
       contents: read
