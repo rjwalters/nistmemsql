@@ -6,13 +6,14 @@
 use crate::errors::ExecutorError;
 use arrow::array::{
     Array, ArrayRef, BooleanArray, Float64Array, Int64Array, StringArray,
+    Date32Array, TimestampMicrosecondArray,
     PrimitiveBuilder, StringBuilder, BooleanBuilder,
 };
-use arrow::datatypes::{DataType, Field, Schema, Float64Type, Int64Type};
+use arrow::datatypes::{DataType, Field, Schema, Float64Type, Int64Type, Date32Type, TimestampMicrosecondType, TimeUnit};
 use arrow::record_batch::RecordBatch;
 use std::sync::Arc;
 use vibesql_storage::Row;
-use vibesql_types::SqlValue;
+use vibesql_types::{SqlValue, Date, Time, Timestamp};
 
 /// Default batch size for vectorized operations
 /// Tuned for balance between memory usage and SIMD efficiency
@@ -117,6 +118,8 @@ pub fn rows_to_record_batch_with_columns(
             Some(SqlValue::Float(_)) | Some(SqlValue::Real(_)) | Some(SqlValue::Double(_)) | Some(SqlValue::Numeric(_)) => DataType::Float64,
             Some(SqlValue::Character(_)) | Some(SqlValue::Varchar(_)) => DataType::Utf8,
             Some(SqlValue::Boolean(_)) => DataType::Boolean,
+            Some(SqlValue::Date(_)) => DataType::Date32,
+            Some(SqlValue::Timestamp(_)) => DataType::Timestamp(TimeUnit::Microsecond, None),
             Some(SqlValue::Null) => DataType::Int64,
             _ => return Err(ExecutorError::Other(format!(
                 "Unsupported type for SIMD at column {}", col_idx
@@ -160,6 +163,104 @@ pub fn record_batch_to_rows(batch: &RecordBatch) -> Result<Vec<Row>, ExecutorErr
     Ok(rows)
 }
 
+/// Convert Date to days since Unix epoch (1970-01-01)
+pub(super) fn date_to_days_since_epoch(date: &Date) -> i32 {
+    // Simple calculation: days since Unix epoch
+    // Note: This is a simplified calculation and doesn't account for all leap years perfectly
+    let year_days = (date.year - 1970) * 365;
+    let leap_years = ((date.year - 1969) / 4) - ((date.year - 1901) / 100) + ((date.year - 1601) / 400);
+    let month_days: i32 = match date.month {
+        1 => 0,
+        2 => 31,
+        3 => 59,
+        4 => 90,
+        5 => 120,
+        6 => 151,
+        7 => 181,
+        8 => 212,
+        9 => 243,
+        10 => 273,
+        11 => 304,
+        12 => 334,
+        _ => 0,
+    };
+
+    // Add leap day if after February in a leap year
+    let is_leap = date.year % 4 == 0 && (date.year % 100 != 0 || date.year % 400 == 0);
+    let leap_adjustment = if is_leap && date.month > 2 { 1 } else { 0 };
+
+    year_days + leap_years + month_days + leap_adjustment + (date.day as i32) - 1
+}
+
+/// Convert days since Unix epoch to Date
+pub(super) fn days_since_epoch_to_date(days: i32) -> Date {
+    // Simplified conversion: start from 1970-01-01 and count forward
+    let mut year = 1970;
+    let mut remaining_days = days;
+
+    // Handle years
+    loop {
+        let year_days = if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) { 366 } else { 365 };
+        if remaining_days < year_days {
+            break;
+        }
+        remaining_days -= year_days;
+        year += 1;
+    }
+
+    // Handle months
+    let is_leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let month_lengths = if is_leap {
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    } else {
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    };
+
+    let mut month = 1;
+    for &days_in_month in &month_lengths {
+        if remaining_days < days_in_month {
+            break;
+        }
+        remaining_days -= days_in_month;
+        month += 1;
+    }
+
+    let day = remaining_days + 1;
+
+    Date::new(year, month as u8, day as u8).unwrap_or_else(|_| Date::new(1970, 1, 1).unwrap())
+}
+
+/// Convert Timestamp to microseconds since Unix epoch
+pub(super) fn timestamp_to_microseconds(ts: &Timestamp) -> i64 {
+    let days = date_to_days_since_epoch(&ts.date);
+    let day_micros = days as i64 * 86_400_000_000; // 24 * 60 * 60 * 1_000_000
+    let time_micros = (ts.time.hour as i64) * 3_600_000_000
+        + (ts.time.minute as i64) * 60_000_000
+        + (ts.time.second as i64) * 1_000_000
+        + (ts.time.nanosecond as i64) / 1_000;  // Convert nanoseconds to microseconds
+    day_micros + time_micros
+}
+
+/// Convert microseconds since Unix epoch to Timestamp
+pub(super) fn microseconds_to_timestamp(micros: i64) -> Timestamp {
+    let days = (micros / 86_400_000_000) as i32;
+    let remaining_micros = micros % 86_400_000_000;
+
+    let date = days_since_epoch_to_date(days);
+
+    let hours = (remaining_micros / 3_600_000_000) as u8;
+    let remaining_micros = remaining_micros % 3_600_000_000;
+    let minutes = (remaining_micros / 60_000_000) as u8;
+    let remaining_micros = remaining_micros % 60_000_000;
+    let seconds = (remaining_micros / 1_000_000) as u8;
+    let nanoseconds = ((remaining_micros % 1_000_000) * 1_000) as u32;  // Convert microseconds to nanoseconds
+
+    let time = Time::new(hours, minutes, seconds, nanoseconds)
+        .unwrap_or_else(|_| Time::new(0, 0, 0, 0).unwrap());
+
+    Timestamp::new(date, time)
+}
+
 /// Infer Arrow schema from vibesql Row
 fn infer_schema_from_row(row: &Row, column_names: &[String]) -> Result<Schema, ExecutorError> {
     let fields: Result<Vec<_>, _> = row.values.iter().enumerate().map(|(idx, value)| {
@@ -172,6 +273,8 @@ fn infer_schema_from_row(row: &Row, column_names: &[String]) -> Result<Schema, E
             SqlValue::Float(_) | SqlValue::Real(_) | SqlValue::Double(_) | SqlValue::Numeric(_) => DataType::Float64,
             SqlValue::Character(_) | SqlValue::Varchar(_) => DataType::Utf8,
             SqlValue::Boolean(_) => DataType::Boolean,
+            SqlValue::Date(_) => DataType::Date32,
+            SqlValue::Timestamp(_) => DataType::Timestamp(TimeUnit::Microsecond, None),
             SqlValue::Null => DataType::Int64, // Default to Int64 for nulls
             _ => return Err(ExecutorError::Other(format!(
                 "Unsupported type for SIMD: {:?}", value
@@ -241,6 +344,28 @@ fn build_column_array(
             }
             Ok(Arc::new(builder.finish()))
         }
+        DataType::Date32 => {
+            let mut builder = PrimitiveBuilder::<Date32Type>::new();
+            for row in rows {
+                match &row.values[col_idx] {
+                    SqlValue::Date(d) => builder.append_value(date_to_days_since_epoch(d)),
+                    SqlValue::Null => builder.append_null(),
+                    _ => builder.append_null(),
+                }
+            }
+            Ok(Arc::new(builder.finish()))
+        }
+        DataType::Timestamp(TimeUnit::Microsecond, None) => {
+            let mut builder = PrimitiveBuilder::<TimestampMicrosecondType>::new();
+            for row in rows {
+                match &row.values[col_idx] {
+                    SqlValue::Timestamp(ts) => builder.append_value(timestamp_to_microseconds(ts)),
+                    SqlValue::Null => builder.append_null(),
+                    _ => builder.append_null(),
+                }
+            }
+            Ok(Arc::new(builder.finish()))
+        }
         _ => Err(ExecutorError::Other(format!(
             "Unsupported Arrow data type: {:?}",
             data_type
@@ -274,6 +399,18 @@ fn arrow_value_to_sql(array: &dyn Array, idx: usize) -> Result<SqlValue, Executo
             let arr = array.as_any().downcast_ref::<BooleanArray>()
                 .ok_or_else(|| ExecutorError::Other("Failed to downcast BooleanArray".to_string()))?;
             Ok(SqlValue::Boolean(arr.value(idx)))
+        }
+        DataType::Date32 => {
+            let arr = array.as_any().downcast_ref::<Date32Array>()
+                .ok_or_else(|| ExecutorError::Other("Failed to downcast Date32Array".to_string()))?;
+            let days = arr.value(idx);
+            Ok(SqlValue::Date(days_since_epoch_to_date(days)))
+        }
+        DataType::Timestamp(TimeUnit::Microsecond, None) => {
+            let arr = array.as_any().downcast_ref::<TimestampMicrosecondArray>()
+                .ok_or_else(|| ExecutorError::Other("Failed to downcast TimestampMicrosecondArray".to_string()))?;
+            let micros = arr.value(idx);
+            Ok(SqlValue::Timestamp(microseconds_to_timestamp(micros)))
         }
         _ => Err(ExecutorError::Other(format!(
             "Unsupported Arrow data type for conversion: {:?}",
@@ -395,5 +532,97 @@ mod tests {
 
         // Verify join batch size is smaller (less memory pressure)
         assert!(JOIN_BATCH_SIZE < DEFAULT_BATCH_SIZE);
+    }
+
+    #[test]
+    fn test_date_conversion() {
+        use vibesql_types::Date;
+
+        let date1 = Date::new(2024, 1, 15).unwrap();
+        let date2 = Date::new(2024, 12, 25).unwrap();
+
+        let rows = vec![
+            Row {
+                values: vec![SqlValue::Date(date1), SqlValue::Integer(1)],
+            },
+            Row {
+                values: vec![SqlValue::Date(date2), SqlValue::Integer(2)],
+            },
+        ];
+
+        let column_names = vec!["date_col".to_string(), "id".to_string()];
+        let batch = rows_to_record_batch(&rows, &column_names).unwrap();
+
+        assert_eq!(batch.num_rows(), 2);
+        assert_eq!(batch.num_columns(), 2);
+
+        // Test round-trip conversion
+        let converted_rows = record_batch_to_rows(&batch).unwrap();
+        assert_eq!(rows.len(), converted_rows.len());
+    }
+
+    #[test]
+    fn test_timestamp_conversion() {
+        use vibesql_types::{Date, Time, Timestamp};
+
+        let date = Date::new(2024, 6, 15).unwrap();
+        let time = Time::new(14, 30, 45, 123456000).unwrap();  // 123.456 milliseconds in nanoseconds
+        let ts = Timestamp::new(date, time);
+
+        let rows = vec![
+            Row {
+                values: vec![SqlValue::Timestamp(ts), SqlValue::Integer(1)],
+            },
+        ];
+
+        let column_names = vec!["ts_col".to_string(), "id".to_string()];
+        let batch = rows_to_record_batch(&rows, &column_names).unwrap();
+
+        assert_eq!(batch.num_rows(), 1);
+        assert_eq!(batch.num_columns(), 2);
+
+        // Test round-trip conversion
+        let converted_rows = record_batch_to_rows(&batch).unwrap();
+        assert_eq!(rows.len(), converted_rows.len());
+    }
+
+    #[test]
+    fn test_date_timestamp_round_trip() {
+        use vibesql_types::{Date, Time, Timestamp};
+
+        let date1 = Date::new(2020, 1, 1).unwrap();
+        let date2 = Date::new(2025, 12, 31).unwrap();
+        let ts_date = Date::new(2024, 7, 4).unwrap();
+        let ts_time = Time::new(10, 20, 30, 500000000).unwrap();  // 500 milliseconds in nanoseconds
+        let ts = Timestamp::new(ts_date, ts_time);
+
+        let original_rows = vec![
+            Row {
+                values: vec![
+                    SqlValue::Date(date1),
+                    SqlValue::Timestamp(ts),
+                    SqlValue::Integer(100),
+                ],
+            },
+            Row {
+                values: vec![
+                    SqlValue::Date(date2),
+                    SqlValue::Timestamp(ts),
+                    SqlValue::Integer(200),
+                ],
+            },
+        ];
+
+        let column_names = vec![
+            "date_col".to_string(),
+            "ts_col".to_string(),
+            "id".to_string(),
+        ];
+
+        let batch = rows_to_record_batch(&original_rows, &column_names).unwrap();
+        let converted_rows = record_batch_to_rows(&batch).unwrap();
+
+        assert_eq!(original_rows.len(), converted_rows.len());
+        assert_eq!(original_rows[0].values.len(), converted_rows[0].values.len());
     }
 }
