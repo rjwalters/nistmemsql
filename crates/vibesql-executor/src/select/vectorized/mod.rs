@@ -10,6 +10,7 @@
 //! it's a cache optimization technique.
 
 pub mod bitmap;  // Kept for potential future SIMD use
+pub mod compiled_predicate;
 pub mod predicate;
 
 pub use predicate::apply_where_filter_vectorized;

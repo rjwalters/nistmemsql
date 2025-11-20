@@ -3,6 +3,9 @@
 //! Processes rows in chunks of 256 for better instruction cache locality.
 //! Single-pass evaluation avoids the overhead of bitmap allocation and double iteration.
 //! Falls back to row-by-row evaluation for small row counts (< 100).
+//!
+//! Performance optimization: Uses compiled predicates for simple WHERE clauses
+//! (e.g., AND-combined column comparisons) to avoid expression tree overhead.
 
 use crate::{
     errors::ExecutorError,
@@ -11,7 +14,7 @@ use crate::{
 use vibesql_storage::Row;
 use vibesql_ast::Expression;
 
-use super::VECTORIZE_THRESHOLD;
+use super::{compiled_predicate::CompiledWhereClause, VECTORIZE_THRESHOLD};
 
 /// Apply WHERE clause filter using chunk-based evaluation
 ///
@@ -22,6 +25,9 @@ use super::VECTORIZE_THRESHOLD;
 ///
 /// This is NOT true vectorization/SIMD - it's chunking for cache benefits.
 /// Automatically falls back to row-by-row for small datasets (< VECTORIZE_THRESHOLD).
+///
+/// Performance optimization: Attempts to compile simple predicates (AND-combined
+/// column comparisons) to avoid expression tree overhead.
 pub fn apply_where_filter_vectorized<'a>(
     rows: Vec<Row>,
     where_expr: Option<&Expression>,
@@ -46,32 +52,51 @@ pub fn apply_where_filter_vectorized<'a>(
         );
     }
 
+    // Try to compile the WHERE clause for fast-path evaluation
+    // This avoids expression tree overhead for simple predicates
+    let compiled = CompiledWhereClause::try_compile(where_expr, evaluator.schema());
+
     // Use pooled buffer for result
     let mut filtered_rows = executor.query_buffer_pool().get_row_buffer(row_count);
     let mut rows_processed = 0;
     const CHECK_INTERVAL: usize = 1000;
 
-    // Process rows by consuming the input vector to avoid cloning
-    for row in rows.into_iter() {
-        // Check timeout periodically
-        rows_processed += 1;
-        if rows_processed % CHECK_INTERVAL == 0 {
-            executor.check_timeout()?;
+    // Fast path: Use compiled predicates if available
+    if let Some(compiled_pred) = compiled {
+        for row in rows.into_iter() {
+            // Check timeout periodically
+            rows_processed += 1;
+            if rows_processed % CHECK_INTERVAL == 0 {
+                executor.check_timeout()?;
+            }
+
+            // Evaluate compiled predicate (much faster than expression tree)
+            if compiled_pred.evaluate(&row)? {
+                filtered_rows.push(row);
+            }
+        }
+    } else {
+        // Slow path: Fall back to expression tree evaluation
+        for row in rows.into_iter() {
+            // Check timeout periodically
+            rows_processed += 1;
+            if rows_processed % CHECK_INTERVAL == 0 {
+                executor.check_timeout()?;
+            }
+
+            // Evaluate predicate for this row
+            let include_row = evaluate_predicate(&row, where_expr, evaluator)?;
+
+            if include_row {
+                filtered_rows.push(row);  // Move row, no clone needed
+            }
+            // Row is dropped if filtered out
         }
 
-        // Evaluate predicate for this row
-        let include_row = evaluate_predicate(&row, where_expr, evaluator)?;
-
-        if include_row {
-            filtered_rows.push(row);  // Move row, no clone needed
-        }
-        // Row is dropped if filtered out
+        // Clear CSE cache at end of query to prevent cross-query pollution
+        // (only needed for expression tree path)
+        evaluator.clear_cse_cache();
     }
-
-    // Clear CSE cache at end of query to prevent cross-query pollution
-    // Cache can persist within a single query for performance, but must be
-    // cleared between different SQL statements to avoid stale values
-    evaluator.clear_cse_cache();
 
     // Return pooled buffer and extract result
     let result = std::mem::take(&mut filtered_rows);
