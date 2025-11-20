@@ -39,7 +39,7 @@ jobs:
 
       - name: Run MIRI on Row tests
         run: |
-          cargo miri test --package vibesql-storage row \
+          cargo miri test --package vibesql-storage --lib row::tests \
             || (echo "::error::MIRI detected undefined behavior in Row tests" && exit 1)
 
       - name: Run MIRI on executor tests (sample)
