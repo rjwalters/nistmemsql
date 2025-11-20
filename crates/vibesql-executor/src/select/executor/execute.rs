@@ -17,6 +17,9 @@ use crate::{
 impl SelectExecutor<'_> {
     /// Execute a SELECT statement
     pub fn execute(&self, stmt: &vibesql_ast::SelectStmt) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+        #[cfg(feature = "profile-q6")]
+        let execute_start = std::time::Instant::now();
+
         // Reset arena for fresh query execution (only at top level)
         if self.subquery_depth == 0 {
             self.reset_arena();
@@ -33,11 +36,20 @@ impl SelectExecutor<'_> {
             });
         }
 
+        #[cfg(feature = "profile-q6")]
+        let setup_time = execute_start.elapsed();
+
         // Apply subquery rewriting optimizations (Phase 2 of IN subquery optimization)
         // - Rewrites correlated IN → EXISTS with LIMIT 1 for early termination
         // - Adds DISTINCT to uncorrelated IN subqueries to reduce duplicate processing
         // This works in conjunction with Phase 1 (HashSet optimization, #2136)
+        #[cfg(feature = "profile-q6")]
+        let optimizer_start = std::time::Instant::now();
+
         let optimized_stmt = crate::optimizer::rewrite_subquery_optimizations(stmt);
+
+        #[cfg(feature = "profile-q6")]
+        let optimizer_time = optimizer_start.elapsed();
 
         // Execute CTEs if present
         let cte_results = if let Some(with_clause) = &optimized_stmt.with_clause {
@@ -46,8 +58,23 @@ impl SelectExecutor<'_> {
             HashMap::new()
         };
 
+        #[cfg(feature = "profile-q6")]
+        let pre_execute_time = execute_start.elapsed();
+
         // Execute the main query with CTE context
-        self.execute_with_ctes(&optimized_stmt, &cte_results)
+        let result = self.execute_with_ctes(&optimized_stmt, &cte_results)?;
+
+        #[cfg(feature = "profile-q6")]
+        {
+            let total_execute = execute_start.elapsed();
+            eprintln!("[Q6 PROFILE] execute() breakdown:");
+            eprintln!("[Q6 PROFILE]   Setup (arena/timeout/depth): {:?}", setup_time);
+            eprintln!("[Q6 PROFILE]   Optimizer (rewrite): {:?}", optimizer_time);
+            eprintln!("[Q6 PROFILE]   Pre-execute_with_ctes: {:?}", pre_execute_time);
+            eprintln!("[Q6 PROFILE]   Total execute(): {:?}", total_execute);
+        }
+
+        Ok(result)
     }
 
     /// Execute a SELECT statement and return an iterator over results
@@ -106,9 +133,22 @@ impl SelectExecutor<'_> {
         stmt: &vibesql_ast::SelectStmt,
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+        #[cfg(feature = "profile-q6")]
+        let execute_ctes_start = std::time::Instant::now();
+
         // Try monomorphic execution path for known query patterns
         // This eliminates SqlValue enum overhead for ~2.4x speedup
+        #[cfg(feature = "profile-q6")]
+        let mono_check_start = std::time::Instant::now();
+
         if let Some(result) = self.try_monomorphic_execution(stmt, cte_results)? {
+            #[cfg(feature = "profile-q6")]
+            {
+                let total_execute_ctes = execute_ctes_start.elapsed();
+                let mono_check_time = mono_check_start.elapsed();
+                eprintln!("[Q6 PROFILE] execute_with_ctes total: {:?}", total_execute_ctes);
+                eprintln!("[Q6 PROFILE]   Monomorphic check+execute: {:?}", mono_check_time);
+            }
             return Ok(result);
         }
 
@@ -248,7 +288,17 @@ impl SelectExecutor<'_> {
         // Execute FROM clause (handles single tables, joins, etc.)
         // For Q6: returns raw lineitem rows
         // For Q3: returns joined rows (customer + orders + lineitem)
+        #[cfg(feature = "profile-q6")]
+        let load_start = std::time::Instant::now();
+
         let mut from_result = self.execute_from(from_clause, cte_results)?;
+
+        #[cfg(feature = "profile-q6")]
+        {
+            let load_time = load_start.elapsed();
+            eprintln!("[Q6 PROFILE] Row loading: {:?} ({} rows, {:?}/row)",
+                load_time, from_result.rows().len(), load_time / from_result.rows().len() as u32);
+        }
 
         // Try to create a monomorphic plan using AST-based pattern matching
         let plan = match try_create_monomorphic_plan(stmt, &from_result.schema) {

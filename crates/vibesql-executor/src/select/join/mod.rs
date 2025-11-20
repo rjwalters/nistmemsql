@@ -55,8 +55,20 @@ impl FromData {
     pub fn as_rows(&mut self) -> &Vec<vibesql_storage::Row> {
         // If we have an iterator, materialize it
         if let Self::Iterator(iter) = self {
+            #[cfg(feature = "profile-q6")]
+            let materialize_start = std::time::Instant::now();
+
             let rows = std::mem::replace(iter, FromIterator::from_vec(vec![])).collect_vec();
             *self = Self::Materialized(rows);
+
+            #[cfg(feature = "profile-q6")]
+            {
+                let materialize_time = materialize_start.elapsed();
+                if let Self::Materialized(rows) = self {
+                    eprintln!("[Q6 PROFILE] Row materialization (collect_vec): {:?} ({} rows, {:?}/row)",
+                        materialize_time, rows.len(), materialize_time / rows.len() as u32);
+                }
+            }
         }
 
         // Now we're guaranteed to have materialized rows

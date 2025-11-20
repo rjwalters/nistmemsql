@@ -74,9 +74,19 @@ impl TpchQ6Plan {
     /// 3. Debug assertions catch type mismatches
     #[inline(never)] // Don't inline to make profiling easier
     unsafe fn execute_unsafe(&self, rows: &[Row]) -> f64 {
+        #[cfg(feature = "profile-q6")]
+        let start = std::time::Instant::now();
+
         let mut sum = 0.0;
+        #[cfg(feature = "profile-q6")]
+        let mut filter_time = std::time::Duration::ZERO;
+        #[cfg(feature = "profile-q6")]
+        let mut compute_time = std::time::Duration::ZERO;
 
         for row in rows {
+            #[cfg(feature = "profile-q6")]
+            let filter_start = std::time::Instant::now();
+
             // Direct typed access - no enum matching!
             let shipdate = row.get_date_unchecked(self.l_shipdate_idx);
 
@@ -90,13 +100,34 @@ impl TpchQ6Plan {
 
                     // Quantity filter
                     if quantity < self.quantity_max {
-                        let price = row.get_f64_unchecked(self.l_extendedprice_idx);
+                        #[cfg(feature = "profile-q6")]
+                        {
+                            filter_time += filter_start.elapsed();
+                            let compute_start = std::time::Instant::now();
 
-                        // Native f64 multiply - no type coercion!
-                        sum += price * discount;
+                            let price = row.get_f64_unchecked(self.l_extendedprice_idx);
+                            sum += price * discount;
+
+                            compute_time += compute_start.elapsed();
+                        }
+
+                        #[cfg(not(feature = "profile-q6"))]
+                        {
+                            let price = row.get_f64_unchecked(self.l_extendedprice_idx);
+                            sum += price * discount;
+                        }
                     }
                 }
             }
+        }
+
+        #[cfg(feature = "profile-q6")]
+        {
+            let total_time = start.elapsed();
+            eprintln!("[Q6 PROFILE] Processing {} rows:", rows.len());
+            eprintln!("  Total:   {:?} ({:?}/row)", total_time, total_time / rows.len() as u32);
+            eprintln!("  Filter:  {:?} ({:?}/row)", filter_time, filter_time / rows.len() as u32);
+            eprintln!("  Compute: {:?} ({:?}/row)", compute_time, compute_time / rows.len() as u32);
         }
 
         sum
