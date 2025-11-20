@@ -18,6 +18,45 @@ use vibesql_types::SqlValue;
 /// Tuned for balance between memory usage and SIMD efficiency
 pub const DEFAULT_BATCH_SIZE: usize = 1024;
 
+/// Batch size optimized for pure table scans (larger = better SIMD utilization)
+pub const SCAN_BATCH_SIZE: usize = 4096;
+
+/// Batch size optimized for joins (smaller = less memory pressure)
+pub const JOIN_BATCH_SIZE: usize = 512;
+
+/// Batch size optimized for L1 cache (32KB typical)
+/// Assumes ~8 bytes per value, 4 columns: 32KB / (8 * 4) = 1024 rows
+pub const L1_CACHE_BATCH_SIZE: usize = 1024;
+
+/// Batch size optimized for L2 cache (256KB typical)
+/// Allows larger batches for better SIMD throughput
+pub const L2_CACHE_BATCH_SIZE: usize = 2048;
+
+/// Query context for adaptive batch sizing
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QueryContext {
+    /// Pure table scan with filter
+    Scan,
+    /// Join operation (reduce memory pressure)
+    Join,
+    /// Aggregation with GROUP BY
+    GroupBy,
+    /// Default/unknown context
+    Default,
+}
+
+impl QueryContext {
+    /// Get recommended batch size for this query context
+    pub fn recommended_batch_size(&self) -> usize {
+        match self {
+            QueryContext::Scan => SCAN_BATCH_SIZE,
+            QueryContext::Join => JOIN_BATCH_SIZE,
+            QueryContext::GroupBy => L1_CACHE_BATCH_SIZE,
+            QueryContext::Default => DEFAULT_BATCH_SIZE,
+        }
+    }
+}
+
 /// Convert a batch of rows to an Arrow RecordBatch
 ///
 /// This performs the key transformation from row-oriented to column-oriented layout.
@@ -25,21 +64,73 @@ pub fn rows_to_record_batch(
     rows: &[Row],
     column_names: &[String],
 ) -> Result<RecordBatch, ExecutorError> {
+    rows_to_record_batch_with_columns(rows, column_names, None)
+}
+
+/// Convert a batch of rows to an Arrow RecordBatch with column pruning
+///
+/// This optimized version only converts the columns specified in `column_indices`,
+/// reducing conversion overhead and memory usage for queries that don't reference
+/// all columns.
+///
+/// # Arguments
+/// * `rows` - The rows to convert
+/// * `column_names` - Names for all columns (full schema)
+/// * `column_indices` - Optional set of column indices to include. If None, includes all columns.
+///
+/// # Performance Benefits
+/// - Reduces row→columnar conversion time by ~N where N is the pruning ratio
+/// - Smaller RecordBatch footprint improves cache utilization
+/// - Less memory allocation overhead
+pub fn rows_to_record_batch_with_columns(
+    rows: &[Row],
+    column_names: &[String],
+    column_indices: Option<&[usize]>,
+) -> Result<RecordBatch, ExecutorError> {
     if rows.is_empty() {
         return Err(ExecutorError::Other(
             "Cannot create RecordBatch from empty rows".to_string(),
         ));
     }
 
-    // Infer schema from first row
-    let schema = infer_schema_from_row(&rows[0], column_names)?;
-    let num_columns = rows[0].values.len();
+    // Determine which columns to convert
+    let indices: Vec<usize> = match column_indices {
+        Some(cols) => cols.to_vec(),
+        None => (0..rows[0].values.len()).collect(),
+    };
 
-    // Build columns
-    let mut columns: Vec<ArrayRef> = Vec::with_capacity(num_columns);
+    if indices.is_empty() {
+        return Err(ExecutorError::Other(
+            "Must specify at least one column".to_string(),
+        ));
+    }
 
-    for col_idx in 0..num_columns {
-        let field = schema.field(col_idx);
+    // Build schema for selected columns only
+    let mut schema_fields = Vec::with_capacity(indices.len());
+    for &col_idx in &indices {
+        let name = column_names.get(col_idx)
+            .cloned()
+            .unwrap_or_else(|| format!("col_{}", col_idx));
+
+        let data_type = match &rows[0].values.get(col_idx) {
+            Some(SqlValue::Integer(_)) | Some(SqlValue::Bigint(_)) | Some(SqlValue::Smallint(_)) => DataType::Int64,
+            Some(SqlValue::Float(_)) | Some(SqlValue::Real(_)) | Some(SqlValue::Double(_)) | Some(SqlValue::Numeric(_)) => DataType::Float64,
+            Some(SqlValue::Character(_)) | Some(SqlValue::Varchar(_)) => DataType::Utf8,
+            Some(SqlValue::Boolean(_)) => DataType::Boolean,
+            Some(SqlValue::Null) => DataType::Int64,
+            _ => return Err(ExecutorError::Other(format!(
+                "Unsupported type for SIMD at column {}", col_idx
+            ))),
+        };
+
+        schema_fields.push(Field::new(name, data_type, true));
+    }
+    let schema = Schema::new(schema_fields);
+
+    // Build columns for selected indices only
+    let mut columns: Vec<ArrayRef> = Vec::with_capacity(indices.len());
+    for (field_idx, &col_idx) in indices.iter().enumerate() {
+        let field = schema.field(field_idx);
         let array = build_column_array(rows, col_idx, field.data_type())?;
         columns.push(array);
     }
@@ -246,5 +337,63 @@ mod tests {
 
         assert_eq!(original_rows.len(), converted_rows.len());
         assert_eq!(original_rows[0].values.len(), converted_rows[0].values.len());
+    }
+
+    #[test]
+    fn test_column_pruning() {
+        // Test that column pruning only converts specified columns
+        let rows = vec![
+            Row {
+                values: vec![
+                    SqlValue::Integer(1),
+                    SqlValue::Double(3.14),
+                    SqlValue::Varchar("test".to_string()),
+                    SqlValue::Boolean(true),
+                ],
+            },
+            Row {
+                values: vec![
+                    SqlValue::Integer(2),
+                    SqlValue::Double(2.718),
+                    SqlValue::Varchar("data".to_string()),
+                    SqlValue::Boolean(false),
+                ],
+            },
+        ];
+
+        let column_names = vec![
+            "id".to_string(),
+            "value".to_string(),
+            "name".to_string(),
+            "flag".to_string(),
+        ];
+
+        // Only convert columns 0 and 2 (id and name)
+        let column_indices = vec![0, 2];
+        let batch = rows_to_record_batch_with_columns(&rows, &column_names, Some(&column_indices)).unwrap();
+
+        // Batch should only have 2 columns
+        assert_eq!(batch.num_columns(), 2);
+        assert_eq!(batch.num_rows(), 2);
+
+        // Verify schema only contains selected columns
+        let schema = batch.schema();
+        assert_eq!(schema.field(0).name(), "id");
+        assert_eq!(schema.field(1).name(), "name");
+    }
+
+    #[test]
+    fn test_adaptive_batch_sizing() {
+        // Test that different query contexts recommend different batch sizes
+        assert_eq!(QueryContext::Scan.recommended_batch_size(), SCAN_BATCH_SIZE);
+        assert_eq!(QueryContext::Join.recommended_batch_size(), JOIN_BATCH_SIZE);
+        assert_eq!(QueryContext::GroupBy.recommended_batch_size(), L1_CACHE_BATCH_SIZE);
+        assert_eq!(QueryContext::Default.recommended_batch_size(), DEFAULT_BATCH_SIZE);
+
+        // Verify scan batch size is larger (better SIMD utilization)
+        assert!(SCAN_BATCH_SIZE > DEFAULT_BATCH_SIZE);
+
+        // Verify join batch size is smaller (less memory pressure)
+        assert!(JOIN_BATCH_SIZE < DEFAULT_BATCH_SIZE);
     }
 }

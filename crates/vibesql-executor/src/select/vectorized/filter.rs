@@ -51,7 +51,7 @@ fn evaluate_predicate_simd(
     }
 }
 
-/// Evaluate a binary operation
+/// Evaluate a binary operation with short-circuit optimization
 fn evaluate_binary_op_simd(
     batch: &RecordBatch,
     left: &Expression,
@@ -60,21 +60,49 @@ fn evaluate_binary_op_simd(
 ) -> Result<BooleanArray, ExecutorError> {
     match op {
         BinaryOperator::And => {
+            // Evaluate left side first
             let left_mask = evaluate_predicate_simd(batch, left)?;
+
+            // Short-circuit optimization: if left mask is all-false, skip right evaluation
+            if is_all_false(&left_mask) {
+                return Ok(left_mask);
+            }
+
+            // Evaluate right side
             let right_mask = evaluate_predicate_simd(batch, right)?;
             and_op(&left_mask, &right_mask).map_err(|e| ExecutorError::Other(format!("SIMD AND failed: {}", e)))
         }
         BinaryOperator::Or => {
+            // Evaluate left side first
             let left_mask = evaluate_predicate_simd(batch, left)?;
+
+            // Short-circuit optimization: if left mask is all-true, skip right evaluation
+            if is_all_true(&left_mask) {
+                return Ok(left_mask);
+            }
+
+            // Evaluate right side
             let right_mask = evaluate_predicate_simd(batch, right)?;
             or_op(&left_mask, &right_mask).map_err(|e| ExecutorError::Other(format!("SIMD OR failed: {}", e)))
         }
-        BinaryOperator::Equal | BinaryOperator::NotEqual | BinaryOperator::LessThan 
+        BinaryOperator::Equal | BinaryOperator::NotEqual | BinaryOperator::LessThan
         | BinaryOperator::LessThanOrEqual | BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual => {
             evaluate_comparison_simd(batch, left, op, right)
         }
         _ => Err(ExecutorError::Other(format!("Unsupported SIMD binary operator: {:?}", op))),
     }
+}
+
+/// Check if a boolean array is all false (for AND short-circuit)
+#[inline]
+fn is_all_false(mask: &BooleanArray) -> bool {
+    mask.true_count() == 0
+}
+
+/// Check if a boolean array is all true (for OR short-circuit)
+#[inline]
+fn is_all_true(mask: &BooleanArray) -> bool {
+    mask.true_count() == mask.len()
 }
 
 /// Evaluate a comparison operation
@@ -228,5 +256,86 @@ mod tests {
 
         let filtered = filter_record_batch_simd(&batch, &predicate).unwrap();
         assert_eq!(filtered.num_rows(), 2);
+    }
+
+    #[test]
+    fn test_short_circuit_and_all_false() {
+        // Test that AND short-circuits when left side is all false
+        let schema = Schema::new(vec![Field::new("value", DataType::Int64, false)]);
+        let array = Int64Array::from(vec![1, 2, 3, 4, 5]);
+        let batch = RecordBatch::try_new(Arc::new(schema), vec![Arc::new(array)]).unwrap();
+
+        // value > 10 (all false) AND value < 100 (would be all true)
+        let predicate = Expression::BinaryOp {
+            left: Box::new(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef { table: None, column: "value".to_string() }),
+                op: BinaryOperator::GreaterThan,
+                right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            }),
+            op: BinaryOperator::And,
+            right: Box::new(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef { table: None, column: "value".to_string() }),
+                op: BinaryOperator::LessThan,
+                right: Box::new(Expression::Literal(SqlValue::Integer(100))),
+            }),
+        };
+
+        let filtered = filter_record_batch_simd(&batch, &predicate).unwrap();
+        // Result should be 0 rows (all false)
+        assert_eq!(filtered.num_rows(), 0);
+    }
+
+    #[test]
+    fn test_short_circuit_or_all_true() {
+        // Test that OR short-circuits when left side is all true
+        let schema = Schema::new(vec![Field::new("value", DataType::Int64, false)]);
+        let array = Int64Array::from(vec![1, 2, 3, 4, 5]);
+        let batch = RecordBatch::try_new(Arc::new(schema), vec![Arc::new(array)]).unwrap();
+
+        // value < 100 (all true) OR value > 10 (would be all false)
+        let predicate = Expression::BinaryOp {
+            left: Box::new(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef { table: None, column: "value".to_string() }),
+                op: BinaryOperator::LessThan,
+                right: Box::new(Expression::Literal(SqlValue::Integer(100))),
+            }),
+            op: BinaryOperator::Or,
+            right: Box::new(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef { table: None, column: "value".to_string() }),
+                op: BinaryOperator::GreaterThan,
+                right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            }),
+        };
+
+        let filtered = filter_record_batch_simd(&batch, &predicate).unwrap();
+        // Result should be 5 rows (all true)
+        assert_eq!(filtered.num_rows(), 5);
+    }
+
+    #[test]
+    fn test_combined_predicates() {
+        // Test combined AND predicates
+        let schema = Schema::new(vec![Field::new("value", DataType::Int64, false)]);
+        let array = Int64Array::from(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        let batch = RecordBatch::try_new(Arc::new(schema), vec![Arc::new(array)]).unwrap();
+
+        // value > 3 AND value < 8
+        let predicate = Expression::BinaryOp {
+            left: Box::new(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef { table: None, column: "value".to_string() }),
+                op: BinaryOperator::GreaterThan,
+                right: Box::new(Expression::Literal(SqlValue::Integer(3))),
+            }),
+            op: BinaryOperator::And,
+            right: Box::new(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef { table: None, column: "value".to_string() }),
+                op: BinaryOperator::LessThan,
+                right: Box::new(Expression::Literal(SqlValue::Integer(8))),
+            }),
+        };
+
+        let filtered = filter_record_batch_simd(&batch, &predicate).unwrap();
+        // Should match values: 4, 5, 6, 7 (4 rows)
+        assert_eq!(filtered.num_rows(), 4);
     }
 }

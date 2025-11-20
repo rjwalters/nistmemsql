@@ -21,7 +21,11 @@ pub mod filter;
 pub mod predicate;
 
 pub use aggregate::{aggregate_column_simd, aggregate_batch_simd, AggregateFunction};
-pub use batch::{rows_to_record_batch, record_batch_to_rows, DEFAULT_BATCH_SIZE};
+pub use batch::{
+    rows_to_record_batch, rows_to_record_batch_with_columns, record_batch_to_rows,
+    QueryContext, DEFAULT_BATCH_SIZE, SCAN_BATCH_SIZE, JOIN_BATCH_SIZE,
+    L1_CACHE_BATCH_SIZE, L2_CACHE_BATCH_SIZE,
+};
 pub use filter::filter_record_batch_simd;
 pub use predicate::apply_where_filter_vectorized;
 
