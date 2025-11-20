@@ -1,22 +1,28 @@
-//! Vectorized execution module
+//! Vectorized execution module with Apache Arrow SIMD support
 //!
-//! This module provides chunk-based predicate evaluation for cache optimization.
+//! This module provides both:
+//! 1. Chunk-based predicate evaluation for cache optimization (existing)
+//! 2. Apache Arrow RecordBatch-based SIMD execution (Phase 3 - NEW)
 //!
-//! ## Phase 3 - SIMD Vectorization (In Progress)
+//! ## SIMD Vectorization (Phase 3)
 //!
-//! Apache Arrow integration for true SIMD vectorization is planned in Phase 3.
-//! See `PHASE3_VECTORIZATION.md` in the crate root for the design document.
+//! The Arrow-based approach provides true SIMD vectorization:
+//! - **RecordBatch adapter**: Converts row-based data to columnar Arrow format
+//! - **SIMD filter kernel**: Uses Arrow compute for 4-8 values per CPU instruction
+//! - **SIMD aggregation**: Vectorized SUM/AVG/MIN/MAX operations
+//! - **Target**: 5-10x performance improvement for analytical queries
 //!
-//! Key planned features:
-//! - RecordBatch-based columnar processing
-//! - SIMD filter and aggregation kernels
-//! - 5-10x performance improvement target
-//!
-//! Current status: Arrow dependencies added, foundation in place.
+//! See `PHASE3_VECTORIZATION.md` in the crate root for complete design documentation.
 
-pub mod bitmap;  // Kept for potential future SIMD use
+pub mod aggregate;
+pub mod batch;
+pub mod bitmap;
+pub mod filter;
 pub mod predicate;
 
+pub use aggregate::{aggregate_column_simd, aggregate_batch_simd, AggregateFunction};
+pub use batch::{rows_to_record_batch, record_batch_to_rows, DEFAULT_BATCH_SIZE};
+pub use filter::filter_record_batch_simd;
 pub use predicate::apply_where_filter_vectorized;
 
 /// Default chunk size for vectorized operations
