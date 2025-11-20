@@ -248,7 +248,17 @@ impl SelectExecutor<'_> {
         // Execute FROM clause (handles single tables, joins, etc.)
         // For Q6: returns raw lineitem rows
         // For Q3: returns joined rows (customer + orders + lineitem)
+        #[cfg(feature = "profile-q6")]
+        let load_start = std::time::Instant::now();
+
         let mut from_result = self.execute_from(from_clause, cte_results)?;
+
+        #[cfg(feature = "profile-q6")]
+        {
+            let load_time = load_start.elapsed();
+            eprintln!("[Q6 PROFILE] Row loading: {:?} ({} rows, {:?}/row)",
+                load_time, from_result.rows().len(), load_time / from_result.rows().len() as u32);
+        }
 
         // Try to create a monomorphic plan using AST-based pattern matching
         let plan = match try_create_monomorphic_plan(stmt, &from_result.schema) {

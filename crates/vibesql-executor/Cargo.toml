@@ -52,6 +52,8 @@ spatial = ["geo", "wkt", "rstar"]
 # Enable this feature for benchmarks that compare against other SQL engines
 # Usage: cargo bench --features benchmark-comparison
 benchmark-comparison = ["rusqlite", "duckdb"]
+# Enable detailed profiling output for Q6 query
+profile-q6 = []
 
 [[test]]
 name = "foreign_key_tests"
@@ -113,3 +115,8 @@ harness = false
 [[bench]]
 name = "parallel_sort"
 harness = false
+
+[[bench]]
+name = "q6_profiling"
+harness = false
+required-features = ["benchmark-comparison"]
