@@ -1,3 +1,4 @@
+use crate::auth::PasswordStore;
 use crate::config::Config;
 use crate::observability::ObservabilityProvider;
 use crate::protocol::{BackendMessage, FieldDescription, FrontendMessage, TransactionStatus};
@@ -18,6 +19,7 @@ pub struct ConnectionHandler {
     peer_addr: SocketAddr,
     config: Arc<Config>,
     observability: Arc<ObservabilityProvider>,
+    password_store: Option<Arc<PasswordStore>>,
     read_buf: BytesMut,
     write_buf: BytesMut,
     session: Option<Session>,
@@ -31,12 +33,14 @@ impl ConnectionHandler {
         peer_addr: SocketAddr,
         config: Arc<Config>,
         observability: Arc<ObservabilityProvider>,
+        password_store: Option<Arc<PasswordStore>>,
     ) -> Self {
         Self {
             stream,
             peer_addr,
             config,
             observability,
+            password_store,
             read_buf: BytesMut::with_capacity(8192),
             write_buf: BytesMut::with_capacity(8192),
             session: None,
@@ -132,19 +136,92 @@ impl ConnectionHandler {
     }
 
     /// Authenticate the user
-    async fn authenticate(&mut self, _user: &str) -> Result<()> {
+    async fn authenticate(&mut self, user: &str) -> Result<()> {
         match self.config.auth.method.as_str() {
             "trust" => {
                 // Trust authentication - no password required
+                debug!("Using trust authentication for user '{}'", user);
                 self.send_authentication_ok().await?;
                 Ok(())
             }
 
-            "password" | "md5" | "scram-sha-256" => {
-                // TODO: Implement password authentication
-                warn!("Password authentication not yet implemented, using trust");
-                self.send_authentication_ok().await?;
-                Ok(())
+            "password" => {
+                // Cleartext password authentication
+                debug!("Requesting cleartext password for user '{}'", user);
+                self.send_cleartext_password_request().await?;
+
+                // Read password response
+                self.read_message().await?;
+                let msg = FrontendMessage::decode(&mut self.read_buf)?;
+
+                match msg {
+                    Some(FrontendMessage::Password { password }) => {
+                        debug!("Received password from user '{}'", user);
+
+                        if let Some(ref store) = self.password_store {
+                            if store.verify_cleartext(user, &password) {
+                                info!("User '{}' authenticated successfully", user);
+                                self.send_authentication_ok().await?;
+                                Ok(())
+                            } else {
+                                error!("Authentication failed for user '{}'", user);
+                                Err(anyhow::anyhow!("Authentication failed"))
+                            }
+                        } else {
+                            error!("No password store configured");
+                            Err(anyhow::anyhow!("Authentication not configured"))
+                        }
+                    }
+                    _ => {
+                        error!("Expected password message, got: {:?}", msg);
+                        Err(anyhow::anyhow!("Expected password message"))
+                    }
+                }
+            }
+
+            "md5" => {
+                // MD5 password authentication
+                debug!("Requesting MD5 password for user '{}'", user);
+
+                // Generate random salt
+                use rand::Rng;
+                let salt: [u8; 4] = rand::thread_rng().gen();
+
+                self.send_md5_password_request(&salt).await?;
+
+                // Read password response
+                self.read_message().await?;
+                let msg = FrontendMessage::decode(&mut self.read_buf)?;
+
+                match msg {
+                    Some(FrontendMessage::Password { password }) => {
+                        debug!("Received MD5 password response from user '{}'", user);
+
+                        if let Some(ref store) = self.password_store {
+                            if store.verify_md5(user, &password, &salt) {
+                                info!("User '{}' authenticated successfully (MD5)", user);
+                                self.send_authentication_ok().await?;
+                                Ok(())
+                            } else {
+                                error!("MD5 authentication failed for user '{}'", user);
+                                Err(anyhow::anyhow!("Authentication failed"))
+                            }
+                        } else {
+                            error!("No password store configured");
+                            Err(anyhow::anyhow!("Authentication not configured"))
+                        }
+                    }
+                    _ => {
+                        error!("Expected password message, got: {:?}", msg);
+                        Err(anyhow::anyhow!("Expected password message"))
+                    }
+                }
+            }
+
+            "scram-sha-256" => {
+                // SCRAM-SHA-256 not yet implemented
+                error!("SCRAM-SHA-256 authentication not yet implemented");
+                Err(anyhow::anyhow!("SCRAM-SHA-256 not implemented"))
             }
 
             _ => {
@@ -309,6 +386,16 @@ impl ConnectionHandler {
 
     async fn send_authentication_ok(&mut self) -> Result<()> {
         BackendMessage::AuthenticationOk.encode(&mut self.write_buf);
+        self.flush_write_buffer().await
+    }
+
+    async fn send_cleartext_password_request(&mut self) -> Result<()> {
+        BackendMessage::AuthenticationCleartextPassword.encode(&mut self.write_buf);
+        self.flush_write_buffer().await
+    }
+
+    async fn send_md5_password_request(&mut self, salt: &[u8; 4]) -> Result<()> {
+        BackendMessage::AuthenticationMD5Password { salt: *salt }.encode(&mut self.write_buf);
         self.flush_write_buffer().await
     }
 
