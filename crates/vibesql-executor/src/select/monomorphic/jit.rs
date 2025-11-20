@@ -12,11 +12,19 @@
 //! 3. Compiling the IR to native machine code
 //! 4. Executing the compiled function on input rows
 //!
+//! ## Implementation Approach
+//!
+//! This implementation uses **helper function calls** to access Row data:
+//! - C-callable helper functions in Rust extract typed values from rows
+//! - JIT code calls these helpers via Cranelift's external function support
+//! - Avoids complex memory layout manipulation
+//! - Trades some performance for maintainability and safety
+//!
 //! ## Performance Goals
 //!
-//! - Compilation overhead: <5ms
-//! - Execution speedup: 1.5x over monomorphic interpreter
-//! - Target: TPC-H Q6 in ≤2.5ms (from 3.8ms)
+//! - Compilation overhead: <10ms (one-time cost)
+//! - Execution speedup: 1.2-1.5x over monomorphic interpreter
+//! - Target: Useful for prepared statements (>10 executions)
 //!
 //! ## Current Status
 //!
@@ -38,6 +46,64 @@ use std::mem;
 
 #[cfg(feature = "jit")]
 use std::time::Instant;
+
+// ============================================================================
+// C-Callable Helper Functions for JIT Code
+//
+// These functions provide a safe FFI interface for JIT-compiled code to
+// access Row data. They handle all type checking and error cases.
+// ============================================================================
+
+/// Extract f64 value from Row at given index (C-callable)
+///
+/// # Safety
+///
+/// Caller must ensure row_ptr is valid and index is in bounds
+#[no_mangle]
+pub unsafe extern "C" fn vibesql_jit_get_f64(row_ptr: *const Row, index: usize) -> f64 {
+    if row_ptr.is_null() {
+        return 0.0;
+    }
+    let row = &*row_ptr;
+    if index >= row.values.len() {
+        return 0.0;
+    }
+    row.get_f64_unchecked(index)
+}
+
+/// Extract Date value from Row at given index (C-callable)
+/// Returns date as comparable integer: year * 10000 + month * 100 + day
+/// Example: 1994-01-01 returns 19940101
+///
+/// # Safety
+///
+/// Caller must ensure row_ptr is valid and index is in bounds
+#[no_mangle]
+pub unsafe extern "C" fn vibesql_jit_get_date(row_ptr: *const Row, index: usize) -> i32 {
+    if row_ptr.is_null() {
+        return 0;
+    }
+    let row = &*row_ptr;
+    if index >= row.values.len() {
+        return 0;
+    }
+    let date = row.get_date_unchecked(index);
+    date.year * 10000 + (date.month as i32) * 100 + (date.day as i32)
+}
+
+/// Get Row length (number of columns) (C-callable)
+///
+/// # Safety
+///
+/// Caller must ensure row_ptr is valid
+#[no_mangle]
+pub unsafe extern "C" fn vibesql_jit_row_len(row_ptr: *const Row) -> usize {
+    if row_ptr.is_null() {
+        return 0;
+    }
+    let row = &*row_ptr;
+    row.values.len()
+}
 
 /// JIT-compiled plan for TPC-H Q6
 ///
@@ -118,7 +184,12 @@ impl TpchQ6JitPlan {
             .finish(settings::Flags::new(flag_builder))
             .map_err(|e| ExecutorError::UnsupportedFeature(format!("ISA finish error: {}", e)))?;
 
-        let builder = JITBuilder::with_isa(isa, cranelift_module::default_libcall_names());
+        let mut builder = JITBuilder::with_isa(isa, cranelift_module::default_libcall_names());
+
+        // Register our C-callable helper functions with the JIT
+        builder.symbol("vibesql_jit_get_f64", vibesql_jit_get_f64 as *const u8);
+        builder.symbol("vibesql_jit_get_date", vibesql_jit_get_date as *const u8);
+        builder.symbol("vibesql_jit_row_len", vibesql_jit_row_len as *const u8);
 
         // Build the JIT module
         let mut module = JITModule::new(builder);
@@ -144,7 +215,41 @@ impl TpchQ6JitPlan {
 
     /// Compile the Q6 query pattern to Cranelift IR
     fn compile_q6(module: &mut JITModule) -> Result<FuncId, ExecutorError> {
-        // Define the function signature
+        // Declare helper function signatures first (at module level)
+        let get_date_sig = {
+            let mut sig = module.make_signature();
+            sig.params.push(AbiParam::new(types::I64)); // row_ptr
+            sig.params.push(AbiParam::new(types::I64)); // index
+            sig.returns.push(AbiParam::new(types::I32)); // days since epoch
+            sig
+        };
+
+        let get_f64_sig = {
+            let mut sig = module.make_signature();
+            sig.params.push(AbiParam::new(types::I64)); // row_ptr
+            sig.params.push(AbiParam::new(types::I64)); // index
+            sig.returns.push(AbiParam::new(types::F64)); // value
+            sig
+        };
+
+        // Declare helper functions (link to our Rust C-callable helpers)
+        let get_date_fn = module
+            .declare_function(
+                "vibesql_jit_get_date",
+                Linkage::Import,
+                &get_date_sig,
+            )
+            .map_err(|e| ExecutorError::UnsupportedFeature(format!("Helper function declaration error: {}", e)))?;
+
+        let get_f64_fn = module
+            .declare_function(
+                "vibesql_jit_get_f64",
+                Linkage::Import,
+                &get_f64_sig,
+            )
+            .map_err(|e| ExecutorError::UnsupportedFeature(format!("Helper function declaration error: {}", e)))?;
+
+        // Define the main function signature
         // fn q6_execute(rows_ptr: *const Row, rows_len: usize) -> f64
         let mut sig = module.make_signature();
         sig.params.push(AbiParam::new(types::I64)); // rows_ptr
@@ -205,22 +310,33 @@ impl TpchQ6JitPlan {
             // Loop body: process one row
             builder.switch_to_block(loop_body);
 
-            // NOTE: This is a simplified placeholder implementation
-            // In a full implementation, we would:
-            // 1. Calculate row offset: row_ptr = rows_ptr + (i * sizeof(Row))
-            // 2. Load shipdate from row.values[10]
-            // 3. Check date predicates
-            // 4. Load discount from row.values[6]
-            // 5. Check discount BETWEEN 0.05 AND 0.07
-            // 6. Load quantity from row.values[4]
-            // 7. Check quantity < 24
-            // 8. Load price from row.values[5]
-            // 9. Compute price * discount and add to sum
-            //
-            // For the POC, we'll use a simplified version that demonstrates
-            // the JIT compilation pipeline works
+            // Import helper function references into this function's context
+            let get_date_ref = module.declare_func_in_func(get_date_fn, &mut builder.func);
+            let _get_f64_ref = module.declare_func_in_func(get_f64_fn, &mut builder.func);
 
-            // Placeholder: just pass through current_sum unchanged
+            // Calculate pointer to current row: rows_ptr + (i * sizeof(Row))
+            // NOTE: In a full implementation, we'd need proper array indexing
+            // For now, we demonstrate the compilation works but use interpreter for execution
+            let sizeof_row = builder.ins().iconst(types::I64, std::mem::size_of::<Row>() as i64);
+            let offset = builder.ins().imul(i, sizeof_row);
+            let row_ptr = builder.ins().iadd(rows_ptr, offset);
+
+            // Get shipdate (column 10) - demonstrates calling helper function
+            let shipdate_idx = builder.ins().iconst(types::I64, 10);
+            let call_result_date = builder.ins().call(get_date_ref, &[row_ptr, shipdate_idx]);
+            let _shipdate = builder.inst_results(call_result_date)[0];
+
+            // NOTE: For the POC, we demonstrate the IR generation and compilation work
+            // A production implementation would add:
+            // 1. Date predicate checks
+            // 2. Additional helper calls for discount, quantity, price
+            // 3. Predicate evaluation
+            // 4. Arithmetic operations
+            // 5. Result accumulation
+            //
+            // For now, we use the safe interpreter implementation for correctness
+
+            // Pass through current sum (interpreter will compute actual value)
             let new_sum = current_sum;
 
             // Increment i
