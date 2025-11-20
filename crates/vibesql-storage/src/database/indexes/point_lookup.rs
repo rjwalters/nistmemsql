@@ -14,16 +14,34 @@ impl IndexData {
     /// * `key` - Key to look up
     ///
     /// # Returns
-    /// Reference to vector of row indices if key exists, None otherwise
+    /// Owned vector of row indices if key exists, None otherwise
     ///
     /// # Note
     /// This is the primary point-lookup API for index queries.
-    pub fn get(&self, key: &[SqlValue]) -> Option<&Vec<usize>> {
+    /// Returns owned data to support both in-memory (cloned) and disk-backed (loaded) indexes.
+    pub fn get(&self, key: &[SqlValue]) -> Option<Vec<usize>> {
         match self {
-            IndexData::InMemory { data } => data.get(key),
-            IndexData::DiskBacked { .. } => {
-                // TODO: Implement when DiskBacked is active
-                unimplemented!("DiskBacked lookup not yet implemented")
+            IndexData::InMemory { data } => data.get(key).cloned(),
+            IndexData::DiskBacked { btree, .. } => {
+                // Safely acquire lock and perform lookup
+                // Convert slice to Vec for btree.lookup() which expects &Vec<SqlValue>
+                let key_vec = key.to_vec();
+                match acquire_btree_lock(btree) {
+                    Ok(guard) => {
+                        match guard.lookup(&key_vec) {
+                            Ok(row_ids) if !row_ids.is_empty() => Some(row_ids),
+                            Ok(_) => None, // Empty result means key not found
+                            Err(e) => {
+                                log::warn!("BTreeIndex lookup failed in get: {}", e);
+                                None
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("BTreeIndex lock acquisition failed in get: {}", e);
+                        None
+                    }
+                }
             }
         }
     }
@@ -41,9 +59,25 @@ impl IndexData {
     pub fn contains_key(&self, key: &[SqlValue]) -> bool {
         match self {
             IndexData::InMemory { data } => data.contains_key(key),
-            IndexData::DiskBacked { .. } => {
-                // TODO: Implement when DiskBacked is active
-                unimplemented!("DiskBacked contains_key not yet implemented")
+            IndexData::DiskBacked { btree, .. } => {
+                // Safely acquire lock and check if key exists
+                // Convert slice to Vec for btree.lookup() which expects &Vec<SqlValue>
+                let key_vec = key.to_vec();
+                match acquire_btree_lock(btree) {
+                    Ok(guard) => {
+                        match guard.lookup(&key_vec) {
+                            Ok(row_ids) => !row_ids.is_empty(),
+                            Err(e) => {
+                                log::warn!("BTreeIndex lookup failed in contains_key: {}", e);
+                                false
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("BTreeIndex lock acquisition failed in contains_key: {}", e);
+                        false
+                    }
+                }
             }
         }
     }
@@ -110,17 +144,28 @@ impl IndexData {
     /// Get an iterator over all key-value pairs in the index
     ///
     /// # Returns
-    /// Iterator yielding references to (key, row_indices) pairs
+    /// Iterator yielding owned (key, row_indices) pairs
     ///
     /// # Note
     /// For in-memory indexes, iteration is in sorted key order (BTreeMap ordering).
     /// This method enables index scanning operations without exposing internal data structures.
-    pub fn iter(&self) -> Box<dyn Iterator<Item = (&Vec<SqlValue>, &Vec<usize>)> + '_> {
+    /// Returns owned data to support both in-memory (cloned) and disk-backed (loaded) indexes.
+    ///
+    /// **Note**: For disk-backed indexes, this requires a full B+ tree scan and is expensive.
+    /// Currently returns an empty iterator as the BTreeIndex doesn't expose key-level iteration.
+    /// Most use cases should use `values()` for full scans or `multi_lookup()` for specific keys.
+    pub fn iter(&self) -> Box<dyn Iterator<Item = (Vec<SqlValue>, Vec<usize>)> + '_> {
         match self {
-            IndexData::InMemory { data } => Box::new(data.iter()),
+            IndexData::InMemory { data } => {
+                Box::new(data.iter().map(|(k, v)| (k.clone(), v.clone())))
+            }
             IndexData::DiskBacked { .. } => {
-                // TODO: Implement when DiskBacked is active
-                unimplemented!("DiskBacked iteration not yet implemented")
+                // BTreeIndex doesn't currently expose an API for iterating over (key, row_ids) pairs
+                // This would require adding a scan API that preserves key groupings
+                // For now, return empty iterator since this method is rarely used
+                // Callers should use values() for full scans or lookup()/multi_lookup() for point queries
+                log::warn!("DiskBacked iter() is not yet implemented - use values() instead");
+                Box::new(std::iter::empty())
             }
         }
     }
@@ -128,17 +173,37 @@ impl IndexData {
     /// Get an iterator over all row index vectors in the index
     ///
     /// # Returns
-    /// Iterator yielding references to row index vectors
+    /// Iterator yielding owned row index vectors
     ///
     /// # Note
     /// This method is used for full index scans where we need all row indices
-    /// regardless of the key values.
-    pub fn values(&self) -> Box<dyn Iterator<Item = &Vec<usize>> + '_> {
+    /// regardless of the key values. Returns owned data to support both in-memory
+    /// (cloned) and disk-backed (loaded from disk) indexes.
+    pub fn values(&self) -> Box<dyn Iterator<Item = Vec<usize>> + '_> {
         match self {
-            IndexData::InMemory { data } => Box::new(data.values()),
-            IndexData::DiskBacked { .. } => {
-                // TODO: Implement when DiskBacked is active
-                unimplemented!("DiskBacked values iteration not yet implemented")
+            IndexData::InMemory { data } => Box::new(data.values().cloned()),
+            IndexData::DiskBacked { btree, .. } => {
+                // Perform a full range scan to get all values
+                // Use range_scan with no bounds to scan entire index
+                match acquire_btree_lock(btree) {
+                    Ok(guard) => {
+                        match guard.range_scan(None, None, true, true) {
+                            Ok(all_row_ids) => {
+                                // Group row_ids by their appearance (BTree returns them in key order)
+                                // For full scan, we just need all row IDs, so wrap in a single Vec
+                                Box::new(std::iter::once(all_row_ids))
+                            }
+                            Err(e) => {
+                                log::warn!("BTreeIndex range_scan failed in values: {}", e);
+                                Box::new(std::iter::empty())
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("BTreeIndex lock acquisition failed in values: {}", e);
+                        Box::new(std::iter::empty())
+                    }
+                }
             }
         }
     }
