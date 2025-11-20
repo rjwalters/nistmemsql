@@ -4,12 +4,14 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{error, info};
 
+mod auth;
 mod config;
 mod connection;
 mod observability;
 mod protocol;
 mod session;
 
+use auth::PasswordStore;
 use config::Config;
 use connection::ConnectionHandler;
 use observability::ObservabilityProvider;
@@ -45,7 +47,35 @@ async fn main() -> Result<()> {
     info!("  Port: {}", config.server.port);
     info!("  Max connections: {}", config.server.max_connections);
     info!("  SSL enabled: {}", config.server.ssl_enabled);
+    info!("  Auth method: {}", config.auth.method);
     info!("  Observability enabled: {}", config.observability.enabled);
+
+    // Load password store if password file is configured
+    let password_store = if let Some(ref password_file) = config.auth.password_file {
+        info!("Loading password file: {:?}", password_file);
+        match PasswordStore::load_from_file(password_file) {
+            Ok(store) => {
+                info!("Password file loaded successfully");
+                Some(Arc::new(store))
+            }
+            Err(e) => {
+                error!("Failed to load password file: {}", e);
+                if config.auth.method != "trust" {
+                    return Err(e);
+                }
+                None
+            }
+        }
+    } else {
+        if config.auth.method != "trust" {
+            error!("Password file not configured, but auth method is '{}'", config.auth.method);
+            return Err(anyhow::anyhow!(
+                "Password file required for '{}' authentication method",
+                config.auth.method
+            ));
+        }
+        None
+    };
 
     // Bind to address
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port)
@@ -67,6 +97,7 @@ async fn main() -> Result<()> {
 
                 let config = Arc::clone(&config);
                 let observability = Arc::clone(&observability);
+                let password_store = password_store.clone();
 
                 // Record connection metric
                 if let Some(metrics) = observability.metrics() {
@@ -76,7 +107,7 @@ async fn main() -> Result<()> {
                 // Spawn a new task for each connection
                 tokio::spawn(async move {
                     let mut handler =
-                        ConnectionHandler::new(stream, peer_addr, config, observability);
+                        ConnectionHandler::new(stream, peer_addr, config, observability, password_store);
                     if let Err(e) = handler.handle().await {
                         error!("Connection error from {}: {}", peer_addr, e);
                     }
