@@ -23,6 +23,7 @@ impl JoinOrderContext {
             joined_tables: HashSet::new(),
             cost_so_far: JoinCost::new(0, 0),
             order: Vec::new(),
+            current_cardinality: 0,
         };
 
         let mut current_layer = vec![initial_state];
@@ -75,8 +76,8 @@ impl JoinOrderContext {
             .iter()
             .filter(|t| !state.joined_tables.contains(*t))
             .filter_map(|next_table| {
-                // Estimate cost of joining this table
-                let join_cost = self.estimate_join_cost(&state.joined_tables, next_table);
+                // Estimate cost of joining this table (using current intermediate result size)
+                let join_cost = self.estimate_join_cost(state.current_cardinality, &state.joined_tables, next_table);
                 let new_cost = JoinCost::new(
                     state.cost_so_far.cardinality + join_cost.cardinality,
                     state.cost_so_far.operations + join_cost.operations,
@@ -92,6 +93,8 @@ impl JoinOrderContext {
                 new_state.joined_tables.insert(next_table.clone());
                 new_state.cost_so_far = new_cost;
                 new_state.order.push(next_table.clone());
+                // Update current cardinality to the result of this join
+                new_state.current_cardinality = join_cost.cardinality;
 
                 Some(new_state)
             })

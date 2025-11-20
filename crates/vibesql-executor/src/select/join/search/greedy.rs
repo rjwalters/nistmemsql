@@ -32,6 +32,7 @@ impl JoinOrderContext {
         let mut joined_tables = HashSet::new();
         let mut remaining_tables: HashSet<String> = self.all_tables.clone();
         let mut join_order = Vec::new();
+        let mut current_cardinality: usize;
 
         // Step 1: Start with the smallest table (lowest cardinality)
         let first_table = remaining_tables
@@ -40,6 +41,7 @@ impl JoinOrderContext {
             .unwrap()
             .clone();
 
+        current_cardinality = self.table_cardinalities.get(&first_table).copied().unwrap_or(10000);
         joined_tables.insert(first_table.clone());
         remaining_tables.remove(&first_table);
         join_order.push(first_table);
@@ -53,7 +55,7 @@ impl JoinOrderContext {
             // Try each remaining table and pick the one with lowest cost
             for candidate in &remaining_tables {
                 let has_edge = self.has_join_edge(&joined_tables, candidate);
-                let cost = self.estimate_join_cost(&joined_tables, candidate);
+                let cost = self.estimate_join_cost(current_cardinality, &joined_tables, candidate);
 
                 // Prefer tables with join conditions (has_edge = true)
                 // Among those, pick the one with lowest cost
@@ -75,6 +77,8 @@ impl JoinOrderContext {
                 joined_tables.insert(table.clone());
                 remaining_tables.remove(&table);
                 join_order.push(table);
+                // Update current cardinality to the result of this join
+                current_cardinality = best_cost.cardinality;
             } else {
                 // Shouldn't happen, but handle gracefully
                 break;

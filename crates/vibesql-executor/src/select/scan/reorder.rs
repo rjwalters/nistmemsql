@@ -136,13 +136,22 @@ fn extract_all_conditions(from: &vibesql_ast::FromClause, conditions: &mut Vec<v
 /// This function recursively walks an expression tree and collects all table names
 /// mentioned in column references. Used to determine which tables a join condition connects.
 /// Handles both explicit table qualifiers and infers tables from column name prefixes.
-fn extract_referenced_tables(expr: &vibesql_ast::Expression, tables: &mut HashSet<String>) {
+///
+/// # Parameters
+/// - `expr`: The expression to analyze
+/// - `output`: HashSet to populate with referenced table names
+/// - `available_tables`: Set of FROM clause tables (for inferring unqualified columns)
+fn extract_referenced_tables(
+    expr: &vibesql_ast::Expression,
+    output: &mut HashSet<String>,
+    available_tables: &HashSet<String>,
+) {
     match expr {
         vibesql_ast::Expression::ColumnRef { table: Some(table), .. } => {
-            tables.insert(table.to_lowercase());
+            output.insert(table.to_lowercase());
         }
         vibesql_ast::Expression::ColumnRef { table: None, column } => {
-            // Infer table from column name prefix by matching against actual table names
+            // Infer table from column name prefix by matching against FROM clause tables
             // This handles naming conventions where columns are prefixed with table name/initials
             // Example: C_CUSTKEY matches CUSTOMER, PS_PARTKEY matches PARTSUPP, emp_id matches employees
 
@@ -153,84 +162,83 @@ fn extract_referenced_tables(expr: &vibesql_ast::Expression, tables: &mut HashSe
                 .unwrap_or("");
 
             if !prefix.is_empty() {
-                // Try to find a table that starts with this prefix (case-insensitive)
-                // Note: We match against actual tables in the FROM clause, making this general-purpose
+                // Try to find a FROM clause table that starts with this prefix (case-insensitive)
                 let prefix_upper = prefix.to_uppercase();
 
                 // Sort tables by name length (descending) to match longer names first
                 // This ensures "PARTSUPP" matches before "PART" for prefix "PS"
-                let mut table_list: Vec<_> = tables.iter().collect();
+                let mut table_list: Vec<_> = available_tables.iter().collect();
                 table_list.sort_by(|a, b| b.len().cmp(&a.len()));
 
                 for table in table_list {
                     if table.to_uppercase().starts_with(&prefix_upper) {
-                        // Found a match! This column belongs to this table
-                        // (table is already in the set, no need to insert)
+                        // Found a match! Insert this table into the output
+                        output.insert(table.clone());
                         break;
                     }
                 }
             }
         }
         vibesql_ast::Expression::BinaryOp { left, right, .. } => {
-            extract_referenced_tables(left, tables);
-            extract_referenced_tables(right, tables);
+            extract_referenced_tables(left, output, available_tables);
+            extract_referenced_tables(right, output, available_tables);
         }
         vibesql_ast::Expression::UnaryOp { expr, .. } => {
-            extract_referenced_tables(expr, tables);
+            extract_referenced_tables(expr, output, available_tables);
         }
         vibesql_ast::Expression::Function { args, .. } | vibesql_ast::Expression::AggregateFunction { args, .. } => {
             for arg in args {
-                extract_referenced_tables(arg, tables);
+                extract_referenced_tables(arg, output, available_tables);
             }
         }
         vibesql_ast::Expression::InList { expr, values, .. } => {
-            extract_referenced_tables(expr, tables);
+            extract_referenced_tables(expr, output, available_tables);
             for item in values {
-                extract_referenced_tables(item, tables);
+                extract_referenced_tables(item, output, available_tables);
             }
         }
         vibesql_ast::Expression::Between { expr, low, high, .. } => {
-            extract_referenced_tables(expr, tables);
-            extract_referenced_tables(low, tables);
-            extract_referenced_tables(high, tables);
+            extract_referenced_tables(expr, output, available_tables);
+            extract_referenced_tables(low, output, available_tables);
+            extract_referenced_tables(high, output, available_tables);
         }
         vibesql_ast::Expression::Case { operand, when_clauses, else_result } => {
             if let Some(op) = operand {
-                extract_referenced_tables(op, tables);
+                extract_referenced_tables(op, output, available_tables);
             }
             for clause in when_clauses {
                 for condition in &clause.conditions {
-                    extract_referenced_tables(condition, tables);
+                    extract_referenced_tables(condition, output, available_tables);
                 }
-                extract_referenced_tables(&clause.result, tables);
+                extract_referenced_tables(&clause.result, output, available_tables);
             }
             if let Some(else_res) = else_result {
-                extract_referenced_tables(else_res, tables);
+                extract_referenced_tables(else_res, output, available_tables);
             }
         }
         vibesql_ast::Expression::IsNull { expr, .. } => {
-            extract_referenced_tables(expr, tables);
+            extract_referenced_tables(expr, output, available_tables);
         }
         vibesql_ast::Expression::Cast { expr, .. } => {
-            extract_referenced_tables(expr, tables);
+            extract_referenced_tables(expr, output, available_tables);
         }
         vibesql_ast::Expression::In { expr, .. } => {
-            extract_referenced_tables(expr, tables);
+            extract_referenced_tables(expr, output, available_tables);
             // Note: We don't traverse into subqueries as they reference different tables
         }
         vibesql_ast::Expression::Position { substring, string, .. } => {
-            extract_referenced_tables(substring, tables);
-            extract_referenced_tables(string, tables);
+            extract_referenced_tables(substring, output, available_tables);
+            extract_referenced_tables(string, output, available_tables);
         }
         vibesql_ast::Expression::Trim { removal_char, string, .. } => {
             if let Some(char_expr) = removal_char {
-                extract_referenced_tables(char_expr, tables);
+                extract_referenced_tables(char_expr, output, available_tables);
             }
-            extract_referenced_tables(string, tables);
+            extract_referenced_tables(string, output, available_tables);
         }
         vibesql_ast::Expression::Like { expr, pattern, .. } => {
-            extract_referenced_tables(expr, tables);
-            extract_referenced_tables(pattern, tables);
+            extract_referenced_tables(expr, output, available_tables);
+            extract_referenced_tables(pattern, output, available_tables);
         }
         // For other expressions (literals, wildcards, subqueries, etc.), no direct column refs to extract
         _ => {}
@@ -339,8 +347,8 @@ where
     let mut analyzer = JoinOrderAnalyzer::new();
     analyzer.register_tables(table_names.clone());
 
-    // Combine table names into a set for predicate analysis
-    let table_set: HashSet<String> = table_names.iter().cloned().collect();
+    // Combine table names into a set for predicate analysis (normalize to lowercase)
+    let table_set: HashSet<String> = table_names.iter().map(|t| t.to_lowercase()).collect();
 
     // Step 4: Analyze join conditions to extract edges
     for condition in &join_conditions {
@@ -447,7 +455,7 @@ where
 
                 // Extract tables referenced in this condition
                 let mut referenced_tables = HashSet::new();
-                extract_referenced_tables(condition, &mut referenced_tables);
+                extract_referenced_tables(condition, &mut referenced_tables, &table_set);
 
                 // Check if condition connects the new table with any already-joined table
                 // Condition is applicable if it references the new table AND at least one joined table
@@ -460,12 +468,16 @@ where
                 }
             }
 
-            // Use INNER join if we have applicable conditions, CROSS join otherwise
-            let join_type = if applicable_conditions.is_empty() {
-                &vibesql_ast::JoinType::Cross
-            } else {
-                &vibesql_ast::JoinType::Inner
-            };
+            // Debug logging for applicable conditions
+            if std::env::var("JOIN_REORDER_VERBOSE").is_ok() {
+                eprintln!("[JOIN_REORDER] Joining {} to {:?}, found {} applicable conditions",
+                    table_name, joined_tables, applicable_conditions.len());
+            }
+
+            // Always use INNER join for comma-list joins, even when applicable_conditions is empty.
+            // This allows nested_loop_join to find equijoins from WHERE clause and use hash join.
+            // Using CROSS join would trigger memory limit checks for large Cartesian products.
+            let join_type = &vibesql_ast::JoinType::Inner;
 
             result = Some(nested_loop_join(
                 prev_result,

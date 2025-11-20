@@ -33,8 +33,14 @@ impl JoinOrderContext {
     }
 
     /// Estimate cost of joining next_table to already-joined tables
+    ///
+    /// # Parameters
+    /// - `current_cardinality`: Size of intermediate result after all previous joins
+    /// - `joined_tables`: Set of tables already joined (used to check for join edges)
+    /// - `next_table`: Table being added to the join
     pub(super) fn estimate_join_cost(
         &self,
+        current_cardinality: usize,
         joined_tables: &HashSet<String>,
         next_table: &str,
     ) -> JoinCost {
@@ -44,9 +50,8 @@ impl JoinOrderContext {
             return JoinCost::new(cardinality, 0);
         }
 
-        // Estimate cardinality of joined result
-        let left_cardinality: usize =
-            joined_tables.iter().filter_map(|t| self.table_cardinalities.get(t)).sum();
+        // Use current intermediate result size as left side of join
+        let left_cardinality = current_cardinality;
 
         let right_cardinality = self.table_cardinalities.get(next_table).copied().unwrap_or(10000);
 
