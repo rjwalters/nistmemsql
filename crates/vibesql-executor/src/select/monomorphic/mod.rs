@@ -57,11 +57,11 @@ pub trait MonomorphicPlan: Send + Sync {
 ///
 /// Returns None if no specialized plan is available for this query.
 pub fn try_create_monomorphic_plan(
-    query: &str,
+    stmt: &vibesql_ast::SelectStmt,
     schema: &CombinedSchema,
 ) -> Option<Box<dyn MonomorphicPlan>> {
     // Try TPC-H patterns
-    if let Some(plan) = tpch::try_create_tpch_plan(query, schema) {
+    if let Some(plan) = tpch::try_create_tpch_plan(stmt, schema) {
         return Some(plan);
     }
 
