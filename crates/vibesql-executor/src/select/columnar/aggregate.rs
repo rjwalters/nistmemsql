@@ -1,6 +1,8 @@
 //! Columnar aggregation - high-performance aggregate computation
 
 use crate::errors::ExecutorError;
+use crate::schema::CombinedSchema;
+use vibesql_ast::Expression;
 use vibesql_storage::Row;
 use vibesql_types::SqlValue;
 
@@ -237,6 +239,96 @@ pub fn compute_multiple_aggregates(
     Ok(results)
 }
 
+/// Extract aggregate operations from AST expressions
+///
+/// Converts aggregate function expressions to (column_idx, AggregateOp) tuples
+/// that can be used with columnar execution.
+///
+/// Currently supports:
+/// - SUM(column) → (col_idx, AggregateOp::Sum)
+/// - COUNT(*) or COUNT(column) → (0, AggregateOp::Count)
+/// - AVG(column) → (col_idx, AggregateOp::Avg)
+/// - MIN(column) → (col_idx, AggregateOp::Min)
+/// - MAX(column) → (col_idx, AggregateOp::Max)
+///
+/// Returns None if the expression contains unsupported patterns:
+/// - DISTINCT aggregates
+/// - Multiple arguments
+/// - Complex expressions as arguments (only simple column refs supported)
+/// - Non-aggregate expressions
+///
+/// # Arguments
+///
+/// * `exprs` - The SELECT list expressions
+/// * `schema` - The schema to resolve column names to indices
+///
+/// # Returns
+///
+/// Some(aggregates) if all expressions can be converted to simple aggregates,
+/// None if any expression is too complex for columnar optimization.
+pub fn extract_aggregates(
+    exprs: &[Expression],
+    schema: &CombinedSchema,
+) -> Option<Vec<(usize, AggregateOp)>> {
+    let mut aggregates = Vec::new();
+
+    for expr in exprs {
+        match expr {
+            Expression::AggregateFunction {
+                name,
+                distinct,
+                args,
+            } => {
+                // DISTINCT not supported for columnar optimization
+                if *distinct {
+                    return None;
+                }
+
+                let op = match name.to_uppercase().as_str() {
+                    "SUM" => AggregateOp::Sum,
+                    "COUNT" => AggregateOp::Count,
+                    "AVG" => AggregateOp::Avg,
+                    "MIN" => AggregateOp::Min,
+                    "MAX" => AggregateOp::Max,
+                    _ => return None, // Unsupported aggregate function
+                };
+
+                // Handle COUNT(*)
+                if op == AggregateOp::Count && args.is_empty() {
+                    // For COUNT(*), use column 0 (the column index is ignored by compute_count)
+                    aggregates.push((0, op));
+                    continue;
+                }
+
+                // Handle COUNT(*) with wildcard argument
+                if op == AggregateOp::Count && args.len() == 1 {
+                    if matches!(args[0], Expression::Wildcard) {
+                        aggregates.push((0, op));
+                        continue;
+                    }
+                }
+
+                // Extract column reference for other aggregates
+                if args.len() != 1 {
+                    return None; // Multiple arguments not supported
+                }
+
+                let column_idx = match &args[0] {
+                    Expression::ColumnRef { table, column } => {
+                        schema.get_column_index(table.as_deref(), column)?
+                    }
+                    _ => return None, // Complex expressions not supported
+                };
+
+                aggregates.push((column_idx, op));
+            }
+            _ => return None, // Non-aggregate expressions not supported
+        }
+    }
+
+    Some(aggregates)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -289,5 +381,132 @@ mod tests {
         assert_eq!(results.len(), 2);
         assert!(matches!(results[0], SqlValue::Double(sum) if (sum - 60.0).abs() < 0.001));
         assert!(matches!(results[1], SqlValue::Double(avg) if (avg - 2.5).abs() < 0.001));
+    }
+
+    #[test]
+    fn test_extract_aggregates_simple() {
+        use crate::schema::CombinedSchema;
+        use vibesql_catalog::{ColumnSchema, TableSchema};
+        use vibesql_types::DataType;
+
+        // Create a simple schema with two columns
+        let schema = TableSchema::new(
+            "test".to_string(),
+            vec![
+                ColumnSchema::new("col1".to_string(), DataType::Integer, false),
+                ColumnSchema::new("col2".to_string(), DataType::DoublePrecision, false),
+            ],
+        );
+
+        let combined_schema = CombinedSchema::from_table("test".to_string(), schema);
+
+        // Test SUM(col1)
+        let exprs = vec![Expression::AggregateFunction {
+            name: "SUM".to_string(),
+            distinct: false,
+            args: vec![Expression::ColumnRef {
+                table: None,
+                column: "col1".to_string(),
+            }],
+        }];
+
+        let result = extract_aggregates(&exprs, &combined_schema);
+        assert!(result.is_some());
+        let aggregates = result.unwrap();
+        assert_eq!(aggregates.len(), 1);
+        assert_eq!(aggregates[0], (0, AggregateOp::Sum));
+
+        // Test COUNT(*)
+        let exprs = vec![Expression::AggregateFunction {
+            name: "COUNT".to_string(),
+            distinct: false,
+            args: vec![Expression::Wildcard],
+        }];
+
+        let result = extract_aggregates(&exprs, &combined_schema);
+        assert!(result.is_some());
+        let aggregates = result.unwrap();
+        assert_eq!(aggregates.len(), 1);
+        assert_eq!(aggregates[0], (0, AggregateOp::Count));
+
+        // Test multiple aggregates: SUM(col1), AVG(col2)
+        let exprs = vec![
+            Expression::AggregateFunction {
+                name: "SUM".to_string(),
+                distinct: false,
+                args: vec![Expression::ColumnRef {
+                    table: None,
+                    column: "col1".to_string(),
+                }],
+            },
+            Expression::AggregateFunction {
+                name: "AVG".to_string(),
+                distinct: false,
+                args: vec![Expression::ColumnRef {
+                    table: None,
+                    column: "col2".to_string(),
+                }],
+            },
+        ];
+
+        let result = extract_aggregates(&exprs, &combined_schema);
+        assert!(result.is_some());
+        let aggregates = result.unwrap();
+        assert_eq!(aggregates.len(), 2);
+        assert_eq!(aggregates[0], (0, AggregateOp::Sum));
+        assert_eq!(aggregates[1], (1, AggregateOp::Avg));
+    }
+
+    #[test]
+    fn test_extract_aggregates_unsupported() {
+        use crate::schema::CombinedSchema;
+        use vibesql_catalog::{ColumnSchema, TableSchema};
+        use vibesql_types::DataType;
+
+        let schema = TableSchema::new(
+            "test".to_string(),
+            vec![ColumnSchema::new("col1".to_string(), DataType::Integer, false)],
+        );
+
+        let combined_schema = CombinedSchema::from_table("test".to_string(), schema);
+
+        // Test DISTINCT aggregate (should return None)
+        let exprs = vec![Expression::AggregateFunction {
+            name: "SUM".to_string(),
+            distinct: true,
+            args: vec![Expression::ColumnRef {
+                table: None,
+                column: "col1".to_string(),
+            }],
+        }];
+
+        let result = extract_aggregates(&exprs, &combined_schema);
+        assert!(result.is_none());
+
+        // Test non-aggregate expression (should return None)
+        let exprs = vec![Expression::ColumnRef {
+            table: None,
+            column: "col1".to_string(),
+        }];
+
+        let result = extract_aggregates(&exprs, &combined_schema);
+        assert!(result.is_none());
+
+        // Test complex expression in aggregate (should return None)
+        let exprs = vec![Expression::AggregateFunction {
+            name: "SUM".to_string(),
+            distinct: false,
+            args: vec![Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col1".to_string(),
+                }),
+                op: vibesql_ast::BinaryOperator::Plus,
+                right: Box::new(Expression::Literal(SqlValue::Integer(1))),
+            }],
+        }];
+
+        let result = extract_aggregates(&exprs, &combined_schema);
+        assert!(result.is_none());
     }
 }
