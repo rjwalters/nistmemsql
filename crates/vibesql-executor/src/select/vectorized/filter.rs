@@ -3,10 +3,11 @@
 //! Simplified implementation using Arrow 53 scalar comparison API
 
 use crate::errors::ExecutorError;
-use arrow::array::{Array, ArrayRef, BooleanArray, Float64Array, Int64Array, StringArray};
+use arrow::array::{Array, ArrayRef, BooleanArray, Float64Array, Int64Array, StringArray, Date32Array, TimestampMicrosecondArray};
 use arrow::compute::{and_kleene as and_op, or_kleene as or_op, not as not_op, filter_record_batch};
 use arrow::compute::kernels::cmp::{eq, neq, lt, lt_eq, gt, gt_eq};
 use arrow::record_batch::RecordBatch;
+use arrow::datatypes::TimeUnit;
 use vibesql_ast::{BinaryOperator, Expression};
 use vibesql_types::SqlValue;
 
@@ -98,6 +99,8 @@ fn evaluate_comparison_simd(
         arrow::datatypes::DataType::Int64 => compare_int64(column, literal_value, op),
         arrow::datatypes::DataType::Float64 => compare_float64(column, literal_value, op),
         arrow::datatypes::DataType::Utf8 => compare_string(column, literal_value, op),
+        arrow::datatypes::DataType::Date32 => compare_date32(column, literal_value, op),
+        arrow::datatypes::DataType::Timestamp(TimeUnit::Microsecond, None) => compare_timestamp(column, literal_value, op),
         _ => Err(ExecutorError::Other(format!("Unsupported column type: {:?}", column.data_type()))),
     }
 }
@@ -178,6 +181,72 @@ fn compare_string(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator) ->
 
     // Create scalar array for comparison
     let scalar_array = StringArray::from(vec![val; array.len()]);
+
+    let result = match op {
+        BinaryOperator::Equal => eq(array, &scalar_array)
+            .map_err(|e| ExecutorError::Other(format!("SIMD eq failed: {}", e)))?,
+        BinaryOperator::NotEqual => neq(array, &scalar_array)
+            .map_err(|e| ExecutorError::Other(format!("SIMD neq failed: {}", e)))?,
+        BinaryOperator::LessThan => lt(array, &scalar_array)
+            .map_err(|e| ExecutorError::Other(format!("SIMD lt failed: {}", e)))?,
+        BinaryOperator::LessThanOrEqual => lt_eq(array, &scalar_array)
+            .map_err(|e| ExecutorError::Other(format!("SIMD lt_eq failed: {}", e)))?,
+        BinaryOperator::GreaterThan => gt(array, &scalar_array)
+            .map_err(|e| ExecutorError::Other(format!("SIMD gt failed: {}", e)))?,
+        BinaryOperator::GreaterThanOrEqual => gt_eq(array, &scalar_array)
+            .map_err(|e| ExecutorError::Other(format!("SIMD gt_eq failed: {}", e)))?,
+        _ => return Err(ExecutorError::Other("Unsupported operator".to_string())),
+    };
+
+    Ok(result)
+}
+
+fn compare_date32(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator) -> Result<BooleanArray, ExecutorError> {
+    use super::batch::date_to_days_since_epoch;
+
+    let array = column.as_any().downcast_ref::<Date32Array>()
+        .ok_or_else(|| ExecutorError::Other("Failed to downcast Date32Array".to_string()))?;
+
+    let val = match literal {
+        SqlValue::Date(d) => date_to_days_since_epoch(d),
+        _ => return Err(ExecutorError::Other("Type mismatch: expected Date".to_string())),
+    };
+
+    // Create scalar array for comparison
+    let scalar_array = Date32Array::from(vec![val; array.len()]);
+
+    let result = match op {
+        BinaryOperator::Equal => eq(array, &scalar_array)
+            .map_err(|e| ExecutorError::Other(format!("SIMD eq failed: {}", e)))?,
+        BinaryOperator::NotEqual => neq(array, &scalar_array)
+            .map_err(|e| ExecutorError::Other(format!("SIMD neq failed: {}", e)))?,
+        BinaryOperator::LessThan => lt(array, &scalar_array)
+            .map_err(|e| ExecutorError::Other(format!("SIMD lt failed: {}", e)))?,
+        BinaryOperator::LessThanOrEqual => lt_eq(array, &scalar_array)
+            .map_err(|e| ExecutorError::Other(format!("SIMD lt_eq failed: {}", e)))?,
+        BinaryOperator::GreaterThan => gt(array, &scalar_array)
+            .map_err(|e| ExecutorError::Other(format!("SIMD gt failed: {}", e)))?,
+        BinaryOperator::GreaterThanOrEqual => gt_eq(array, &scalar_array)
+            .map_err(|e| ExecutorError::Other(format!("SIMD gt_eq failed: {}", e)))?,
+        _ => return Err(ExecutorError::Other("Unsupported operator".to_string())),
+    };
+
+    Ok(result)
+}
+
+fn compare_timestamp(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator) -> Result<BooleanArray, ExecutorError> {
+    use super::batch::timestamp_to_microseconds;
+
+    let array = column.as_any().downcast_ref::<TimestampMicrosecondArray>()
+        .ok_or_else(|| ExecutorError::Other("Failed to downcast TimestampMicrosecondArray".to_string()))?;
+
+    let val = match literal {
+        SqlValue::Timestamp(ts) => timestamp_to_microseconds(ts),
+        _ => return Err(ExecutorError::Other("Type mismatch: expected Timestamp".to_string())),
+    };
+
+    // Create scalar array for comparison
+    let scalar_array = TimestampMicrosecondArray::from(vec![val; array.len()]);
 
     let result = match op {
         BinaryOperator::Equal => eq(array, &scalar_array)

@@ -4,9 +4,10 @@
 //! compute kernels for SIMD acceleration.
 
 use crate::errors::ExecutorError;
-use arrow::array::{Array, ArrayRef, Float64Array, Int64Array};
+use arrow::array::{Array, ArrayRef, Float64Array, Int64Array, Date32Array, TimestampMicrosecondArray};
 use arrow::compute::kernels::aggregate::{sum, min, max};
 use arrow::record_batch::RecordBatch;
+use arrow::datatypes::TimeUnit;
 use vibesql_types::SqlValue;
 
 /// Aggregate function types supported by SIMD execution
@@ -137,6 +138,28 @@ fn aggregate_min_simd(column: &ArrayRef) -> Result<SqlValue, ExecutorError> {
 
             Ok(SqlValue::Double(result))
         }
+        arrow::datatypes::DataType::Date32 => {
+            use super::batch::days_since_epoch_to_date;
+
+            let array = column.as_any().downcast_ref::<Date32Array>()
+                .ok_or_else(|| ExecutorError::Other("Failed to downcast Date32Array".to_string()))?;
+
+            let result = min(array)
+                .ok_or_else(|| ExecutorError::Other("MIN returned None (all nulls?)".to_string()))?;
+
+            Ok(SqlValue::Date(days_since_epoch_to_date(result)))
+        }
+        arrow::datatypes::DataType::Timestamp(TimeUnit::Microsecond, None) => {
+            use super::batch::microseconds_to_timestamp;
+
+            let array = column.as_any().downcast_ref::<TimestampMicrosecondArray>()
+                .ok_or_else(|| ExecutorError::Other("Failed to downcast TimestampMicrosecondArray".to_string()))?;
+
+            let result = min(array)
+                .ok_or_else(|| ExecutorError::Other("MIN returned None (all nulls?)".to_string()))?;
+
+            Ok(SqlValue::Timestamp(microseconds_to_timestamp(result)))
+        }
         _ => Err(ExecutorError::Other(format!(
             "MIN not supported for type: {:?}",
             column.data_type()
@@ -164,6 +187,28 @@ fn aggregate_max_simd(column: &ArrayRef) -> Result<SqlValue, ExecutorError> {
                 .ok_or_else(|| ExecutorError::Other("MAX returned None (all nulls?)".to_string()))?;
 
             Ok(SqlValue::Double(result))
+        }
+        arrow::datatypes::DataType::Date32 => {
+            use super::batch::days_since_epoch_to_date;
+
+            let array = column.as_any().downcast_ref::<Date32Array>()
+                .ok_or_else(|| ExecutorError::Other("Failed to downcast Date32Array".to_string()))?;
+
+            let result = max(array)
+                .ok_or_else(|| ExecutorError::Other("MAX returned None (all nulls?)".to_string()))?;
+
+            Ok(SqlValue::Date(days_since_epoch_to_date(result)))
+        }
+        arrow::datatypes::DataType::Timestamp(TimeUnit::Microsecond, None) => {
+            use super::batch::microseconds_to_timestamp;
+
+            let array = column.as_any().downcast_ref::<TimestampMicrosecondArray>()
+                .ok_or_else(|| ExecutorError::Other("Failed to downcast TimestampMicrosecondArray".to_string()))?;
+
+            let result = max(array)
+                .ok_or_else(|| ExecutorError::Other("MAX returned None (all nulls?)".to_string()))?;
+
+            Ok(SqlValue::Timestamp(microseconds_to_timestamp(result)))
         }
         _ => Err(ExecutorError::Other(format!(
             "MAX not supported for type: {:?}",
