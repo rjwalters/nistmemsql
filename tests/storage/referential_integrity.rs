@@ -253,34 +253,204 @@ fn test_on_delete_restrict_with_references() {
 // ========================================================================
 
 #[test]
-#[ignore] // TODO: Implement ON UPDATE CASCADE for foreign key constraints
 fn test_on_update_cascade() {
-    // Test that updating parent primary key cascades to child foreign keys
-    // This would require UPDATE statement execution support
+    let mut db = Database::new();
+
+    // Create parent and child tables with CASCADE on UPDATE
+    create_parent_table(&mut db, "PARENT");
+    create_child_table(
+        &mut db,
+        "CHILD",
+        "PARENT",
+        ReferentialAction::NoAction,
+        ReferentialAction::Cascade,
+    );
+
+    // Insert test data
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
+    insert_child_row(&mut db, "CHILD", 10, 1, "Child1");
+    insert_child_row(&mut db, "CHILD", 11, 1, "Child2");
+
+    // Update parent primary key - should cascade to children
+    let result = execute_update(&mut db, "UPDATE parent SET id = 100 WHERE id = 1");
+    assert_successful_update(result, 1);
+
+    // Verify parent was updated
+    let parent_table = db.get_table("PARENT").unwrap();
+    assert_eq!(parent_table.row_count(), 1);
+    let parent_row = &parent_table.scan()[0];
+    assert_eq!(parent_row.values[0], SqlValue::Integer(100));
+
+    // Verify children were cascaded
+    let child_table = db.get_table("CHILD").unwrap();
+    assert_eq!(child_table.row_count(), 2);
+    for child_row in child_table.scan() {
+        assert_eq!(
+            child_row.values[1],
+            SqlValue::Integer(100),
+            "Child FK should be updated to 100"
+        );
+    }
 }
 
 #[test]
-#[ignore] // TODO: Implement ON UPDATE SET NULL for foreign key constraints
 fn test_on_update_set_null() {
-    // Test that updating parent primary key sets child foreign keys to NULL
+    let mut db = Database::new();
+
+    // Create parent and child tables with SET NULL on UPDATE
+    create_parent_table(&mut db, "PARENT");
+    create_child_table(
+        &mut db,
+        "CHILD",
+        "PARENT",
+        ReferentialAction::NoAction,
+        ReferentialAction::SetNull,
+    );
+
+    // Insert test data
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
+    insert_child_row(&mut db, "CHILD", 10, 1, "Child1");
+    insert_child_row(&mut db, "CHILD", 11, 1, "Child2");
+
+    // Update parent primary key - should set child FKs to NULL
+    let result = execute_update(&mut db, "UPDATE parent SET id = 100 WHERE id = 1");
+    assert_successful_update(result, 1);
+
+    // Verify parent was updated
+    let parent_table = db.get_table("PARENT").unwrap();
+    assert_eq!(parent_table.row_count(), 1);
+    let parent_row = &parent_table.scan()[0];
+    assert_eq!(parent_row.values[0], SqlValue::Integer(100));
+
+    // Verify children FKs were set to NULL
+    let child_table = db.get_table("CHILD").unwrap();
+    assert_eq!(child_table.row_count(), 2);
+    for child_row in child_table.scan() {
+        assert_eq!(
+            child_row.values[1],
+            SqlValue::Null,
+            "Child FK should be NULL"
+        );
+    }
 }
 
 #[test]
-#[ignore] // TODO: Implement ON UPDATE SET DEFAULT for foreign key constraints
 fn test_on_update_set_default() {
-    // Test that updating parent primary key sets child foreign keys to default
+    let mut db = Database::new();
+
+    // Create parent and child tables with SET DEFAULT on UPDATE
+    create_parent_table(&mut db, "PARENT");
+    create_child_table(
+        &mut db,
+        "CHILD",
+        "PARENT",
+        ReferentialAction::NoAction,
+        ReferentialAction::SetDefault,
+    );
+
+    // Insert test data
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
+    insert_child_row(&mut db, "CHILD", 10, 1, "Child1");
+    insert_child_row(&mut db, "CHILD", 11, 1, "Child2");
+
+    // Update parent primary key - should set child FKs to default (currently NULL)
+    let result = execute_update(&mut db, "UPDATE parent SET id = 100 WHERE id = 1");
+    assert_successful_update(result, 1);
+
+    // Verify parent was updated
+    let parent_table = db.get_table("PARENT").unwrap();
+    assert_eq!(parent_table.row_count(), 1);
+    let parent_row = &parent_table.scan()[0];
+    assert_eq!(parent_row.values[0], SqlValue::Integer(100));
+
+    // Verify children FKs were set to NULL (current behavior until proper DEFAULT evaluation)
+    let child_table = db.get_table("CHILD").unwrap();
+    assert_eq!(child_table.row_count(), 2);
+    for child_row in child_table.scan() {
+        assert_eq!(
+            child_row.values[1],
+            SqlValue::Null,
+            "Child FK should be NULL (current default behavior)"
+        );
+    }
 }
 
 #[test]
-#[ignore] // TODO: Implement ON UPDATE NO ACTION for foreign key constraints
 fn test_on_update_no_action() {
-    // Test that updating parent primary key fails when children exist
+    let mut db = Database::new();
+
+    // Create parent and child tables with NO ACTION on UPDATE
+    create_parent_table(&mut db, "PARENT");
+    create_child_table(
+        &mut db,
+        "CHILD",
+        "PARENT",
+        ReferentialAction::NoAction,
+        ReferentialAction::NoAction,
+    );
+
+    // Insert test data
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
+    insert_child_row(&mut db, "CHILD", 10, 1, "Child1");
+
+    // Try to update parent primary key - should fail
+    let result = execute_update(&mut db, "UPDATE parent SET id = 100 WHERE id = 1");
+    assert_fk_violation(result, "CHILD");
+
+    // Verify parent was NOT updated
+    let parent_table = db.get_table("PARENT").unwrap();
+    assert_eq!(parent_table.row_count(), 1);
+    let parent_row = &parent_table.scan()[0];
+    assert_eq!(parent_row.values[0], SqlValue::Integer(1), "Parent ID should remain 1");
+
+    // Verify child was NOT affected
+    let child_table = db.get_table("CHILD").unwrap();
+    assert_eq!(child_table.row_count(), 1);
+    let child_row = &child_table.scan()[0];
+    assert_eq!(
+        child_row.values[1],
+        SqlValue::Integer(1),
+        "Child FK should remain 1"
+    );
 }
 
 #[test]
-#[ignore] // TODO: Implement ON UPDATE RESTRICT for foreign key constraints
 fn test_on_update_restrict() {
-    // Test that updating parent primary key fails when children exist (similar to NO ACTION)
+    let mut db = Database::new();
+
+    // Create parent and child tables with RESTRICT on UPDATE
+    create_parent_table(&mut db, "PARENT");
+    create_child_table(
+        &mut db,
+        "CHILD",
+        "PARENT",
+        ReferentialAction::NoAction,
+        ReferentialAction::Restrict,
+    );
+
+    // Insert test data
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
+    insert_child_row(&mut db, "CHILD", 10, 1, "Child1");
+
+    // Try to update parent primary key - should fail (similar to NO ACTION)
+    let result = execute_update(&mut db, "UPDATE parent SET id = 100 WHERE id = 1");
+    assert_fk_violation(result, "CHILD");
+
+    // Verify parent was NOT updated
+    let parent_table = db.get_table("PARENT").unwrap();
+    assert_eq!(parent_table.row_count(), 1);
+    let parent_row = &parent_table.scan()[0];
+    assert_eq!(parent_row.values[0], SqlValue::Integer(1), "Parent ID should remain 1");
+
+    // Verify child was NOT affected
+    let child_table = db.get_table("CHILD").unwrap();
+    assert_eq!(child_table.row_count(), 1);
+    let child_row = &child_table.scan()[0];
+    assert_eq!(
+        child_row.values[1],
+        SqlValue::Integer(1),
+        "Child FK should remain 1"
+    );
 }
 
 // ========================================================================
