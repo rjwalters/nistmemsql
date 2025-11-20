@@ -144,7 +144,7 @@ pub(super) fn timestamp_to_microseconds(ts: &Timestamp) -> i64 {
     let time_micros = (ts.time.hour as i64) * 3_600_000_000
         + (ts.time.minute as i64) * 60_000_000
         + (ts.time.second as i64) * 1_000_000
-        + (ts.time.microsecond as i64);
+        + (ts.time.nanosecond as i64) / 1_000;  // Convert nanoseconds to microseconds
     day_micros + time_micros
 }
 
@@ -160,9 +160,9 @@ pub(super) fn microseconds_to_timestamp(micros: i64) -> Timestamp {
     let minutes = (remaining_micros / 60_000_000) as u8;
     let remaining_micros = remaining_micros % 60_000_000;
     let seconds = (remaining_micros / 1_000_000) as u8;
-    let microseconds = (remaining_micros % 1_000_000) as u32;
+    let nanoseconds = ((remaining_micros % 1_000_000) * 1_000) as u32;  // Convert microseconds to nanoseconds
 
-    let time = Time::new(hours, minutes, seconds, microseconds)
+    let time = Time::new(hours, minutes, seconds, nanoseconds)
         .unwrap_or_else(|_| Time::new(0, 0, 0, 0).unwrap());
 
     Timestamp::new(date, time)
@@ -415,7 +415,7 @@ mod tests {
         use vibesql_types::{Date, Time, Timestamp};
 
         let date = Date::new(2024, 6, 15).unwrap();
-        let time = Time::new(14, 30, 45, 123456).unwrap();
+        let time = Time::new(14, 30, 45, 123456000).unwrap();  // 123.456 milliseconds in nanoseconds
         let ts = Timestamp::new(date, time);
 
         let rows = vec![
@@ -442,7 +442,7 @@ mod tests {
         let date1 = Date::new(2020, 1, 1).unwrap();
         let date2 = Date::new(2025, 12, 31).unwrap();
         let ts_date = Date::new(2024, 7, 4).unwrap();
-        let ts_time = Time::new(10, 20, 30, 500000).unwrap();
+        let ts_time = Time::new(10, 20, 30, 500000000).unwrap();  // 500 milliseconds in nanoseconds
         let ts = Timestamp::new(ts_date, ts_time);
 
         let original_rows = vec![
