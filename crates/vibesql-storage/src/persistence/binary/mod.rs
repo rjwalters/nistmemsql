@@ -22,6 +22,7 @@ use crate::{Database, StorageError};
 // Public submodules
 pub mod catalog;
 pub mod data;
+pub mod expression;
 pub mod format;
 pub mod io;
 pub mod value;
@@ -29,6 +30,7 @@ pub mod value;
 // Re-export public API
 pub use catalog::{read_catalog, write_catalog};
 pub use data::{read_data, write_data};
+pub use expression::{read_expression, write_expression};
 pub use format::{read_header, write_header};
 
 impl Database {
