@@ -359,7 +359,8 @@ fn test_index_scan_where_order_by_no_double_filtering() {
     let executor = SelectExecutor::new(&db);
 
     // Query that triggered the bug: WHERE on indexed column + ORDER BY
-    let query = "SELECT pk FROM tab1 WHERE col3 > 221 ORDER BY pk DESC";
+    // Note: Using 221.0 instead of 221 to ensure type compatibility with REAL column
+    let query = "SELECT pk FROM tab1 WHERE col3 > 221.0 ORDER BY pk DESC";
     let stmt = Parser::parse_sql(query).unwrap();
 
     if let vibesql_ast::Statement::Select(select_stmt) = stmt {
