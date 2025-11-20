@@ -85,7 +85,7 @@ impl FilterPredicate {
                 min,
                 max,
             } => {
-                let value = row.get_f64_unchecked(*column_idx);
+                let value = row.get_numeric_as_f64_unchecked(*column_idx);
                 value >= *min && value <= *max
             }
             FilterPredicate::Comparison {
@@ -461,12 +461,12 @@ impl AggregationSpec {
     pub unsafe fn accumulate(&self, acc: f64, row: &Row) -> f64 {
         match self {
             AggregationSpec::SumProduct { col1_idx, col2_idx } => {
-                let val1 = row.get_f64_unchecked(*col1_idx);
-                let val2 = row.get_f64_unchecked(*col2_idx);
+                let val1 = row.get_numeric_as_f64_unchecked(*col1_idx);
+                let val2 = row.get_numeric_as_f64_unchecked(*col2_idx);
                 acc + (val1 * val2)
             }
             AggregationSpec::Sum { col_idx } => {
-                let val = row.get_f64_unchecked(*col_idx);
+                let val = row.get_numeric_as_f64_unchecked(*col_idx);
                 acc + val
             }
             AggregationSpec::Count => acc + 1.0,
@@ -699,17 +699,17 @@ impl GroupAggregateSpec {
     pub unsafe fn accumulate(&self, acc: f64, row: &Row) -> f64 {
         match self {
             GroupAggregateSpec::Sum { col_idx } => {
-                let val = row.get_f64_unchecked(*col_idx);
+                let val = row.get_numeric_as_f64_unchecked(*col_idx);
                 acc + val
             }
             GroupAggregateSpec::SumProduct { col1_idx, col2_idx } => {
-                let val1 = row.get_f64_unchecked(*col1_idx);
-                let val2 = row.get_f64_unchecked(*col2_idx);
+                let val1 = row.get_numeric_as_f64_unchecked(*col1_idx);
+                let val2 = row.get_numeric_as_f64_unchecked(*col2_idx);
                 acc + (val1 * val2)
             }
             GroupAggregateSpec::SumProductOneMinusCol { col1_idx, col2_idx } => {
-                let val1 = row.get_f64_unchecked(*col1_idx);
-                let val2 = row.get_f64_unchecked(*col2_idx);
+                let val1 = row.get_numeric_as_f64_unchecked(*col1_idx);
+                let val2 = row.get_numeric_as_f64_unchecked(*col2_idx);
                 acc + (val1 * (1.0 - val2))
             }
             GroupAggregateSpec::SumProductComplex {
@@ -717,13 +717,13 @@ impl GroupAggregateSpec {
                 col2_idx,
                 col3_idx,
             } => {
-                let val1 = row.get_f64_unchecked(*col1_idx);
-                let val2 = row.get_f64_unchecked(*col2_idx);
-                let val3 = row.get_f64_unchecked(*col3_idx);
+                let val1 = row.get_numeric_as_f64_unchecked(*col1_idx);
+                let val2 = row.get_numeric_as_f64_unchecked(*col2_idx);
+                let val3 = row.get_numeric_as_f64_unchecked(*col3_idx);
                 acc + (val1 * (1.0 - val2) * (1.0 + val3))
             }
             GroupAggregateSpec::Avg { col_idx } => {
-                let val = row.get_f64_unchecked(*col_idx);
+                let val = row.get_numeric_as_f64_unchecked(*col_idx);
                 acc + val
             }
             GroupAggregateSpec::Count => acc + 1.0,

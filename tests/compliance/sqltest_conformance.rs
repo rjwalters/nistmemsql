@@ -362,6 +362,7 @@ impl SqltestRunner {
             | vibesql_ast::Statement::SetVariable(_)
             | vibesql_ast::Statement::CreateTrigger(_)
             | vibesql_ast::Statement::DropTrigger(_)
+            | vibesql_ast::Statement::AlterTrigger(_)
             | vibesql_ast::Statement::CreateAssertion(_)
             | vibesql_ast::Statement::DropAssertion(_)
             | vibesql_ast::Statement::DeclareCursor(_)
