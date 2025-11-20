@@ -17,7 +17,7 @@
 
 use std::cell::Cell;
 use std::marker::PhantomData;
-use std::mem;
+use std::mem::{self, MaybeUninit};
 use std::ptr;
 
 /// Arena allocator for query-scoped allocations
@@ -157,8 +157,11 @@ impl QueryArena {
 
     /// Allocate a slice in the arena
     ///
-    /// Returns a mutable slice with the specified length.
-    /// Elements are uninitialized - caller must initialize before use.
+    /// Returns a mutable slice of `MaybeUninit<T>` with the specified length.
+    /// Caller must initialize elements before assuming them to be initialized.
+    ///
+    /// Using `MaybeUninit` ensures memory safety - uninitialized memory cannot
+    /// be accidentally read or dropped, preventing undefined behavior.
     ///
     /// # Performance
     ///
@@ -172,19 +175,27 @@ impl QueryArena {
     ///
     /// ```rust
     /// use vibesql_executor::memory::QueryArena;
+    /// use std::mem::MaybeUninit;
     ///
     /// let arena = QueryArena::new();
     /// let slice = arena.alloc_slice::<i32>(100);
     ///
     /// // Initialize the slice
     /// for i in 0..100 {
-    ///     slice[i] = i as i32;
+    ///     slice[i] = MaybeUninit::new(i as i32);
     /// }
     ///
-    /// assert_eq!(slice[50], 50);
+    /// // SAFETY: All elements have been initialized above
+    /// let initialized_slice = unsafe {
+    ///     std::slice::from_raw_parts(
+    ///         slice.as_ptr() as *const i32,
+    ///         slice.len()
+    ///     )
+    /// };
+    /// assert_eq!(initialized_slice[50], 50);
     /// ```
     #[inline(always)]
-    pub fn alloc_slice<T>(&self, len: usize) -> &mut [T] {
+    pub fn alloc_slice<T>(&self, len: usize) -> &mut [MaybeUninit<T>] {
         if len == 0 {
             // Return empty slice without allocating
             return &mut [];
@@ -213,14 +224,15 @@ impl QueryArena {
         // Bump pointer
         self.offset.set(end_offset);
 
-        // Return slice (uninitialized)
+        // Return slice of MaybeUninit<T> (safe for uninitialized memory)
         // SAFETY: We've verified:
         // - Buffer has enough space (checked above)
         // - Pointer is properly aligned (aligned_offset)
         // - Size doesn't overflow (checked above)
         // - Lifetime is tied to arena via borrow checker
+        // - MaybeUninit<T> is safe to construct from uninitialized memory
         unsafe {
-            let ptr = self.buffer.as_ptr().add(aligned_offset) as *mut T;
+            let ptr = self.buffer.as_ptr().add(aligned_offset) as *mut MaybeUninit<T>;
             std::slice::from_raw_parts_mut(ptr, len)
         }
     }
@@ -374,18 +386,28 @@ mod tests {
         let arena = QueryArena::with_capacity(4096);
 
         let slice = arena.alloc_slice::<i32>(100);
+
+        // Initialize the slice with MaybeUninit
         for i in 0..100 {
-            slice[i] = i as i32;
+            slice[i] = MaybeUninit::new(i as i32);
         }
 
-        assert_eq!(slice[50], 50);
+        // SAFETY: All elements have been initialized above
+        let initialized_slice = unsafe {
+            std::slice::from_raw_parts(
+                slice.as_ptr() as *const i32,
+                slice.len()
+            )
+        };
+
+        assert_eq!(initialized_slice[50], 50);
         assert_eq!(slice.len(), 100);
     }
 
     #[test]
     fn test_arena_empty_slice() {
         let arena = QueryArena::new();
-        let slice = arena.alloc_slice::<i32>(0);
+        let slice: &mut [MaybeUninit<i32>] = arena.alloc_slice::<i32>(0);
         assert_eq!(slice.len(), 0);
     }
 
