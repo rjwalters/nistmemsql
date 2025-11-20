@@ -21,7 +21,77 @@ use rayon::prelude::*;
 #[cfg(feature = "parallel")]
 use std::sync::Arc;
 
-/// Apply table-local predicates from a pre-computed predicate plan
+/// Apply table-local predicates working with row references (zero-copy until filter passes)
+///
+/// This function implements predicate pushdown by filtering rows early,
+/// only cloning rows that pass the filter. This avoids unnecessary Vec<SqlValue>
+/// allocations for filtered-out rows.
+///
+/// **Phase 1**: Optimized to work with row slices instead of owned vectors.
+pub(crate) fn apply_table_local_predicates_ref(
+    rows: &[vibesql_storage::Row],
+    schema: CombinedSchema,
+    predicate_plan: &PredicatePlan,
+    table_name: &str,
+    database: &vibesql_storage::Database,
+) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+    // Get table statistics for selectivity-based ordering
+    let table_stats = database
+        .get_table(table_name)
+        .and_then(|table| table.get_statistics());
+
+    // Get predicates ordered by selectivity (most selective first)
+    let ordered_preds = predicate_plan.get_table_filters_ordered(table_name, table_stats);
+
+    // If there are table-local predicates, apply them
+    if !ordered_preds.is_empty() {
+        // Combine ordered predicates with AND
+        let combined_where = combine_predicates_with_and(ordered_preds);
+
+        // Create evaluator for filtering
+        let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
+
+        // Filter rows, only cloning those that pass
+        let mut filtered_rows = Vec::new();
+        for row in rows {
+            evaluator.clear_cse_cache();
+
+            let include_row = match evaluator.eval(&combined_where, row)? {
+                vibesql_types::SqlValue::Boolean(true) => true,
+                vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
+                // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
+                vibesql_types::SqlValue::Integer(0) => false,
+                vibesql_types::SqlValue::Integer(_) => true,
+                vibesql_types::SqlValue::Smallint(0) => false,
+                vibesql_types::SqlValue::Smallint(_) => true,
+                vibesql_types::SqlValue::Bigint(0) => false,
+                vibesql_types::SqlValue::Bigint(_) => true,
+                vibesql_types::SqlValue::Float(0.0) => false,
+                vibesql_types::SqlValue::Float(_) => true,
+                vibesql_types::SqlValue::Real(0.0) => false,
+                vibesql_types::SqlValue::Real(_) => true,
+                vibesql_types::SqlValue::Double(0.0) => false,
+                vibesql_types::SqlValue::Double(_) => true,
+                other => {
+                    return Err(ExecutorError::InvalidWhereClause(format!(
+                        "WHERE clause must evaluate to boolean, got: {:?}",
+                        other
+                    )))
+                }
+            };
+
+            if include_row {
+                filtered_rows.push(row.clone()); // Only clone rows that pass the filter
+            }
+        }
+        return Ok(filtered_rows);
+    }
+
+    // No table-local predicates - clone all rows
+    Ok(rows.to_vec())
+}
+
+/// Apply table-local predicates from a pre-computed predicate plan (legacy version)
 ///
 /// This function implements predicate pushdown by filtering rows early,
 /// before they contribute to larger Cartesian products in JOINs.
@@ -30,6 +100,9 @@ use std::sync::Arc;
 ///
 /// **Phase 1**: Now accepts `PredicatePlan` instead of decomposing WHERE clause internally.
 /// **Phase 4**: Uses cost-based predicate ordering via selectivity estimation.
+///
+/// **Note**: This version takes owned Vec<Row>. Consider using apply_table_local_predicates_ref
+/// for better performance with large datasets.
 pub(crate) fn apply_table_local_predicates(
     rows: Vec<vibesql_storage::Row>,
     schema: CombinedSchema,

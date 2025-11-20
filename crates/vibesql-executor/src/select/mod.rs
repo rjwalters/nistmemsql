@@ -1,3 +1,4 @@
+mod columnar;
 mod cte;
 mod executor;
 mod filter;
