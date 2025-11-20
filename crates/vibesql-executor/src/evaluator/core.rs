@@ -527,6 +527,11 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         }
     }
 
+    /// Get the combined schema for this evaluator
+    pub(crate) fn schema(&self) -> &'a CombinedSchema {
+        self.schema
+    }
+
     /// Get evaluator components for parallel execution
     /// Returns (schema, database, outer_row, outer_schema, window_mapping, enable_cse)
     pub(crate) fn get_parallel_components(&self) -> ParallelComponents<'a> {
