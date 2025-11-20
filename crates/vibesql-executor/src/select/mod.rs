@@ -9,6 +9,7 @@ mod iterator;
 pub mod join;
 mod join_executor;
 mod join_reorder_wrapper;
+mod monomorphic;
 mod order;
 #[cfg(feature = "parallel")]
 mod parallel;
