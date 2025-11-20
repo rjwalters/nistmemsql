@@ -338,6 +338,7 @@ impl VibeSqlDB {
             | vibesql_ast::Statement::DropCharacterSet(_)
             | vibesql_ast::Statement::CreateTranslation(_)
             | vibesql_ast::Statement::DropTranslation(_)
+            | vibesql_ast::Statement::AlterTrigger(_)
             | vibesql_ast::Statement::DeclareCursor(_)
             | vibesql_ast::Statement::OpenCursor(_)
             | vibesql_ast::Statement::Fetch(_)

@@ -141,8 +141,16 @@ impl TableSchema {
     }
 
     /// Get column by name.
+    /// Uses case-insensitive matching for column names.
     pub fn get_column(&self, name: &str) -> Option<&ColumnSchema> {
-        self.columns.iter().find(|col| col.name == name)
+        // First try exact match for performance
+        if let Some(col) = self.columns.iter().find(|col| col.name == name) {
+            return Some(col);
+        }
+
+        // Fall back to case-insensitive search
+        let name_lower = name.to_lowercase();
+        self.columns.iter().find(|col| col.name.to_lowercase() == name_lower)
     }
 
     /// Get column index by name.
