@@ -170,3 +170,125 @@ impl Row {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_unchecked_accessors_correct_types() {
+        let row = Row {
+            values: vec![
+                SqlValue::Double(3.14),
+                SqlValue::Integer(42),
+                SqlValue::Date(Date::from_str("2024-01-01").unwrap()),
+                SqlValue::Boolean(true),
+                SqlValue::Varchar("hello".to_string()),
+            ],
+        };
+
+        unsafe {
+            assert_eq!(row.get_f64_unchecked(0), 3.14);
+            assert_eq!(row.get_i64_unchecked(1), 42);
+            assert_eq!(row.get_date_unchecked(2), Date::from_str("2024-01-01").unwrap());
+            assert_eq!(row.get_bool_unchecked(3), true);
+            assert_eq!(row.get_string_unchecked(4), "hello");
+        }
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "get_f64_unchecked called on non-float value")]
+    fn test_get_f64_unchecked_wrong_type() {
+        let row = Row {
+            values: vec![SqlValue::Integer(42)],
+        };
+        unsafe {
+            row.get_f64_unchecked(0); // Should panic in debug mode
+        }
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "get_i64_unchecked called on non-integer value")]
+    fn test_get_i64_unchecked_wrong_type() {
+        let row = Row {
+            values: vec![SqlValue::Double(3.14)],
+        };
+        unsafe {
+            row.get_i64_unchecked(0); // Should panic in debug mode
+        }
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "get_date_unchecked called on non-date value")]
+    fn test_get_date_unchecked_wrong_type() {
+        let row = Row {
+            values: vec![SqlValue::Integer(42)],
+        };
+        unsafe {
+            row.get_date_unchecked(0); // Should panic in debug mode
+        }
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "get_bool_unchecked called on non-boolean value")]
+    fn test_get_bool_unchecked_wrong_type() {
+        let row = Row {
+            values: vec![SqlValue::Integer(42)],
+        };
+        unsafe {
+            row.get_bool_unchecked(0); // Should panic in debug mode
+        }
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "get_string_unchecked called on non-string value")]
+    fn test_get_string_unchecked_wrong_type() {
+        let row = Row {
+            values: vec![SqlValue::Integer(42)],
+        };
+        unsafe {
+            row.get_string_unchecked(0); // Should panic in debug mode
+        }
+    }
+
+    #[test]
+    fn test_unchecked_accessor_with_type_coercion() {
+        // Test that Float is coerced to f64
+        let row = Row {
+            values: vec![SqlValue::Float(3.14)],
+        };
+        unsafe {
+            assert_eq!(row.get_f64_unchecked(0), 3.14f32 as f64);
+        }
+
+        // Test that Smallint is coerced to i64
+        let row = Row {
+            values: vec![SqlValue::Smallint(42)],
+        };
+        unsafe {
+            assert_eq!(row.get_i64_unchecked(0), 42i64);
+        }
+
+        // Test that Bigint works
+        let row = Row {
+            values: vec![SqlValue::Bigint(1000000)],
+        };
+        unsafe {
+            assert_eq!(row.get_i64_unchecked(0), 1000000i64);
+        }
+
+        // Test that Character string works
+        let row = Row {
+            values: vec![SqlValue::Character("test".to_string())],
+        };
+        unsafe {
+            assert_eq!(row.get_string_unchecked(0), "test");
+        }
+    }
+}
