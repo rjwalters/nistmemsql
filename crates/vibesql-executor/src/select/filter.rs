@@ -20,6 +20,66 @@ use std::sync::Arc;
 #[cfg(feature = "parallel")]
 use super::parallel::ParallelConfig;
 
+/// Fast truthy evaluation optimized for hot path (Combined evaluator version)
+///
+/// Inlined aggressively and optimized for the common case (Boolean values).
+#[inline(always)]
+fn is_truthy_combined(value: &vibesql_types::SqlValue) -> Result<bool, ExecutorError> {
+    use vibesql_types::SqlValue;
+
+    match value {
+        // Fast path: Boolean values (most common case for WHERE predicates)
+        SqlValue::Boolean(b) => Ok(*b),
+        SqlValue::Null => Ok(false),
+
+        // Integer types (SQLLogicTest compatibility)
+        SqlValue::Integer(n) => Ok(*n != 0),
+        SqlValue::Smallint(n) => Ok(*n != 0),
+        SqlValue::Bigint(n) => Ok(*n != 0),
+
+        // Float types
+        SqlValue::Float(f) => Ok(*f != 0.0),
+        SqlValue::Real(f) => Ok(*f != 0.0),
+        SqlValue::Double(f) => Ok(*f != 0.0),
+
+        // Error case (should be rare)
+        other => Err(ExecutorError::InvalidWhereClause(format!(
+            "WHERE clause must evaluate to boolean, got: {:?}",
+            other
+        ))),
+    }
+}
+
+/// Fast truthy evaluation optimized for hot path (Basic evaluator version)
+///
+/// Inlined aggressively and optimized for the common case (Boolean values).
+#[inline(always)]
+fn is_truthy_basic(value: &vibesql_types::SqlValue) -> Result<bool, ExecutorError> {
+    use vibesql_types::SqlValue;
+
+    match value {
+        // Fast path: Boolean values (most common case for WHERE predicates)
+        SqlValue::Boolean(b) => Ok(*b),
+        SqlValue::Null => Ok(false),
+
+        // Integer types (SQLLogicTest compatibility)
+        SqlValue::Integer(n) => Ok(*n != 0),
+        SqlValue::Smallint(n) => Ok(*n != 0),
+        SqlValue::Bigint(n) => Ok(*n != 0),
+
+        // Float types
+        SqlValue::Float(f) => Ok(*f != 0.0),
+        SqlValue::Real(f) => Ok(*f != 0.0),
+        SqlValue::Double(f) => Ok(*f != 0.0),
+
+        // Error case (should be rare)
+        other => Err(ExecutorError::InvalidWhereClause(format!(
+            "WHERE must evaluate to boolean, got: {:?}",
+            other
+        ))),
+    }
+}
+
 /// Apply WHERE clause filter to rows (Combined evaluator version)
 ///
 /// Same as apply_where_filter but specifically for CombinedExpressionEvaluator.
@@ -147,7 +207,8 @@ pub(super) fn apply_where_filter_basic<'a>(
     let mut rows_processed = 0;
     const CHECK_INTERVAL: usize = 1000;
 
-    for row in rows {
+    // Consume input vector to avoid cloning rows
+    for row in rows.into_iter() {
         // Check timeout every 1000 rows
         rows_processed += 1;
         if rows_processed % CHECK_INTERVAL == 0 {
@@ -160,33 +221,13 @@ pub(super) fn apply_where_filter_basic<'a>(
         // This allows constant sub-expressions like (1 + 2) to be cached across all rows,
         // significantly improving performance for expression-heavy queries.
 
-        let include_row = match evaluator.eval(where_expr, &row)? {
-            vibesql_types::SqlValue::Boolean(true) => true,
-            vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
-            // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
-            vibesql_types::SqlValue::Integer(0) => false,
-            vibesql_types::SqlValue::Integer(_) => true,
-            vibesql_types::SqlValue::Smallint(0) => false,
-            vibesql_types::SqlValue::Smallint(_) => true,
-            vibesql_types::SqlValue::Bigint(0) => false,
-            vibesql_types::SqlValue::Bigint(_) => true,
-            vibesql_types::SqlValue::Float(0.0) => false,
-            vibesql_types::SqlValue::Float(_) => true,
-            vibesql_types::SqlValue::Real(0.0) => false,
-            vibesql_types::SqlValue::Real(_) => true,
-            vibesql_types::SqlValue::Double(0.0) => false,
-            vibesql_types::SqlValue::Double(_) => true,
-            other => {
-                return Err(ExecutorError::InvalidWhereClause(format!(
-                    "WHERE must evaluate to boolean, got: {:?}",
-                    other
-                )))
-            }
-        };
+        let value = evaluator.eval(where_expr, &row)?;
+        let include_row = is_truthy_basic(&value)?;
 
         if include_row {
-            filtered_rows.push(row);
+            filtered_rows.push(row);  // Move row, no clone needed
         }
+        // Row is dropped if filtered out
     }
 
     // Clear CSE cache at end of query to prevent cross-query pollution
@@ -246,29 +287,8 @@ pub(super) fn apply_where_filter_combined_parallel<'a>(
             );
 
             // Evaluate predicate for this row
-            let include_row = match thread_evaluator.eval(&where_expr_arc, &row)? {
-                vibesql_types::SqlValue::Boolean(true) => true,
-                vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
-                // SQLLogicTest compatibility: treat integers as truthy/falsy
-                vibesql_types::SqlValue::Integer(0) => false,
-                vibesql_types::SqlValue::Integer(_) => true,
-                vibesql_types::SqlValue::Smallint(0) => false,
-                vibesql_types::SqlValue::Smallint(_) => true,
-                vibesql_types::SqlValue::Bigint(0) => false,
-                vibesql_types::SqlValue::Bigint(_) => true,
-                vibesql_types::SqlValue::Float(0.0) => false,
-                vibesql_types::SqlValue::Float(_) => true,
-                vibesql_types::SqlValue::Real(0.0) => false,
-                vibesql_types::SqlValue::Real(_) => true,
-                vibesql_types::SqlValue::Double(0.0) => false,
-                vibesql_types::SqlValue::Double(_) => true,
-                other => {
-                    return Err(ExecutorError::InvalidWhereClause(format!(
-                        "WHERE clause must evaluate to boolean, got: {:?}",
-                        other
-                    )))
-                }
-            };
+            let value = thread_evaluator.eval(&where_expr_arc, &row)?;
+            let include_row = is_truthy_combined(&value)?;
 
             if include_row {
                 Ok(Some(row))

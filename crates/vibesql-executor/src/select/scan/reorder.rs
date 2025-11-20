@@ -280,7 +280,7 @@ fn extract_where_equijoins(expr: &vibesql_ast::Expression, tables: &HashSet<Stri
                     // Sort tables by length (descending) to match longer names first
                     // This ensures "PARTSUPP" matches before "PART" for prefix "PS"
                     let mut table_list: Vec<_> = tables.iter().collect();
-                    table_list.sort_by(|a, b| b.len().cmp(&a.len()));
+                    table_list.sort_by_key(|b| std::cmp::Reverse(b.len()));
 
                     table_list.into_iter()
                         .find(|t| t.to_uppercase().starts_with(&prefix))

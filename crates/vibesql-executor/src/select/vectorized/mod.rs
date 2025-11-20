@@ -17,6 +17,7 @@
 pub mod aggregate;
 pub mod batch;
 pub mod bitmap;
+pub mod compiled_predicate;
 pub mod filter;
 pub mod predicate;
 
@@ -31,6 +32,7 @@ pub use predicate::apply_where_filter_vectorized;
 
 /// Default chunk size for vectorized operations
 /// Tuned for L1 cache utilization (typical 32-64KB)
+#[allow(dead_code)]
 pub const DEFAULT_CHUNK_SIZE: usize = 256;
 
 /// Threshold for using vectorized evaluation

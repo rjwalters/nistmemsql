@@ -159,11 +159,10 @@ impl TriggerFirer {
                 // Check if any of the specified columns changed
                 for col_name in columns {
                     if let Some(col_idx) = table_schema.columns.iter().position(|c| &c.name == col_name) {
-                        if col_idx < old_row.values.len() && col_idx < new_row.values.len() {
-                            if old_row.values[col_idx] != new_row.values[col_idx] {
+                        if col_idx < old_row.values.len() && col_idx < new_row.values.len()
+                            && old_row.values[col_idx] != new_row.values[col_idx] {
                                 return true; // At least one monitored column changed
                             }
-                        }
                     }
                 }
                 false // None of the monitored columns changed

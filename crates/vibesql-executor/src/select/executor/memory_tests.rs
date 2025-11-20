@@ -155,8 +155,9 @@ mod integration_tests {
         db.create_table(schema2).unwrap();
 
         // Insert enough rows to exceed MAX_JOIN_RESULT_ROWS (100M)
-        // 15,000 x 15,000 = 225M rows (exceeds limit)
-        for i in 0..15000 {
+        // 10,100 x 10,100 = 102,010,000 rows (exceeds limit with minimal overhead)
+        // Reduced from 15,000 to speed up test while still triggering the limit
+        for i in 0..10_100 {
             db.insert_row("t1", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)])).unwrap();
             db.insert_row("t2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)])).unwrap();
         }

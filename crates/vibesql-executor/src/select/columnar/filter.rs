@@ -1,6 +1,7 @@
 //! Columnar filtering - efficient predicate evaluation on column data
 
-use crate::errors::ExecutorError;
+use crate::{errors::ExecutorError, schema::CombinedSchema};
+use vibesql_ast::{BinaryOperator, Expression};
 use vibesql_types::SqlValue;
 
 /// Apply a filter to row indices based on column predicates
@@ -12,33 +13,104 @@ use vibesql_types::SqlValue;
 ///
 /// * `row_count` - Total number of rows
 /// * `predicates` - Column-based predicates to evaluate
+/// * `get_value` - Closure to get a value at (row_index, column_index)
 ///
 /// # Returns
 ///
 /// A Vec<bool> where true means the row passes the filter
-pub fn create_filter_bitmap(
+pub fn create_filter_bitmap<'a, F>(
     row_count: usize,
-    _predicates: &[ColumnPredicate],
-) -> Result<Vec<bool>, ExecutorError> {
-    // For now, include all rows (no filtering)
-    // TODO: Implement actual predicate evaluation
-    Ok(vec![true; row_count])
+    predicates: &[ColumnPredicate],
+    mut get_value: F,
+) -> Result<Vec<bool>, ExecutorError>
+where
+    F: FnMut(usize, usize) -> Option<&'a SqlValue>,
+{
+    // If no predicates, all rows pass
+    if predicates.is_empty() {
+        return Ok(vec![true; row_count]);
+    }
+
+    let mut bitmap = vec![true; row_count];
+
+    // Evaluate each row against all predicates (AND logic)
+    for row_idx in 0..row_count {
+        for predicate in predicates {
+            let column_idx = match predicate {
+                ColumnPredicate::LessThan { column_idx, .. } => *column_idx,
+                ColumnPredicate::GreaterThan { column_idx, .. } => *column_idx,
+                ColumnPredicate::GreaterThanOrEqual { column_idx, .. } => *column_idx,
+                ColumnPredicate::LessThanOrEqual { column_idx, .. } => *column_idx,
+                ColumnPredicate::Equal { column_idx, .. } => *column_idx,
+                ColumnPredicate::Between { column_idx, .. } => *column_idx,
+            };
+
+            if let Some(value) = get_value(row_idx, column_idx) {
+                if !evaluate_predicate(predicate, value) {
+                    bitmap[row_idx] = false;
+                    break; // Short-circuit: row failed, skip remaining predicates
+                }
+            } else {
+                // NULL values fail all predicates
+                bitmap[row_idx] = false;
+                break;
+            }
+        }
+    }
+
+    Ok(bitmap)
 }
 
 /// Apply a columnar filter using a pre-computed bitmap
 ///
 /// This is a convenience function that creates a filter bitmap
 /// and returns the indices of rows that pass.
+///
+/// # Arguments
+///
+/// * `rows` - The rows to filter
+/// * `predicates` - Column-based predicates to evaluate
+///
+/// # Returns
+///
+/// Indices of rows that pass all predicates
 pub fn apply_columnar_filter(
-    row_count: usize,
+    rows: &[vibesql_storage::Row],
     predicates: &[ColumnPredicate],
 ) -> Result<Vec<usize>, ExecutorError> {
-    let bitmap = create_filter_bitmap(row_count, predicates)?;
+    let bitmap = create_filter_bitmap(rows.len(), predicates, |row_idx, col_idx| {
+        rows.get(row_idx).and_then(|row| row.get(col_idx))
+    })?;
     Ok(bitmap
         .iter()
         .enumerate()
         .filter_map(|(idx, &pass)| if pass { Some(idx) } else { None })
         .collect())
+}
+
+/// Filter rows in place using columnar predicates
+///
+/// Returns a new Vec containing only the rows that pass all predicates.
+/// This is the main entry point for columnar filtering.
+///
+/// # Arguments
+///
+/// * `rows` - The rows to filter
+/// * `predicates` - Column-based predicates to evaluate
+///
+/// # Returns
+///
+/// Filtered rows
+pub fn filter_rows(
+    rows: Vec<vibesql_storage::Row>,
+    predicates: &[ColumnPredicate],
+) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+    if predicates.is_empty() {
+        return Ok(rows);
+    }
+
+    let indices = apply_columnar_filter(&rows, predicates)?;
+    Ok(indices.into_iter().filter_map(|idx| rows.get(idx).cloned()).collect())
 }
 
 /// A predicate on a single column
@@ -67,6 +139,152 @@ pub enum ColumnPredicate {
         low: SqlValue,
         high: SqlValue,
     },
+}
+
+/// Extract simple column predicates from a WHERE clause expression
+///
+/// This attempts to convert complex AST expressions into simple column predicates
+/// that can be evaluated efficiently. Returns None if the expression is too complex
+/// for columnar optimization.
+///
+/// Currently supports:
+/// - Simple comparisons: column op literal (where op is <, >, <=, >=, =)
+/// - BETWEEN: column BETWEEN literal AND literal
+/// - AND combinations of the above
+///
+/// # Arguments
+///
+/// * `expr` - The WHERE clause expression
+/// * `schema` - The schema to resolve column names to indices
+///
+/// # Returns
+///
+/// Some(predicates) if the expression can be converted to simple column predicates,
+/// None if the expression is too complex for columnar optimization.
+pub fn extract_column_predicates(
+    expr: &Expression,
+    schema: &CombinedSchema,
+) -> Option<Vec<ColumnPredicate>> {
+    let mut predicates = Vec::new();
+    extract_predicates_recursive(expr, schema, &mut predicates)?;
+    Some(predicates)
+}
+
+/// Recursively extract predicates from an expression
+fn extract_predicates_recursive(
+    expr: &Expression,
+    schema: &CombinedSchema,
+    predicates: &mut Vec<ColumnPredicate>,
+) -> Option<()> {
+    match expr {
+        // AND: extract predicates from both sides
+        Expression::BinaryOp {
+            left,
+            op: BinaryOperator::And,
+            right,
+        } => {
+            extract_predicates_recursive(left, schema, predicates)?;
+            extract_predicates_recursive(right, schema, predicates)?;
+            Some(())
+        }
+
+        // Binary comparison: column op literal
+        Expression::BinaryOp { left, op, right } => {
+            // Try: column op literal
+            if let (Expression::ColumnRef { table, column }, Expression::Literal(value)) =
+                (left.as_ref(), right.as_ref())
+            {
+                let column_idx = schema.get_column_index(table.as_deref(), column)?;
+                let predicate = match op {
+                    BinaryOperator::LessThan => ColumnPredicate::LessThan {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::GreaterThan => ColumnPredicate::GreaterThan {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::LessThanOrEqual => ColumnPredicate::LessThanOrEqual {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::GreaterThanOrEqual => ColumnPredicate::GreaterThanOrEqual {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::Equal => ColumnPredicate::Equal {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    _ => return None, // Unsupported operator
+                };
+                predicates.push(predicate);
+                return Some(());
+            }
+
+            // Try: literal op column (reverse the comparison)
+            if let (Expression::Literal(value), Expression::ColumnRef { table, column }) =
+                (left.as_ref(), right.as_ref())
+            {
+                let column_idx = schema.get_column_index(table.as_deref(), column)?;
+                let predicate = match op {
+                    // Reverse the comparison: literal < column => column > literal
+                    BinaryOperator::LessThan => ColumnPredicate::GreaterThan {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::GreaterThan => ColumnPredicate::LessThan {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::LessThanOrEqual => ColumnPredicate::GreaterThanOrEqual {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::GreaterThanOrEqual => ColumnPredicate::LessThanOrEqual {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::Equal => ColumnPredicate::Equal {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    _ => return None, // Unsupported operator
+                };
+                predicates.push(predicate);
+                return Some(());
+            }
+
+            None
+        }
+
+        // BETWEEN: column BETWEEN low AND high
+        Expression::Between {
+            expr: inner,
+            low,
+            high,
+            negated: false,
+            symmetric: _,
+        } => {
+            if let Expression::ColumnRef { table, column } = inner.as_ref() {
+                if let (Expression::Literal(low_val), Expression::Literal(high_val)) =
+                    (low.as_ref(), high.as_ref())
+                {
+                    let column_idx = schema.get_column_index(table.as_deref(), column)?;
+                    predicates.push(ColumnPredicate::Between {
+                        column_idx,
+                        low: low_val.clone(),
+                        high: high_val.clone(),
+                    });
+                    return Some(());
+                }
+            }
+            None
+        }
+
+        // Any other expression is too complex
+        _ => None,
+    }
 }
 
 /// Evaluate a column predicate on a specific value
@@ -166,11 +384,33 @@ mod tests {
 
     #[test]
     fn test_filter_bitmap() {
-        let row_count = 5;
-        let predicates = vec![];
+        use vibesql_storage::Row;
 
-        let bitmap = create_filter_bitmap(row_count, &predicates).unwrap();
+        let rows = vec![
+            Row::new(vec![SqlValue::Integer(5)]),
+            Row::new(vec![SqlValue::Integer(10)]),
+            Row::new(vec![SqlValue::Integer(15)]),
+            Row::new(vec![SqlValue::Integer(20)]),
+            Row::new(vec![SqlValue::Integer(25)]),
+        ];
+
+        // Test with no predicates - all rows should pass
+        let bitmap = create_filter_bitmap(rows.len(), &[], |row_idx, col_idx| {
+            rows.get(row_idx).and_then(|row| row.get(col_idx))
+        })
+        .unwrap();
         assert_eq!(bitmap.len(), 5);
-        assert!(bitmap.iter().all(|&x| x)); // All true for now
+        assert!(bitmap.iter().all(|&x| x));
+
+        // Test with LessThan predicate
+        let predicates = vec![ColumnPredicate::LessThan {
+            column_idx: 0,
+            value: SqlValue::Integer(18),
+        }];
+        let bitmap = create_filter_bitmap(rows.len(), &predicates, |row_idx, col_idx| {
+            rows.get(row_idx).and_then(|row| row.get(col_idx))
+        })
+        .unwrap();
+        assert_eq!(bitmap, vec![true, true, true, false, false]);
     }
 }
