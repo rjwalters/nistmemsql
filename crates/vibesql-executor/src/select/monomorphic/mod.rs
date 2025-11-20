@@ -27,10 +27,12 @@
 //! 2. Schema information is available for all accessed columns
 //! 3. The plan can be safely constructed from the AST
 
+use vibesql_ast::SelectStmt;
 use vibesql_storage::Row;
 
 use crate::{errors::ExecutorError, schema::CombinedSchema};
 
+pub mod pattern;
 pub mod tpch;
 
 /// Trait for type-specialized query execution plans
@@ -57,7 +59,7 @@ pub trait MonomorphicPlan: Send + Sync {
 ///
 /// Returns None if no specialized plan is available for this query.
 pub fn try_create_monomorphic_plan(
-    stmt: &vibesql_ast::SelectStmt,
+    stmt: &SelectStmt,
     schema: &CombinedSchema,
 ) -> Option<Box<dyn MonomorphicPlan>> {
     // Try TPC-H patterns
