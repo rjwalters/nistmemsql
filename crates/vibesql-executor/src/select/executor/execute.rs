@@ -244,12 +244,8 @@ impl SelectExecutor<'_> {
         // The plan handles filtering and aggregation internally
         let mut from_result = self.execute_from(from_clause, cte_results)?;
 
-        // Convert stmt to string for pattern matching
-        // TODO: Use AST-based pattern matching for more robust detection
-        let query_str = format!("{:?}", stmt);
-
-        // Try to create a monomorphic plan using the schema from FROM result
-        let plan = match try_create_monomorphic_plan(&query_str, &from_result.schema) {
+        // Try to create a monomorphic plan using AST-based pattern matching
+        let plan = match try_create_monomorphic_plan(stmt, &from_result.schema) {
             Some(p) => p,
             None => return Ok(None),
         };

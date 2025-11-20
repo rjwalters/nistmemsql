@@ -3,11 +3,16 @@
 //! This module provides hand-optimized monomorphic execution plans for
 //! TPC-H benchmark queries.
 
+use vibesql_ast::SelectStmt;
 use vibesql_storage::Row;
 use vibesql_types::{Date, SqlValue};
 
 use crate::{errors::ExecutorError, schema::CombinedSchema};
 
+use super::pattern::{
+    contains_column_multiply, has_aggregate_function, has_between_predicate, has_no_joins,
+    is_single_table, where_references_column, QueryPattern,
+};
 use super::MonomorphicPlan;
 
 use std::str::FromStr;
@@ -113,38 +118,82 @@ impl MonomorphicPlan for TpchQ6Plan {
     }
 }
 
+/// Pattern matcher for TPC-H Q6
+///
+/// Matches queries with:
+/// - Single table FROM lineitem
+/// - SUM(l_extendedprice * l_discount) in SELECT
+/// - WHERE clause with l_shipdate, l_discount BETWEEN, and l_quantity predicates
+/// - No JOINs, GROUP BY, or HAVING
+pub struct TpchQ6PatternMatcher;
+
+impl QueryPattern for TpchQ6PatternMatcher {
+    fn matches(&self, stmt: &SelectStmt, _schema: &CombinedSchema) -> bool {
+        // Must be a single-table query on lineitem
+        if !is_single_table(&stmt.from, "lineitem") {
+            return false;
+        }
+
+        // Must have no joins
+        if !has_no_joins(&stmt.from) {
+            return false;
+        }
+
+        // Must have no GROUP BY or HAVING
+        if stmt.group_by.is_some() || stmt.having.is_some() {
+            return false;
+        }
+
+        // Must have SUM aggregate in SELECT
+        if !has_aggregate_function(&stmt.select_list, "SUM") {
+            return false;
+        }
+
+        // Check for multiplication of l_extendedprice and l_discount in SELECT
+        let has_price_discount_multiply = stmt.select_list.iter().any(|item| {
+            if let vibesql_ast::SelectItem::Expression { expr, .. } = item {
+                contains_column_multiply(expr, "l_extendedprice", "l_discount")
+            } else {
+                false
+            }
+        });
+
+        if !has_price_discount_multiply {
+            return false;
+        }
+
+        // Check WHERE clause for required predicates
+        if !where_references_column(&stmt.where_clause, "l_shipdate") {
+            return false;
+        }
+
+        if !where_references_column(&stmt.where_clause, "l_quantity") {
+            return false;
+        }
+
+        if !has_between_predicate(&stmt.where_clause, "l_discount") {
+            return false;
+        }
+
+        true
+    }
+
+    fn description(&self) -> &str {
+        "TPC-H Q6 Pattern Matcher"
+    }
+}
+
 /// Attempt to create a TPC-H monomorphic plan for a query
 ///
 /// Returns None if the query doesn't match any known TPC-H pattern.
 pub fn try_create_tpch_plan(
-    query: &str,
-    _schema: &CombinedSchema,
+    stmt: &SelectStmt,
+    schema: &CombinedSchema,
 ) -> Option<Box<dyn MonomorphicPlan>> {
-    // Normalize query for matching (remove whitespace, lowercase)
-    let normalized = query
-        .to_lowercase()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
-
-    // Check for TPC-H Q6 pattern
-    // Key indicators:
-    // - SUM(l_extendedprice * l_discount)
-    // - FROM lineitem
-    // - l_shipdate filters
-    // - l_discount BETWEEN
-    // - l_quantity filter
-    if normalized.contains("sum(l_extendedprice*l_discount)")
-        || normalized.contains("sum(l_extendedprice * l_discount)")
-    {
-        if normalized.contains("from lineitem")
-            && normalized.contains("l_shipdate")
-            && normalized.contains("l_discount")
-            && normalized.contains("between")
-            && normalized.contains("l_quantity")
-        {
-            return Some(Box::new(TpchQ6Plan::new()));
-        }
+    // Try TPC-H Q6 pattern
+    let q6_matcher = TpchQ6PatternMatcher;
+    if q6_matcher.matches(stmt, schema) {
+        return Some(Box::new(TpchQ6Plan::new()));
     }
 
     // Future: Add more TPC-H query patterns here
@@ -159,6 +208,16 @@ pub fn try_create_tpch_plan(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vibesql_parser::Parser;
+
+    /// Helper function to parse a SELECT query string into a SelectStmt
+    fn parse_select_query(query: &str) -> SelectStmt {
+        let stmt = Parser::parse_sql(query).expect("Failed to parse SQL");
+        match stmt {
+            vibesql_ast::Statement::Select(select_stmt) => *select_stmt,
+            _ => panic!("Expected SELECT statement"),
+        }
+    }
 
     #[test]
     fn test_q6_pattern_matching() {
@@ -177,9 +236,63 @@ mod tests {
                 AND l_quantity < 24
         "#;
 
-        let plan = try_create_tpch_plan(q6_query, &schema);
+        let stmt = parse_select_query(q6_query);
+        let plan = try_create_tpch_plan(&stmt, &schema);
         assert!(plan.is_some(), "Q6 pattern should be recognized");
-        assert_eq!(plan.unwrap().description(), "TPC-H Q6 (Forecasting Revenue Change) - Monomorphic");
+        assert_eq!(
+            plan.unwrap().description(),
+            "TPC-H Q6 (Forecasting Revenue Change) - Monomorphic"
+        );
+    }
+
+    #[test]
+    fn test_q6_pattern_different_where_order() {
+        // Create an empty schema for pattern matching tests
+        let empty_table = vibesql_catalog::TableSchema::new("test".to_string(), vec![]);
+        let schema = CombinedSchema::from_table("test".to_string(), empty_table);
+
+        // Q6 with different WHERE clause ordering - should still match
+        let q6_query_reordered = r#"
+            SELECT SUM(l_extendedprice * l_discount) as revenue
+            FROM lineitem
+            WHERE
+                l_discount BETWEEN 0.05 AND 0.07
+                AND l_quantity < 24
+                AND l_shipdate >= '1994-01-01'
+                AND l_shipdate < '1995-01-01'
+        "#;
+
+        let stmt = parse_select_query(q6_query_reordered);
+        let plan = try_create_tpch_plan(&stmt, &schema);
+        assert!(
+            plan.is_some(),
+            "Q6 pattern should be recognized regardless of WHERE clause order"
+        );
+    }
+
+    #[test]
+    fn test_q6_pattern_multiply_reversed() {
+        // Create an empty schema for pattern matching tests
+        let empty_table = vibesql_catalog::TableSchema::new("test".to_string(), vec![]);
+        let schema = CombinedSchema::from_table("test".to_string(), empty_table);
+
+        // Q6 with reversed multiplication order - should still match
+        let q6_query_reversed = r#"
+            SELECT SUM(l_discount * l_extendedprice) as revenue
+            FROM lineitem
+            WHERE
+                l_shipdate >= '1994-01-01'
+                AND l_shipdate < '1995-01-01'
+                AND l_discount BETWEEN 0.05 AND 0.07
+                AND l_quantity < 24
+        "#;
+
+        let stmt = parse_select_query(q6_query_reversed);
+        let plan = try_create_tpch_plan(&stmt, &schema);
+        assert!(
+            plan.is_some(),
+            "Q6 pattern should be recognized regardless of multiplication operand order"
+        );
     }
 
     #[test]
@@ -191,7 +304,8 @@ mod tests {
         // Should not match Q6
         let other_query = "SELECT * FROM orders WHERE o_orderdate > '2020-01-01'";
 
-        let plan = try_create_tpch_plan(other_query, &schema);
+        let stmt = parse_select_query(other_query);
+        let plan = try_create_tpch_plan(&stmt, &schema);
         assert!(plan.is_none(), "Non-Q6 query should not match");
     }
 }
