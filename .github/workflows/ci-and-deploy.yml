@@ -115,7 +115,7 @@ jobs:
               vibesql = f\"{dbs.get('vibesql', 0)*1000:.2f}ms\" if 'vibesql' in dbs else 'N/A'
               sqlite = f\"{dbs.get('sqlite', 0)*1000:.2f}ms\" if 'sqlite' in dbs else 'N/A'
               duckdb = f\"{dbs.get('duckdb', 0)*1000:.2f}ms\" if 'duckdb' in dbs else 'N/A'
-              print(f'| {query.replace('tpch_', '').replace('_', ' ').title()} | {vibesql} | {sqlite} | {duckdb} |')
+              print(f\"| {query.replace('tpch_', '').replace('_', ' ').title()} | {vibesql} | {sqlite} | {duckdb} |\")
           " >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
