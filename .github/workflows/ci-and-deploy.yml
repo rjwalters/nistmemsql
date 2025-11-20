@@ -54,7 +54,7 @@ jobs:
   # This job is allowed to fail until we implement faster micro-benchmarks
   benchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     needs: test
     continue-on-error: true
     steps:
