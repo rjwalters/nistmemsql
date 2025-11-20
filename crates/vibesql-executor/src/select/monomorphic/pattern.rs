@@ -26,6 +26,7 @@ pub trait QueryPattern {
     fn matches(&self, stmt: &SelectStmt, schema: &CombinedSchema) -> bool;
 
     /// Get a description of this pattern for debugging
+    #[allow(dead_code)]
     fn description(&self) -> &str;
 }
 

@@ -31,13 +31,14 @@
 //! - Compute aggregates (SUM, COUNT, AVG, MIN, MAX)
 //! - Don't use window functions or complex subqueries
 
+// Experimental module - allow dead code warnings for future optimization work
+#![allow(dead_code)]
+
 mod scan;
 mod filter;
 mod aggregate;
 
-pub use scan::ColumnarScan;
-pub use filter::{apply_columnar_filter, extract_column_predicates, ColumnPredicate};
-pub use aggregate::compute_columnar_aggregate;
+pub use filter::{apply_columnar_filter, extract_column_predicates};
 
 use crate::errors::ExecutorError;
 use vibesql_storage::Row;
@@ -47,7 +48,7 @@ use vibesql_storage::Row;
 /// This is the entry point for columnar execution. It takes a slice of rows
 /// and processes them column-by-column to compute the final result.
 pub fn execute_columnar(
-    rows: &[Row],
+    _rows: &[Row],
     _filter: Option<&vibesql_ast::Expression>,
     _aggregates: &[vibesql_ast::Expression],
 ) -> Result<Vec<Row>, ExecutorError> {

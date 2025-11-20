@@ -218,6 +218,7 @@ impl<'a> SelectExecutor<'a> {
 
     /// Get access to the query arena for allocations
     /// The arena is automatically reset between queries
+    #[allow(dead_code)]
     pub(crate) fn arena(&self) -> &RefCell<QueryArena> {
         &self.arena
     }
