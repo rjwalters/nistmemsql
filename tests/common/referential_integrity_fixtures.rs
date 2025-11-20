@@ -9,7 +9,7 @@
 #![allow(dead_code)]
 
 use vibesql_catalog::{ColumnSchema, ForeignKeyConstraint, ReferentialAction, TableSchema};
-use vibesql_executor::DeleteExecutor;
+use vibesql_executor::{DeleteExecutor, UpdateExecutor};
 use vibesql_parser::Parser;
 use vibesql_storage::{Database, Row};
 use vibesql_types::{DataType, SqlValue};
@@ -235,6 +235,17 @@ pub fn execute_delete(db: &mut Database, sql: &str) -> Result<usize, String> {
     }
 }
 
+/// Execute an UPDATE statement and return the number of rows updated (or error)
+pub fn execute_update(db: &mut Database, sql: &str) -> Result<usize, String> {
+    let stmt = Parser::parse_sql(sql).map_err(|e| format!("Parse error: {:?}", e))?;
+
+    match stmt {
+        vibesql_ast::Statement::Update(update_stmt) => UpdateExecutor::execute(&update_stmt, db)
+            .map_err(|e| format!("Execution error: {:?}", e)),
+        other => Err(format!("Expected UPDATE statement, got {:?}", other)),
+    }
+}
+
 /// Assert that a DELETE operation failed with a foreign key constraint violation
 pub fn assert_fk_violation(result: Result<usize, String>, expected_error_contains: &str) {
     assert!(result.is_err(), "Expected FK constraint violation, but DELETE succeeded");
@@ -263,5 +274,17 @@ pub fn assert_successful_delete(result: Result<usize, String>, expected_count: u
             expected_count, count
         ),
         Err(e) => panic!("DELETE should have succeeded but failed with: {}", e),
+    }
+}
+
+/// Assert that an UPDATE operation succeeded and updated the expected number of rows
+pub fn assert_successful_update(result: Result<usize, String>, expected_count: usize) {
+    match result {
+        Ok(count) => assert_eq!(
+            count, expected_count,
+            "Expected to update {} rows, updated {}",
+            expected_count, count
+        ),
+        Err(e) => panic!("UPDATE should have succeeded but failed with: {}", e),
     }
 }
