@@ -173,4 +173,18 @@ mod tests {
             SqlValue::Boolean(false)
         );
     }
+
+    #[test]
+    fn test_real_greater_than_bigint() {
+        // Real(846.0) > Bigint(221) = true
+        assert_eq!(
+            greater_than(&SqlValue::Real(846.0), &SqlValue::Bigint(221)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // Real(100.0) > Bigint(221) = false
+        assert_eq!(
+            greater_than(&SqlValue::Real(100.0), &SqlValue::Bigint(221)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+    }
 }

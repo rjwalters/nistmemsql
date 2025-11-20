@@ -17,6 +17,11 @@ use crate::{
 impl SelectExecutor<'_> {
     /// Execute a SELECT statement
     pub fn execute(&self, stmt: &vibesql_ast::SelectStmt) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+        // Reset arena for fresh query execution (only at top level)
+        if self.subquery_depth == 0 {
+            self.reset_arena();
+        }
+
         // Check timeout before starting execution
         self.check_timeout()?;
 
@@ -228,28 +233,25 @@ impl SelectExecutor<'_> {
     ) -> Result<Option<Vec<vibesql_storage::Row>>, ExecutorError> {
         use crate::select::monomorphic::try_create_monomorphic_plan;
 
-        // Only try monomorphic path for simple single-table queries
-        // (no CTEs, no joins, no set operations)
+        // Only try monomorphic path for queries without CTEs or set operations
+        // Supports both single-table queries (Q6) and multi-table joins (Q3)
         if !cte_results.is_empty() || stmt.set_operation.is_some() {
             return Ok(None);
         }
 
-        // Check if we have a FROM clause with a single table
+        // Check if we have a FROM clause
         let from_clause = match &stmt.from {
             Some(from) => from,
             None => return Ok(None),
         };
 
-        // Get raw table rows for monomorphic execution first
-        // The plan handles filtering and aggregation internally
+        // Execute FROM clause (handles single tables, joins, etc.)
+        // For Q6: returns raw lineitem rows
+        // For Q3: returns joined rows (customer + orders + lineitem)
         let mut from_result = self.execute_from(from_clause, cte_results)?;
 
-        // Convert stmt to string for pattern matching
-        // TODO: Use AST-based pattern matching for more robust detection
-        let query_str = format!("{:?}", stmt);
-
-        // Try to create a monomorphic plan using the schema from FROM result
-        let plan = match try_create_monomorphic_plan(&query_str, &from_result.schema) {
+        // Try to create a monomorphic plan using AST-based pattern matching
+        let plan = match try_create_monomorphic_plan(stmt, &from_result.schema) {
             Some(p) => p,
             None => return Ok(None),
         };
