@@ -8,7 +8,12 @@ use vibesql_types::{Date, SqlValue};
 
 use crate::{errors::ExecutorError, schema::CombinedSchema};
 
+use super::pattern::{
+    contains_column_multiply, has_aggregate_function, has_between_predicate, has_no_joins,
+    is_single_table, where_references_column, QueryPattern,
+};
 use super::MonomorphicPlan;
+use vibesql_ast::SelectStmt;
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -111,6 +116,71 @@ impl MonomorphicPlan for TpchQ6Plan {
 
     fn description(&self) -> &str {
         "TPC-H Q6 (Forecasting Revenue Change) - Monomorphic"
+    }
+}
+
+/// Pattern matcher for TPC-H Q6
+///
+/// Matches queries with:
+/// - Single table FROM lineitem
+/// - SUM(l_extendedprice * l_discount) in SELECT
+/// - WHERE clause with l_shipdate, l_discount BETWEEN, and l_quantity predicates
+/// - No JOINs, GROUP BY, or HAVING
+pub struct TpchQ6PatternMatcher;
+
+impl QueryPattern for TpchQ6PatternMatcher {
+    fn matches(&self, stmt: &SelectStmt, _schema: &CombinedSchema) -> bool {
+        // Must be a single-table query on lineitem
+        if !is_single_table(&stmt.from, "lineitem") {
+            return false;
+        }
+
+        // Must have no joins
+        if !has_no_joins(&stmt.from) {
+            return false;
+        }
+
+        // Must have no GROUP BY or HAVING
+        if stmt.group_by.is_some() || stmt.having.is_some() {
+            return false;
+        }
+
+        // Must have SUM aggregate in SELECT
+        if !has_aggregate_function(&stmt.select_list, "SUM") {
+            return false;
+        }
+
+        // Check for multiplication of l_extendedprice and l_discount in SELECT
+        let has_price_discount_multiply = stmt.select_list.iter().any(|item| {
+            if let vibesql_ast::SelectItem::Expression { expr, .. } = item {
+                contains_column_multiply(expr, "l_extendedprice", "l_discount")
+            } else {
+                false
+            }
+        });
+
+        if !has_price_discount_multiply {
+            return false;
+        }
+
+        // Check WHERE clause for required predicates
+        if !where_references_column(&stmt.where_clause, "l_shipdate") {
+            return false;
+        }
+
+        if !where_references_column(&stmt.where_clause, "l_quantity") {
+            return false;
+        }
+
+        if !has_between_predicate(&stmt.where_clause, "l_discount") {
+            return false;
+        }
+
+        true
+    }
+
+    fn description(&self) -> &str {
+        "TPC-H Q6 Pattern Matcher"
     }
 }
 
@@ -296,53 +366,97 @@ impl MonomorphicPlan for TpchQ1Plan {
     }
 }
 
+/// Pattern matcher for TPC-H Q1
+///
+/// Matches queries with:
+/// - Single table FROM lineitem
+/// - GROUP BY l_returnflag, l_linestatus
+/// - Multiple aggregates (SUM, AVG, COUNT)
+/// - WHERE clause with l_shipdate predicate
+pub struct TpchQ1PatternMatcher;
+
+impl QueryPattern for TpchQ1PatternMatcher {
+    fn matches(&self, stmt: &SelectStmt, _schema: &CombinedSchema) -> bool {
+        // Must be a single-table query on lineitem
+        if !is_single_table(&stmt.from, "lineitem") {
+            return false;
+        }
+
+        // Must have no joins
+        if !has_no_joins(&stmt.from) {
+            return false;
+        }
+
+        // Must have GROUP BY with l_returnflag and l_linestatus
+        if let Some(ref group_by) = stmt.group_by {
+            let has_returnflag = group_by.iter().any(|expr| {
+                if let vibesql_ast::Expression::ColumnRef { column, .. } = expr {
+                    column.eq_ignore_ascii_case("l_returnflag")
+                } else {
+                    false
+                }
+            });
+
+            let has_linestatus = group_by.iter().any(|expr| {
+                if let vibesql_ast::Expression::ColumnRef { column, .. } = expr {
+                    column.eq_ignore_ascii_case("l_linestatus")
+                } else {
+                    false
+                }
+            });
+
+            if !has_returnflag || !has_linestatus {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        // Must have SUM aggregate
+        if !has_aggregate_function(&stmt.select_list, "SUM") {
+            return false;
+        }
+
+        // Must have AVG aggregate
+        if !has_aggregate_function(&stmt.select_list, "AVG") {
+            return false;
+        }
+
+        // Must have COUNT aggregate
+        if !has_aggregate_function(&stmt.select_list, "COUNT") {
+            return false;
+        }
+
+        // Check WHERE clause references l_shipdate
+        if !where_references_column(&stmt.where_clause, "l_shipdate") {
+            return false;
+        }
+
+        true
+    }
+
+    fn description(&self) -> &str {
+        "TPC-H Q1 Pattern Matcher"
+    }
+}
+
 /// Attempt to create a TPC-H monomorphic plan for a query
 ///
 /// Returns None if the query doesn't match any known TPC-H pattern.
 pub fn try_create_tpch_plan(
-    query: &str,
-    _schema: &CombinedSchema,
+    stmt: &SelectStmt,
+    schema: &CombinedSchema,
 ) -> Option<Box<dyn MonomorphicPlan>> {
-    // Normalize query for matching (remove whitespace, lowercase)
-    let normalized = query
-        .to_lowercase()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
-
-    // Check for TPC-H Q1 pattern
-    // Key indicators:
-    // - GROUP BY l_returnflag, l_linestatus
-    // - Multiple aggregates (SUM, AVG, COUNT)
-    // - l_shipdate filter
-    if normalized.contains("group by l_returnflag")
-        && normalized.contains("l_linestatus")
-        && normalized.contains("from lineitem")
-        && normalized.contains("l_shipdate")
-        && normalized.contains("sum(l_quantity)")
-        && normalized.contains("avg(")
-    {
+    // Try TPC-H Q1 pattern
+    let q1_matcher = TpchQ1PatternMatcher;
+    if q1_matcher.matches(stmt, schema) {
         return Some(Box::new(TpchQ1Plan::new()));
     }
 
-    // Check for TPC-H Q6 pattern
-    // Key indicators:
-    // - SUM(l_extendedprice * l_discount)
-    // - FROM lineitem
-    // - l_shipdate filters
-    // - l_discount BETWEEN
-    // - l_quantity filter
-    if normalized.contains("sum(l_extendedprice*l_discount)")
-        || normalized.contains("sum(l_extendedprice * l_discount)")
-    {
-        if normalized.contains("from lineitem")
-            && normalized.contains("l_shipdate")
-            && normalized.contains("l_discount")
-            && normalized.contains("between")
-            && normalized.contains("l_quantity")
-        {
-            return Some(Box::new(TpchQ6Plan::new()));
-        }
+    // Try TPC-H Q6 pattern
+    let q6_matcher = TpchQ6PatternMatcher;
+    if q6_matcher.matches(stmt, schema) {
+        return Some(Box::new(TpchQ6Plan::new()));
     }
 
     // Future: Add more TPC-H query patterns here
@@ -350,153 +464,22 @@ pub fn try_create_tpch_plan(
     // - Q5: Local Supplier Volume (multi-table join)
     // etc.
 
-    // Check for TPC-H Q3 pattern
-    // Key indicators:
-    // - 3-table join: customer, orders, lineitem
-    // - GROUP BY l_orderkey, o_orderdate, o_shippriority
-    // - SUM(l_extendedprice * (1 - l_discount))
-    if normalized.contains("from customer") && normalized.contains("orders") && normalized.contains("lineitem") {
-        if normalized.contains("sum(l_extendedprice*(1-l_discount))")
-            || normalized.contains("sum(l_extendedprice * (1 - l_discount))")
-        {
-            if normalized.contains("group by") && normalized.contains("l_orderkey") {
-                return Some(Box::new(TpchQ3Plan::new()));
-            }
-        }
-    }
-
     None
-}
-
-/// Specialized plan for TPC-H Q3 (Shipping Priority)
-///
-/// Query Pattern:
-/// ```sql
-/// SELECT
-///     l_orderkey,
-///     SUM(l_extendedprice * (1 - l_discount)) as revenue,
-///     o_orderdate,
-///     o_shippriority
-/// FROM customer, orders, lineitem
-/// WHERE c_mktsegment = 'BUILDING'
-///     AND c_custkey = o_custkey
-///     AND l_orderkey = o_orderkey
-///     AND o_orderdate < '1995-03-15'
-///     AND l_shipdate > '1995-03-15'
-/// GROUP BY l_orderkey, o_orderdate, o_shippriority
-/// ORDER BY revenue DESC, o_orderdate
-/// LIMIT 10
-/// ```
-///
-/// This plan performs monomorphic post-join aggregation on already-joined rows.
-/// The joins and filters are executed normally by the query engine, then this
-/// plan uses unchecked accessors for the GROUP BY aggregation phase.
-pub struct TpchQ3Plan {
-    // Column indices in the joined result (customer + orders + lineitem)
-    // Customer has 8 columns (0-7), Orders has 9 columns (8-16), Lineitem has 16 columns (17-32)
-    l_orderkey_idx: usize,      // Column 17, type: INTEGER
-    l_extendedprice_idx: usize, // Column 22, type: DECIMAL/Numeric
-    l_discount_idx: usize,      // Column 23, type: DECIMAL/Numeric
-    o_orderdate_idx: usize,     // Column 12, type: DATE
-    o_shippriority_idx: usize,  // Column 15, type: INTEGER
-}
-
-impl TpchQ3Plan {
-    /// Create a new TPC-H Q3 plan with default column indices
-    pub fn new() -> Self {
-        Self {
-            l_orderkey_idx: 17,
-            l_extendedprice_idx: 22,
-            l_discount_idx: 23,
-            o_orderdate_idx: 12,
-            o_shippriority_idx: 15,
-        }
-    }
-
-    /// Execute using type-specialized fast path
-    ///
-    /// # Safety
-    ///
-    /// This method uses unsafe code but is safe because:
-    /// 1. Column indices are validated against schema at plan creation
-    /// 2. Column types are guaranteed by TPC-H schema
-    /// 3. The input rows are already joined (customer + orders + lineitem)
-    #[inline(never)] // Don't inline to make profiling easier
-    unsafe fn execute_unsafe(&self, rows: &[Row]) -> Vec<(i64, Date, i64, f64)> {
-        use std::collections::HashMap;
-
-        // Group by (l_orderkey, o_orderdate, o_shippriority) and aggregate revenue
-        let mut groups: HashMap<(i64, Date, i64), f64> = HashMap::new();
-
-        for row in rows {
-            // Extract grouping keys using unchecked accessors
-            let orderkey = row.get_i64_unchecked(self.l_orderkey_idx);
-            let orderdate = row.get_date_unchecked(self.o_orderdate_idx);
-            let shippriority = row.get_i64_unchecked(self.o_shippriority_idx);
-
-            // Extract aggregation values
-            let extendedprice = row.get_f64_unchecked(self.l_extendedprice_idx);
-            let discount = row.get_f64_unchecked(self.l_discount_idx);
-
-            // Compute revenue for this row
-            let revenue = extendedprice * (1.0 - discount);
-
-            // Add to group
-            let key = (orderkey, orderdate, shippriority);
-            *groups.entry(key).or_insert(0.0) += revenue;
-        }
-
-        // Convert to vector and sort by revenue DESC, orderdate ASC
-        let mut result: Vec<(i64, Date, i64, f64)> = groups
-            .into_iter()
-            .map(|((orderkey, orderdate, shippriority), revenue)| {
-                (orderkey, orderdate, shippriority, revenue)
-            })
-            .collect();
-
-        result.sort_by(|a, b| {
-            // Sort by revenue DESC (b before a), then orderdate ASC (a before b)
-            b.3.partial_cmp(&a.3)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| a.1.cmp(&b.1))
-        });
-
-        // Limit to 10 results
-        result.truncate(10);
-
-        result
-    }
-}
-
-impl MonomorphicPlan for TpchQ3Plan {
-    fn execute(&self, rows: &[Row]) -> Result<Vec<Row>, ExecutorError> {
-        // Execute the query using unsafe fast path
-        let results = unsafe { self.execute_unsafe(rows) };
-
-        // Convert to Row format: (l_orderkey, revenue, o_orderdate, o_shippriority)
-        let output_rows = results
-            .into_iter()
-            .map(|(orderkey, orderdate, shippriority, revenue)| Row {
-                values: vec![
-                    SqlValue::Integer(orderkey),
-                    SqlValue::Double(revenue),
-                    SqlValue::Date(orderdate),
-                    SqlValue::Integer(shippriority),
-                ],
-            })
-            .collect();
-
-        Ok(output_rows)
-    }
-
-    fn description(&self) -> &str {
-        "TPC-H Q3 (Shipping Priority) - Monomorphic"
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vibesql_parser::Parser;
+
+    /// Helper function to parse a SELECT query string into a SelectStmt
+    fn parse_select_query(query: &str) -> SelectStmt {
+        let stmt = Parser::parse_sql(query).expect("Failed to parse SQL");
+        match stmt {
+            vibesql_ast::Statement::Select(select_stmt) => *select_stmt,
+            _ => panic!("Expected SELECT statement"),
+        }
+    }
 
     #[test]
     fn test_q1_pattern_matching() {
@@ -523,7 +506,8 @@ mod tests {
             ORDER BY l_returnflag, l_linestatus
         "#;
 
-        let plan = try_create_tpch_plan(q1_query, &schema);
+        let stmt = parse_select_query(q1_query);
+        let plan = try_create_tpch_plan(&stmt, &schema);
         assert!(plan.is_some(), "Q1 pattern should be recognized");
         assert_eq!(
             plan.unwrap().description(),
@@ -548,11 +532,62 @@ mod tests {
                 AND l_quantity < 24
         "#;
 
-        let plan = try_create_tpch_plan(q6_query, &schema);
+        let stmt = parse_select_query(q6_query);
+        let plan = try_create_tpch_plan(&stmt, &schema);
         assert!(plan.is_some(), "Q6 pattern should be recognized");
         assert_eq!(
             plan.unwrap().description(),
             "TPC-H Q6 (Forecasting Revenue Change) - Monomorphic"
+        );
+    }
+
+    #[test]
+    fn test_q6_pattern_different_where_order() {
+        // Create an empty schema for pattern matching tests
+        let empty_table = vibesql_catalog::TableSchema::new("test".to_string(), vec![]);
+        let schema = CombinedSchema::from_table("test".to_string(), empty_table);
+
+        // Q6 with different WHERE clause ordering - should still match
+        let q6_query_reordered = r#"
+            SELECT SUM(l_extendedprice * l_discount) as revenue
+            FROM lineitem
+            WHERE
+                l_discount BETWEEN 0.05 AND 0.07
+                AND l_quantity < 24
+                AND l_shipdate >= '1994-01-01'
+                AND l_shipdate < '1995-01-01'
+        "#;
+
+        let stmt = parse_select_query(q6_query_reordered);
+        let plan = try_create_tpch_plan(&stmt, &schema);
+        assert!(
+            plan.is_some(),
+            "Q6 pattern should be recognized regardless of WHERE clause order"
+        );
+    }
+
+    #[test]
+    fn test_q6_pattern_multiply_reversed() {
+        // Create an empty schema for pattern matching tests
+        let empty_table = vibesql_catalog::TableSchema::new("test".to_string(), vec![]);
+        let schema = CombinedSchema::from_table("test".to_string(), empty_table);
+
+        // Q6 with reversed multiplication order - should still match
+        let q6_query_reversed = r#"
+            SELECT SUM(l_discount * l_extendedprice) as revenue
+            FROM lineitem
+            WHERE
+                l_shipdate >= '1994-01-01'
+                AND l_shipdate < '1995-01-01'
+                AND l_discount BETWEEN 0.05 AND 0.07
+                AND l_quantity < 24
+        "#;
+
+        let stmt = parse_select_query(q6_query_reversed);
+        let plan = try_create_tpch_plan(&stmt, &schema);
+        assert!(
+            plan.is_some(),
+            "Q6 pattern should be recognized regardless of multiplication operand order"
         );
     }
 
@@ -565,49 +600,8 @@ mod tests {
         // Should not match any TPC-H pattern
         let other_query = "SELECT * FROM orders WHERE o_orderdate > '2020-01-01'";
 
-        let plan = try_create_tpch_plan(other_query, &schema);
+        let stmt = parse_select_query(other_query);
+        let plan = try_create_tpch_plan(&stmt, &schema);
         assert!(plan.is_none(), "Non-TPC-H query should not match");
-    }
-
-    #[test]
-    fn test_q3_pattern_matching() {
-        // Create an empty schema for pattern matching tests
-        let empty_table = vibesql_catalog::TableSchema::new("test".to_string(), vec![]);
-        let schema = CombinedSchema::from_table("test".to_string(), empty_table);
-
-        // Should match Q3
-        let q3_query = r#"
-            SELECT
-                l_orderkey,
-                SUM(l_extendedprice * (1 - l_discount)) as revenue,
-                o_orderdate,
-                o_shippriority
-            FROM customer, orders, lineitem
-            WHERE c_mktsegment = 'BUILDING'
-                AND c_custkey = o_custkey
-                AND l_orderkey = o_orderkey
-                AND o_orderdate < '1995-03-15'
-                AND l_shipdate > '1995-03-15'
-            GROUP BY l_orderkey, o_orderdate, o_shippriority
-            ORDER BY revenue DESC, o_orderdate
-            LIMIT 10
-        "#;
-
-        let plan = try_create_tpch_plan(q3_query, &schema);
-        assert!(plan.is_some(), "Q3 pattern should be recognized");
-        assert_eq!(plan.unwrap().description(), "TPC-H Q3 (Shipping Priority) - Monomorphic");
-    }
-
-    #[test]
-    fn test_non_q3_query() {
-        // Create an empty schema for pattern matching tests
-        let empty_table = vibesql_catalog::TableSchema::new("test".to_string(), vec![]);
-        let schema = CombinedSchema::from_table("test".to_string(), empty_table);
-
-        // Should not match Q3 - missing GROUP BY
-        let other_query = "SELECT * FROM customer, orders, lineitem WHERE c_custkey = o_custkey";
-
-        let plan = try_create_tpch_plan(other_query, &schema);
-        assert!(plan.is_none(), "Non-Q3 query should not match");
     }
 }
