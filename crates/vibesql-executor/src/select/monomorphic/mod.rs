@@ -32,6 +32,7 @@ use vibesql_storage::Row;
 
 use crate::{errors::ExecutorError, schema::CombinedSchema};
 
+pub mod generic;
 pub mod pattern;
 pub mod tpch;
 
@@ -58,19 +59,29 @@ pub trait MonomorphicPlan: Send + Sync {
 /// Attempts to create a monomorphic plan for a query pattern
 ///
 /// Returns None if no specialized plan is available for this query.
+///
+/// Priority order:
+/// 1. Generic patterns (work for any table with compatible structure)
+/// 2. TPC-H-specific patterns (for backward compatibility, will be deprecated)
 pub fn try_create_monomorphic_plan(
     stmt: &SelectStmt,
     schema: &CombinedSchema,
 ) -> Option<Box<dyn MonomorphicPlan>> {
-    // Try TPC-H patterns
+    // Try generic patterns first (preferred - work for any table)
+    if let Some(plan) = generic::GenericFilteredAggregationPlan::try_create(stmt, schema) {
+        return Some(Box::new(plan));
+    }
+
+    // Fall back to TPC-H-specific patterns for backward compatibility
+    // These will be deprecated once generic patterns are fully tested
     if let Some(plan) = tpch::try_create_tpch_plan(stmt, schema) {
         return Some(plan);
     }
 
-    // Future: Add more pattern matchers here
-    // - Simple aggregations
-    // - Equi-joins
-    // - Range scans
+    // Future: Add more generic pattern matchers here
+    // - Grouped aggregations (GROUP BY support)
+    // - Join patterns
+    // - Window functions
     // etc.
 
     None
