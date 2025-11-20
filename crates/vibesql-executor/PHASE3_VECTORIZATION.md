@@ -134,9 +134,24 @@ arrow-select = "53.0"
 
 ### Step 6: Tuning
 
-- [ ] Optimize batch size (512, 1024, 2048, 4096)
-- [ ] Profile memory usage
-- [ ] Measure SIMD utilization
+- [x] **Adaptive Batch Sizing** - Query-aware batch size selection
+  - `SCAN_BATCH_SIZE` (4096): Larger batches for pure scans → better SIMD utilization
+  - `JOIN_BATCH_SIZE` (512): Smaller batches for joins → less memory pressure
+  - `L1_CACHE_BATCH_SIZE` (1024): Cache-optimized for GROUP BY operations
+  - `QueryContext` enum to select appropriate batch size based on query type
+- [x] **Column Pruning** - Only convert referenced columns to columnar format
+  - `rows_to_record_batch_with_columns()` API with column selection
+  - Reduces conversion overhead proportional to pruning ratio
+  - Smaller RecordBatch footprint improves cache utilization
+  - Less memory allocation overhead
+- [x] **Predicate Fusion** - Short-circuit evaluation for AND/OR operations
+  - AND: Skip right-side evaluation if left mask is all-false
+  - OR: Skip right-side evaluation if left mask is all-true
+  - Reduces unnecessary SIMD operations for selective predicates
+  - Inline helper functions `is_all_false()` and `is_all_true()`
+- [ ] Profile memory usage with optimizations
+- [ ] Measure actual SIMD utilization improvement
+- [ ] Benchmark optimizations on TPC-H queries
 - [ ] Compare with SQLite and DuckDB
 
 ## Success Criteria
