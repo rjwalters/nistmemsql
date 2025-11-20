@@ -51,16 +51,16 @@ def run_tpch_benchmarks(quick: bool = False) -> Dict:
     # Build command
     cmd = [
         "cargo", "bench",
+        "--package", "vibesql-executor",
         "--bench", "tpch_benchmark",
         "--features", "benchmark-comparison",
-        "--",
-        "--output-format", "bencher",
     ]
 
     # For quick mode, only run a few representative queries
+    # Use regex to match q1, q3, q6 benchmarks (all databases)
     if quick:
-        # Q1: Simple aggregation, Q3: Joins, Q6: Filtering
-        cmd.extend(["q1", "q3", "q6"])
+        # Match: benchmark_q1_*, benchmark_q3_*, benchmark_q6_*
+        cmd.extend(["--", "tpch_q[136]"])
 
     # Run benchmarks
     result = subprocess.run(
@@ -77,53 +77,54 @@ def run_tpch_benchmarks(quick: bool = False) -> Dict:
         sys.exit(1)
 
     print("✅ Benchmarks completed")
-    return parse_criterion_output(result.stdout)
+    return parse_criterion_output(result.stderr)
 
 
 def parse_criterion_output(output: str) -> Dict:
-    """Parse Criterion's bencher format output."""
+    """Parse Criterion's output format."""
+    import re
     benchmarks = []
 
-    for line in output.split('\n'):
-        # Criterion bencher format: "test <name> ... bench: <time> ns/iter (+/- <stddev>)"
-        if 'bench:' in line:
-            parts = line.split()
-            if len(parts) < 5:
-                continue
+    # Criterion output format: "<name> time: [<lower> <estimate> <upper>] <unit>"
+    # Example: "tpch_q1_vibesql  time:   [1.2345 ms 1.2567 ms 1.2789 ms]"
+    time_pattern = re.compile(r'^\s*(.+?)\s+time:\s+\[\s*[\d.]+\s+(\w+)\s+([\d.]+)\s+(\w+)\s+[\d.]+\s+(\w+)\s*\]', re.MULTILINE)
 
-            # Extract name (between "test" and "...")
-            try:
-                test_idx = parts.index('test')
-                dots_idx = parts.index('...')
-                name = ' '.join(parts[test_idx + 1:dots_idx])
+    for match in time_pattern.finditer(output):
+        name = match.group(1).strip()
+        # Group 2 is the unit for lower bound (ignored)
+        estimate = float(match.group(3))
+        unit = match.group(4)
+        # Group 5 is the unit for upper bound (should be same as unit)
 
-                # Extract time (after "bench:")
-                bench_idx = parts.index('bench:')
-                time_ns = float(parts[bench_idx + 1].replace(',', ''))
-                time_s = time_ns / 1_000_000_000  # Convert to seconds
+        # Convert to seconds
+        if unit == 'ps':
+            time_s = estimate / 1_000_000_000_000
+        elif unit == 'ns':
+            time_s = estimate / 1_000_000_000
+        elif unit == 'us' or unit == 'µs':
+            time_s = estimate / 1_000_000
+        elif unit == 'ms':
+            time_s = estimate / 1_000
+        elif unit == 's':
+            time_s = estimate
+        else:
+            print(f"⚠️  Warning: Unknown time unit '{unit}' for benchmark '{name}'")
+            time_s = estimate  # Assume seconds
 
-                # Extract stddev if available
-                stddev_s = 0.0
-                if '(+/-' in line:
-                    paren_idx = line.index('(+/-')
-                    stddev_part = line[paren_idx + 5:].split(')')[0].strip()
-                    stddev_ns = float(stddev_part.replace(',', ''))
-                    stddev_s = stddev_ns / 1_000_000_000
+        benchmarks.append({
+            "name": name,
+            "stats": {
+                "mean": time_s,
+                "stddev": 0.0,  # Criterion output doesn't easily give us stddev in this format
+                "min": time_s * 0.95,  # Approximation
+                "max": time_s * 1.05,  # Approximation
+                "rounds": 100  # Criterion default sample size
+            }
+        })
 
-                benchmarks.append({
-                    "name": name,
-                    "stats": {
-                        "mean": time_s,
-                        "stddev": stddev_s,
-                        "min": time_s - stddev_s,  # Approximation
-                        "max": time_s + stddev_s,  # Approximation
-                        "rounds": 5  # Criterion default
-                    }
-                })
-            except (ValueError, IndexError) as e:
-                print(f"⚠️  Warning: Failed to parse line: {line}")
-                print(f"   Error: {e}")
-                continue
+    if not benchmarks:
+        print("⚠️  Warning: No benchmarks found in output. Output sample:")
+        print(output[:500])
 
     return {
         "benchmarks": benchmarks,
