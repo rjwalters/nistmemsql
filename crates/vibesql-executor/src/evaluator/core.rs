@@ -235,6 +235,81 @@ impl<'a> ExpressionEvaluator<'a> {
         super::operators::OperatorRegistry::eval_binary_op(left, op, right, sql_mode)
     }
 
+    /// Static version of eval_between for constant folding during optimization
+    ///
+    /// Evaluates BETWEEN predicate: expr BETWEEN low AND high
+    /// Handles SYMMETRIC and NOT BETWEEN variants with proper NULL semantics.
+    pub(crate) fn eval_between_static(
+        expr_val: &vibesql_types::SqlValue,
+        low_val: &vibesql_types::SqlValue,
+        high_val: &vibesql_types::SqlValue,
+        negated: bool,
+        symmetric: bool,
+        sql_mode: vibesql_types::SqlMode,
+    ) -> Result<vibesql_types::SqlValue, ExecutorError> {
+        let mut low = low_val.clone();
+        let mut high = high_val.clone();
+
+        // Check if bounds are reversed (low > high)
+        let gt_result = Self::eval_binary_op_static(
+            &low,
+            &vibesql_ast::BinaryOperator::GreaterThan,
+            &high,
+            sql_mode.clone(),
+        )?;
+
+        if let vibesql_types::SqlValue::Boolean(true) = gt_result {
+            if symmetric {
+                // For SYMMETRIC: swap bounds to normalize range
+                std::mem::swap(&mut low, &mut high);
+            } else {
+                // For standard BETWEEN with reversed bounds: return empty set
+                // However, if expr is NULL, we must preserve NULL semantics
+                if matches!(expr_val, vibesql_types::SqlValue::Null) {
+                    return Ok(vibesql_types::SqlValue::Null);
+                }
+                return Ok(vibesql_types::SqlValue::Boolean(negated));
+            }
+        }
+
+        // Check if expr >= low
+        let ge_low = Self::eval_binary_op_static(
+            expr_val,
+            &vibesql_ast::BinaryOperator::GreaterThanOrEqual,
+            &low,
+            sql_mode.clone(),
+        )?;
+
+        // Check if expr <= high
+        let le_high = Self::eval_binary_op_static(
+            expr_val,
+            &vibesql_ast::BinaryOperator::LessThanOrEqual,
+            &high,
+            sql_mode.clone(),
+        )?;
+
+        // Combine with AND/OR depending on negated
+        if negated {
+            // NOT BETWEEN: expr < low OR expr > high
+            let lt_low = Self::eval_binary_op_static(
+                expr_val,
+                &vibesql_ast::BinaryOperator::LessThan,
+                &low,
+                sql_mode.clone(),
+            )?;
+            let gt_high = Self::eval_binary_op_static(
+                expr_val,
+                &vibesql_ast::BinaryOperator::GreaterThan,
+                &high,
+                sql_mode.clone(),
+            )?;
+            Self::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high, sql_mode)
+        } else {
+            // BETWEEN: expr >= low AND expr <= high
+            Self::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high, sql_mode)
+        }
+    }
+
     /// Clear the CSE cache
     /// Should be called before evaluating expressions for a new row in multi-row contexts
     pub fn clear_cse_cache(&self) {

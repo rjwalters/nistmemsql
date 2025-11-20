@@ -178,8 +178,25 @@ pub fn optimize_expression(
             let low_opt = optimize_expression(low, evaluator)?;
             let high_opt = optimize_expression(high, evaluator)?;
 
-            // For now, don't fold BETWEEN - just optimize sub-expressions
-            // TODO: Add constant folding once we understand why it's not working in SQLLogicTest
+            // If all operands are literals, evaluate at compile time
+            if let (Expression::Literal(expr_val), Expression::Literal(low_val), Expression::Literal(high_val)) =
+                (&expr_opt, &low_opt, &high_opt)
+            {
+                match ExpressionEvaluator::eval_between_static(
+                    expr_val,
+                    low_val,
+                    high_val,
+                    *negated,
+                    *symmetric,
+                    vibesql_types::SqlMode::default(),
+                ) {
+                    Ok(result) => return Ok(Expression::Literal(result)),
+                    Err(_) => {
+                        // If evaluation fails, keep the BETWEEN expression to fail at runtime with proper error
+                    }
+                }
+            }
+
             Ok(Expression::Between {
                 expr: Box::new(expr_opt),
                 low: Box::new(low_opt),
@@ -374,6 +391,127 @@ mod tests {
         match optimized {
             Expression::Literal(SqlValue::Null) => {} // Good, folded to NULL
             _ => panic!("Expected folded NULL literal, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_between_constant_folding_true() {
+        // 5 BETWEEN 1 AND 10 should fold to TRUE
+        let expr = Expression::Between {
+            expr: Box::new(Expression::Literal(SqlValue::Integer(5))),
+            low: Box::new(Expression::Literal(SqlValue::Integer(1))),
+            high: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            negated: false,
+            symmetric: false,
+        };
+
+        let db = vibesql_storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::Literal(SqlValue::Boolean(true)) => {} // Good, folded to TRUE
+            _ => panic!("Expected folded TRUE literal, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_between_constant_folding_false() {
+        // 15 BETWEEN 1 AND 10 should fold to FALSE
+        let expr = Expression::Between {
+            expr: Box::new(Expression::Literal(SqlValue::Integer(15))),
+            low: Box::new(Expression::Literal(SqlValue::Integer(1))),
+            high: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            negated: false,
+            symmetric: false,
+        };
+
+        let db = vibesql_storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::Literal(SqlValue::Boolean(false)) => {} // Good, folded to FALSE
+            _ => panic!("Expected folded FALSE literal, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_between_with_column_not_folded() {
+        // x BETWEEN 1 AND 10 should not be folded
+        let expr = Expression::Between {
+            expr: Box::new(Expression::ColumnRef { table: None, column: "x".to_string() }),
+            low: Box::new(Expression::Literal(SqlValue::Integer(1))),
+            high: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            negated: false,
+            symmetric: false,
+        };
+
+        let db = vibesql_storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        // Should remain as BETWEEN expression
+        match optimized {
+            Expression::Between { .. } => {} // Good, not folded
+            _ => panic!("Expected BETWEEN to be preserved for non-literal, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_not_between_constant_folding() {
+        // 15 NOT BETWEEN 1 AND 10 should fold to TRUE
+        let expr = Expression::Between {
+            expr: Box::new(Expression::Literal(SqlValue::Integer(15))),
+            low: Box::new(Expression::Literal(SqlValue::Integer(1))),
+            high: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            negated: true,
+            symmetric: false,
+        };
+
+        let db = vibesql_storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::Literal(SqlValue::Boolean(true)) => {} // Good, folded to TRUE
+            _ => panic!("Expected folded TRUE literal, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_between_symmetric_constant_folding() {
+        // 5 BETWEEN SYMMETRIC 10 AND 1 should fold to TRUE (bounds are swapped)
+        let expr = Expression::Between {
+            expr: Box::new(Expression::Literal(SqlValue::Integer(5))),
+            low: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            high: Box::new(Expression::Literal(SqlValue::Integer(1))),
+            negated: false,
+            symmetric: true,
+        };
+
+        let db = vibesql_storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::Literal(SqlValue::Boolean(true)) => {} // Good, folded to TRUE
+            _ => panic!("Expected folded TRUE literal, got {:?}", optimized),
         }
     }
 }
