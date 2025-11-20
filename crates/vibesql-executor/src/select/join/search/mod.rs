@@ -98,6 +98,8 @@ pub(super) struct SearchState {
     pub cost_so_far: JoinCost,
     /// Ordering of tables
     pub order: Vec<String>,
+    /// Current intermediate result size (rows after all joins so far)
+    pub current_cardinality: usize,
 }
 
 /// Context for join order search operations
