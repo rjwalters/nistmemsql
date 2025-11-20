@@ -1,11 +1,11 @@
 use std::{
     cmp::Ordering,
-    collections::{HashMap, HashSet},
+    collections::HashSet,
 };
 
 /// Accumulator for aggregate functions
 #[derive(Debug, Clone)]
-pub(super) enum AggregateAccumulator {
+pub enum AggregateAccumulator {
     Count { count: i64, distinct: bool, seen: Option<HashSet<vibesql_types::SqlValue>> },
     Sum { sum: vibesql_types::SqlValue, count: i64, distinct: bool, seen: Option<HashSet<vibesql_types::SqlValue>> },
     Avg { sum: vibesql_types::SqlValue, count: i64, distinct: bool, seen: Option<HashSet<vibesql_types::SqlValue>> },
@@ -14,7 +14,7 @@ pub(super) enum AggregateAccumulator {
 }
 
 impl AggregateAccumulator {
-    pub(super) fn new(
+    pub fn new(
         function_name: &str,
         distinct: bool,
     ) -> Result<Self, crate::errors::ExecutorError> {
@@ -39,7 +39,7 @@ impl AggregateAccumulator {
         }
     }
 
-    pub(super) fn accumulate(&mut self, value: &vibesql_types::SqlValue) {
+    pub fn accumulate(&mut self, value: &vibesql_types::SqlValue) {
         match self {
             // COUNT - counts non-NULL values
             AggregateAccumulator::Count { ref mut count, distinct, seen } => {
@@ -156,7 +156,7 @@ impl AggregateAccumulator {
         }
     }
 
-    pub(super) fn finalize(&self) -> vibesql_types::SqlValue {
+    pub fn finalize(&self) -> vibesql_types::SqlValue {
         match self {
             AggregateAccumulator::Count { count, .. } => vibesql_types::SqlValue::Integer(*count),
             AggregateAccumulator::Sum { sum, count, .. } => {
@@ -194,7 +194,7 @@ impl AggregateAccumulator {
     /// - MIN: Take minimum of minimums
     /// - MAX: Take maximum of maximums
     #[allow(dead_code)]
-    pub(super) fn combine(&mut self, other: Self) -> Result<(), crate::errors::ExecutorError> {
+    pub fn combine(&mut self, other: Self) -> Result<(), crate::errors::ExecutorError> {
         match (self, other) {
             // COUNT: Sum the counts
             (AggregateAccumulator::Count { count: c1, distinct: d1, seen: s1 },
@@ -435,7 +435,7 @@ fn divide_sql_value(value: &vibesql_types::SqlValue, count: i64) -> vibesql_type
 /// Uses the PartialOrd trait implementation with SQL-specific NULL handling:
 /// - NULL values sort last (NULLS LAST - SQL:1999 default for ASC)
 /// - Incomparable values (type mismatches, NaN) default to Equal for sort stability
-pub(super) fn compare_sql_values(a: &vibesql_types::SqlValue, b: &vibesql_types::SqlValue) -> Ordering {
+pub fn compare_sql_values(a: &vibesql_types::SqlValue, b: &vibesql_types::SqlValue) -> Ordering {
     match (a.is_null(), b.is_null()) {
         // Both NULL - equal
         (true, true) => Ordering::Equal,
@@ -450,77 +450,6 @@ pub(super) fn compare_sql_values(a: &vibesql_types::SqlValue, b: &vibesql_types:
             PartialOrd::partial_cmp(a, b).unwrap_or(Ordering::Equal)
         }
     }
-}
-
-/// Grouped rows: (group key values, rows in group)
-pub(super) type GroupedRows = Vec<(Vec<vibesql_types::SqlValue>, Vec<vibesql_storage::Row>)>;
-
-// NOTE: Parallel aggregation functions commented out for future implementation
-// The current evaluator architecture uses RefCell which is not Send, making it
-// incompatible with rayon's parallel iteration. To enable parallel aggregation,
-// we would need to:
-// 1. Refactor evaluator to be thread-safe (use Arc<Mutex> or thread-local evaluators)
-// 2. Or pre-evaluate all expressions sequentially, then parallelize only the accumulation
-// 3. Or use a different approach like the hash join (avoid evaluator in parallel sections)
-//
-// For now, the combine() method infrastructure is in place and tested, ready for
-// future parallelization when the evaluator architecture supports it.
-
-// /// Information about an aggregate function to compute
-// #[derive(Debug, Clone)]
-// pub(super) struct AggregateInfo {
-//     pub function_name: String,
-//     pub expr: vibesql_ast::Expression,
-//     pub distinct: bool,
-// }
-//
-// /// Grouped aggregates: (group key values, aggregate accumulators)
-// pub(super) type GroupedAggregates = Vec<(Vec<vibesql_types::SqlValue>, Vec<AggregateAccumulator>)>;
-
-/// Group rows by GROUP BY expressions (original implementation, kept for compatibility)
-///
-/// Optimized implementation using HashMap for O(1) group lookups instead of O(n) linear search.
-/// This significantly improves performance for queries with many groups.
-/// Timeout is checked every 1000 rows.
-pub(super) fn group_rows<'a>(
-    rows: &[vibesql_storage::Row],
-    group_by_exprs: &[vibesql_ast::Expression],
-    evaluator: &crate::evaluator::CombinedExpressionEvaluator,
-    executor: &crate::SelectExecutor<'a>,
-) -> Result<GroupedRows, crate::errors::ExecutorError> {
-    // Use HashMap for O(1) group lookups
-    // Pre-allocate with reasonable capacity to reduce rehashing
-    // Most GROUP BY queries have < 1000 groups; estimate 10% of rows as groups
-    let estimated_groups = (rows.len() / 10).max(16);
-    let mut groups_map: HashMap<Vec<vibesql_types::SqlValue>, Vec<vibesql_storage::Row>> =
-        HashMap::with_capacity(estimated_groups);
-    let mut rows_processed = 0;
-    const CHECK_INTERVAL: usize = 1000;
-
-    for row in rows {
-        // Check timeout every 1000 rows
-        rows_processed += 1;
-        if rows_processed % CHECK_INTERVAL == 0 {
-            executor.check_timeout()?;
-        }
-
-        // Clear CSE cache before evaluating each row to prevent column values
-        // from being incorrectly cached across different rows
-        evaluator.clear_cse_cache();
-
-        // Evaluate GROUP BY expressions to get the group key
-        let mut key = Vec::new();
-        for expr in group_by_exprs {
-            let value = evaluator.eval(expr, row)?;
-            key.push(value);
-        }
-
-        // Insert or update group using HashMap (O(1) lookup)
-        groups_map.entry(key).or_default().push(row.clone());
-    }
-
-    // Convert HashMap back to Vec for compatibility with existing code
-    Ok(groups_map.into_iter().collect())
 }
 
 #[cfg(test)]
