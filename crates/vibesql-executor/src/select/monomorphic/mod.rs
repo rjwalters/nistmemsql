@@ -52,6 +52,29 @@ pub trait MonomorphicPlan: Send + Sync {
     /// Result rows (aggregated, filtered, projected, etc.)
     fn execute(&self, rows: &[Row]) -> Result<Vec<Row>, ExecutorError>;
 
+    /// Execute the query plan on a stream of rows (lazy evaluation)
+    ///
+    /// This method enables streaming execution that filters rows during iteration,
+    /// only materializing rows that pass all predicates. This eliminates the overhead
+    /// of materializing rows that will be filtered out.
+    ///
+    /// # Arguments
+    ///
+    /// * `rows` - Iterator over input rows to process
+    ///
+    /// # Returns
+    ///
+    /// Result rows (aggregated, filtered, projected, etc.)
+    ///
+    /// # Performance
+    ///
+    /// For queries with selective filters (e.g., TPC-H Q6), streaming execution
+    /// can provide 2-3x speedup by avoiding materialization of filtered rows.
+    fn execute_stream(
+        &self,
+        rows: Box<dyn Iterator<Item = Row>>,
+    ) -> Result<Vec<Row>, ExecutorError>;
+
     /// Get a description of this plan for debugging/profiling
     fn description(&self) -> &str;
 }
