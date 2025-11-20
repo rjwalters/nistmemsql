@@ -67,7 +67,12 @@ pub fn try_create_monomorphic_plan(
     stmt: &SelectStmt,
     schema: &CombinedSchema,
 ) -> Option<Box<dyn MonomorphicPlan>> {
-    // Try generic patterns first (preferred - work for any table)
+    // Try generic GROUP BY patterns first
+    if let Some(plan) = generic::GenericGroupedAggregationPlan::try_create(stmt, schema) {
+        return Some(Box::new(plan));
+    }
+
+    // Try generic filtered aggregation (no GROUP BY)
     if let Some(plan) = generic::GenericFilteredAggregationPlan::try_create(stmt, schema) {
         return Some(Box::new(plan));
     }
@@ -77,12 +82,6 @@ pub fn try_create_monomorphic_plan(
     if let Some(plan) = tpch::try_create_tpch_plan(stmt, schema) {
         return Some(plan);
     }
-
-    // Future: Add more generic pattern matchers here
-    // - Grouped aggregations (GROUP BY support)
-    // - Join patterns
-    // - Window functions
-    // etc.
 
     None
 }
