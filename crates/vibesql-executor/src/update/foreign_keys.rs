@@ -102,7 +102,7 @@ impl ForeignKeyValidator {
 
         // Scan all tables in the database to find foreign keys that reference this table.
         for table_name in db.catalog.list_tables() {
-            let child_schema = db.catalog.get_table(&table_name).unwrap();
+            let child_schema = db.catalog.get_table(&table_name).unwrap().clone();
 
             // Skip tables without foreign keys (optimization)
             if child_schema.foreign_keys.is_empty() {
@@ -171,16 +171,46 @@ impl ForeignKeyValidator {
                             cascade_updates.push((table_name.clone(), updated_rows));
                         }
                         vibesql_catalog::ReferentialAction::SetDefault => {
-                            // Set child FK columns to their default values
-                            // TODO: Implement proper default value evaluation
-                            // For now, we set to NULL (similar to SET NULL)
+                            // Set child FK columns to their default values by evaluating expressions
+                            // First, collect default expressions (clone to avoid holding borrow)
+                            let default_exprs: Vec<Option<vibesql_ast::Expression>> = fk
+                                .column_indices
+                                .iter()
+                                .map(|&fk_col_idx| child_schema.columns[fk_col_idx].default_value.clone())
+                                .collect();
+
+                            // Evaluate default values for each FK column
+                            let mut default_values: Vec<vibesql_types::SqlValue> = Vec::new();
+                            for default_expr_opt in default_exprs {
+                                let default_value = if let Some(default_expr) = default_expr_opt {
+                                    // Evaluate the default expression
+                                    match default_expr {
+                                        vibesql_ast::Expression::NextValue { sequence_name } => {
+                                            // Get the next value from the sequence
+                                            let seq = db.catalog.get_sequence_mut(&sequence_name).map_err(|e| {
+                                                ExecutorError::UnsupportedExpression(format!("Sequence error: {:?}", e))
+                                            })?;
+                                            let next_val = seq.next_value().map_err(|e| {
+                                                ExecutorError::ConstraintViolation(format!("Sequence error: {}", e))
+                                            })?;
+                                            vibesql_types::SqlValue::Integer(next_val)
+                                        }
+                                        _ => crate::insert::defaults::evaluate_default_expression(&default_expr)?,
+                                    }
+                                } else {
+                                    // No default value defined, use NULL
+                                    vibesql_types::SqlValue::Null
+                                };
+                                default_values.push(default_value);
+                            }
+
+                            // Apply default values to matching rows
                             let updated_rows: Vec<(usize, vibesql_storage::Row)> = matching_rows
                                 .into_iter()
                                 .map(|(row_idx, mut child_row)| {
-                                    // Set FK columns to NULL
-                                    // TODO: Evaluate default_value expressions from column schema
-                                    for &fk_col_idx in &fk.column_indices {
-                                        child_row.values[fk_col_idx] = vibesql_types::SqlValue::Null;
+                                    // Set FK columns to their default values
+                                    for (i, &fk_col_idx) in fk.column_indices.iter().enumerate() {
+                                        child_row.values[fk_col_idx] = default_values[i].clone();
                                     }
                                     (row_idx, child_row)
                                 })

@@ -213,15 +213,29 @@ fn set_default(
     // Get child schema to access column defaults
     let child_schema = db.catalog.get_table(child_table_name).unwrap().clone();
 
-    // Get default values for FK columns
-    // Note: For SET DEFAULT, we use a simple default value of 0 for Integer columns
-    // In a real implementation, this would evaluate the default expression if present
+    // Get default values for FK columns by evaluating their default expressions
     let mut default_values: Vec<SqlValue> = Vec::new();
     for &fk_col_idx in &fk.column_indices {
-        let _column = &child_schema.columns[fk_col_idx];
-        // For simplicity, use 0 as the default value
-        // TODO: Evaluate default_value expression if present
-        let default_value = SqlValue::Integer(0);
+        let column = &child_schema.columns[fk_col_idx];
+        let default_value = if let Some(default_expr) = &column.default_value {
+            // Evaluate the default expression
+            match default_expr {
+                vibesql_ast::Expression::NextValue { sequence_name } => {
+                    // Get the next value from the sequence
+                    let seq = db.catalog.get_sequence_mut(sequence_name).map_err(|e| {
+                        ExecutorError::UnsupportedExpression(format!("Sequence error: {:?}", e))
+                    })?;
+                    let next_val = seq.next_value().map_err(|e| {
+                        ExecutorError::ConstraintViolation(format!("Sequence error: {}", e))
+                    })?;
+                    SqlValue::Integer(next_val)
+                }
+                _ => crate::insert::defaults::evaluate_default_expression(default_expr)?,
+            }
+        } else {
+            // No default value defined, use NULL
+            SqlValue::Null
+        };
         default_values.push(default_value);
     }
 
