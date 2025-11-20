@@ -201,10 +201,19 @@ pub(super) fn nested_loop_inner_join(
     condition: &Option<vibesql_ast::Expression>,
     database: &vibesql_storage::Database,
 ) -> Result<FromResult, ExecutorError> {
-    // Note: Memory check is performed in hash_join for equijoins.
-    // For nested loop, we rely on the optimized equijoin path below
-    // which avoids creating full Cartesian products for equijoin conditions.
-    // Only true Cartesian products (cross joins) will create large intermediates.
+    // Check for potential cartesian product before execution
+    // This catches INNER JOINs with non-selective conditions (e.g., WHERE true)
+    // that would create massive intermediate results
+    let is_cartesian_like = match condition {
+        None => true, // No condition = cartesian product
+        Some(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Boolean(true))) => true, // Always true = cartesian product
+        _ => false, // Has a meaningful condition - let it proceed
+    };
+
+    if is_cartesian_like {
+        // Apply same memory check as CROSS JOIN
+        check_cross_join_size_limit(left.rows().len(), right.rows().len())?;
+    }
 
     // Extract right table name (assume single table for now)
     let right_table_name = right
