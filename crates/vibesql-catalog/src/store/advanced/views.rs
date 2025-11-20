@@ -39,6 +39,11 @@ impl super::super::Catalog {
         self.views.get(&key)
     }
 
+    /// List all VIEW names
+    pub fn list_views(&self) -> Vec<String> {
+        self.views.keys().cloned().collect()
+    }
+
     /// Drop a VIEW
     pub fn drop_view(&mut self, name: &str, cascade: bool) -> Result<(), CatalogError> {
         // Normalize the key for case-insensitive lookup
