@@ -5,7 +5,7 @@
 //! - Comparison uses linear representation with approximations (1 month = 30 days)
 //! - Supports year-month intervals and day-time intervals
 
-use std::{cmp::Ordering, fmt, hash::Hash, str::FromStr};
+use std::{cmp::Ordering, fmt, str::FromStr};
 
 /// SQL INTERVAL type - represents a duration
 ///
@@ -18,7 +18,7 @@ use std::{cmp::Ordering, fmt, hash::Hash, str::FromStr};
 ///
 /// Note: Equality and ordering are based on the internal representation (months, days, microseconds),
 /// not the string value. This means "1 YEAR" equals "12 MONTH" even though the strings differ.
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 pub struct Interval {
     /// The original interval string (e.g., "5 YEAR", "1-6 YEAR TO MONTH")
     pub value: String,
@@ -245,6 +245,16 @@ impl PartialEq for Interval {
 
 impl Eq for Interval {}
 
+impl std::hash::Hash for Interval {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Only hash the fields used in equality comparison
+        // This ensures that if a == b, then hash(a) == hash(b)
+        self.months.hash(state);
+        self.days.hash(state);
+        self.microseconds.hash(state);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -443,5 +453,51 @@ mod tests {
         let i1 = Interval::new("1.5 SECOND".to_string());
         let i2 = Interval::new("2 SECOND".to_string());
         assert!(i1 < i2, "1.5 SECOND should be less than 2 SECOND");
+    }
+
+    #[test]
+    fn test_interval_hash_consistency() {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        // Helper function to compute hash
+        fn calculate_hash<T: Hash>(t: &T) -> u64 {
+            let mut s = DefaultHasher::new();
+            t.hash(&mut s);
+            s.finish()
+        }
+
+        // Test that equal intervals have equal hashes
+        let i1 = Interval::new("1 YEAR".to_string());
+        let i2 = Interval::new("12 MONTH".to_string());
+
+        // These should be equal
+        assert_eq!(i1, i2, "1 YEAR should equal 12 MONTH");
+
+        // And they should have the same hash
+        assert_eq!(
+            calculate_hash(&i1),
+            calculate_hash(&i2),
+            "Equal intervals must have equal hash values"
+        );
+
+        // Test another case: year to month
+        let i3 = Interval::new("1-6 YEAR TO MONTH".to_string());
+        let i4 = Interval::new("18 MONTH".to_string());
+
+        assert_eq!(i3, i4, "1-6 YEAR TO MONTH should equal 18 MONTH");
+        assert_eq!(
+            calculate_hash(&i3),
+            calculate_hash(&i4),
+            "Equal intervals must have equal hash values"
+        );
+
+        // Test that different intervals have different hashes (usually)
+        let i5 = Interval::new("1 YEAR".to_string());
+        let i6 = Interval::new("2 YEAR".to_string());
+
+        assert_ne!(i5, i6, "1 YEAR should not equal 2 YEAR");
+        // Note: We can't guarantee different hashes for different values,
+        // but we can verify the Hash/Eq invariant holds
     }
 }
