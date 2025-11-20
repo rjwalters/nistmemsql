@@ -5,8 +5,8 @@
 //! - Uses exhaustive search with pruning to find optimal join order
 //! - Minimizes intermediate result sizes
 //!
-//! This optimization is enabled by default for 3-5 table INNER/CROSS joins.
-//! Disabled for 6+ tables to prevent factorial explosion (6! = 720, 7! = 5040).
+//! This optimization is enabled by default for 3-8 table INNER/CROSS joins.
+//! Disabled for 9+ tables to prevent excessive search time (9! = 362,880).
 //! Can be disabled via JOIN_REORDER_DISABLED environment variable.
 
 use std::collections::{HashMap, HashSet};
@@ -24,22 +24,26 @@ use crate::{
 
 /// Check if join reordering optimization should be applied
 ///
-/// Enabled by default for 3-5 table joins. Can be disabled via JOIN_REORDER_DISABLED env var.
+/// Enabled by default for 3-8 table joins. Can be disabled via JOIN_REORDER_DISABLED env var.
 ///
 /// Table count limits:
 /// - < 3 tables: Not beneficial (simple join)
-/// - 3-5 tables: Optimal range (6 to 120 orderings to explore)
-/// - > 5 tables: Disabled (factorial explosion: 6! = 720, 7! = 5040, etc.)
+/// - 3-8 tables: Enabled (branch-and-bound pruning keeps search manageable)
+/// - > 8 tables: Disabled (excessive search time: 9! = 362,880, 10! = 3,628,800)
+///
+/// The branch-and-bound search with cost-based pruning efficiently handles up to 8 tables
+/// by eliminating suboptimal paths early. Even with 8! = 40,320 theoretical orderings,
+/// pruning reduces the search space by orders of magnitude in practice.
 pub(crate) fn should_apply_join_reordering(table_count: usize) -> bool {
     // Must have at least 3 tables for reordering to be beneficial
     if table_count < 3 {
         return false;
     }
 
-    // Limit to 5 tables maximum to prevent factorial explosion
-    // With 6+ tables, the search space becomes too large (6! = 720, 7! = 5040)
-    // Even with pruning, the overhead on large datasets causes severe slowdowns
-    if table_count > 5 {
+    // Limit to 8 tables maximum to prevent excessive search time
+    // With 9+ tables, the search space becomes impractical (9! = 362,880, 10! = 3,628,800)
+    // Even with aggressive pruning, the overhead becomes prohibitive
+    if table_count > 8 {
         return false;
     }
 
