@@ -1,13 +1,18 @@
-//! Chunk-based execution for improved instruction cache locality
+//! Vectorized execution module
 //!
-//! This module provides chunk-based predicate evaluation to improve:
-//! - Instruction cache locality: Keeps predicate evaluation function hot in cache
-//! - Code locality: Tight inner loops enable better CPU pipeline efficiency
-//! - Single-pass processing: Avoids allocation overhead of intermediate data structures
+//! This module provides chunk-based predicate evaluation for cache optimization.
 //!
-//! The chunk-based approach processes rows in chunks (default 256 rows) with
-//! single-pass evaluation and filtering. This is NOT true SIMD/vectorization -
-//! it's a cache optimization technique.
+//! ## Phase 3 - SIMD Vectorization (In Progress)
+//!
+//! Apache Arrow integration for true SIMD vectorization is planned in Phase 3.
+//! See `PHASE3_VECTORIZATION.md` in the crate root for the design document.
+//!
+//! Key planned features:
+//! - RecordBatch-based columnar processing
+//! - SIMD filter and aggregation kernels
+//! - 5-10x performance improvement target
+//!
+//! Current status: Arrow dependencies added, foundation in place.
 
 pub mod bitmap;  // Kept for potential future SIMD use
 pub mod predicate;
