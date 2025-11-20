@@ -350,6 +350,10 @@ fn extract_f64_literal(expr: &Expression) -> Option<f64> {
     match expr {
         Expression::Literal(SqlValue::Double(v)) => Some(*v),
         Expression::Literal(SqlValue::Integer(v)) => Some(*v as f64),
+        Expression::Literal(SqlValue::Numeric(n)) => {
+            // Convert Numeric (rust_decimal) to f64
+            n.to_string().parse::<f64>().ok()
+        }
         _ => None,
     }
 }
@@ -747,7 +751,7 @@ mod tests {
 
         let plan = plan.unwrap();
         assert!(
-            plan.description.contains("lineitem"),
+            plan.description.to_lowercase().contains("lineitem"),
             "Description should mention table name"
         );
     }
@@ -758,7 +762,7 @@ mod tests {
         let table = TableSchema::new(
             "sales".to_string(),
             vec![
-                ColumnSchema::new("date".to_string(), DataType::Date, true),
+                ColumnSchema::new("sale_date".to_string(), DataType::Date, true),
                 ColumnSchema::new("price".to_string(), DataType::DoublePrecision, true),
                 ColumnSchema::new("discount".to_string(), DataType::DoublePrecision, true),
                 ColumnSchema::new("quantity".to_string(), DataType::DoublePrecision, true),
@@ -771,8 +775,8 @@ mod tests {
             SELECT SUM(price * discount) as revenue
             FROM sales
             WHERE
-                date >= '2024-01-01'
-                AND date < '2024-02-01'
+                sale_date >= '2024-01-01'
+                AND sale_date < '2024-02-01'
                 AND discount BETWEEN 0.10 AND 0.20
                 AND quantity < 50
         "#;
@@ -786,7 +790,7 @@ mod tests {
 
         let plan = plan.unwrap();
         assert!(
-            plan.description.contains("sales"),
+            plan.description.to_lowercase().contains("sales"),
             "Description should mention sales table"
         );
     }
