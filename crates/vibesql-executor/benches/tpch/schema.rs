@@ -33,6 +33,9 @@ pub fn load_vibesql(scale_factor: f64) -> VibeDB {
     load_orders_vibesql(&mut db, &mut data);
     load_lineitem_vibesql(&mut db, &mut data);
 
+    // Create indexes to match SQLite benchmark (for fair comparison)
+    create_tpch_indexes_vibesql(&mut db);
+
     db
 }
 
@@ -439,6 +442,100 @@ fn create_tpch_schema_vibesql(db: &mut VibeDB) {
             },
         ],
     ))
+    .unwrap();
+}
+
+/// Create indexes on TPC-H tables to match SQLite/DuckDB benchmark setup
+///
+/// This creates PRIMARY KEY equivalent indexes on the join columns that SQLite uses.
+/// Without these indexes, VibeSQL must do full table scans while SQLite uses index seeks,
+/// making the comparison unfair (276x performance gap on Q2).
+fn create_tpch_indexes_vibesql(db: &mut VibeDB) {
+    use vibesql_ast::{IndexColumn, OrderDirection};
+
+    // Region table: PRIMARY KEY (r_regionkey)
+    db.create_index(
+        "idx_region_pk".to_string(),
+        "REGION".to_string(),
+        true, // unique
+        vec![IndexColumn {
+            column_name: "R_REGIONKEY".to_string(),
+            direction: OrderDirection::Asc,
+            prefix_length: None,
+        }],
+    )
+    .unwrap();
+
+    // Nation table: PRIMARY KEY (n_nationkey)
+    db.create_index(
+        "idx_nation_pk".to_string(),
+        "NATION".to_string(),
+        true, // unique
+        vec![IndexColumn {
+            column_name: "N_NATIONKEY".to_string(),
+            direction: OrderDirection::Asc,
+            prefix_length: None,
+        }],
+    )
+    .unwrap();
+
+    // Customer table: PRIMARY KEY (c_custkey)
+    db.create_index(
+        "idx_customer_pk".to_string(),
+        "CUSTOMER".to_string(),
+        true, // unique
+        vec![IndexColumn {
+            column_name: "C_CUSTKEY".to_string(),
+            direction: OrderDirection::Asc,
+            prefix_length: None,
+        }],
+    )
+    .unwrap();
+
+    // Supplier table: PRIMARY KEY (s_suppkey)
+    db.create_index(
+        "idx_supplier_pk".to_string(),
+        "SUPPLIER".to_string(),
+        true, // unique
+        vec![IndexColumn {
+            column_name: "S_SUPPKEY".to_string(),
+            direction: OrderDirection::Asc,
+            prefix_length: None,
+        }],
+    )
+    .unwrap();
+
+    // Orders table: PRIMARY KEY (o_orderkey)
+    db.create_index(
+        "idx_orders_pk".to_string(),
+        "ORDERS".to_string(),
+        true, // unique
+        vec![IndexColumn {
+            column_name: "O_ORDERKEY".to_string(),
+            direction: OrderDirection::Asc,
+            prefix_length: None,
+        }],
+    )
+    .unwrap();
+
+    // Lineitem table: PRIMARY KEY (l_orderkey, l_linenumber)
+    db.create_index(
+        "idx_lineitem_pk".to_string(),
+        "LINEITEM".to_string(),
+        true, // unique
+        vec![
+            IndexColumn {
+                column_name: "L_ORDERKEY".to_string(),
+                direction: OrderDirection::Asc,
+                prefix_length: None,
+            },
+            IndexColumn {
+                column_name: "L_LINENUMBER".to_string(),
+                direction: OrderDirection::Asc,
+                prefix_length: None,
+            },
+        ],
+    )
     .unwrap();
 }
 

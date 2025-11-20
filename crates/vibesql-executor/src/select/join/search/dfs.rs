@@ -25,6 +25,7 @@ impl JoinOrderContext {
             joined_tables: HashSet::new(),
             cost_so_far: JoinCost::new(0, 0),
             order: Vec::new(),
+            current_cardinality: 0,
         };
 
         let mut best_cost = u64::MAX;
@@ -89,8 +90,8 @@ impl JoinOrderContext {
                 continue;
             }
 
-            // Estimate cost of joining this table
-            let join_cost = self.estimate_join_cost(&state.joined_tables, next_table);
+            // Estimate cost of joining this table (using current intermediate result size)
+            let join_cost = self.estimate_join_cost(state.current_cardinality, &state.joined_tables, next_table);
 
             // Create new state with this table added
             let mut next_state = state.clone();
@@ -100,6 +101,8 @@ impl JoinOrderContext {
                 state.cost_so_far.operations + join_cost.operations,
             );
             next_state.order.push(next_table.clone());
+            // Update current cardinality to the result of this join
+            next_state.current_cardinality = join_cost.cardinality;
 
             // Recursively search from this state
             self.search_recursive(next_state, best_cost, best_order, iterations, max_iterations);

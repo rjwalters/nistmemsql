@@ -527,7 +527,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         }
     }
 
-    /// Get the schema for this evaluator
+    /// Get the combined schema for this evaluator
     pub(crate) fn schema(&self) -> &'a CombinedSchema {
         self.schema
     }

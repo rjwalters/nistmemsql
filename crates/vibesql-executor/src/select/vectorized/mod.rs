@@ -1,18 +1,33 @@
-//! Chunk-based execution for improved instruction cache locality
+//! Vectorized execution module with Apache Arrow SIMD support
 //!
-//! This module provides chunk-based predicate evaluation to improve:
-//! - Instruction cache locality: Keeps predicate evaluation function hot in cache
-//! - Code locality: Tight inner loops enable better CPU pipeline efficiency
-//! - Single-pass processing: Avoids allocation overhead of intermediate data structures
+//! This module provides both:
+//! 1. Chunk-based predicate evaluation for cache optimization (existing)
+//! 2. Apache Arrow RecordBatch-based SIMD execution (Phase 3 - NEW)
 //!
-//! The chunk-based approach processes rows in chunks (default 256 rows) with
-//! single-pass evaluation and filtering. This is NOT true SIMD/vectorization -
-//! it's a cache optimization technique.
+//! ## SIMD Vectorization (Phase 3)
+//!
+//! The Arrow-based approach provides true SIMD vectorization:
+//! - **RecordBatch adapter**: Converts row-based data to columnar Arrow format
+//! - **SIMD filter kernel**: Uses Arrow compute for 4-8 values per CPU instruction
+//! - **SIMD aggregation**: Vectorized SUM/AVG/MIN/MAX operations
+//! - **Target**: 5-10x performance improvement for analytical queries
+//!
+//! See `PHASE3_VECTORIZATION.md` in the crate root for complete design documentation.
 
-pub mod bitmap;  // Kept for potential future SIMD use
+pub mod aggregate;
+pub mod batch;
+pub mod bitmap;
 pub mod compiled_predicate;
+pub mod filter;
 pub mod predicate;
 
+pub use aggregate::{aggregate_column_simd, aggregate_batch_simd, AggregateFunction};
+pub use batch::{
+    rows_to_record_batch, rows_to_record_batch_with_columns, record_batch_to_rows,
+    QueryContext, DEFAULT_BATCH_SIZE, SCAN_BATCH_SIZE, JOIN_BATCH_SIZE,
+    L1_CACHE_BATCH_SIZE, L2_CACHE_BATCH_SIZE,
+};
+pub use filter::filter_record_batch_simd;
 pub use predicate::apply_where_filter_vectorized;
 
 /// Default chunk size for vectorized operations

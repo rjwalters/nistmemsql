@@ -1,9 +1,15 @@
 //! WHERE clause filtering logic
 
+mod pattern;
+mod specialized;
+
 use crate::{
     errors::ExecutorError,
     evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
 };
+
+use pattern::PredicatePattern;
+use specialized::create_evaluator;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -80,6 +86,9 @@ fn is_truthy_basic(value: &vibesql_types::SqlValue) -> Result<bool, ExecutorErro
 /// Used in non-aggregation queries.
 ///
 /// Accepts SelectExecutor for timeout enforcement. Timeout is checked every 1000 rows.
+///
+/// This version uses pattern recognition to detect common predicates and dispatch
+/// to specialized fast-path evaluators that avoid SqlValue enum matching overhead.
 pub(super) fn apply_where_filter_combined<'a>(
     rows: Vec<vibesql_storage::Row>,
     where_expr: Option<&vibesql_ast::Expression>,
@@ -92,38 +101,80 @@ pub(super) fn apply_where_filter_combined<'a>(
     }
 
     let where_expr = where_expr.unwrap();
+
+    // Try to detect predicate pattern and create specialized evaluator
+    let pattern = PredicatePattern::from_where_clause(where_expr, evaluator.schema());
+    let specialized_eval = create_evaluator(&pattern);
+
     // Use pooled buffer to reduce allocation overhead during filtering
     let mut filtered_rows = executor.query_buffer_pool().get_row_buffer(rows.len());
     let mut rows_processed = 0;
     const CHECK_INTERVAL: usize = 1000;
 
-    // Consume input vector to avoid cloning rows
-    for row in rows.into_iter() {
-        // Check timeout every 1000 rows
-        rows_processed += 1;
-        if rows_processed % CHECK_INTERVAL == 0 {
-            executor.check_timeout()?;
+    // Dispatch to specialized fast path or general path
+    if let Some(fast_evaluator) = specialized_eval {
+        // Fast path: use specialized evaluator (no enum matching)
+        for row in rows {
+            // Check timeout every 1000 rows
+            rows_processed += 1;
+            if rows_processed % CHECK_INTERVAL == 0 {
+                executor.check_timeout()?;
+            }
+
+            // Evaluate predicate using fast path
+            if fast_evaluator.evaluate(&row)? {
+                filtered_rows.push(row);
+            }
+        }
+    } else {
+        // General path: use full expression evaluator
+        for row in rows {
+            // Check timeout every 1000 rows
+            rows_processed += 1;
+            if rows_processed % CHECK_INTERVAL == 0 {
+                executor.check_timeout()?;
+            }
+
+            // CSE cache is NOT cleared between rows because only deterministic expressions
+            // (those without column references) are cached. Column values cannot be cached
+            // since is_deterministic() returns false for expressions containing column refs.
+            // This allows constant sub-expressions like (1 + 2) to be cached across all rows,
+            // significantly improving performance for expression-heavy queries.
+
+            let include_row = match evaluator.eval(where_expr, &row)? {
+                vibesql_types::SqlValue::Boolean(true) => true,
+                vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
+                // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
+                vibesql_types::SqlValue::Integer(0) => false,
+                vibesql_types::SqlValue::Integer(_) => true,
+                vibesql_types::SqlValue::Smallint(0) => false,
+                vibesql_types::SqlValue::Smallint(_) => true,
+                vibesql_types::SqlValue::Bigint(0) => false,
+                vibesql_types::SqlValue::Bigint(_) => true,
+                vibesql_types::SqlValue::Float(0.0) => false,
+                vibesql_types::SqlValue::Float(_) => true,
+                vibesql_types::SqlValue::Real(0.0) => false,
+                vibesql_types::SqlValue::Real(_) => true,
+                vibesql_types::SqlValue::Double(0.0) => false,
+                vibesql_types::SqlValue::Double(_) => true,
+                other => {
+                    return Err(ExecutorError::InvalidWhereClause(format!(
+                        "WHERE clause must evaluate to boolean, got: {:?}",
+                        other
+                    )))
+                }
+            };
+
+            if include_row {
+                filtered_rows.push(row);
+            }
         }
 
-        // CSE cache is NOT cleared between rows because only deterministic expressions
-        // (those without column references) are cached. Column values cannot be cached
-        // since is_deterministic() returns false for expressions containing column refs.
-        // This allows constant sub-expressions like (1 + 2) to be cached across all rows,
-        // significantly improving performance for expression-heavy queries.
-
-        let value = evaluator.eval(where_expr, &row)?;
-        let include_row = is_truthy_combined(&value)?;
-
-        if include_row {
-            filtered_rows.push(row);  // Move row, no clone needed
-        }
-        // Row is dropped if filtered out
+        // Clear CSE cache at end of query to prevent cross-query pollution
+        // Cache can persist within a single query for performance, but must be
+        // cleared between different SQL statements to avoid stale values
+        evaluator.clear_cse_cache();
     }
-
-    // Clear CSE cache at end of query to prevent cross-query pollution
-    // Cache can persist within a single query for performance, but must be
-    // cleared between different SQL statements to avoid stale values
-    evaluator.clear_cse_cache();
 
     // Move data to final result and return pooled buffer
     // This allows buffer reuse while avoiding clone overhead

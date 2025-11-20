@@ -61,7 +61,8 @@ impl JoinCost {
     pub fn total(&self) -> u64 {
         // Weight cardinality heavily since it affects downstream joins
         // 1 additional row impacts all future joins
-        self.cardinality as u64 * 1000 + self.operations
+        // Use saturating arithmetic to prevent overflow with large intermediate results
+        (self.cardinality as u64).saturating_mul(1000).saturating_add(self.operations)
     }
 }
 
@@ -98,6 +99,8 @@ pub(super) struct SearchState {
     pub cost_so_far: JoinCost,
     /// Ordering of tables
     pub order: Vec<String>,
+    /// Current intermediate result size (rows after all joins so far)
+    pub current_cardinality: usize,
 }
 
 /// Context for join order search operations

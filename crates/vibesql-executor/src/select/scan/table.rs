@@ -8,7 +8,7 @@
 
 use std::collections::HashMap;
 
-use super::predicates::apply_table_local_predicates;
+use super::predicates::{apply_table_local_predicates, apply_table_local_predicates_ref};
 use crate::{
     errors::ExecutorError, optimizer::PredicatePlan, privilege_checker::PrivilegeChecker,
     schema::CombinedSchema, select::cte::CteResult,
@@ -143,12 +143,8 @@ pub(crate) fn execute_table_scan(
     let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
     let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
 
-    // Use parallel scan for materialization when beneficial for large tables (when parallel feature enabled)
-    #[cfg(feature = "parallel")]
-    let rows = parallel_scan_materialize(table.scan());
-
-    #[cfg(not(feature = "parallel"))]
-    let rows = table.scan().to_vec();
+    // Get row slice from table (zero-copy reference)
+    let row_slice = table.scan();
 
     // Check if we need to apply table-local predicates (Phase 1 optimization)
     if where_clause.is_some() {
@@ -158,9 +154,9 @@ pub(crate) fn execute_table_scan(
 
         // Check if there are actually table-local predicates for this table
         if predicate_plan.has_table_filters(table_name) {
-            // Have table-local predicates: materialize and filter
-            let filtered_rows = apply_table_local_predicates(
-                rows,
+            // Have table-local predicates: filter using references, only clone passing rows
+            let filtered_rows = apply_table_local_predicates_ref(
+                row_slice,
                 schema.clone(),
                 &predicate_plan,
                 table_name,
@@ -170,7 +166,14 @@ pub(crate) fn execute_table_scan(
         }
     }
 
-    // No table-local predicates or no WHERE clause: return iterator for lazy evaluation
+    // No table-local predicates or no WHERE clause: clone rows for iterator
+    // TODO: Future optimization - use zero-copy iterator over row slice
+    #[cfg(feature = "parallel")]
+    let rows = parallel_scan_materialize(row_slice);
+
+    #[cfg(not(feature = "parallel"))]
+    let rows = row_slice.to_vec();
+
     use crate::select::from_iterator::FromIterator;
     Ok(super::FromResult::from_iterator(schema, FromIterator::from_table_scan(rows)))
 }

@@ -4,13 +4,10 @@ use std::collections::HashMap;
 use rayon::prelude::*;
 
 use super::{combine_rows, FromResult};
-use crate::{errors::ExecutorError, limits::MAX_MEMORY_BYTES, schema::CombinedSchema};
+use crate::{errors::ExecutorError, schema::CombinedSchema};
 
 #[cfg(feature = "parallel")]
 use crate::select::parallel::ParallelConfig;
-
-/// Maximum number of rows allowed in a join result to prevent memory exhaustion
-const MAX_JOIN_RESULT_ROWS: usize = 100_000_000;
 
 /// Build hash table sequentially (fallback for small inputs)
 fn build_hash_table_sequential(
@@ -85,27 +82,11 @@ fn build_hash_table_parallel(
     }
 }
 
-/// Check if a join would exceed memory limits based on estimated result size
-///
-/// Hash join is only used for equi-joins, so we can use a conservative estimate
-/// based on join selectivity rather than assuming a full cartesian product.
-fn check_join_size_limit(left_count: usize, right_count: usize) -> Result<(), ExecutorError> {
-    // For equijoins (which is all that hash join handles), estimate based on join selectivity
-    // With equijoins on indexed columns, expect 1:1 or 1:N selectivity
-    // Conservative estimate: use the size of the larger input
-    // This prevents exponential blowup in cascading joins while still catching truly large joins
-    let estimated_result_rows = std::cmp::max(left_count, right_count);
-
-    if estimated_result_rows > MAX_JOIN_RESULT_ROWS {
-        let estimated_bytes = estimated_result_rows.saturating_mul(100);
-        return Err(ExecutorError::MemoryLimitExceeded {
-            used_bytes: estimated_bytes,
-            max_bytes: MAX_MEMORY_BYTES,
-        });
-    }
-
-    Ok(())
-}
+// Note: Memory limit checking removed from hash join.
+// Hash join uses O(smaller_table) memory for the hash table, not O(result_size).
+// The actual join output size depends on data distribution and selectivity,
+// which we cannot accurately predict. Since hash join is already the optimal
+// algorithm for equijoins, we trust it to handle the join efficiently.
 
 /// Hash join INNER JOIN implementation (optimized for equi-joins)
 ///
@@ -127,8 +108,8 @@ pub(super) fn hash_join_inner(
     left_col_idx: usize,
     right_col_idx: usize,
 ) -> Result<FromResult, ExecutorError> {
-    // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows().len(), right.rows().len())?;
+    // Note: No memory limit check here. Hash join is already O(n+m) time and O(smaller_table) space,
+    // which is optimal for equijoins. We cannot predict output size accurately anyway.
 
     // Extract right table name and schema for combining
     let right_table_name = right

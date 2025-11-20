@@ -489,7 +489,11 @@ pub(super) fn group_rows<'a>(
     executor: &crate::SelectExecutor<'a>,
 ) -> Result<GroupedRows, crate::errors::ExecutorError> {
     // Use HashMap for O(1) group lookups
-    let mut groups_map: HashMap<Vec<vibesql_types::SqlValue>, Vec<vibesql_storage::Row>> = HashMap::new();
+    // Pre-allocate with reasonable capacity to reduce rehashing
+    // Most GROUP BY queries have < 1000 groups; estimate 10% of rows as groups
+    let estimated_groups = (rows.len() / 10).max(16);
+    let mut groups_map: HashMap<Vec<vibesql_types::SqlValue>, Vec<vibesql_storage::Row>> =
+        HashMap::with_capacity(estimated_groups);
     let mut rows_processed = 0;
     const CHECK_INTERVAL: usize = 1000;
 
