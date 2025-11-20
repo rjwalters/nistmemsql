@@ -38,7 +38,7 @@ mod table;
 /// - This allows skipping expensive sorting in the SELECT executor
 ///
 /// Join reordering optimization (enabled by default):
-/// - For multi-table joins (3+ tables), analyzes join conditions
+/// - For multi-table joins (3-8 tables), analyzes join conditions
 /// - Uses cost-based search to find optimal join order
 /// - Minimizes intermediate result sizes
 /// - Can be disabled via JOIN_REORDER_DISABLED environment variable
@@ -57,7 +57,7 @@ where
     if matches!(from, vibesql_ast::FromClause::Join { .. }) {
         let table_count = reorder::count_tables_in_from(from);
         // Only apply reordering if:
-        // 1. We have 3+ tables
+        // 1. We have 3-8 tables (extended from 3-5 to handle complex analytical queries)
         // 2. All joins are CROSS (comma-list style: FROM t1, t2, t3)
         // 3. Not disabled via environment variable
         //

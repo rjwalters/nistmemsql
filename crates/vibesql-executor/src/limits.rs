@@ -53,12 +53,11 @@ pub const MAX_ROWS_PROCESSED: usize = 10_000_000;
 ///
 /// Set to 300 seconds (5 minutes) to allow complex multi-table joins to complete.
 /// With predicate pushdown optimization (#1122), memory usage is under control (6.48 GB
-/// vs 73+ GB before), but some 7+ table joins with multiple equijoin conditions still
-/// require more than 60 seconds due to suboptimal join ordering.
+/// vs 73+ GB before). Join reordering optimization is now enabled for 3-8 table joins,
+/// which should significantly reduce execution time for complex analytical queries.
 ///
-/// TODO: Integrate join reordering optimization (infrastructure exists in
-/// join/search.rs and join_reorder_wrapper.rs but is not yet wired into execution)
-/// to reduce execution time instead of relying on higher timeout.
+/// If join reordering proves effective, consider reducing this timeout to a lower value
+/// (e.g., 60-120 seconds) to catch runaway queries more quickly.
 pub const MAX_QUERY_EXECUTION_SECONDS: u64 = 300;
 
 /// Maximum number of iterations in a single loop (e.g., WHERE filtering)
