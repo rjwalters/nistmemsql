@@ -898,5 +898,163 @@ fn test_json_index_roundtrip() {
     std::fs::remove_file(path).ok();
 }
 
-// Note: Views are not yet supported due to missing catalog API (list_views).
-// This is documented in the implementation and will be addressed in a follow-up.
+#[test]
+fn test_json_view_preservation() {
+    use vibesql_ast::{Expression, FromClause, SelectItem, SelectStmt};
+    use vibesql_catalog::ViewDefinition;
+
+    let mut db = Database::new();
+
+    // Create a simple table first
+    let schema = TableSchema::new(
+        "users".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new("active".to_string(), DataType::Boolean, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+
+    // Create a view manually (simulating CREATE VIEW)
+    let select_stmt = SelectStmt {
+        with_clause: None,
+        distinct: false,
+        select_list: vec![
+            SelectItem::Expression {
+                expr: Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                },
+                alias: None,
+            },
+            SelectItem::Expression {
+                expr: Expression::ColumnRef {
+                    table: None,
+                    column: "name".to_string(),
+                },
+                alias: None,
+            },
+        ],
+        into_table: None,
+        into_variables: None,
+        from: Some(FromClause::Table {
+            name: "users".to_string(),
+            alias: None,
+        }),
+        where_clause: Some(Expression::BinaryOp {
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "active".to_string(),
+            }),
+            op: vibesql_ast::BinaryOperator::Equal,
+            right: Box::new(Expression::Literal(SqlValue::Boolean(true))),
+        }),
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        set_operation: None,
+    };
+
+    // Create view with SQL definition
+    let view = ViewDefinition::new_with_sql(
+        "active_users".to_string(),
+        Some(vec!["id".to_string(), "name".to_string()]),
+        select_stmt,
+        false,
+        "SELECT id, name FROM users WHERE active = true".to_string(),
+    );
+    db.catalog.create_view(view).unwrap();
+
+    // Save to JSON
+    let path = "/tmp/test_view_preservation.json";
+    db.save_json(path).unwrap();
+
+    // Verify JSON contains view
+    let content = std::fs::read_to_string(path).unwrap();
+    assert!(content.contains("active_users"), "View name should be in JSON");
+    assert!(
+        content.contains("SELECT id, name FROM users WHERE active = true"),
+        "View definition should be in JSON"
+    );
+
+    // Load from JSON
+    let loaded_db = Database::load_json(path).unwrap();
+
+    // Views are not automatically recreated (by design), but we verify the JSON preserved them
+    // The load operation should succeed and log a warning about views
+    assert!(loaded_db.catalog.get_view("active_users").is_none(),
+        "Views should not be automatically recreated during deserialization");
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn test_json_view_preservation_without_sql_definition() {
+    use vibesql_ast::{FromClause, SelectItem, SelectStmt};
+    use vibesql_catalog::ViewDefinition;
+
+    let mut db = Database::new();
+
+    // Create a simple table first
+    let schema = TableSchema::new(
+        "products".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+        ],
+    );
+    db.create_table(schema).unwrap();
+
+    // Create a view without SQL definition (using the old constructor)
+    let select_stmt = SelectStmt {
+        with_clause: None,
+        distinct: false,
+        select_list: vec![SelectItem::Wildcard { alias: None }],
+        into_table: None,
+        into_variables: None,
+        from: Some(FromClause::Table {
+            name: "products".to_string(),
+            alias: None,
+        }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        set_operation: None,
+    };
+
+    let view = ViewDefinition::new(
+        "all_products".to_string(),
+        None,
+        select_stmt,
+        false,
+    );
+    db.catalog.create_view(view).unwrap();
+
+    // Save to JSON
+    let path = "/tmp/test_view_no_sql.json";
+    db.save_json(path).unwrap();
+
+    // Verify JSON contains view (with Debug format fallback)
+    let content = std::fs::read_to_string(path).unwrap();
+    assert!(content.contains("all_products"), "View name should be in JSON");
+    // Should contain the Debug format of the SelectStmt
+    assert!(content.contains("SelectStmt"), "View should have Debug format definition");
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}

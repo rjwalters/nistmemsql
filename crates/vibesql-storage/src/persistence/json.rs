@@ -274,9 +274,21 @@ impl Database {
             })
             .collect();
 
-        // Views - skip for now as there's no list_views() API
-        // TODO: Add views support when catalog provides list_views()
-        let views = Vec::new();
+        // Views - serialize view definitions
+        let views = self
+            .catalog
+            .list_views()
+            .into_iter()
+            .filter_map(|view_name| {
+                self.catalog.get_view(&view_name).map(|view_def| {
+                    let definition = view_def
+                        .sql_definition
+                        .clone()
+                        .unwrap_or_else(|| format!("{:#?}", view_def.query));
+                    JsonView { name: view_name, definition }
+                })
+            })
+            .collect();
 
         Ok(JsonDatabase { vibesql, schemas, roles, tables, indexes, views })
     }
@@ -456,11 +468,14 @@ fn json_database_to_db(json_db: JsonDatabase) -> Result<Database, StorageError> 
         }
     }
 
-    // Skip views for now - requires SQL parsing which we don't want to do during deserialization
-    // Views will need to be recreated manually or via SQL execution
+    // Views are preserved in JSON export but not automatically recreated during import.
+    // This is intentional - recreating views would require SQL parsing and execution
+    // during deserialization, which could fail or have side effects.
+    // Views should be recreated manually or via SQL execution after loading.
     if !json_db.views.is_empty() {
         log::warn!(
-            "{} views found in JSON but skipped (not yet supported)",
+            "{} view(s) found in JSON export but not automatically recreated. \
+             Please recreate views manually using CREATE VIEW statements.",
             json_db.views.len()
         );
     }
