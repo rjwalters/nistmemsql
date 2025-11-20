@@ -1,22 +1,35 @@
 // ============================================================================
-// Expression Serialization
+// Expression Serialization Module
 // ============================================================================
 //
-// Handles serialization and deserialization of SQL expression ASTs.
-//
-// Uses a tag-based approach where each Expression variant gets a unique u8
-// discriminant, followed by the variant-specific data.
+// This module provides modular expression serialization broken down into:
+// - macros: Declarative macros for reducing boilerplate
+// - operators: Binary and unary operator serialization
+// - types: SQL type serialization (CharacterUnit, TrimPosition, etc.)
+// - window: Window function, spec, and frame serialization
+// - case: CASE WHEN expression serialization
+
+#[macro_use]
+mod macros;
+mod case;
+mod operators;
+mod types;
+mod window;
 
 use std::io::{Read, Write};
+use vibesql_ast::Expression;
+use crate::StorageError;
 
-use vibesql_ast::{
-    BinaryOperator, CaseWhen, CharacterUnit, Expression, FrameBound, FrameUnit, FulltextMode,
-    IntervalUnit, PseudoTable, TrimPosition, UnaryOperator, WindowFrame, WindowFunctionSpec,
-    WindowSpec,
+// Import helper functions from submodules
+use case::{read_case_when, write_case_when};
+use operators::{read_binary_operator, read_unary_operator, write_binary_operator, write_unary_operator};
+use types::{
+    read_character_unit, read_fulltext_mode, read_interval_unit, read_pseudo_table, read_trim_position,
+    write_character_unit, write_fulltext_mode, write_interval_unit, write_pseudo_table, write_trim_position,
 };
+use window::{read_window_function_spec, read_window_spec, write_window_function_spec, write_window_spec};
 
 use super::{io::*, value::*};
-use crate::StorageError;
 
 /// Expression variant tags for serialization
 #[repr(u8)]
@@ -31,16 +44,16 @@ enum ExprTag {
     IsNull = 0x06,
     Wildcard = 0x07,
     Case = 0x08,
-    ScalarSubquery = 0x09,          // Not fully supported - returns error
-    In = 0x0A,                       // Not fully supported - returns error
+    ScalarSubquery = 0x09,
+    In = 0x0A,
     InList = 0x0B,
     Between = 0x0C,
     Cast = 0x0D,
     Position = 0x0E,
     Trim = 0x0F,
     Like = 0x10,
-    Exists = 0x11,                   // Not fully supported - returns error
-    QuantifiedComparison = 0x12,     // Not fully supported - returns error
+    Exists = 0x11,
+    QuantifiedComparison = 0x12,
     CurrentDate = 0x13,
     CurrentTime = 0x14,
     CurrentTimestamp = 0x15,
@@ -95,19 +108,23 @@ impl ExprTag {
     }
 }
 
+// Helper macro to reduce write_all boilerplate
+macro_rules! write_tag {
+    ($writer:expr, $tag:expr) => {
+        $writer
+            .write_all(&[$tag as u8])
+            .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?
+    };
+}
+
 pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(), StorageError> {
     match expr {
         Expression::Literal(value) => {
-            writer
-                .write_all(&[ExprTag::Literal as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::Literal);
             write_sql_value(writer, value)?;
         }
         Expression::ColumnRef { table, column } => {
-            writer
-                .write_all(&[ExprTag::ColumnRef as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-            // Write optional table name
+            write_tag!(writer, ExprTag::ColumnRef);
             write_bool(writer, table.is_some())?;
             if let Some(t) = table {
                 write_string(writer, t)?;
@@ -115,18 +132,14 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             write_string(writer, column)?;
         }
         Expression::BinaryOp { op, left, right } => {
-            writer
-                .write_all(&[ExprTag::BinaryOp as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-            write_binary_operator(writer, *op)?;
+            write_tag!(writer, ExprTag::BinaryOp);
+            write_binary_operator(writer, op)?;
             write_expression(writer, left)?;
             write_expression(writer, right)?;
         }
         Expression::UnaryOp { op, expr } => {
-            writer
-                .write_all(&[ExprTag::UnaryOp as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-            write_unary_operator(writer, *op)?;
+            write_tag!(writer, ExprTag::UnaryOp);
+            write_unary_operator(writer, op)?;
             write_expression(writer, expr)?;
         }
         Expression::Function {
@@ -134,9 +147,7 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             args,
             character_unit,
         } => {
-            writer
-                .write_all(&[ExprTag::Function as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::Function);
             write_string(writer, name)?;
             write_u32(writer, args.len() as u32)?;
             for arg in args {
@@ -152,9 +163,7 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             distinct,
             args,
         } => {
-            writer
-                .write_all(&[ExprTag::AggregateFunction as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::AggregateFunction);
             write_string(writer, name)?;
             write_bool(writer, *distinct)?;
             write_u32(writer, args.len() as u32)?;
@@ -163,36 +172,27 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             }
         }
         Expression::IsNull { expr, negated } => {
-            writer
-                .write_all(&[ExprTag::IsNull as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::IsNull);
             write_expression(writer, expr)?;
             write_bool(writer, *negated)?;
         }
         Expression::Wildcard => {
-            writer
-                .write_all(&[ExprTag::Wildcard as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::Wildcard);
         }
         Expression::Case {
             operand,
             when_clauses,
             else_result,
         } => {
-            writer
-                .write_all(&[ExprTag::Case as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-            // Write optional operand
+            write_tag!(writer, ExprTag::Case);
             write_bool(writer, operand.is_some())?;
             if let Some(op) = operand {
                 write_expression(writer, op)?;
             }
-            // Write when clauses
             write_u32(writer, when_clauses.len() as u32)?;
             for when_clause in when_clauses {
                 write_case_when(writer, when_clause)?;
             }
-            // Write optional else result
             write_bool(writer, else_result.is_some())?;
             if let Some(else_expr) = else_result {
                 write_expression(writer, else_expr)?;
@@ -213,9 +213,7 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             values,
             negated,
         } => {
-            writer
-                .write_all(&[ExprTag::InList as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::InList);
             write_expression(writer, expr)?;
             write_u32(writer, values.len() as u32)?;
             for value in values {
@@ -230,9 +228,7 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             negated,
             symmetric,
         } => {
-            writer
-                .write_all(&[ExprTag::Between as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::Between);
             write_expression(writer, expr)?;
             write_expression(writer, low)?;
             write_expression(writer, high)?;
@@ -240,11 +236,8 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             write_bool(writer, *symmetric)?;
         }
         Expression::Cast { expr, data_type } => {
-            writer
-                .write_all(&[ExprTag::Cast as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::Cast);
             write_expression(writer, expr)?;
-            // Serialize DataType as string (reuse existing format logic)
             let type_str = crate::persistence::save::format_data_type(data_type);
             write_string(writer, &type_str)?;
         }
@@ -253,9 +246,7 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             string,
             character_unit,
         } => {
-            writer
-                .write_all(&[ExprTag::Position as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::Position);
             write_expression(writer, substring)?;
             write_expression(writer, string)?;
             write_bool(writer, character_unit.is_some())?;
@@ -268,9 +259,7 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             removal_char,
             string,
         } => {
-            writer
-                .write_all(&[ExprTag::Trim as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::Trim);
             write_bool(writer, position.is_some())?;
             if let Some(pos) = position {
                 write_trim_position(writer, pos)?;
@@ -286,9 +275,7 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             pattern,
             negated,
         } => {
-            writer
-                .write_all(&[ExprTag::Like as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::Like);
             write_expression(writer, expr)?;
             write_expression(writer, pattern)?;
             write_bool(writer, *negated)?;
@@ -304,23 +291,17 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             ));
         }
         Expression::CurrentDate => {
-            writer
-                .write_all(&[ExprTag::CurrentDate as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::CurrentDate);
         }
         Expression::CurrentTime { precision } => {
-            writer
-                .write_all(&[ExprTag::CurrentTime as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::CurrentTime);
             write_bool(writer, precision.is_some())?;
             if let Some(p) = precision {
                 write_u32(writer, *p)?;
             }
         }
         Expression::CurrentTimestamp { precision } => {
-            writer
-                .write_all(&[ExprTag::CurrentTimestamp as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::CurrentTimestamp);
             write_bool(writer, precision.is_some())?;
             if let Some(p) = precision {
                 write_u32(writer, *p)?;
@@ -332,9 +313,7 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             leading_precision,
             fractional_precision,
         } => {
-            writer
-                .write_all(&[ExprTag::Interval as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::Interval);
             write_expression(writer, value)?;
             write_interval_unit(writer, unit)?;
             write_bool(writer, leading_precision.is_some())?;
@@ -347,27 +326,19 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             }
         }
         Expression::Default => {
-            writer
-                .write_all(&[ExprTag::Default as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::Default);
         }
         Expression::DuplicateKeyValue { column } => {
-            writer
-                .write_all(&[ExprTag::DuplicateKeyValue as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::DuplicateKeyValue);
             write_string(writer, column)?;
         }
         Expression::WindowFunction { function, over } => {
-            writer
-                .write_all(&[ExprTag::WindowFunction as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::WindowFunction);
             write_window_function_spec(writer, function)?;
             write_window_spec(writer, over)?;
         }
         Expression::NextValue { sequence_name } => {
-            writer
-                .write_all(&[ExprTag::NextValue as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::NextValue);
             write_string(writer, sequence_name)?;
         }
         Expression::MatchAgainst {
@@ -375,9 +346,7 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             search_modifier,
             mode,
         } => {
-            writer
-                .write_all(&[ExprTag::MatchAgainst as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::MatchAgainst);
             write_u32(writer, columns.len() as u32)?;
             for col in columns {
                 write_string(writer, col)?;
@@ -389,16 +358,12 @@ pub fn write_expression<W: Write>(writer: &mut W, expr: &Expression) -> Result<(
             pseudo_table,
             column,
         } => {
-            writer
-                .write_all(&[ExprTag::PseudoVariable as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-            write_pseudo_table(writer, *pseudo_table)?;
+            write_tag!(writer, ExprTag::PseudoVariable);
+            write_pseudo_table(writer, pseudo_table)?;
             write_string(writer, column)?;
         }
         Expression::SessionVariable { name } => {
-            writer
-                .write_all(&[ExprTag::SessionVariable as u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            write_tag!(writer, ExprTag::SessionVariable);
             write_string(writer, name)?;
         }
     }
@@ -535,7 +500,6 @@ pub fn read_expression<R: Read>(reader: &mut R) -> Result<Expression, StorageErr
         ExprTag::Cast => {
             let expr = Box::new(read_expression(reader)?);
             let type_str = read_string(reader)?;
-            // Parse DataType from string (reuse existing logic from catalog)
             let data_type = super::catalog::parse_data_type(&type_str)?;
             Ok(Expression::Cast { expr, data_type })
         }
@@ -674,499 +638,10 @@ pub fn read_expression<R: Read>(reader: &mut R) -> Result<Expression, StorageErr
     }
 }
 
-// Helper serialization functions for operator and other types
-
-fn write_binary_operator<W: Write>(writer: &mut W, op: BinaryOperator) -> Result<(), StorageError> {
-    let tag = match op {
-        BinaryOperator::Plus => 0u8,
-        BinaryOperator::Minus => 1,
-        BinaryOperator::Multiply => 2,
-        BinaryOperator::Divide => 3,
-        BinaryOperator::IntegerDivide => 4,
-        BinaryOperator::Modulo => 5,
-        BinaryOperator::Equal => 10,
-        BinaryOperator::NotEqual => 11,
-        BinaryOperator::LessThan => 12,
-        BinaryOperator::LessThanOrEqual => 13,
-        BinaryOperator::GreaterThan => 14,
-        BinaryOperator::GreaterThanOrEqual => 15,
-        BinaryOperator::And => 20,
-        BinaryOperator::Or => 21,
-        BinaryOperator::Concat => 30,
-    };
-    writer
-        .write_all(&[tag])
-        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))
-}
-
-fn read_binary_operator<R: Read>(reader: &mut R) -> Result<BinaryOperator, StorageError> {
-    let tag = read_u8(reader)?;
-    match tag {
-        0 => Ok(BinaryOperator::Plus),
-        1 => Ok(BinaryOperator::Minus),
-        2 => Ok(BinaryOperator::Multiply),
-        3 => Ok(BinaryOperator::Divide),
-        4 => Ok(BinaryOperator::IntegerDivide),
-        5 => Ok(BinaryOperator::Modulo),
-        10 => Ok(BinaryOperator::Equal),
-        11 => Ok(BinaryOperator::NotEqual),
-        12 => Ok(BinaryOperator::LessThan),
-        13 => Ok(BinaryOperator::LessThanOrEqual),
-        14 => Ok(BinaryOperator::GreaterThan),
-        15 => Ok(BinaryOperator::GreaterThanOrEqual),
-        20 => Ok(BinaryOperator::And),
-        21 => Ok(BinaryOperator::Or),
-        30 => Ok(BinaryOperator::Concat),
-        _ => Err(StorageError::NotImplemented(format!(
-            "Unknown binary operator tag: {}",
-            tag
-        ))),
-    }
-}
-
-fn write_unary_operator<W: Write>(writer: &mut W, op: UnaryOperator) -> Result<(), StorageError> {
-    let tag = match op {
-        UnaryOperator::Not => 0u8,
-        UnaryOperator::Minus => 1,
-        UnaryOperator::Plus => 2,
-        UnaryOperator::IsNull => 3,
-        UnaryOperator::IsNotNull => 4,
-    };
-    writer
-        .write_all(&[tag])
-        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))
-}
-
-fn read_unary_operator<R: Read>(reader: &mut R) -> Result<UnaryOperator, StorageError> {
-    let tag = read_u8(reader)?;
-    match tag {
-        0 => Ok(UnaryOperator::Not),
-        1 => Ok(UnaryOperator::Minus),
-        2 => Ok(UnaryOperator::Plus),
-        3 => Ok(UnaryOperator::IsNull),
-        4 => Ok(UnaryOperator::IsNotNull),
-        _ => Err(StorageError::NotImplemented(format!(
-            "Unknown unary operator tag: {}",
-            tag
-        ))),
-    }
-}
-
-fn write_case_when<W: Write>(writer: &mut W, when: &CaseWhen) -> Result<(), StorageError> {
-    write_u32(writer, when.conditions.len() as u32)?;
-    for condition in &when.conditions {
-        write_expression(writer, condition)?;
-    }
-    write_expression(writer, &when.result)?;
-    Ok(())
-}
-
-fn read_case_when<R: Read>(reader: &mut R) -> Result<CaseWhen, StorageError> {
-    let condition_count = read_u32(reader)?;
-    let mut conditions = Vec::new();
-    for _ in 0..condition_count {
-        conditions.push(read_expression(reader)?);
-    }
-    let result = read_expression(reader)?;
-    Ok(CaseWhen { conditions, result })
-}
-
-fn write_character_unit<W: Write>(
-    writer: &mut W,
-    unit: &CharacterUnit,
-) -> Result<(), StorageError> {
-    let tag = match unit {
-        CharacterUnit::Characters => 0u8,
-        CharacterUnit::Octets => 1,
-    };
-    writer
-        .write_all(&[tag])
-        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))
-}
-
-fn read_character_unit<R: Read>(reader: &mut R) -> Result<CharacterUnit, StorageError> {
-    let tag = read_u8(reader)?;
-    match tag {
-        0 => Ok(CharacterUnit::Characters),
-        1 => Ok(CharacterUnit::Octets),
-        _ => Err(StorageError::NotImplemented(format!(
-            "Unknown character unit tag: {}",
-            tag
-        ))),
-    }
-}
-
-fn write_trim_position<W: Write>(writer: &mut W, pos: &TrimPosition) -> Result<(), StorageError> {
-    let tag = match pos {
-        TrimPosition::Both => 0u8,
-        TrimPosition::Leading => 1,
-        TrimPosition::Trailing => 2,
-    };
-    writer
-        .write_all(&[tag])
-        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))
-}
-
-fn read_trim_position<R: Read>(reader: &mut R) -> Result<TrimPosition, StorageError> {
-    let tag = read_u8(reader)?;
-    match tag {
-        0 => Ok(TrimPosition::Both),
-        1 => Ok(TrimPosition::Leading),
-        2 => Ok(TrimPosition::Trailing),
-        _ => Err(StorageError::NotImplemented(format!(
-            "Unknown trim position tag: {}",
-            tag
-        ))),
-    }
-}
-
-fn write_interval_unit<W: Write>(writer: &mut W, unit: &IntervalUnit) -> Result<(), StorageError> {
-    let tag = match unit {
-        IntervalUnit::Microsecond => 0u8,
-        IntervalUnit::Second => 1,
-        IntervalUnit::Minute => 2,
-        IntervalUnit::Hour => 3,
-        IntervalUnit::Day => 4,
-        IntervalUnit::Week => 5,
-        IntervalUnit::Month => 6,
-        IntervalUnit::Quarter => 7,
-        IntervalUnit::Year => 8,
-        IntervalUnit::SecondMicrosecond => 9,
-        IntervalUnit::MinuteMicrosecond => 10,
-        IntervalUnit::MinuteSecond => 11,
-        IntervalUnit::HourMicrosecond => 12,
-        IntervalUnit::HourSecond => 13,
-        IntervalUnit::HourMinute => 14,
-        IntervalUnit::DayMicrosecond => 15,
-        IntervalUnit::DaySecond => 16,
-        IntervalUnit::DayMinute => 17,
-        IntervalUnit::DayHour => 18,
-        IntervalUnit::YearMonth => 19,
-    };
-    writer
-        .write_all(&[tag])
-        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))
-}
-
-fn read_interval_unit<R: Read>(reader: &mut R) -> Result<IntervalUnit, StorageError> {
-    let tag = read_u8(reader)?;
-    match tag {
-        0 => Ok(IntervalUnit::Microsecond),
-        1 => Ok(IntervalUnit::Second),
-        2 => Ok(IntervalUnit::Minute),
-        3 => Ok(IntervalUnit::Hour),
-        4 => Ok(IntervalUnit::Day),
-        5 => Ok(IntervalUnit::Week),
-        6 => Ok(IntervalUnit::Month),
-        7 => Ok(IntervalUnit::Quarter),
-        8 => Ok(IntervalUnit::Year),
-        9 => Ok(IntervalUnit::SecondMicrosecond),
-        10 => Ok(IntervalUnit::MinuteMicrosecond),
-        11 => Ok(IntervalUnit::MinuteSecond),
-        12 => Ok(IntervalUnit::HourMicrosecond),
-        13 => Ok(IntervalUnit::HourSecond),
-        14 => Ok(IntervalUnit::HourMinute),
-        15 => Ok(IntervalUnit::DayMicrosecond),
-        16 => Ok(IntervalUnit::DaySecond),
-        17 => Ok(IntervalUnit::DayMinute),
-        18 => Ok(IntervalUnit::DayHour),
-        19 => Ok(IntervalUnit::YearMonth),
-        _ => Err(StorageError::NotImplemented(format!(
-            "Unknown interval unit tag: {}",
-            tag
-        ))),
-    }
-}
-
-fn write_fulltext_mode<W: Write>(writer: &mut W, mode: &FulltextMode) -> Result<(), StorageError> {
-    let tag = match mode {
-        FulltextMode::NaturalLanguage => 0u8,
-        FulltextMode::Boolean => 1,
-        FulltextMode::QueryExpansion => 2,
-    };
-    writer
-        .write_all(&[tag])
-        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))
-}
-
-fn read_fulltext_mode<R: Read>(reader: &mut R) -> Result<FulltextMode, StorageError> {
-    let tag = read_u8(reader)?;
-    match tag {
-        0 => Ok(FulltextMode::NaturalLanguage),
-        1 => Ok(FulltextMode::Boolean),
-        2 => Ok(FulltextMode::QueryExpansion),
-        _ => Err(StorageError::NotImplemented(format!(
-            "Unknown fulltext mode tag: {}",
-            tag
-        ))),
-    }
-}
-
-fn write_pseudo_table<W: Write>(writer: &mut W, table: PseudoTable) -> Result<(), StorageError> {
-    let tag = match table {
-        PseudoTable::Old => 0u8,
-        PseudoTable::New => 1,
-    };
-    writer
-        .write_all(&[tag])
-        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))
-}
-
-fn read_pseudo_table<R: Read>(reader: &mut R) -> Result<PseudoTable, StorageError> {
-    let tag = read_u8(reader)?;
-    match tag {
-        0 => Ok(PseudoTable::Old),
-        1 => Ok(PseudoTable::New),
-        _ => Err(StorageError::NotImplemented(format!(
-            "Unknown pseudo table tag: {}",
-            tag
-        ))),
-    }
-}
-
-fn write_window_function_spec<W: Write>(
-    writer: &mut W,
-    spec: &WindowFunctionSpec,
-) -> Result<(), StorageError> {
-    match spec {
-        WindowFunctionSpec::Aggregate { name, args } => {
-            writer
-                .write_all(&[0u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-            write_string(writer, name)?;
-            write_u32(writer, args.len() as u32)?;
-            for arg in args {
-                write_expression(writer, arg)?;
-            }
-        }
-        WindowFunctionSpec::Ranking { name, args } => {
-            writer
-                .write_all(&[1u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-            write_string(writer, name)?;
-            write_u32(writer, args.len() as u32)?;
-            for arg in args {
-                write_expression(writer, arg)?;
-            }
-        }
-        WindowFunctionSpec::Value { name, args } => {
-            writer
-                .write_all(&[2u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-            write_string(writer, name)?;
-            write_u32(writer, args.len() as u32)?;
-            for arg in args {
-                write_expression(writer, arg)?;
-            }
-        }
-    }
-    Ok(())
-}
-
-fn read_window_function_spec<R: Read>(reader: &mut R) -> Result<WindowFunctionSpec, StorageError> {
-    let tag = read_u8(reader)?;
-    match tag {
-        0 => {
-            let name = read_string(reader)?;
-            let arg_count = read_u32(reader)?;
-            let mut args = Vec::new();
-            for _ in 0..arg_count {
-                args.push(read_expression(reader)?);
-            }
-            Ok(WindowFunctionSpec::Aggregate { name, args })
-        }
-        1 => {
-            let name = read_string(reader)?;
-            let arg_count = read_u32(reader)?;
-            let mut args = Vec::new();
-            for _ in 0..arg_count {
-                args.push(read_expression(reader)?);
-            }
-            Ok(WindowFunctionSpec::Ranking { name, args })
-        }
-        2 => {
-            let name = read_string(reader)?;
-            let arg_count = read_u32(reader)?;
-            let mut args = Vec::new();
-            for _ in 0..arg_count {
-                args.push(read_expression(reader)?);
-            }
-            Ok(WindowFunctionSpec::Value { name, args })
-        }
-        _ => Err(StorageError::NotImplemented(format!(
-            "Unknown window function spec tag: {}",
-            tag
-        ))),
-    }
-}
-
-fn write_window_spec<W: Write>(writer: &mut W, spec: &WindowSpec) -> Result<(), StorageError> {
-    // Write partition_by
-    write_bool(writer, spec.partition_by.is_some())?;
-    if let Some(partition_exprs) = &spec.partition_by {
-        write_u32(writer, partition_exprs.len() as u32)?;
-        for expr in partition_exprs {
-            write_expression(writer, expr)?;
-        }
-    }
-
-    // Write order_by - note: OrderByItem serialization not implemented yet
-    // For now, we'll serialize as empty (this is a limitation)
-    write_bool(writer, false)?;
-
-    // Write frame
-    write_bool(writer, spec.frame.is_some())?;
-    if let Some(frame) = &spec.frame {
-        write_window_frame(writer, frame)?;
-    }
-
-    Ok(())
-}
-
-fn read_window_spec<R: Read>(reader: &mut R) -> Result<WindowSpec, StorageError> {
-    // Read partition_by
-    let has_partition_by = read_bool(reader)?;
-    let partition_by = if has_partition_by {
-        let count = read_u32(reader)?;
-        let mut exprs = Vec::new();
-        for _ in 0..count {
-            exprs.push(read_expression(reader)?);
-        }
-        Some(exprs)
-    } else {
-        None
-    };
-
-    // Read order_by
-    let has_order_by = read_bool(reader)?;
-    if has_order_by {
-        return Err(StorageError::NotImplemented(
-            "OrderBy in window spec not yet supported".to_string(),
-        ));
-    }
-
-    // Read frame
-    let has_frame = read_bool(reader)?;
-    let frame = if has_frame {
-        Some(read_window_frame(reader)?)
-    } else {
-        None
-    };
-
-    Ok(WindowSpec {
-        partition_by,
-        order_by: None,
-        frame,
-    })
-}
-
-fn write_window_frame<W: Write>(writer: &mut W, frame: &WindowFrame) -> Result<(), StorageError> {
-    // Write unit
-    let unit_tag = match frame.unit {
-        FrameUnit::Rows => 0u8,
-        FrameUnit::Range => 1,
-    };
-    writer
-        .write_all(&[unit_tag])
-        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-
-    // Write start bound
-    write_frame_bound(writer, &frame.start)?;
-
-    // Write end bound
-    write_bool(writer, frame.end.is_some())?;
-    if let Some(end) = &frame.end {
-        write_frame_bound(writer, end)?;
-    }
-
-    Ok(())
-}
-
-fn read_window_frame<R: Read>(reader: &mut R) -> Result<WindowFrame, StorageError> {
-    // Read unit
-    let unit_tag = read_u8(reader)?;
-    let unit = match unit_tag {
-        0 => FrameUnit::Rows,
-        1 => FrameUnit::Range,
-        _ => {
-            return Err(StorageError::NotImplemented(format!(
-                "Unknown frame unit tag: {}",
-                unit_tag
-            )))
-        }
-    };
-
-    // Read start bound
-    let start = read_frame_bound(reader)?;
-
-    // Read end bound
-    let has_end = read_bool(reader)?;
-    let end = if has_end {
-        Some(read_frame_bound(reader)?)
-    } else {
-        None
-    };
-
-    Ok(WindowFrame { unit, start, end })
-}
-
-fn write_frame_bound<W: Write>(writer: &mut W, bound: &FrameBound) -> Result<(), StorageError> {
-    match bound {
-        FrameBound::UnboundedPreceding => {
-            writer
-                .write_all(&[0u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-        }
-        FrameBound::Preceding(expr) => {
-            writer
-                .write_all(&[1u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-            write_expression(writer, expr)?;
-        }
-        FrameBound::CurrentRow => {
-            writer
-                .write_all(&[2u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-        }
-        FrameBound::Following(expr) => {
-            writer
-                .write_all(&[3u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-            write_expression(writer, expr)?;
-        }
-        FrameBound::UnboundedFollowing => {
-            writer
-                .write_all(&[4u8])
-                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-        }
-    }
-    Ok(())
-}
-
-fn read_frame_bound<R: Read>(reader: &mut R) -> Result<FrameBound, StorageError> {
-    let tag = read_u8(reader)?;
-    match tag {
-        0 => Ok(FrameBound::UnboundedPreceding),
-        1 => {
-            let expr = Box::new(read_expression(reader)?);
-            Ok(FrameBound::Preceding(expr))
-        }
-        2 => Ok(FrameBound::CurrentRow),
-        3 => {
-            let expr = Box::new(read_expression(reader)?);
-            Ok(FrameBound::Following(expr))
-        }
-        4 => Ok(FrameBound::UnboundedFollowing),
-        _ => Err(StorageError::NotImplemented(format!(
-            "Unknown frame bound tag: {}",
-            tag
-        ))),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vibesql_ast::{BinaryOperator, CaseWhen};
     use vibesql_types::SqlValue;
 
     #[test]
