@@ -7,6 +7,21 @@ export default defineConfig({
   plugins: [
     wasm(),
     {
+      name: 'resolve-env-import',
+      resolveId(id) {
+        // Handle the 'env' bare import from wasm-pack generated code
+        if (id === 'env') {
+          return '\0env-virtual'
+        }
+      },
+      load(id) {
+        if (id === '\0env-virtual') {
+          // Provide empty exports for the 'env' module
+          return 'export default {};'
+        }
+      },
+    },
+    {
       name: 'copy-benchmark-data',
       closeBundle() {
         // Copy benchmark data to dist after build

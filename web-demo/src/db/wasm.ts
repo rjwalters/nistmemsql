@@ -1,14 +1,5 @@
 import type { WasmModule, Database } from './types'
 
-// In production, Vite copies public/ files to dist root, so public/pkg/ becomes /pkg/
-// We need the full path with base for GitHub Pages deployment
-const isProdBuild =
-  typeof import.meta !== 'undefined' &&
-  Boolean((import.meta as { env?: { PROD?: boolean } }).env?.PROD)
-const WASM_MODULE_PATH = isProdBuild
-  ? '/vibesql/pkg/vibesql_wasm.js'
-  : '../../public/pkg/vibesql_wasm.js'
-
 let wasmModule: WasmModule | null = null
 let db: Database | null = null
 let usingOpfs: boolean = false
@@ -17,20 +8,14 @@ async function loadWasmModule(): Promise<WasmModule> {
   if (wasmModule) return wasmModule
 
   try {
-    const module = (await import(/* @vite-ignore */ WASM_MODULE_PATH)) as unknown as WasmModule
+    // Import WASM module - Vite will handle bundling this properly
+    // In production, Vite copies public/pkg/ to dist/pkg/ and resolves imports correctly
+    const module = (await import('../../public/pkg/vibesql_wasm.js')) as unknown as WasmModule
     wasmModule = module
     return module
   } catch (error) {
-    if (isProdBuild) {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new Error(
-        `WASM bindings missing in production build: ${message}. Generate them with ` +
-          '`wasm-pack build --target web --out-dir web-demo/public/pkg` prior to deploying.'
-      )
-    }
-
     console.warn(
-      'WASM bindings not found; falling back to stub module. Run `wasm-pack build --target web --out-dir web-demo/public/pkg` to enable database features.'
+      'WASM bindings not found; falling back to stub module. Run `./scripts/build-wasm.sh` to enable database features.'
     )
     const module = (await import('./wasm-fallback')) as unknown as WasmModule
     wasmModule = module
