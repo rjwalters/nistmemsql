@@ -162,7 +162,9 @@ mod tests {
 
     #[test]
     fn test_q6_pattern_matching() {
-        let schema = CombinedSchema::default();
+        // Create an empty schema for pattern matching tests
+        let empty_table = vibesql_catalog::TableSchema::new("test".to_string(), vec![]);
+        let schema = CombinedSchema::from_table("test".to_string(), empty_table);
 
         // Should match Q6
         let q6_query = r#"
@@ -182,7 +184,9 @@ mod tests {
 
     #[test]
     fn test_non_q6_query() {
-        let schema = CombinedSchema::default();
+        // Create an empty schema for pattern matching tests
+        let empty_table = vibesql_catalog::TableSchema::new("test".to_string(), vec![]);
+        let schema = CombinedSchema::from_table("test".to_string(), empty_table);
 
         // Should not match Q6
         let other_query = "SELECT * FROM orders WHERE o_orderdate > '2020-01-01'";
