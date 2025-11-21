@@ -83,9 +83,12 @@ async function bootstrap(): Promise<void> {
     // Upgrade to Monaco now (Monaco was preloaded during WASM load)
     // This ensures Monaco is fully rendered before hiding the loader
     progress.updateStep('ui', 80, 'loading')
+    console.log('[Bootstrap] Starting Monaco upgrade...')
     await upgradeEditorsToMonaco()
+    console.log('[Bootstrap] Monaco upgrade complete')
 
     // Initialize Database Selector with all available sample databases
+    console.log('[Bootstrap] Initializing database selector...')
     const databases: DatabaseOption[] = sampleDatabases.map(db => ({
       id: db.id,
       name: db.name,
@@ -98,8 +101,10 @@ async function bootstrap(): Promise<void> {
     databaseSelector.onChange((dbId: string) => {
       void app.database.loadDatabase(dbId)
     })
+    console.log('[Bootstrap] Database selector ready')
 
     // Initialize Examples sidebar
+    console.log('[Bootstrap] Initializing examples...')
     const examplesComponent = new ExamplesComponent()
     examplesComponent.onSelect((event: ExampleSelectEvent) => {
       app.editor.getEditor().setValue(event.sql)
@@ -109,6 +114,7 @@ async function bootstrap(): Promise<void> {
         databaseSelector.setSelected(event.database)
       }
     })
+    console.log('[Bootstrap] Examples ready')
 
     // Run button executes query
     app.layout.runButton?.addEventListener('click', () => {
@@ -116,9 +122,12 @@ async function bootstrap(): Promise<void> {
     })
 
     // Initialize SQL:1999 Showcase navigation
+    console.log('[Bootstrap] Initializing showcase...')
     initShowcase()
+    console.log('[Bootstrap] Showcase ready')
 
     // Set build timestamp in footer
+    console.log('[Bootstrap] Setting build timestamp...')
     const timestampElement = document.getElementById('build-timestamp')
     if (timestampElement) {
       try {
@@ -140,14 +149,21 @@ async function bootstrap(): Promise<void> {
     }
 
     // Update conformance pass rate dynamically
-    void updateConformanceFooter()
+    console.log('[Bootstrap] Updating conformance footer...')
+    // Don't wait for conformance update, it can complete in background
+    updateConformanceFooter()
+      .then(() => console.log('[Bootstrap] Conformance footer updated'))
+      .catch(err => console.warn('[Bootstrap] Conformance footer failed:', err))
 
     // Final UI setup complete
+    console.log('[Bootstrap] Finalizing UI...')
     progress.updateStep('ui', 95, 'loading')
 
     // Small delay to show completion state
     await new Promise(resolve => setTimeout(resolve, 200))
+    console.log('[Bootstrap] Completing UI step...')
     progress.completeStep('ui')
+    console.log('[Bootstrap] Bootstrap complete!')
   } catch (error) {
     console.error('Bootstrap error:', error)
     const message = error instanceof Error ? error.message : String(error)
