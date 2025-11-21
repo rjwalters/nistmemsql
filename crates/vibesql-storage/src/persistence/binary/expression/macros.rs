@@ -39,4 +39,3 @@ macro_rules! impl_simple_enum_serialization {
     };
 }
 
-pub(super) use impl_simple_enum_serialization;

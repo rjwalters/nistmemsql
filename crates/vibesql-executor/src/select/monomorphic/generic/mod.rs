@@ -28,8 +28,5 @@ pub mod filter;
 pub mod group_by;
 
 // Re-export commonly used types for backwards compatibility
-pub use aggregation::{
-    AggregationSpec, GenericFilteredAggregationMatcher, GenericFilteredAggregationPlan,
-};
-pub use filter::{extract_filters, optimize_date_ranges, ComparisonOp, FilterPredicate};
-pub use group_by::{GenericGroupedAggregationPlan, GroupAggregateSpec, GroupByColumnSpec};
+pub use aggregation::GenericFilteredAggregationPlan;
+pub use group_by::GenericGroupedAggregationPlan;

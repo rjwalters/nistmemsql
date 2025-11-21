@@ -42,12 +42,12 @@ pub use scan::ColumnarScan;
 pub use filter::{
     apply_columnar_filter, create_filter_bitmap, extract_column_predicates, ColumnPredicate,
 };
-pub use aggregate::{compute_columnar_aggregate, compute_multiple_aggregates, extract_aggregates, AggregateOp};
+pub use aggregate::{compute_multiple_aggregates, extract_aggregates, AggregateOp};
 
 use crate::errors::ExecutorError;
 use crate::schema::CombinedSchema;
 use vibesql_storage::Row;
-use vibesql_types::{Date, SqlValue};
+use vibesql_types::SqlValue;
 
 /// Execute a columnar aggregate query with filtering
 ///
@@ -93,7 +93,7 @@ pub fn execute_columnar_aggregate(
     }
 
     // Create columnar scan
-    let scan = ColumnarScan::new(rows);
+    let _scan = ColumnarScan::new(rows);
 
     // Create filter bitmap (optional filtering)
     let filter_bitmap = if predicates.is_empty() {
