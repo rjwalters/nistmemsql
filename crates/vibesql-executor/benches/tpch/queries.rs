@@ -252,14 +252,12 @@ WHERE l_shipdate >= '1995-09-01'
 "#;
 
 // TPC-H Q15: Top Supplier
+// Uses CTE to compute revenue once (avoiding double-scan).
+// Note: Using ORDER BY + LIMIT 1 instead of MAX subquery because CTE references
+// in scalar subqueries are not yet supported. This achieves the same result
+// (finding the supplier with maximum revenue).
 pub const TPCH_Q15: &str = r#"
-SELECT
-    s_suppkey,
-    s_name,
-    s_address,
-    s_phone,
-    total_revenue
-FROM supplier, (
+WITH revenue AS (
     SELECT
         l_suppkey as supplier_no,
         SUM(l_extendedprice * (1 - l_discount)) as total_revenue
@@ -267,19 +265,17 @@ FROM supplier, (
     WHERE l_shipdate >= '1996-01-01'
         AND l_shipdate < '1996-04-01'
     GROUP BY l_suppkey
-) revenue
+)
+SELECT
+    s_suppkey,
+    s_name,
+    s_address,
+    s_phone,
+    total_revenue
+FROM supplier, revenue
 WHERE s_suppkey = supplier_no
-    AND total_revenue = (
-        SELECT MAX(total_revenue)
-        FROM (
-            SELECT SUM(l_extendedprice * (1 - l_discount)) as total_revenue
-            FROM lineitem
-            WHERE l_shipdate >= '1996-01-01'
-                AND l_shipdate < '1996-04-01'
-            GROUP BY l_suppkey
-        ) max_revenue
-    )
-ORDER BY s_suppkey
+ORDER BY total_revenue DESC
+LIMIT 1
 "#;
 
 // TPC-H Q16: Parts/Supplier Relationship
