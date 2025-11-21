@@ -140,6 +140,7 @@ async function bootstrap(): Promise<void> {
     }
 
     // Update conformance pass rate dynamically
+    // Don't wait for conformance update, it can complete in background
     void updateConformanceFooter()
 
     // Final UI setup complete
