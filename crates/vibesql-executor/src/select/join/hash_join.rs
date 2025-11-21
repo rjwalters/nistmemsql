@@ -473,15 +473,16 @@ mod tests {
         // Should produce identical results
         assert_eq!(seq_table.len(), par_table.len());
 
-        for (key, seq_rows) in seq_table.iter() {
-            let par_rows = par_table.get(key).expect("Key should exist in parallel table");
-            assert_eq!(seq_rows.len(), par_rows.len(), "Row count mismatch for key {:?}", key);
+        for (key, seq_indices) in seq_table.iter() {
+            let par_indices = par_table.get(key).expect("Key should exist in parallel table");
+            assert_eq!(seq_indices.len(), par_indices.len(), "Index count mismatch for key {:?}", key);
 
-            // Verify all rows are present (order may differ)
-            for seq_row in seq_rows {
+            // Verify all indices are present (order may differ)
+            for seq_idx in seq_indices {
                 assert!(
-                    par_rows.iter().any(|par_row| par_row.values == seq_row.values),
-                    "Row not found in parallel table"
+                    par_indices.contains(seq_idx),
+                    "Index {} not found in parallel table",
+                    seq_idx
                 );
             }
         }
