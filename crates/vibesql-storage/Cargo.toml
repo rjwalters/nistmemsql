@@ -26,7 +26,7 @@ rstar = "0.12"
 lru = "0.12"
 log = "0.4"
 rand = "0.8"  # For statistical sampling (Phase 5.2)
-instant = "0.1"  # WASM-compatible time primitives
+instant = { version = "0.1", features = ["wasm-bindgen"] }  # WASM-compatible time primitives
 
 # Use parking_lot for native builds, std::sync for WASM
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
