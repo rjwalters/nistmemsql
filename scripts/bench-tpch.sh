@@ -44,23 +44,34 @@ echo ""
 if [ "$MODE" = "summary" ]; then
     # Summary mode - just show query totals
     echo -e "${BLUE}=== Results Summary ===${NC}"
-    grep -E "^===" ${OUTPUT_FILE} | while read line; do
-        query=$(echo "$line" | grep -oP 'Q\d+')
-        if [ -n "$query" ]; then
-            # Get the result for this query
-            result=$(awk "/^=== $query ===/{flag=1; next} /^==={next}//{flag=0} flag && /TOTAL:/{print; exit}" ${OUTPUT_FILE})
 
-            if echo "$result" | grep -q "TIMEOUT"; then
-                echo -e "  $query: ${YELLOW}TIMEOUT (>${TIMEOUT_SECS}s)${NC}"
-            elif echo "$result" | grep -q "ERROR"; then
-                error=$(echo "$result" | grep -oP 'ERROR: \K.*')
-                echo -e "  $query: ${RED}ERROR${NC} - $(echo "$error" | cut -c1-50)"
-            elif [ -n "$result" ]; then
-                time=$(echo "$result" | grep -oP 'TOTAL:\s+\K[0-9.]+[µmn]?s')
-                echo -e "  $query: ${GREEN}$time${NC}"
+    # Parse results line by line
+    while IFS= read -r line; do
+        # Check if this is a query header
+        if echo "$line" | grep -q "^=== Q[0-9]"; then
+            current_query=$(echo "$line" | sed 's/^=== \(Q[0-9]*\) ===$/\1/')
+        # Check if this is a TOTAL line for current query
+        elif [ -n "$current_query" ] && echo "$line" | grep -q "TOTAL:"; then
+            if echo "$line" | grep -q "TIMEOUT"; then
+                echo -e "  $current_query: ${YELLOW}TIMEOUT (>${TIMEOUT_SECS}s)${NC}"
+            else
+                # Extract time - handle various formats (ms, s, µs)
+                time=$(echo "$line" | sed 's/.*TOTAL:[[:space:]]*//' | awk '{print $1}')
+                echo -e "  $current_query: ${GREEN}$time${NC}"
             fi
+            current_query=""
+        # Check for ERROR on Execute line
+        elif [ -n "$current_query" ] && echo "$line" | grep -q "Execute:.*ERROR"; then
+            error=$(echo "$line" | sed 's/.*ERROR: //' | cut -c1-50)
+            echo -e "  $current_query: ${RED}ERROR${NC} - $error"
+            current_query=""
+        # Check for parse ERROR on its own line
+        elif [ -n "$current_query" ] && echo "$line" | grep -q "^ERROR:"; then
+            error=$(echo "$line" | sed 's/ERROR: //' | cut -c1-50)
+            echo -e "  $current_query: ${RED}PARSE ERROR${NC} - $error"
+            current_query=""
         fi
-    done
+    done < ${OUTPUT_FILE}
 else
     # Full mode - show complete output
     cat ${OUTPUT_FILE}
