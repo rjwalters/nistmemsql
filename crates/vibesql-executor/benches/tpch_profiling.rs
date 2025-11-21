@@ -33,19 +33,42 @@ fn run_query_detailed(db: &vibesql_storage::Database, name: &str, sql: &str, tim
     let exec_create_time = exec_create_start.elapsed();
     eprintln!("  Executor: {:>10.2?} (timeout: {:?})", exec_create_time, timeout);
 
-    // Execute
+    // Execute with wallclock timeout check
     let execute_start = Instant::now();
-    let result = executor.execute(&stmt);
+
+    // Use a thread with timeout to prevent hanging
+    use std::sync::mpsc;
+    use std::thread;
+
+    let (tx, rx) = mpsc::channel();
+    let sql_owned = sql.to_string();
+
+    thread::spawn(move || {
+        let db_thread = load_vibesql(0.01);
+        let stmt_thread = match Parser::parse_sql(&sql_owned) {
+            Ok(vibesql_ast::Statement::Select(s)) => s,
+            _ => return,
+        };
+        let executor_thread = SelectExecutor::new(&db_thread).with_timeout(timeout.as_secs());
+        let result = executor_thread.execute(&stmt_thread);
+        let _ = tx.send(result);
+    });
+
+    let result = rx.recv_timeout(timeout);
     let execute_time = execute_start.elapsed();
 
     match result {
-        Ok(rows) => {
+        Ok(Ok(rows)) => {
             eprintln!("  Execute:  {:>10.2?} ({} rows)", execute_time, rows.len());
             let total = parse_time + exec_create_time + execute_time;
             eprintln!("  TOTAL:    {:>10.2?}", total);
         }
-        Err(e) => {
+        Ok(Err(e)) => {
             eprintln!("  Execute:  {:>10.2?} ERROR: {}", execute_time, e);
+        }
+        Err(_) => {
+            eprintln!("  Execute:  TIMEOUT (>{}s) - skipping", timeout.as_secs());
+            eprintln!("  TOTAL:    TIMEOUT (>{}s)", timeout.as_secs());
         }
     }
 }

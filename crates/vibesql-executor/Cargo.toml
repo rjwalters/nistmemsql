@@ -126,6 +126,6 @@ name = "parallel_sort"
 harness = false
 
 [[bench]]
-name = "q6_profiling"
+name = "tpch_profiling"
 harness = false
 required-features = ["benchmark-comparison"]
