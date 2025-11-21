@@ -16,7 +16,7 @@
 
 use vibesql_ast::{SelectItem, SelectStmt};
 
-mod correlation;
+pub mod correlation;
 mod detection;
 mod expression;
 mod transformations;
