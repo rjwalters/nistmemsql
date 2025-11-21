@@ -83,7 +83,7 @@ impl Default for ParallelSearchConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            max_depth: 6,
+            max_depth: 8, // Support 8-way joins like TPC-H Q8
             max_states_per_layer: 1000,
             pruning_threshold: 1.5,
         }
