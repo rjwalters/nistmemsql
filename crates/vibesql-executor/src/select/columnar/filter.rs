@@ -327,11 +327,26 @@ pub fn evaluate_predicate(predicate: &ColumnPredicate, value: &SqlValue) -> bool
 
 /// Compare two SqlValues for ordering
 ///
-/// Simplified comparison for common numeric types
+/// Handles both same-type and mixed numeric type comparisons by coercing to f64
 fn compare_values(a: &SqlValue, b: &SqlValue) -> std::cmp::Ordering {
     use std::cmp::Ordering;
 
+    // Try to extract numeric value as f64 for cross-type comparison
+    fn to_f64(v: &SqlValue) -> Option<f64> {
+        match v {
+            SqlValue::Integer(n) => Some(*n as f64),
+            SqlValue::Bigint(n) => Some(*n as f64),
+            SqlValue::Smallint(n) => Some(*n as f64),
+            SqlValue::Float(n) => Some(*n as f64),
+            SqlValue::Double(n) => Some(*n),
+            SqlValue::Numeric(n) => n.to_string().parse().ok(),
+            SqlValue::Real(n) => Some(*n as f64),
+            _ => None,
+        }
+    }
+
     match (a, b) {
+        // Same-type comparisons (fast path)
         (SqlValue::Integer(a), SqlValue::Integer(b)) => a.cmp(b),
         (SqlValue::Bigint(a), SqlValue::Bigint(b)) => a.cmp(b),
         (SqlValue::Smallint(a), SqlValue::Smallint(b)) => a.cmp(b),
@@ -344,10 +359,21 @@ fn compare_values(a: &SqlValue, b: &SqlValue) -> std::cmp::Ordering {
         (SqlValue::Numeric(a), SqlValue::Numeric(b)) => {
             a.partial_cmp(b).unwrap_or(Ordering::Equal)
         }
+        (SqlValue::Real(a), SqlValue::Real(b)) => {
+            a.partial_cmp(b).unwrap_or(Ordering::Equal)
+        }
         (SqlValue::Varchar(a), SqlValue::Varchar(b)) => a.cmp(b),
         (SqlValue::Character(a), SqlValue::Character(b)) => a.cmp(b),
         (SqlValue::Date(a), SqlValue::Date(b)) => a.cmp(b),
-        _ => Ordering::Equal, // Fallback for mixed types
+        // Mixed numeric types: coerce to f64
+        _ => {
+            if let (Some(a_f64), Some(b_f64)) = (to_f64(a), to_f64(b)) {
+                a_f64.partial_cmp(&b_f64).unwrap_or(Ordering::Equal)
+            } else {
+                // Non-numeric mixed types: fall back to Equal (will fail predicate appropriately)
+                Ordering::Equal
+            }
+        }
     }
 }
 
