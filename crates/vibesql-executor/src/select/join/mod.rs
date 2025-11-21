@@ -22,8 +22,9 @@ use hash_join::hash_join_inner;
 pub use hash_join_iterator::HashJoinIterator;
 // Re-export nested loop join variants for internal use
 use nested_loop::{
-    nested_loop_cross_join, nested_loop_full_outer_join, nested_loop_inner_join,
-    nested_loop_left_outer_join, nested_loop_right_outer_join,
+    nested_loop_anti_join, nested_loop_cross_join, nested_loop_full_outer_join,
+    nested_loop_inner_join, nested_loop_left_outer_join, nested_loop_right_outer_join,
+    nested_loop_semi_join,
 };
 pub use reorder::JoinOrderAnalyzer;
 // Re-export join order search for public tests
@@ -386,6 +387,12 @@ pub(super) fn nested_loop_join(
             nested_loop_full_outer_join(left, right, &combined_condition, database)
         }
         vibesql_ast::JoinType::Cross => nested_loop_cross_join(left, right, &combined_condition, database),
+        vibesql_ast::JoinType::Semi => {
+            nested_loop_semi_join(left, right, &combined_condition, database)
+        }
+        vibesql_ast::JoinType::Anti => {
+            nested_loop_anti_join(left, right, &combined_condition, database)
+        }
     }?;
 
     // For NATURAL JOIN, remove duplicate columns from the result
