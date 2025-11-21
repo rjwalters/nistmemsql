@@ -169,8 +169,12 @@ fn estimate_equality_selectivity(
         _ => return 0.1, // Can't analyze: default selectivity
     };
 
-    // Look up column statistics
-    if let Some(col_stats) = stats.columns.get(column_name) {
+    // Look up column statistics (case-insensitive)
+    let col_stats = stats.columns.get(column_name)
+        .or_else(|| stats.columns.get(&column_name.to_uppercase()))
+        .or_else(|| stats.columns.get(&column_name.to_lowercase()));
+
+    if let Some(col_stats) = col_stats {
         col_stats.estimate_eq_selectivity(literal_value)
     } else {
         // No stats available: assume uniform distribution over 10 distinct values
@@ -202,8 +206,12 @@ fn estimate_range_selectivity(
         _ => return 0.33, // Default range selectivity
     };
 
-    // Look up column statistics
-    if let Some(col_stats) = stats.columns.get(column_name) {
+    // Look up column statistics (case-insensitive)
+    let col_stats = stats.columns.get(column_name)
+        .or_else(|| stats.columns.get(&column_name.to_uppercase()))
+        .or_else(|| stats.columns.get(&column_name.to_lowercase()));
+
+    if let Some(col_stats) = col_stats {
         col_stats.estimate_range_selectivity(literal_value, operator_str)
     } else {
         // No stats: conservative estimate
@@ -219,8 +227,12 @@ fn estimate_is_null_selectivity(expr: &Expression, stats: &TableStatistics) -> f
         _ => return 0.1, // Default if not a column reference
     };
 
-    // Look up null ratio from column statistics
-    if let Some(col_stats) = stats.columns.get(column_name) {
+    // Look up null ratio from column statistics (case-insensitive)
+    let col_stats = stats.columns.get(column_name)
+        .or_else(|| stats.columns.get(&column_name.to_uppercase()))
+        .or_else(|| stats.columns.get(&column_name.to_lowercase()));
+
+    if let Some(col_stats) = col_stats {
         let total_rows = stats.row_count;
         if total_rows > 0 {
             col_stats.null_count as f64 / total_rows as f64
