@@ -12,7 +12,7 @@ use super::builder::SelectExecutor;
 use crate::{
     errors::ExecutorError,
     evaluator::CombinedExpressionEvaluator,
-    optimizer::optimize_where_clause,
+    optimizer::{materialize_uncorrelated_in_subqueries, optimize_where_clause},
     select::{
         cte::CteResult,
         filter::apply_where_filter_combined_auto,
@@ -83,8 +83,16 @@ impl SelectExecutor<'_> {
                 CombinedExpressionEvaluator::with_database(&schema, self.database)
             };
 
+        // Materialize uncorrelated IN subqueries to avoid re-execution per row
+        // This transforms O(n * m) to O(m) + O(n) for queries like TPC-H Q4
+        let materialized_where = if let Some(where_expr) = &stmt.where_clause {
+            Some(materialize_uncorrelated_in_subqueries(where_expr, self.database)?)
+        } else {
+            None
+        };
+
         // Optimize WHERE clause with constant folding and dead code elimination
-        let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
+        let where_optimization = optimize_where_clause(materialized_where.as_ref(), &evaluator)?;
 
         // Apply WHERE clause to filter joined rows (optimized)
         let filtered_rows = match where_optimization {
