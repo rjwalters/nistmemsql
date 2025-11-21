@@ -279,21 +279,47 @@ impl CombinedExpressionEvaluator<'_> {
             }
         }
 
-        // Non-correlated or couldn't extract correlation key - execute normally
-        let select_executor = if !self.schema.table_schemas.is_empty() {
-            crate::select::SelectExecutor::new_with_outer_context_and_depth(
-                database,
-                row,
-                self.schema,
-                self.depth,
-            )
-        } else {
-            crate::select::SelectExecutor::new(database)
-        };
-        let rows = select_executor.execute(subquery)?;
+        // Non-correlated or couldn't extract correlation key
+        if !is_correlated {
+            // Non-correlated subquery - try cache first
+            let cache_key = compute_subquery_hash(subquery);
 
-        // Delegate to shared logic
-        super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())
+            // Check cache (explicitly scope the borrow to avoid holding it during execution)
+            // Use peek() for readonly access (get() requires &mut for LRU tracking)
+            let cached_result = self.subquery_cache.borrow().peek(&cache_key).cloned();
+
+            if let Some(cached_rows) = cached_result {
+                // Cache hit - use cached result
+                // Delegate to shared logic
+                return super::super::subqueries_shared::eval_scalar_subquery_core(&cached_rows, subquery.select_list.len());
+            }
+
+            // Cache miss - execute and cache
+            let select_executor = crate::select::SelectExecutor::new_with_depth(database, self.depth);
+            let rows = select_executor.execute(subquery)?;
+
+            // Cache the result
+            self.subquery_cache.borrow_mut().put(cache_key, rows.clone());
+
+            // Delegate to shared logic
+            super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())
+        } else {
+            // Correlated subquery that couldn't extract correlation key - execute with outer context
+            let select_executor = if !self.schema.table_schemas.is_empty() {
+                crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                    database,
+                    row,
+                    self.schema,
+                    self.depth,
+                )
+            } else {
+                crate::select::SelectExecutor::new(database)
+            };
+            let rows = select_executor.execute(subquery)?;
+
+            // Delegate to shared logic
+            super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())
+        }
     }
 
     /// Evaluate EXISTS predicate: EXISTS (SELECT ...)
