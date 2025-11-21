@@ -20,6 +20,9 @@ pub const REGIONS: &[&str] = &["AFRICA", "AMERICA", "ASIA", "EUROPE", "MIDDLE EA
 pub const SEGMENTS: &[&str] = &["AUTOMOBILE", "BUILDING", "FURNITURE", "HOUSEHOLD", "MACHINERY"];
 pub const PRIORITIES: &[&str] = &["1-URGENT", "2-HIGH", "3-MEDIUM", "4-NOT SPECIFIED", "5-LOW"];
 pub const SHIP_MODES: &[&str] = &["AIR", "AIR REG", "MAIL", "RAIL", "SHIP", "TRUCK", "FOB"];
+pub const COLORS: &[&str] = &["almond", "antique", "aquamarine", "azure", "beige", "bisque", "black", "blanched", "blue", "blush", "brown", "burlywood", "burnished", "chartreuse", "chiffon", "chocolate", "coral", "cornflower", "cornsilk", "cream", "cyan", "dark", "deep", "dim", "dodger", "drab", "firebrick", "floral", "forest", "frosted", "gainsboro", "ghost", "goldenrod", "green", "grey", "honeydew", "hot", "indian", "ivory", "khaki", "lace", "lavender", "lawn", "lemon", "light", "lime", "linen", "magenta", "maroon", "medium", "metallic", "midnight", "mint", "misty", "moccasin", "navajo", "navy", "olive", "orange", "orchid", "pale", "papaya", "peach", "peru", "pink", "plum", "powder", "puff", "purple", "red", "rose", "rosy", "royal", "saddle", "salmon", "sandy", "seashell", "sienna", "sky", "slate", "smoke", "snow", "spring", "steel", "tan", "thistle", "tomato", "turquoise", "violet", "wheat", "white", "yellow"];
+pub const TYPES: &[&str] = &["STANDARD", "SMALL", "MEDIUM", "LARGE", "ECONOMY", "PROMO"];
+pub const CONTAINERS: &[&str] = &["SM CASE", "SM BOX", "SM PACK", "SM PKG", "MED BAG", "MED BOX", "MED PKG", "MED PACK", "LG CASE", "LG BOX", "LG PACK", "LG PKG", "JUMBO BOX", "JUMBO CASE", "JUMBO PACK", "JUMBO PKG", "WRAP CASE", "WRAP BOX", "WRAP PACK", "WRAP PKG"];
 
 pub struct TPCHData {
     pub scale_factor: f64,
@@ -27,6 +30,7 @@ pub struct TPCHData {
     pub orders_count: usize,
     pub lineitem_count: usize,
     pub supplier_count: usize,
+    pub part_count: usize,
     rng: ChaCha8Rng,
 }
 
@@ -36,6 +40,7 @@ impl TPCHData {
         let orders_count = ((1_500_000.0 * scale_factor) as usize).max(1000);
         let lineitem_count = ((6_000_000.0 * scale_factor) as usize).max(4000);
         let supplier_count = ((10_000.0 * scale_factor) as usize).max(10);
+        let part_count = ((200_000.0 * scale_factor) as usize).max(200);
 
         Self {
             scale_factor,
@@ -43,6 +48,7 @@ impl TPCHData {
             orders_count,
             lineitem_count,
             supplier_count,
+            part_count,
             rng: ChaCha8Rng::seed_from_u64(42), // Deterministic
         }
     }

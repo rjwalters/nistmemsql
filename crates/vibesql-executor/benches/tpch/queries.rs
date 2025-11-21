@@ -150,16 +150,21 @@ GROUP BY o_year
 ORDER BY o_year
 "#;
 
-// TPC-H Q9: Product Type Profit Measure
+// TPC-H Q9: Product Type Profit Measure (8-way join)
+// Calculates profit for parts containing 'green' in name, grouped by nation and year
 pub const TPCH_Q9: &str = r#"
 SELECT
     n_name as nation,
     SUBSTR(o_orderdate, 1, 4) as o_year,
-    SUM(l_extendedprice * (1 - l_discount)) as sum_profit
-FROM lineitem, orders, nation, supplier
-WHERE l_orderkey = o_orderkey
-    AND l_suppkey = s_suppkey
+    SUM(l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity) as sum_profit
+FROM part, supplier, lineitem, partsupp, orders, nation
+WHERE s_suppkey = l_suppkey
+    AND ps_suppkey = l_suppkey
+    AND ps_partkey = l_partkey
+    AND p_partkey = l_partkey
+    AND o_orderkey = l_orderkey
     AND s_nationkey = n_nationkey
+    AND p_name LIKE '%green%'
 GROUP BY nation, o_year
 ORDER BY nation, o_year DESC
 "#;
