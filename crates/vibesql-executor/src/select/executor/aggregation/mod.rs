@@ -124,6 +124,7 @@ impl SelectExecutor<'_> {
 
         // Compute aggregates for each group and apply HAVING
         let mut result_rows = Vec::new();
+        let mut group_keys_for_order_by = Vec::new(); // Store group keys for ORDER BY
         for (group_key, group_rows) in groups {
             // Clear aggregate cache for new group
             self.clear_aggregate_cache();
@@ -202,12 +203,20 @@ impl SelectExecutor<'_> {
                 self.track_memory_allocation(row_memory)?;
 
                 result_rows.push(row);
+                // Store the group key for this row (for ORDER BY to access GROUP BY columns)
+                group_keys_for_order_by.push(group_key);
             }
         }
 
         // Apply ORDER BY if present
         let result_rows = if let Some(order_by) = &stmt.order_by {
-            self.apply_order_by_to_aggregates(result_rows, stmt, order_by, &expanded_select_list)?
+            self.apply_order_by_to_aggregates(
+                result_rows,
+                group_keys_for_order_by,
+                stmt,
+                order_by,
+                &expanded_select_list,
+            )?
         } else {
             result_rows
         };
