@@ -21,12 +21,29 @@ pub const SEGMENTS: &[&str] = &["AUTOMOBILE", "BUILDING", "FURNITURE", "HOUSEHOL
 pub const PRIORITIES: &[&str] = &["1-URGENT", "2-HIGH", "3-MEDIUM", "4-NOT SPECIFIED", "5-LOW"];
 pub const SHIP_MODES: &[&str] = &["AIR", "AIR REG", "MAIL", "RAIL", "SHIP", "TRUCK", "FOB"];
 
+// Part table constants for TPC-H Q19
+pub const PART_BRANDS: &[&str] = &[
+    "Brand#11", "Brand#12", "Brand#13", "Brand#14", "Brand#15",
+    "Brand#21", "Brand#22", "Brand#23", "Brand#24", "Brand#25",
+    "Brand#31", "Brand#32", "Brand#33", "Brand#34", "Brand#35",
+];
+pub const PART_CONTAINERS: &[&str] = &[
+    "SM CASE", "SM BOX", "SM PACK", "SM PKG",
+    "MED BAG", "MED BOX", "MED PKG", "MED PACK",
+    "LG CASE", "LG BOX", "LG PACK", "LG PKG",
+    "WRAP CASE", "WRAP BOX", "WRAP PACK", "WRAP PKG",
+];
+pub const PART_TYPES: &[&str] = &[
+    "STANDARD", "SMALL", "MEDIUM", "LARGE", "ECONOMY", "PROMO",
+];
+
 pub struct TPCHData {
     pub scale_factor: f64,
     pub customer_count: usize,
     pub orders_count: usize,
     pub lineitem_count: usize,
     pub supplier_count: usize,
+    pub part_count: usize,
     rng: ChaCha8Rng,
 }
 
@@ -36,6 +53,7 @@ impl TPCHData {
         let orders_count = ((1_500_000.0 * scale_factor) as usize).max(1000);
         let lineitem_count = ((6_000_000.0 * scale_factor) as usize).max(4000);
         let supplier_count = ((10_000.0 * scale_factor) as usize).max(10);
+        let part_count = ((200_000.0 * scale_factor) as usize).max(200);
 
         Self {
             scale_factor,
@@ -43,6 +61,7 @@ impl TPCHData {
             orders_count,
             lineitem_count,
             supplier_count,
+            part_count,
             rng: ChaCha8Rng::seed_from_u64(42), // Deterministic
         }
     }

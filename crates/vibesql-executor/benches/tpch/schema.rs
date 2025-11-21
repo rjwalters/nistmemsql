@@ -3,7 +3,7 @@
 //! This module provides schema creation and data loading functions for TPC-H
 //! benchmark tables across multiple database engines (VibeSQL, SQLite, DuckDB).
 
-use super::data::{TPCHData, NATIONS, PRIORITIES, REGIONS, SEGMENTS, SHIP_MODES};
+use super::data::{TPCHData, NATIONS, PRIORITIES, REGIONS, SEGMENTS, SHIP_MODES, PART_BRANDS, PART_CONTAINERS, PART_TYPES};
 use vibesql_storage::Database as VibeDB;
 use vibesql_types::Date;
 
@@ -32,6 +32,7 @@ pub fn load_vibesql(scale_factor: f64) -> VibeDB {
     load_supplier_vibesql(&mut db, &mut data);
     load_orders_vibesql(&mut db, &mut data);
     load_lineitem_vibesql(&mut db, &mut data);
+    load_part_vibesql(&mut db, &mut data);
 
     // Create indexes to match SQLite benchmark (for fair comparison)
     create_tpch_indexes_vibesql(&mut db);
@@ -54,6 +55,7 @@ pub fn load_sqlite(scale_factor: f64) -> SqliteConn {
     load_supplier_sqlite(&conn, &mut data);
     load_orders_sqlite(&conn, &mut data);
     load_lineitem_sqlite(&conn, &mut data);
+    load_part_sqlite(&conn, &mut data);
 
     conn
 }
@@ -73,6 +75,7 @@ pub fn load_duckdb(scale_factor: f64) -> DuckDBConn {
     load_supplier_duckdb(&conn, &mut data);
     load_orders_duckdb(&conn, &mut data);
     load_lineitem_duckdb(&conn, &mut data);
+    load_part_duckdb(&conn, &mut data);
 
     conn
 }
@@ -443,6 +446,71 @@ fn create_tpch_schema_vibesql(db: &mut VibeDB) {
         ],
     ))
     .unwrap();
+
+    // PART table (for Q19)
+    db.create_table(TableSchema::new(
+        "PART".to_string(),
+        vec![
+            ColumnSchema {
+                name: "P_PARTKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_NAME".to_string(),
+                data_type: DataType::Varchar { max_length: Some(55) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_MFGR".to_string(),
+                data_type: DataType::Varchar { max_length: Some(25) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_BRAND".to_string(),
+                data_type: DataType::Varchar { max_length: Some(10) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_TYPE".to_string(),
+                data_type: DataType::Varchar { max_length: Some(25) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_SIZE".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_CONTAINER".to_string(),
+                data_type: DataType::Varchar { max_length: Some(10) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_RETAILPRICE".to_string(),
+                data_type: DataType::Decimal {
+                    precision: 15,
+                    scale: 2,
+                },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_COMMENT".to_string(),
+                data_type: DataType::Varchar { max_length: Some(23) },
+                nullable: true,
+                default_value: None,
+            },
+        ],
+    ))
+    .unwrap();
 }
 
 /// Create indexes on TPC-H tables to match SQLite/DuckDB benchmark setup
@@ -537,6 +605,19 @@ fn create_tpch_indexes_vibesql(db: &mut VibeDB) {
         ],
     )
     .unwrap();
+
+    // Part table: PRIMARY KEY (p_partkey)
+    db.create_index(
+        "idx_part_pk".to_string(),
+        "PART".to_string(),
+        true, // unique
+        vec![IndexColumn {
+            column_name: "P_PARTKEY".to_string(),
+            direction: OrderDirection::Asc,
+            prefix_length: None,
+        }],
+    )
+    .unwrap();
 }
 
 #[cfg(feature = "benchmark-comparison")]
@@ -607,6 +688,18 @@ fn create_tpch_schema_sqlite(conn: &SqliteConn) {
             s_phone TEXT NOT NULL,
             s_acctbal REAL NOT NULL,
             s_comment TEXT
+        );
+
+        CREATE TABLE part (
+            p_partkey INTEGER PRIMARY KEY,
+            p_name TEXT NOT NULL,
+            p_mfgr TEXT NOT NULL,
+            p_brand TEXT NOT NULL,
+            p_type TEXT NOT NULL,
+            p_size INTEGER NOT NULL,
+            p_container TEXT NOT NULL,
+            p_retailprice REAL NOT NULL,
+            p_comment TEXT
         );
     "#,
     )
@@ -681,6 +774,18 @@ fn create_tpch_schema_duckdb(conn: &DuckDBConn) {
             s_phone VARCHAR(15) NOT NULL,
             s_acctbal DECIMAL(15,2) NOT NULL,
             s_comment VARCHAR(101)
+        );
+
+        CREATE TABLE part (
+            p_partkey INTEGER PRIMARY KEY,
+            p_name VARCHAR(55) NOT NULL,
+            p_mfgr VARCHAR(25) NOT NULL,
+            p_brand VARCHAR(10) NOT NULL,
+            p_type VARCHAR(25) NOT NULL,
+            p_size INTEGER NOT NULL,
+            p_container VARCHAR(10) NOT NULL,
+            p_retailprice DECIMAL(15,2) NOT NULL,
+            p_comment VARCHAR(23)
         );
     "#,
     )
@@ -1126,5 +1231,78 @@ fn load_lineitem_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
 
             line_id += 1;
         }
+    }
+}
+
+// =============================================================================
+// Data Loading (PART - generated data, for Q19)
+// =============================================================================
+
+fn load_part_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
+    use vibesql_storage::Row;
+    use vibesql_types::SqlValue;
+    for i in 0..data.part_count {
+        let size = (i % 50) + 1;
+        let retailprice = 900.0 + (i as f64 * 0.01);
+        let row = Row::new(vec![
+            SqlValue::Integer(i as i64 + 1),
+            SqlValue::Varchar(format!("Part#{:09}", i + 1)),
+            SqlValue::Varchar(format!("Manufacturer#{}", (i % 5) + 1)),
+            SqlValue::Varchar(PART_BRANDS[i % PART_BRANDS.len()].to_string()),
+            SqlValue::Varchar(PART_TYPES[i % PART_TYPES.len()].to_string()),
+            SqlValue::Integer(size as i64),
+            SqlValue::Varchar(PART_CONTAINERS[i % PART_CONTAINERS.len()].to_string()),
+            SqlValue::Numeric(retailprice),
+            SqlValue::Varchar(data.random_varchar(23)),
+        ]);
+        db.insert_row("PART", row).unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_part_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
+    let mut stmt = conn
+        .prepare("INSERT INTO part VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .unwrap();
+
+    for i in 0..data.part_count {
+        let size = (i % 50) + 1;
+        let retailprice = 900.0 + (i as f64 * 0.01);
+        stmt.execute(rusqlite::params![
+            i as i64 + 1,
+            format!("Part#{:09}", i + 1),
+            format!("Manufacturer#{}", (i % 5) + 1),
+            PART_BRANDS[i % PART_BRANDS.len()],
+            PART_TYPES[i % PART_TYPES.len()],
+            size as i64,
+            PART_CONTAINERS[i % PART_CONTAINERS.len()],
+            retailprice,
+            data.random_varchar(23),
+        ])
+        .unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_part_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
+    let mut stmt = conn
+        .prepare("INSERT INTO part VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .unwrap();
+
+    for i in 0..data.part_count {
+        let size = (i % 50) + 1;
+        let retailprice = 900.0 + (i as f64 * 0.01);
+        stmt.execute(duckdb::params![
+            i as i64 + 1,
+            format!("Part#{:09}", i + 1),
+            format!("Manufacturer#{}", (i % 5) + 1),
+            PART_BRANDS[i % PART_BRANDS.len()],
+            PART_TYPES[i % PART_TYPES.len()],
+            size as i64,
+            PART_CONTAINERS[i % PART_CONTAINERS.len()],
+            retailprice,
+            data.random_varchar(23),
+        ])
+        .unwrap();
     }
 }

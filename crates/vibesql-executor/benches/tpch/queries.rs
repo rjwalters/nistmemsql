@@ -326,15 +326,31 @@ ORDER BY o_totalprice DESC, o_orderdate
 LIMIT 100
 "#;
 
-// TPC-H Q19: Discounted Revenue
+// TPC-H Q19: Discounted Revenue (full version with complex OR)
+// 2-way JOIN with OR of three AND groups for different brand/container combinations
 pub const TPCH_Q19: &str = r#"
 SELECT
     SUM(l_extendedprice * (1 - l_discount)) as revenue
-FROM lineitem
-WHERE l_quantity >= 1
-    AND l_quantity <= 30
+FROM lineitem, part
+WHERE p_partkey = l_partkey
     AND l_shipmode IN ('AIR', 'AIR REG')
     AND l_shipinstruct = 'DELIVER IN PERSON'
+    AND (
+        (p_brand = 'Brand#12'
+         AND p_container IN ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG')
+         AND l_quantity >= 1 AND l_quantity <= 11
+         AND p_size >= 1 AND p_size <= 5)
+        OR
+        (p_brand = 'Brand#23'
+         AND p_container IN ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK')
+         AND l_quantity >= 10 AND l_quantity <= 20
+         AND p_size >= 1 AND p_size <= 10)
+        OR
+        (p_brand = 'Brand#34'
+         AND p_container IN ('LG CASE', 'LG BOX', 'LG PACK', 'LG PKG')
+         AND l_quantity >= 20 AND l_quantity <= 30
+         AND p_size >= 1 AND p_size <= 15)
+    )
 "#;
 
 // TPC-H Q20: Potential Part Promotion
