@@ -113,7 +113,14 @@ impl SelectExecutor<'_> {
             } else {
                 HashMap::new()
             };
-            Some(self.execute_from(from_clause, &cte_results)?)
+            // Pass WHERE and ORDER BY for join reordering optimization
+            // This is critical for GROUP BY queries to avoid CROSS JOINs
+            Some(self.execute_from_with_where(
+                from_clause,
+                &cte_results,
+                stmt.where_clause.as_ref(),
+                stmt.order_by.as_ref().map(|v| &**v),
+            )?)
         } else {
             None
         };
@@ -288,10 +295,16 @@ impl SelectExecutor<'_> {
         // Execute FROM clause (handles single tables, joins, etc.)
         // For Q6: returns raw lineitem rows
         // For Q3: returns joined rows (customer + orders + lineitem)
+        // Pass WHERE clause for join reordering optimization (critical for Q3)
         #[cfg(feature = "profile-q6")]
         let load_start = std::time::Instant::now();
 
-        let mut from_result = self.execute_from(from_clause, cte_results)?;
+        let mut from_result = self.execute_from_with_where(
+            from_clause,
+            cte_results,
+            stmt.where_clause.as_ref(),
+            None, // ORDER BY applied after aggregation
+        )?;
 
         #[cfg(feature = "profile-q6")]
         {
