@@ -372,31 +372,72 @@ impl CombinedExpressionEvaluator<'_> {
             return Ok(vibesql_types::SqlValue::Null);
         }
 
-        // Linear search through all rows
-        // (We cannot use HashSet.contains() because SQL equality performs type coercion
-        // which differs from Rust's PartialEq - e.g., Integer(5) == Float(5.0) in SQL
-        // but Integer(5) != Float(5.0) in Rust PartialEq)
-        let mut found_null = false;
+        // Build or retrieve cached HashSet for O(1) membership testing
+        // This is especially important for NOT IN/NOT EXISTS patterns where we check
+        // many outer rows against the same subquery result (e.g., TPC-H Q22)
+        let (values_set, found_null) = if !is_correlated {
+            // Non-correlated: try HashSet cache first
+            let cache_key = compute_subquery_hash(subquery);
+            let cached = self.in_subquery_hashset_cache.borrow().peek(&cache_key).cloned();
 
-        for subquery_row in &rows {
-            let subquery_val =
-                subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+            if let Some((set, has_null)) = cached {
+                (set, has_null)
+            } else {
+                // Build HashSet from rows
+                let mut set = std::collections::HashSet::new();
+                let mut has_null = false;
+                for subquery_row in &rows {
+                    let subquery_val =
+                        subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+                    if matches!(subquery_val, vibesql_types::SqlValue::Null) {
+                        has_null = true;
+                    } else {
+                        set.insert(subquery_val.clone());
+                    }
+                }
+                // Cache the HashSet
+                self.in_subquery_hashset_cache.borrow_mut().put(cache_key, (set.clone(), has_null));
+                (set, has_null)
+            }
+        } else {
+            // Correlated: build HashSet without caching
+            let mut set = std::collections::HashSet::new();
+            let mut has_null = false;
+            for subquery_row in &rows {
+                let subquery_val =
+                    subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+                if matches!(subquery_val, vibesql_types::SqlValue::Null) {
+                    has_null = true;
+                } else {
+                    set.insert(subquery_val.clone());
+                }
+            }
+            (set, has_null)
+        };
 
-            // Track if we encounter NULL
-            if matches!(subquery_val, vibesql_types::SqlValue::Null) {
-                found_null = true;
+        // Try direct HashSet lookup first (O(1)) - works when types match exactly
+        // This is the common case for decorrelated NOT EXISTS (e.g., custkey NOT IN custkeys)
+        if values_set.contains(&expr_val) {
+            return Ok(vibesql_types::SqlValue::Boolean(!negated));
+        }
+
+        // Fall back to type-coercing comparison for cross-type equality
+        // (e.g., Integer(5) == Float(5.0) in SQL but not in Rust PartialEq)
+        // Only needed when HashSet lookup fails and types might differ
+        for value in &values_set {
+            // Skip same-type values since HashSet already checked them
+            if std::mem::discriminant(&expr_val) == std::mem::discriminant(value) {
                 continue;
             }
 
-            // Compare using equality
+            // Compare using SQL equality with type coercion
             let eq_result = ExpressionEvaluator::eval_binary_op_static(
                 &expr_val,
                 &vibesql_ast::BinaryOperator::Equal,
-                subquery_val,
+                value,
                 sql_mode.clone(),
             )?;
 
-            // If we found a match, return TRUE (or FALSE if negated)
             if matches!(eq_result, vibesql_types::SqlValue::Boolean(true)) {
                 return Ok(vibesql_types::SqlValue::Boolean(!negated));
             }
