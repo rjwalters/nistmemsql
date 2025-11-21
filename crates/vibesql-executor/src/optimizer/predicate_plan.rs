@@ -52,10 +52,11 @@ impl PredicatePlan {
     /// Get table-local predicates for a specific table
     ///
     /// Returns an empty slice if there are no predicates for this table.
+    /// Note: Case-insensitive lookup (predicates are stored with lowercase keys)
     pub fn get_table_filters(&self, table_name: &str) -> &[Expression] {
         self.decomposition
             .table_local_predicates
-            .get(table_name)
+            .get(&table_name.to_lowercase())
             .map(|v| v.as_slice())
             .unwrap_or(&[])
     }
@@ -93,10 +94,11 @@ impl PredicatePlan {
     }
 
     /// Check if there are any table-local predicates for a given table
+    /// Note: Case-insensitive lookup (predicates are stored with lowercase keys)
     pub fn has_table_filters(&self, table_name: &str) -> bool {
         self.decomposition
             .table_local_predicates
-            .get(table_name)
+            .get(&table_name.to_lowercase())
             .is_some_and(|preds| !preds.is_empty())
     }
 
