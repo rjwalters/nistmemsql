@@ -254,15 +254,20 @@ fn estimate_like_selectivity(pattern: &Expression) -> f64 {
     };
 
     // Analyze pattern for wildcards
+    // Generally, substring searches are quite selective in real data
     if pattern_str.starts_with('%') && pattern_str.ends_with('%') {
-        // %pattern% - very unselective
-        0.8
-    } else if pattern_str.starts_with('%') || pattern_str.ends_with('%') {
-        // %pattern or pattern% - moderately selective
-        0.5
+        // %pattern% - substring search, typically filters 90%+ of rows
+        // E.g., finding names containing "green" in TPC-H parts (~1-2% match)
+        0.1
+    } else if pattern_str.starts_with('%') {
+        // %pattern - suffix search, fairly selective
+        0.15
+    } else if pattern_str.ends_with('%') {
+        // pattern% - prefix search, can use index, moderately selective
+        0.2
     } else if pattern_str.contains('%') || pattern_str.contains('_') {
         // Has wildcards in middle
-        0.3
+        0.15
     } else {
         // Exact match (equivalent to equality)
         0.1
