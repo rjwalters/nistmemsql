@@ -4,6 +4,7 @@ import type { Database } from '../db/types'
 import type { LoadingProgressComponent } from '../components/LoadingProgress'
 import { DatabaseManager } from './database-manager'
 import { EditorManager } from './editor-manager'
+import { loadMonaco } from '../editor/monaco-loader'
 
 const DEFAULT_SQL = `-- Welcome to NIST MemSQL Web Studio!
 -- Press Ctrl/Cmd + Enter to run queries
@@ -115,7 +116,7 @@ export async function initializeApp(
 
   progress.completeStep('editor')
 
-  // Step 3: Load WASM database in parallel with editor creation
+  // Step 3: Load WASM database and preload Monaco in parallel
   progress.updateStep('wasm', 20, 'loading')
   progress.updateStep('ui', 10, 'loading')
 
@@ -124,11 +125,15 @@ export async function initializeApp(
       progress.updateStep('wasm', 80, 'loading')
       return db
     }),
-    // UI setup while WASM loads
-    Promise.resolve().then(() => {
-      progress.updateStep('ui', 30, 'loading')
-      return null
-    }),
+    // Preload Monaco while WASM loads (don't block on failure)
+    loadMonaco()
+      .then(() => {
+        progress.updateStep('editor', 80, 'loading')
+        console.log('[Init] Monaco preloaded during WASM load')
+      })
+      .catch(err => {
+        console.warn('[Init] Monaco preload failed, will load on demand:', err)
+      }),
   ])
 
   progress.completeStep('wasm')

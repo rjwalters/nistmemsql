@@ -56,7 +56,7 @@ async function bootstrap(): Promise<void> {
     // Pre-load default sample database for immediate exploration
     await app.database.loadDatabase('employees')
 
-    // Create execution handler
+    // Create execution handler (temporary, will be recreated after Monaco upgrade)
     let executeHandler = createExecutionHandler(
       app.editor.getEditor(),
       app.database.getDatabase(),
@@ -80,8 +80,10 @@ async function bootstrap(): Promise<void> {
       )
     }
 
-    // Register upgrade listeners (focus/click on editor container)
-    app.editor.registerUpgradeListeners(upgradeEditorsToMonaco)
+    // Upgrade to Monaco now (Monaco was preloaded during WASM load)
+    // This ensures Monaco is fully rendered before hiding the loader
+    progress.updateStep('ui', 80, 'loading')
+    await upgradeEditorsToMonaco()
 
     // Initialize Database Selector with all available sample databases
     const databases: DatabaseOption[] = sampleDatabases.map(db => ({
@@ -100,20 +102,17 @@ async function bootstrap(): Promise<void> {
     // Initialize Examples sidebar
     const examplesComponent = new ExamplesComponent()
     examplesComponent.onSelect((event: ExampleSelectEvent) => {
-      // Upgrade to Monaco if needed before setting value
-      void upgradeEditorsToMonaco().then(() => {
-        app.editor.getEditor().setValue(event.sql)
-        // Switch database if needed
-        if (event.database !== app.database.getCurrentDatabaseId()) {
-          void app.database.loadDatabase(event.database)
-          databaseSelector.setSelected(event.database)
-        }
-      })
+      app.editor.getEditor().setValue(event.sql)
+      // Switch database if needed
+      if (event.database !== app.database.getCurrentDatabaseId()) {
+        void app.database.loadDatabase(event.database)
+        databaseSelector.setSelected(event.database)
+      }
     })
 
-    // Run button triggers upgrade and executes query
+    // Run button executes query
     app.layout.runButton?.addEventListener('click', () => {
-      void upgradeEditorsToMonaco().then(() => executeHandler())
+      void executeHandler()
     })
 
     // Initialize SQL:1999 Showcase navigation

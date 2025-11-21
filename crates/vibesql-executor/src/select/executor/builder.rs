@@ -3,8 +3,8 @@
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
-    time::Instant,
 };
+use instant::Instant;
 
 use crate::{
     errors::ExecutorError,
