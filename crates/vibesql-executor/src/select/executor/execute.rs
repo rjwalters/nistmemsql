@@ -113,7 +113,14 @@ impl SelectExecutor<'_> {
             } else {
                 HashMap::new()
             };
-            Some(self.execute_from(from_clause, &cte_results)?)
+            // Pass WHERE and ORDER BY for join reordering optimization
+            // This is critical for GROUP BY queries to avoid CROSS JOINs
+            Some(self.execute_from_with_where(
+                from_clause,
+                &cte_results,
+                stmt.where_clause.as_ref(),
+                stmt.order_by.as_ref().map(|v| &**v),
+            )?)
         } else {
             None
         };

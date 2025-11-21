@@ -592,16 +592,8 @@ mod tests {
             );
         }
 
-        // Additionally verify that customer and lineitem are NOT adjacent
-        // (since they have no direct join edge)
-        let customer_pos = order.iter().position(|t| t == "customer").unwrap();
-        let lineitem_pos = order.iter().position(|t| t == "lineitem").unwrap();
-
-        assert!(
-            (customer_pos as i32 - lineitem_pos as i32).abs() > 1,
-            "Customer and lineitem should not be adjacent since they have no join edge. \
-             Order: {:?}",
-            order
-        );
+        // Note: customer and lineitem CAN be adjacent in orders like [orders, lineitem, customer]
+        // because both connect to orders. The key is that each table after the first has
+        // a connection to at least one previously-joined table, which we verified above.
     }
 }
