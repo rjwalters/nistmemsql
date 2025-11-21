@@ -22,6 +22,48 @@ use crate::{
     },
 };
 
+/// Extract table-local predicates from a WHERE clause expression
+///
+/// A table-local predicate is one that references only a single table,
+/// e.g., `c_mktsegment = 'BUILDING'` references only `customer`.
+fn extract_table_local_predicates(
+    where_expr: &vibesql_ast::Expression,
+    table_set: &HashSet<String>,
+) -> HashMap<String, Vec<vibesql_ast::Expression>> {
+    let mut local_predicates: HashMap<String, Vec<vibesql_ast::Expression>> = HashMap::new();
+
+    // Flatten AND chain into individual predicates
+    let predicates = flatten_and_chain(where_expr);
+
+    for pred in predicates {
+        // Get tables referenced by this predicate
+        let mut referenced_tables = HashSet::new();
+        extract_referenced_tables(&pred, &mut referenced_tables, table_set);
+
+        // If predicate references exactly one table, it's table-local
+        if referenced_tables.len() == 1 {
+            let table_name = referenced_tables.into_iter().next().unwrap();
+            local_predicates.entry(table_name).or_default().push(pred);
+        }
+    }
+
+    local_predicates
+}
+
+/// Flatten an AND chain into individual predicates
+fn flatten_and_chain(expr: &vibesql_ast::Expression) -> Vec<vibesql_ast::Expression> {
+    use vibesql_ast::{BinaryOperator, Expression};
+
+    match expr {
+        Expression::BinaryOp { op: BinaryOperator::And, left, right } => {
+            let mut result = flatten_and_chain(left);
+            result.extend(flatten_and_chain(right));
+            result
+        }
+        _ => vec![expr.clone()],
+    }
+}
+
 /// Check if join reordering optimization should be applied
 ///
 /// Enabled by default for 3-8 table joins. Can be disabled via JOIN_REORDER_DISABLED env var.
@@ -391,8 +433,20 @@ where
     // This ensures WHERE clause equijoins are used during join execution, not just for optimization
     join_conditions.extend(where_equijoins);
 
-    // Step 7: Use search to find optimal join order (with real statistics)
-    let search = JoinOrderSearch::from_analyzer(&analyzer, database);
+    // Step 6.5: Extract table-local predicates for cardinality estimation
+    let table_local_predicates = if let Some(where_expr) = where_clause {
+        extract_table_local_predicates(where_expr, &table_set)
+    } else {
+        HashMap::new()
+    };
+
+    if std::env::var("JOIN_REORDER_VERBOSE").is_ok() && !table_local_predicates.is_empty() {
+        eprintln!("[JOIN_REORDER] Table-local predicates: {:?}",
+            table_local_predicates.keys().collect::<Vec<_>>());
+    }
+
+    // Step 7: Use search to find optimal join order (with real statistics + selectivity)
+    let search = JoinOrderSearch::from_analyzer_with_predicates(&analyzer, database, &table_local_predicates);
     let optimal_order = search.find_optimal_order();
 
     // Log the reordering decision (optional, for debugging)
