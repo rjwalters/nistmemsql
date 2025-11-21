@@ -57,9 +57,7 @@ export class LoadingProgressComponent {
    * Mark step as complete
    */
   completeStep(id: string): void {
-    console.log(`[LoadingProgress] Completing step: ${id}`)
     this.updateStep(id, 100, 'complete')
-    console.log(`[LoadingProgress] All complete? ${this.isComplete()}`)
   }
 
   /**
@@ -92,10 +90,8 @@ export class LoadingProgressComponent {
    * Hide the loading indicator with fade-out animation
    */
   hide(): void {
-    console.log('[LoadingProgress] Hiding loading indicator')
     this.container.style.opacity = '0'
     setTimeout(() => {
-      console.log('[LoadingProgress] Setting display to none')
       this.container.style.display = 'none'
     }, 300)
   }
@@ -146,9 +142,7 @@ export class LoadingProgressComponent {
 
     // Trigger complete callback if all steps done
     if (allComplete && this.onCompleteCallback) {
-      console.log('[LoadingProgress] All steps complete, triggering callback in 500ms')
       setTimeout(() => {
-        console.log('[LoadingProgress] Calling onComplete callback')
         this.onCompleteCallback?.()
       }, 500)
     }
