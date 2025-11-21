@@ -22,7 +22,7 @@ mod expression;
 mod transformations;
 
 use detection::has_in_subqueries;
-use expression::{rewrite_expression, rewrite_from_clause};
+use expression::{rewrite_expression_with_context, rewrite_from_clause};
 
 /// Rewrite a SELECT statement to optimize IN subqueries
 ///
@@ -56,20 +56,32 @@ use expression::{rewrite_expression, rewrite_from_clause};
 pub fn rewrite_subquery_optimizations(stmt: &SelectStmt) -> SelectStmt {
     // Early exit: Skip expensive AST cloning if no IN subqueries present
     // This avoids performance overhead for queries without IN predicates
-    if !has_in_subqueries(stmt) {
+    // Note: We also need to check for EXISTS subqueries that can be decorrelated
+    if !has_in_subqueries(stmt) && !has_exists_subqueries(stmt) {
         return stmt.clone();
     }
+
+    // Extract outer table names for EXISTS decorrelation
+    let outer_tables = extract_table_names(&stmt.from);
 
     let mut rewritten = stmt.clone();
 
     // Rewrite WHERE clause
     if let Some(where_clause) = &stmt.where_clause {
-        rewritten.where_clause = Some(rewrite_expression(where_clause, &rewrite_subquery_optimizations));
+        rewritten.where_clause = Some(rewrite_expression_with_context(
+            where_clause,
+            &rewrite_subquery_optimizations,
+            &outer_tables,
+        ));
     }
 
     // Rewrite HAVING clause
     if let Some(having) = &stmt.having {
-        rewritten.having = Some(rewrite_expression(having, &rewrite_subquery_optimizations));
+        rewritten.having = Some(rewrite_expression_with_context(
+            having,
+            &rewrite_subquery_optimizations,
+            &outer_tables,
+        ));
     }
 
     // Rewrite SELECT list expressions
@@ -78,7 +90,7 @@ pub fn rewrite_subquery_optimizations(stmt: &SelectStmt) -> SelectStmt {
         .iter()
         .map(|item| match item {
             SelectItem::Expression { expr, alias } => SelectItem::Expression {
-                expr: rewrite_expression(expr, &rewrite_subquery_optimizations),
+                expr: rewrite_expression_with_context(expr, &rewrite_subquery_optimizations, &outer_tables),
                 alias: alias.clone(),
             },
             other => other.clone(),
@@ -98,6 +110,66 @@ pub fn rewrite_subquery_optimizations(stmt: &SelectStmt) -> SelectStmt {
     }
 
     rewritten
+}
+
+/// Check if a statement contains EXISTS subqueries
+fn has_exists_subqueries(stmt: &SelectStmt) -> bool {
+    use vibesql_ast::Expression;
+
+    fn expr_has_exists(expr: &Expression) -> bool {
+        match expr {
+            Expression::Exists { .. } => true,
+            Expression::BinaryOp { left, right, .. } => expr_has_exists(left) || expr_has_exists(right),
+            Expression::UnaryOp { expr, .. } => expr_has_exists(expr),
+            Expression::IsNull { expr, .. } => expr_has_exists(expr),
+            Expression::Case { operand, when_clauses, else_result } => {
+                operand.as_ref().is_some_and(|e| expr_has_exists(e))
+                    || when_clauses.iter().any(|c| {
+                        c.conditions.iter().any(|e| expr_has_exists(e)) || expr_has_exists(&c.result)
+                    })
+                    || else_result.as_ref().is_some_and(|e| expr_has_exists(e))
+            }
+            _ => false,
+        }
+    }
+
+    if let Some(where_clause) = &stmt.where_clause {
+        if expr_has_exists(where_clause) {
+            return true;
+        }
+    }
+    if let Some(having) = &stmt.having {
+        if expr_has_exists(having) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Extract table names from a FROM clause
+fn extract_table_names(from: &Option<vibesql_ast::FromClause>) -> Vec<String> {
+    fn collect_tables(from: &vibesql_ast::FromClause, tables: &mut Vec<String>) {
+        match from {
+            vibesql_ast::FromClause::Table { name, alias } => {
+                // Use alias if present, otherwise use table name
+                tables.push(alias.clone().unwrap_or_else(|| name.clone()));
+                tables.push(name.clone()); // Also add original name
+            }
+            vibesql_ast::FromClause::Join { left, right, .. } => {
+                collect_tables(left, tables);
+                collect_tables(right, tables);
+            }
+            vibesql_ast::FromClause::Subquery { alias, .. } => {
+                tables.push(alias.clone());
+            }
+        }
+    }
+
+    let mut tables = Vec::new();
+    if let Some(from_clause) = from {
+        collect_tables(from_clause, &mut tables);
+    }
+    tables
 }
 
 #[cfg(test)]
