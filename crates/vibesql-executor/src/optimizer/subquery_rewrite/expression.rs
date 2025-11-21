@@ -6,7 +6,7 @@
 use vibesql_ast::{Expression, SelectItem, SelectStmt};
 
 use super::correlation::is_correlated;
-use super::transformations::{add_distinct_to_in_subquery, rewrite_in_to_exists};
+use super::transformations::{add_distinct_to_in_subquery, rewrite_exists_to_in, rewrite_in_to_exists};
 
 /// Rewrite an expression to optimize IN subqueries
 ///
@@ -15,6 +15,15 @@ use super::transformations::{add_distinct_to_in_subquery, rewrite_in_to_exists};
 pub(super) fn rewrite_expression(
     expr: &Expression,
     rewrite_subquery_fn: &impl Fn(&SelectStmt) -> SelectStmt,
+) -> Expression {
+    rewrite_expression_with_context(expr, rewrite_subquery_fn, &[])
+}
+
+/// Rewrite expression with outer table context for EXISTS decorrelation
+pub(super) fn rewrite_expression_with_context(
+    expr: &Expression,
+    rewrite_subquery_fn: &impl Fn(&SelectStmt) -> SelectStmt,
+    outer_tables: &[String],
 ) -> Expression {
     match expr {
         // Optimize IN subquery
@@ -113,10 +122,26 @@ pub(super) fn rewrite_expression(
             Expression::ScalarSubquery(Box::new(rewrite_subquery_fn(subquery)))
         }
 
-        Expression::Exists { subquery, negated } => Expression::Exists {
-            subquery: Box::new(rewrite_subquery_fn(subquery)),
-            negated: *negated,
-        },
+        Expression::Exists { subquery, negated } => {
+            // Try to decorrelate EXISTS to IN for better performance
+            if is_correlated(subquery) && !outer_tables.is_empty() {
+                if let Some((outer_expr, decorrelated_subquery, neg)) =
+                    rewrite_exists_to_in(subquery, *negated, outer_tables)
+                {
+                    // Successfully decorrelated! Return as IN expression
+                    return Expression::In {
+                        expr: Box::new(outer_expr),
+                        subquery: Box::new(rewrite_subquery_fn(&decorrelated_subquery)),
+                        negated: neg,
+                    };
+                }
+            }
+            // Fallback: keep EXISTS but recursively optimize inner subquery
+            Expression::Exists {
+                subquery: Box::new(rewrite_subquery_fn(subquery)),
+                negated: *negated,
+            }
+        }
 
         Expression::QuantifiedComparison {
             expr,
