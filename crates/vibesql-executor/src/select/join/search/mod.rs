@@ -529,4 +529,79 @@ mod tests {
             assert!(order_dfs.contains(&table.to_string()));
         }
     }
+
+    #[test]
+    fn test_tpch_q3_star_schema_no_cross_join() {
+        // Regression test for issue #2286: Join reordering optimizer chooses invalid
+        // orders for star-schema queries, causing CROSS JOIN memory limits
+        //
+        // TPC-H Q3 has a star join pattern:
+        //   customer ←→ orders ←→ lineitem
+        //
+        // Orders is the hub table. Customer and lineitem have NO direct join.
+        // The optimizer should never choose an order like [customer, lineitem, orders]
+        // which would require a CROSS JOIN between customer and lineitem.
+        let mut analyzer = JoinOrderAnalyzer::new();
+        analyzer.register_tables(vec![
+            "customer".to_string(),
+            "orders".to_string(),
+            "lineitem".to_string(),
+        ]);
+
+        // Star pattern: orders is the hub
+        analyzer.add_edge(JoinEdge {
+            left_table: "customer".to_string(),
+            left_column: "c_custkey".to_string(),
+            right_table: "orders".to_string(),
+            right_column: "o_custkey".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "lineitem".to_string(),
+            left_column: "l_orderkey".to_string(),
+            right_table: "orders".to_string(),
+            right_column: "o_orderkey".to_string(),
+        });
+
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
+        let order = search.find_optimal_order();
+
+        // Verify we got all 3 tables
+        assert_eq!(order.len(), 3);
+        assert!(order.contains(&"customer".to_string()));
+        assert!(order.contains(&"orders".to_string()));
+        assert!(order.contains(&"lineitem".to_string()));
+
+        // Validate: each table after the first must have a join edge to at least
+        // one previously-joined table (no CROSS JOINs)
+        for i in 1..order.len() {
+            let current_table = &order[i];
+            let previous_tables: HashSet<String> = order[0..i].iter().cloned().collect();
+
+            let has_connection = search.context.has_join_edge(&previous_tables, current_table);
+
+            assert!(
+                has_connection,
+                "Table {} at position {} has no join condition with previous tables {:?}. \
+                 This would cause a CROSS JOIN and memory limit exceeded. \
+                 Full order: {:?}",
+                current_table,
+                i,
+                previous_tables,
+                order
+            );
+        }
+
+        // Additionally verify that customer and lineitem are NOT adjacent
+        // (since they have no direct join edge)
+        let customer_pos = order.iter().position(|t| t == "customer").unwrap();
+        let lineitem_pos = order.iter().position(|t| t == "lineitem").unwrap();
+
+        assert!(
+            (customer_pos as i32 - lineitem_pos as i32).abs() > 1,
+            "Customer and lineitem should not be adjacent since they have no join edge. \
+             Order: {:?}",
+            order
+        );
+    }
 }

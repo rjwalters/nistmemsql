@@ -72,9 +72,28 @@ impl JoinOrderContext {
     /// Returns a vector of next states, each representing adding one more table
     /// to the current join sequence. Prunes states that exceed the best known cost.
     fn expand_state_parallel(&self, state: &SearchState, best_cost: u64) -> Vec<SearchState> {
-        self.all_tables
+        // Filter to unjoined tables
+        let mut candidates: Vec<&String> = self.all_tables
             .iter()
             .filter(|t| !state.joined_tables.contains(*t))
+            .collect();
+
+        // Filter to connected candidates (unless this is the first table)
+        if !state.joined_tables.is_empty() {
+            let connected: Vec<&String> = candidates
+                .iter()
+                .filter(|t| self.has_join_edge(&state.joined_tables, t))
+                .copied()
+                .collect();
+
+            // Only use connected candidates if any exist (avoid CROSS JOINs)
+            if !connected.is_empty() {
+                candidates = connected;
+            }
+        }
+
+        candidates
+            .into_iter()
             .filter_map(|next_table| {
                 // Estimate cost of joining this table (using current intermediate result size)
                 let join_cost = self.estimate_join_cost(state.current_cardinality, &state.joined_tables, next_table);
