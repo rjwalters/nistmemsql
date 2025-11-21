@@ -130,10 +130,27 @@ impl JoinOrderSearch {
         analyzer: &JoinOrderAnalyzer,
         database: &vibesql_storage::Database,
     ) -> Self {
+        Self::from_analyzer_with_predicates(analyzer, database, &std::collections::HashMap::new())
+    }
+
+    /// Create a new join order search with WHERE clause selectivity applied
+    ///
+    /// This version accounts for table-local predicates when estimating cardinalities,
+    /// which helps choose better join orders for queries like TPC-H Q3 where filter
+    /// predicates significantly reduce table sizes before joining.
+    pub fn from_analyzer_with_predicates(
+        analyzer: &JoinOrderAnalyzer,
+        database: &vibesql_storage::Database,
+        table_local_predicates: &std::collections::HashMap<String, Vec<vibesql_ast::Expression>>,
+    ) -> Self {
         let context = JoinOrderContext {
             all_tables: analyzer.tables().clone(),
             edges: analyzer.edges().to_vec(),
-            table_cardinalities: JoinOrderContext::extract_cardinalities(analyzer, database),
+            table_cardinalities: JoinOrderContext::extract_cardinalities_with_selectivity(
+                analyzer,
+                database,
+                table_local_predicates,
+            ),
             config: ParallelSearchConfig::default(),
         };
 
