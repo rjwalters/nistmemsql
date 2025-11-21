@@ -392,16 +392,16 @@ mod tests {
 
     #[test]
     fn test_build_hash_table_sequential_basic() {
-        let rows = create_test_rows(100);
-        let hash_table = build_hash_table_sequential(&rows, 0);
+        let build_rows = create_test_rows(100);
+        let hash_table = build_hash_table_sequential(&build_rows, 0);
 
         // Should have 100 unique keys (0-99)
         assert_eq!(hash_table.len(), 100);
 
-        // Each key should have 1 row
-        for (key, rows) in hash_table.iter() {
-            assert_eq!(rows.len(), 1);
-            assert_eq!(rows[0].values[0], *key);
+        // Each key should have 1 row index
+        for (key, row_indices) in hash_table.iter() {
+            assert_eq!(row_indices.len(), 1);
+            assert_eq!(build_rows[row_indices[0]].values[0], *key);
         }
     }
 
@@ -465,22 +465,22 @@ mod tests {
     #[test]
     fn test_parallel_sequential_equivalence_large() {
         // Large dataset - should use parallel path
-        let rows = create_test_rows(10000); // Well above threshold (5000)
+        let build_rows = create_test_rows(10000); // Well above threshold (5000)
 
-        let seq_table = build_hash_table_sequential(&rows, 0);
-        let par_table = build_hash_table_parallel(&rows, 0);
+        let seq_table = build_hash_table_sequential(&build_rows, 0);
+        let par_table = build_hash_table_parallel(&build_rows, 0);
 
         // Should produce identical results
         assert_eq!(seq_table.len(), par_table.len());
 
-        for (key, seq_rows) in seq_table.iter() {
-            let par_rows = par_table.get(key).expect("Key should exist in parallel table");
-            assert_eq!(seq_rows.len(), par_rows.len(), "Row count mismatch for key {:?}", key);
+        for (key, seq_indices) in seq_table.iter() {
+            let par_indices = par_table.get(key).expect("Key should exist in parallel table");
+            assert_eq!(seq_indices.len(), par_indices.len(), "Row count mismatch for key {:?}", key);
 
-            // Verify all rows are present (order may differ)
-            for seq_row in seq_rows {
+            // Verify all row indices are present (order may differ)
+            for &seq_idx in seq_indices {
                 assert!(
-                    par_rows.iter().any(|par_row| par_row.values == seq_row.values),
+                    par_indices.iter().any(|&par_idx| build_rows[par_idx].values == build_rows[seq_idx].values),
                     "Row not found in parallel table"
                 );
             }
