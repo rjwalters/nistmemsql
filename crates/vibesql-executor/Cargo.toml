@@ -129,3 +129,8 @@ harness = false
 name = "q6_profiling"
 harness = false
 required-features = ["benchmark-comparison"]
+
+[[bench]]
+name = "q3_profiling"
+harness = false
+required-features = ["benchmark-comparison"]
