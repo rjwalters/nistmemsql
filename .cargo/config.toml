@@ -1,3 +1,6 @@
+[build]
+rustc-wrapper = "sccache"
+
 [alias]
 # Coverage commands using cargo-llvm-cov
 coverage = "llvm-cov --workspace --html"

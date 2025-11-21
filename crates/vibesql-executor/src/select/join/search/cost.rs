@@ -77,6 +77,67 @@ impl JoinOrderContext {
         Self::extract_cardinalities_with_selectivity(analyzer, database, &HashMap::new())
     }
 
+    /// Compute join selectivities for each edge based on column NDV (number of distinct values)
+    ///
+    /// For equijoin A.x = B.y, selectivity = 1 / max(NDV(A.x), NDV(B.y))
+    /// This is more accurate than hardcoded 0.1 selectivity.
+    pub(super) fn compute_edge_selectivities(
+        edges: &[super::super::reorder::JoinEdge],
+        database: &vibesql_storage::Database,
+    ) -> HashMap<(String, String), f64> {
+        let mut selectivities = HashMap::new();
+
+        for edge in edges {
+            let left_table = edge.left_table.to_lowercase();
+            let right_table = edge.right_table.to_lowercase();
+
+            // Get NDV for left column
+            let left_ndv = database
+                .get_table(&edge.left_table)
+                .and_then(|t| t.get_statistics())
+                .and_then(|stats| {
+                    // Try exact match, uppercase, lowercase
+                    stats.columns.get(&edge.left_column)
+                        .or_else(|| stats.columns.get(&edge.left_column.to_uppercase()))
+                        .or_else(|| stats.columns.get(&edge.left_column.to_lowercase()))
+                })
+                .map(|cs| cs.n_distinct)
+                .unwrap_or(1000); // Fallback
+
+            // Get NDV for right column
+            let right_ndv = database
+                .get_table(&edge.right_table)
+                .and_then(|t| t.get_statistics())
+                .and_then(|stats| {
+                    stats.columns.get(&edge.right_column)
+                        .or_else(|| stats.columns.get(&edge.right_column.to_uppercase()))
+                        .or_else(|| stats.columns.get(&edge.right_column.to_lowercase()))
+                })
+                .map(|cs| cs.n_distinct)
+                .unwrap_or(1000); // Fallback
+
+            // Join selectivity = 1 / max(NDV_left, NDV_right)
+            let max_ndv = std::cmp::max(left_ndv, right_ndv).max(1);
+            let selectivity = 1.0 / max_ndv as f64;
+
+            // Debug logging
+            if std::env::var("JOIN_REORDER_VERBOSE").is_ok() {
+                eprintln!(
+                    "[JOIN_REORDER] Edge {}.{} = {}.{}: NDV({}, {}) -> selectivity {:.6}",
+                    edge.left_table, edge.left_column,
+                    edge.right_table, edge.right_column,
+                    left_ndv, right_ndv, selectivity
+                );
+            }
+
+            // Store both directions
+            selectivities.insert((left_table.clone(), right_table.clone()), selectivity);
+            selectivities.insert((right_table, left_table), selectivity);
+        }
+
+        selectivities
+    }
+
     /// Estimate cost of joining next_table to already-joined tables
     ///
     /// # Parameters
@@ -100,11 +161,10 @@ impl JoinOrderContext {
 
         let right_cardinality = self.table_cardinalities.get(next_table).copied().unwrap_or(10000);
 
-        // Estimate join selectivity
-        // If there's an equijoin condition, assume high selectivity (10%)
-        // Otherwise assume lower selectivity (50%)
-        let has_join_edge = self.has_join_edge(joined_tables, next_table);
-        let selectivity = if has_join_edge { 0.1 } else { 0.5 };
+        // Get selectivity from pre-computed edge selectivities (NDV-based)
+        // Find the best (most selective) edge connecting joined_tables to next_table
+        let next_table_lower = next_table.to_lowercase();
+        let selectivity = self.get_edge_selectivity(joined_tables, &next_table_lower);
 
         // Estimate output cardinality (cross product filtered by join condition)
         let output_cardinality = std::cmp::max(
@@ -116,6 +176,22 @@ impl JoinOrderContext {
         let operations = (left_cardinality as u64) * (right_cardinality as u64);
 
         JoinCost::new(output_cardinality, operations)
+    }
+
+    /// Get the best (lowest) selectivity for joining next_table to any of the joined_tables
+    fn get_edge_selectivity(&self, joined_tables: &HashSet<String>, next_table: &str) -> f64 {
+        let mut best_selectivity = 0.5; // Default for cross join (no edge)
+
+        for joined_table in joined_tables {
+            let joined_lower = joined_table.to_lowercase();
+            if let Some(&sel) = self.edge_selectivities.get(&(joined_lower, next_table.to_string())) {
+                if sel < best_selectivity {
+                    best_selectivity = sel;
+                }
+            }
+        }
+
+        best_selectivity
     }
 
     /// Check if there's a join edge connecting the joined tables and next table
