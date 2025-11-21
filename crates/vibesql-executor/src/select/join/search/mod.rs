@@ -83,7 +83,7 @@ impl Default for ParallelSearchConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            max_depth: 6,
+            max_depth: 8, // Support 8-way joins like TPC-H Q8
             max_states_per_layer: 1000,
             pruning_threshold: 1.5,
         }
@@ -115,6 +115,9 @@ pub(super) struct JoinOrderContext {
     pub edges: Vec<JoinEdge>,
     /// Estimated rows for each table after local filters
     pub table_cardinalities: std::collections::HashMap<String, usize>,
+    /// Selectivity for each join edge based on column NDV (number of distinct values)
+    /// Key is (left_table, right_table) normalized to lowercase
+    pub edge_selectivities: std::collections::HashMap<(String, String), f64>,
     /// Configuration for parallel search
     pub config: ParallelSearchConfig,
 }
@@ -143,14 +146,18 @@ impl JoinOrderSearch {
         database: &vibesql_storage::Database,
         table_local_predicates: &std::collections::HashMap<String, Vec<vibesql_ast::Expression>>,
     ) -> Self {
+        let edges = analyzer.edges().to_vec();
+        let edge_selectivities = JoinOrderContext::compute_edge_selectivities(&edges, database);
+
         let context = JoinOrderContext {
             all_tables: analyzer.tables().clone(),
-            edges: analyzer.edges().to_vec(),
+            edges,
             table_cardinalities: JoinOrderContext::extract_cardinalities_with_selectivity(
                 analyzer,
                 database,
                 table_local_predicates,
             ),
+            edge_selectivities,
             config: ParallelSearchConfig::default(),
         };
 
