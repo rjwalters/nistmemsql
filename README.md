@@ -303,6 +303,36 @@ cd benchmarks/suite
 
 See [benchmarks/suite/README.md](benchmarks/suite/README.md) for complete documentation.
 
+### TPC-H Query Profiling
+
+Profile individual TPC-H queries with detailed timing breakdown:
+
+```bash
+# Build and run the profiler for all 22 TPC-H queries
+cargo bench --package vibesql-executor --bench tpch_profiling --features benchmark-comparison --no-run
+./target/release/deps/tpch_profiling-*
+
+# Set per-query timeout (default 30s)
+QUERY_TIMEOUT_SECS=60 ./target/release/deps/tpch_profiling-*
+
+# Analyze output with summary script
+./target/release/deps/tpch_profiling-* 2>&1 | tee profile.txt
+python3 scripts/analyze_profile.py profile.txt
+```
+
+**Output includes**:
+- Parse time, executor creation time, execution time per query
+- Row counts and error/timeout detection
+- Summary table with all 22 queries
+
+**Per-query profiling** (for deep-dive analysis):
+```bash
+# Profile specific query (e.g., Q6)
+cargo bench --package vibesql-executor --bench q6_profiling --features benchmark-comparison
+```
+
+See [docs/performance/BENCHMARKING.md](docs/performance/BENCHMARKING.md) for complete benchmarking documentation.
+
 ---
 
 ## 💭 Project Background

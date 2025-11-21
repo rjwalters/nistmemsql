@@ -36,6 +36,14 @@ pub fn load_vibesql(scale_factor: f64) -> VibeDB {
     // Create indexes to match SQLite benchmark (for fair comparison)
     create_tpch_indexes_vibesql(&mut db);
 
+    // Compute statistics for join order optimization
+    // This enables the cost-based optimizer to make better decisions
+    for table_name in ["region", "nation", "customer", "supplier", "orders", "lineitem"] {
+        if let Some(table) = db.get_table_mut(table_name) {
+            table.analyze();
+        }
+    }
+
     db
 }
 
