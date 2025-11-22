@@ -203,3 +203,35 @@ LIMIT 1
     }
 }
 
+#[test]
+fn test_cte_without_column_list_empty_result() {
+    // Regression test for issue #2417
+    // Tests that CTEs without explicit column lists can infer schema
+    // even when the result set is empty
+    let mut db = Database::new();
+    setup_q15_tables(&mut db);
+
+    // CTE with no explicit column list, filtered to return empty result
+    let empty_cte_query = r#"
+WITH revenue AS (
+    SELECT
+        l_suppkey as supplier_no,
+        SUM(l_extendedprice * (1 - l_discount)) as total_revenue
+    FROM lineitem_q15
+    WHERE l_shipdate > '2099-01-01'
+    GROUP BY l_suppkey
+)
+SELECT supplier_no, total_revenue
+FROM revenue
+"#;
+
+    let result = execute_sql(&mut db, empty_cte_query);
+    assert!(
+        result.is_ok(),
+        "CTE without column list should work even with empty results: {:?}",
+        result
+    );
+    let rows = result.unwrap();
+    assert_eq!(rows.len(), 0, "Should return 0 rows (empty result set)");
+}
+
