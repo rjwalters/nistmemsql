@@ -306,6 +306,60 @@ pub(super) fn nested_loop_join(
             }
         }
 
+        // Phase 3.2: Try OR conditions with common equi-join (TPC-H Q19 optimization)
+        // For expressions like `(a.x = b.x AND ...) OR (a.x = b.x AND ...) OR (a.x = b.x AND ...)`,
+        // extract the common equi-join `a.x = b.x` for hash join
+        if let Some(cond) = condition {
+            if let Some(or_result) =
+                join_analyzer::analyze_or_equi_join(cond, &temp_schema, left_col_count)
+            {
+                // Save schemas for NATURAL JOIN processing before moving left/right
+                let (left_schema_for_natural, right_schema_for_natural) = if natural {
+                    (Some(left.schema.clone()), Some(right.schema.clone()))
+                } else {
+                    (None, None)
+                };
+
+                let mut result = hash_join_inner(
+                    left,
+                    right,
+                    or_result.equi_join.left_col_idx,
+                    or_result.equi_join.right_col_idx,
+                )?;
+
+                // Apply remaining OR conditions as post-join filter
+                if !or_result.remaining_conditions.is_empty() {
+                    if let Some(filter_expr) = combine_with_and(or_result.remaining_conditions) {
+                        result = apply_post_join_filter(result, &filter_expr, database)?;
+                    }
+                }
+
+                // For NATURAL JOIN, remove duplicate columns from the result
+                if natural {
+                    if let (Some(left_schema), Some(right_schema_orig)) =
+                        (left_schema_for_natural, right_schema_for_natural)
+                    {
+                        let right_schema_for_removal = CombinedSchema {
+                            table_schemas: vec![(
+                                right_table_name_for_natural.clone(),
+                                (0, right_schema_orig.table_schemas.values().next().unwrap().1.clone()),
+                            )]
+                            .into_iter()
+                            .collect(),
+                            total_columns: right_schema_orig.total_columns,
+                        };
+                        result = remove_duplicate_columns_for_natural_join(
+                            result,
+                            &left_schema,
+                            &right_schema_for_removal,
+                        )?;
+                    }
+                }
+
+                return Ok(result);
+            }
+        }
+
         // Phase 3.1: If no ON condition hash join, try WHERE clause equijoins
         // Iterate through all additional equijoins to find one suitable for hash join
         for (idx, equijoin) in additional_equijoins.iter().enumerate() {
