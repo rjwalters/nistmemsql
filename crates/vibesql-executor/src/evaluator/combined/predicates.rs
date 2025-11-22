@@ -305,6 +305,8 @@ impl CombinedExpressionEvaluator<'_> {
             }
         } else {
             // HashSet optimization for larger lists
+            // Evaluate each IN list value once (instead of per row) and collect into HashSet
+            // Then use eval_binary_op for comparison to preserve SQL type coercion
             let mut value_set = std::collections::HashSet::new();
             let mut found_null = false;
 
@@ -319,9 +321,19 @@ impl CombinedExpressionEvaluator<'_> {
                 }
             }
 
-            // O(1) lookup in HashSet
-            if value_set.contains(&expr_val) {
-                return Ok(vibesql_types::SqlValue::Boolean(!negated));
+            // O(n) lookup with SQL type coercion (where n = unique values in list)
+            // This preserves correctness while still benefiting from single evaluation of IN list
+            for value in &value_set {
+                let eq_result = ExpressionEvaluator::eval_binary_op_static(
+                    &expr_val,
+                    &vibesql_ast::BinaryOperator::Equal,
+                    value,
+                    sql_mode.clone(),
+                )?;
+
+                if matches!(eq_result, vibesql_types::SqlValue::Boolean(true)) {
+                    return Ok(vibesql_types::SqlValue::Boolean(!negated));
+                }
             }
 
             // No match found: return NULL if list contained NULL, else FALSE
