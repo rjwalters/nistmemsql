@@ -249,6 +249,7 @@ fn test_view_lookup_case_insensitive() {
         query: select_stmt,
         columns: None,
         with_check_option: false,
+        sql_definition: None,
     };
     db.catalog.create_view(view).unwrap();
 
@@ -306,6 +307,7 @@ fn test_drop_view_case_insensitive() {
         query: select_stmt,
         columns: None,
         with_check_option: false,
+        sql_definition: None,
     };
     db.catalog.create_view(view).unwrap();
 
@@ -368,6 +370,7 @@ fn test_view_case_sensitive_mode() {
         query: select_stmt,
         columns: None,
         with_check_option: false,
+        sql_definition: None,
     };
     db.catalog.create_view(view).unwrap();
 
