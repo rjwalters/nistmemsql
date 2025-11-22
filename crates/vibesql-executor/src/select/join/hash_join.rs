@@ -344,10 +344,10 @@ pub(super) fn hash_join_left_outer(
             continue;
         }
 
-        if let Some(right_matches) = hash_table.get(key) {
+        if let Some(right_indices) = hash_table.get(key) {
             // Found matches - emit all combinations
-            for right_row in right_matches {
-                result_rows.push(combine_rows(left_row, right_row));
+            for &right_idx in right_indices {
+                result_rows.push(combine_rows(left_row, &right_rows[right_idx]));
             }
         } else {
             // No match - emit left row with NULLs for right columns
