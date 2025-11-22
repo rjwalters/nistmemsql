@@ -71,13 +71,10 @@ impl SelectExecutor<'_> {
         // Priority: 1) outer context (for subqueries) 2) procedural context 3) just database
         // Also pass CTE context if available (from outer query or from current query's CTEs)
         let cte_ctx = if !cte_results.is_empty() {
-            eprintln!("[DEBUG iterator] cte_results not empty: {} CTEs: {:?}", cte_results.len(), cte_results.keys().collect::<Vec<_>>());
             Some(cte_results)
         } else {
-            eprintln!("[DEBUG iterator] cte_results empty, using self.cte_context: {}", self.cte_context.is_some());
             self.cte_context
         };
-        eprintln!("[DEBUG iterator] Final cte_ctx is_some: {}", cte_ctx.is_some());
 
         let evaluator = if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
             if let Some(cte_ctx) = cte_ctx {

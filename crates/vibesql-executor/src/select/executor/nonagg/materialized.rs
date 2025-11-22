@@ -42,8 +42,6 @@ impl SelectExecutor<'_> {
         from_result: FromResult,
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
-        eprintln!("[DEBUG execute_without_aggregation] ENTRY with {} CTEs: {:?}", cte_results.len(), cte_results.keys().collect::<Vec<_>>());
-
         // Phase D: Use iterator-based execution for simple queries
         // This provides memory efficiency and early termination for LIMIT queries
         if Self::can_use_iterator_execution(stmt) {
@@ -81,13 +79,10 @@ impl SelectExecutor<'_> {
         // Priority: 1) outer context (for subqueries) 2) procedural context 3) just database
         // Also pass CTE context if available (from outer query or from current query's CTEs)
         let cte_ctx = if !cte_results.is_empty() {
-            eprintln!("[DEBUG materialized] cte_results not empty: {} CTEs: {:?}", cte_results.len(), cte_results.keys().collect::<Vec<_>>());
             Some(cte_results)
         } else {
-            eprintln!("[DEBUG materialized] cte_results empty, using self.cte_context: {}", self.cte_context.is_some());
             self.cte_context
         };
-        eprintln!("[DEBUG materialized] Final cte_ctx is_some: {}", cte_ctx.is_some());
 
         let evaluator =
             if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {

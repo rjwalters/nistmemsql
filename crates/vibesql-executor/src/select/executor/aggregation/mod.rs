@@ -66,10 +66,8 @@ impl SelectExecutor<'_> {
         // Priority: 1) outer context (for subqueries) 2) procedural context 3) just database
         // Also pass CTE context if available (from outer query or from current query's CTEs)
         let cte_ctx = if !cte_results.is_empty() {
-            eprintln!("[DEBUG aggregation] cte_results not empty: {} CTEs: {:?}", cte_results.len(), cte_results.keys().collect::<Vec<_>>());
             Some(cte_results)
         } else {
-            eprintln!("[DEBUG aggregation] cte_results empty, using self.cte_context: {}", self.cte_context.is_some());
             self.cte_context
         };
 
@@ -151,6 +149,8 @@ impl SelectExecutor<'_> {
         // Expand wildcards in SELECT list to explicit column references
         // This allows SELECT * and SELECT table.* to work with GROUP BY/aggregates
         let expanded_select_list = self.expand_wildcards_for_aggregation(&stmt.select_list, &schema)?;
+        eprintln!("[DEBUG] Original select_list length: {}", stmt.select_list.len());
+        eprintln!("[DEBUG] Expanded select_list length: {}", expanded_select_list.len());
 
         // Compute aggregates for each group and apply HAVING
         let mut result_rows = Vec::new();
@@ -166,15 +166,18 @@ impl SelectExecutor<'_> {
 
             // Compute aggregates for this group
             let mut aggregate_results = Vec::new();
-            for item in &expanded_select_list {
+            eprintln!("[DEBUG] Processing {} select items", expanded_select_list.len());
+            for (idx, item) in expanded_select_list.iter().enumerate() {
                 match item {
                     vibesql_ast::SelectItem::Expression { expr, .. } => {
+                        eprintln!("[DEBUG] Evaluating select item {}: {:?}", idx, expr);
                         let value = self.evaluate_with_aggregates(
                             expr,
                             &group_rows,
                             &group_key,
                             &evaluator,
                         )?;
+                        eprintln!("[DEBUG] Result for item {}: {:?}", idx, value);
                         aggregate_results.push(value);
                     }
                     vibesql_ast::SelectItem::Wildcard { .. }
