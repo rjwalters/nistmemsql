@@ -23,7 +23,7 @@ pub struct JoinReorderConfig {
 
 impl Default for JoinReorderConfig {
     fn default() -> Self {
-        JoinReorderConfig { enabled: true, min_tables: 3, verbose: false }
+        JoinReorderConfig { enabled: true, min_tables: 2, verbose: false }
     }
 }
 
@@ -164,6 +164,6 @@ mod tests {
     fn test_default_config() {
         let config = JoinReorderConfig::default();
         assert!(config.enabled);
-        assert_eq!(config.min_tables, 3);
+        assert_eq!(config.min_tables, 2);
     }
 }
