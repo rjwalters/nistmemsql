@@ -59,13 +59,16 @@ where
     if matches!(from, vibesql_ast::FromClause::Join { .. }) {
         let table_count = reorder::count_tables_in_from(from);
         // Only apply reordering if:
-        // 1. We have 3-8 tables (extended from 3-5 to handle complex analytical queries)
+        // 1. We have 2-8 tables (lowered from 3 to enable TPC-H Q19 optimization)
         // 2. All joins are CROSS (comma-list style: FROM t1, t2, t3)
         // 3. Not disabled via environment variable
         //
         // Note: We ONLY reorder comma-list syntax (CROSS joins) because reordering
         // changes column positions in results. Explicit JOIN syntax has defined
         // column ordering that must be preserved.
+        //
+        // 2-table joins benefit from choosing optimal build/probe sides when one
+        // table has highly selective predicates.
         if reorder::should_apply_join_reordering(table_count) && reorder::all_joins_are_cross(from) {
             // Apply join reordering optimization
             return reorder::execute_with_join_reordering(from, cte_results, database, where_clause, outer_row, outer_schema, execute_subquery);

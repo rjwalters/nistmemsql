@@ -135,19 +135,22 @@ fn extract_in_predicates_from_or(
 
 /// Check if join reordering optimization should be applied
 ///
-/// Enabled by default for 3-8 table joins. Can be disabled via JOIN_REORDER_DISABLED env var.
+/// Enabled by default for 2-8 table joins. Can be disabled via JOIN_REORDER_DISABLED env var.
 ///
 /// Table count limits:
-/// - < 3 tables: Not beneficial (simple join)
-/// - 3-8 tables: Enabled (branch-and-bound pruning keeps search manageable)
+/// - < 2 tables: Not applicable (no join)
+/// - 2-8 tables: Enabled (branch-and-bound pruning keeps search manageable)
 /// - > 8 tables: Disabled (excessive search time: 9! = 362,880, 10! = 3,628,800)
 ///
 /// The branch-and-bound search with cost-based pruning efficiently handles up to 8 tables
 /// by eliminating suboptimal paths early. Even with 8! = 40,320 theoretical orderings,
 /// pruning reduces the search space by orders of magnitude in practice.
+///
+/// 2-table joins benefit from choosing optimal build/probe sides, especially when one
+/// table has highly selective predicates (e.g., TPC-H Q19's complex OR conditions).
 pub(crate) fn should_apply_join_reordering(table_count: usize) -> bool {
-    // Must have at least 3 tables for reordering to be beneficial
-    if table_count < 3 {
+    // Must have at least 2 tables for reordering to be beneficial
+    if table_count < 2 {
         return false;
     }
 
