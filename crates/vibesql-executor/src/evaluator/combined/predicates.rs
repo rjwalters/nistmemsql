@@ -239,6 +239,8 @@ impl CombinedExpressionEvaluator<'_> {
     ///
     /// Special case: empty list returns FALSE for IN, TRUE for NOT IN
     /// (SQLite behavior, SQL:1999 extension)
+    ///
+    /// Performance optimization: For lists > 3 items, uses HashSet for O(1) lookup
     pub(super) fn eval_in_list(
         &self,
         expr: &vibesql_ast::Expression,
@@ -263,39 +265,71 @@ impl CombinedExpressionEvaluator<'_> {
             return Ok(vibesql_types::SqlValue::Null);
         }
 
-        let mut found_null = false;
+        // For small lists (≤3 items), use linear search to avoid HashSet overhead
+        // For larger lists, use HashSet for O(1) lookup performance
+        if values.len() <= 3 {
+            // Original linear search implementation for small lists
+            let mut found_null = false;
 
-        // Check each value in the list
-        for value_expr in values {
-            let value = self.eval(value_expr, row)?;
+            // Check each value in the list
+            for value_expr in values {
+                let value = self.eval(value_expr, row)?;
 
-            // Track if we encounter NULL
-            if matches!(value, vibesql_types::SqlValue::Null) {
-                found_null = true;
-                continue;
+                // Track if we encounter NULL
+                if matches!(value, vibesql_types::SqlValue::Null) {
+                    found_null = true;
+                    continue;
+                }
+
+                // Compare using equality
+                let eq_result = ExpressionEvaluator::eval_binary_op_static(
+                    &expr_val,
+                    &vibesql_ast::BinaryOperator::Equal,
+                    &value,
+                    sql_mode.clone(),
+                )?;
+
+                // If we found a match, return TRUE (or FALSE if negated)
+                if matches!(eq_result, vibesql_types::SqlValue::Boolean(true)) {
+                    return Ok(vibesql_types::SqlValue::Boolean(!negated));
+                }
             }
 
-            // Compare using equality
-            let eq_result = ExpressionEvaluator::eval_binary_op_static(
-                &expr_val,
-                &vibesql_ast::BinaryOperator::Equal,
-                &value,
-                sql_mode.clone(),
-            )?;
+            // No match found
+            // If we encountered NULL, return NULL (per SQL three-valued logic)
+            // Otherwise return FALSE (or TRUE if negated)
+            if found_null {
+                Ok(vibesql_types::SqlValue::Null)
+            } else {
+                Ok(vibesql_types::SqlValue::Boolean(negated))
+            }
+        } else {
+            // HashSet optimization for larger lists
+            let mut value_set = std::collections::HashSet::new();
+            let mut found_null = false;
 
-            // If we found a match, return TRUE (or FALSE if negated)
-            if matches!(eq_result, vibesql_types::SqlValue::Boolean(true)) {
+            // Evaluate all values once and build the HashSet
+            for value_expr in values {
+                let value = self.eval(value_expr, row)?;
+
+                if matches!(value, vibesql_types::SqlValue::Null) {
+                    found_null = true;
+                } else {
+                    value_set.insert(value);
+                }
+            }
+
+            // O(1) lookup in HashSet
+            if value_set.contains(&expr_val) {
                 return Ok(vibesql_types::SqlValue::Boolean(!negated));
             }
-        }
 
-        // No match found
-        // If we encountered NULL, return NULL (per SQL three-valued logic)
-        // Otherwise return FALSE (or TRUE if negated)
-        if found_null {
-            Ok(vibesql_types::SqlValue::Null)
-        } else {
-            Ok(vibesql_types::SqlValue::Boolean(negated))
+            // No match found: return NULL if list contained NULL, else FALSE
+            if found_null {
+                Ok(vibesql_types::SqlValue::Null)
+            } else {
+                Ok(vibesql_types::SqlValue::Boolean(negated))
+            }
         }
     }
 

@@ -243,7 +243,8 @@ impl ExpressionEvaluator<'_> {
         Ok(vibesql_types::SqlValue::Boolean(result))
     }
 
-    /// Evaluate IN list predicate
+    /// Evaluate IN list predicate with HashSet optimization
+    /// For lists > 3 items, uses HashSet for O(1) lookup instead of O(n) linear scan
     #[inline]
     pub(super) fn eval_in_list(
         &self,
@@ -268,27 +269,59 @@ impl ExpressionEvaluator<'_> {
             return Ok(vibesql_types::SqlValue::Null);
         }
 
-        let mut found_null = false;
+        // For small lists (≤3 items), use linear search to avoid HashSet overhead
+        // For larger lists, use HashSet for O(1) lookup performance
+        if values.len() <= 3 {
+            // Original linear search implementation for small lists
+            let mut found_null = false;
 
-        for value_expr in values {
-            let value = self.eval(value_expr, row)?;
+            for value_expr in values {
+                let value = self.eval(value_expr, row)?;
 
-            if matches!(value, vibesql_types::SqlValue::Null) {
-                found_null = true;
-                continue;
+                if matches!(value, vibesql_types::SqlValue::Null) {
+                    found_null = true;
+                    continue;
+                }
+
+                let eq_result = self.eval_binary_op(&expr_val, &vibesql_ast::BinaryOperator::Equal, &value)?;
+
+                if matches!(eq_result, vibesql_types::SqlValue::Boolean(true)) {
+                    return Ok(vibesql_types::SqlValue::Boolean(!negated));
+                }
             }
 
-            let eq_result = self.eval_binary_op(&expr_val, &vibesql_ast::BinaryOperator::Equal, &value)?;
+            if found_null {
+                Ok(vibesql_types::SqlValue::Null)
+            } else {
+                Ok(vibesql_types::SqlValue::Boolean(negated))
+            }
+        } else {
+            // HashSet optimization for larger lists
+            let mut value_set = std::collections::HashSet::new();
+            let mut found_null = false;
 
-            if matches!(eq_result, vibesql_types::SqlValue::Boolean(true)) {
+            // Evaluate all values once and build the HashSet
+            for value_expr in values {
+                let value = self.eval(value_expr, row)?;
+
+                if matches!(value, vibesql_types::SqlValue::Null) {
+                    found_null = true;
+                } else {
+                    value_set.insert(value);
+                }
+            }
+
+            // O(1) lookup in HashSet
+            if value_set.contains(&expr_val) {
                 return Ok(vibesql_types::SqlValue::Boolean(!negated));
             }
-        }
 
-        if found_null {
-            Ok(vibesql_types::SqlValue::Null)
-        } else {
-            Ok(vibesql_types::SqlValue::Boolean(negated))
+            // No match found: return NULL if list contained NULL, else FALSE
+            if found_null {
+                Ok(vibesql_types::SqlValue::Null)
+            } else {
+                Ok(vibesql_types::SqlValue::Boolean(negated))
+            }
         }
     }
 }
