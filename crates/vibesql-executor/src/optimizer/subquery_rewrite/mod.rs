@@ -571,4 +571,118 @@ mod tests {
 
         assert!(has_in_subqueries(&stmt_with_in), "Should detect IN subquery");
     }
+
+    /// Helper to create a SELECT statement with alias
+    fn simple_select_with_alias(table: &str, alias: &str, column: &str) -> SelectStmt {
+        SelectStmt {
+            with_clause: None,
+            distinct: false,
+            select_list: vec![SelectItem::Expression {
+                expr: Expression::ColumnRef {
+                    table: Some(alias.to_string()),
+                    column: column.to_string(),
+                },
+                alias: None,
+            }],
+            into_table: None,
+            into_variables: None,
+            from: Some(vibesql_ast::FromClause::Table {
+                name: table.to_string(),
+                alias: Some(alias.to_string()),
+            }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+            set_operation: None,
+        }
+    }
+
+    #[test]
+    fn test_exists_decorrelation_with_alias() {
+        // Test EXISTS subquery decorrelation when inner table has alias
+        // This is the Q21 pattern: EXISTS (SELECT * FROM lineitem l2 WHERE l2.l_orderkey = l1.l_orderkey)
+        let mut subquery = simple_select_with_alias("lineitem", "l2", "l_orderkey");
+        // Add correlation predicate: l2.l_orderkey = l1.l_orderkey
+        subquery.where_clause = Some(Expression::BinaryOp {
+            op: BinaryOperator::Equal,
+            left: Box::new(Expression::ColumnRef {
+                table: Some("l2".to_string()),
+                column: "l_orderkey".to_string(),
+            }),
+            right: Box::new(Expression::ColumnRef {
+                table: Some("l1".to_string()),
+                column: "l_orderkey".to_string(),
+            }),
+        });
+
+        // Outer query: SELECT * FROM lineitem l1
+        let mut stmt = simple_select_with_alias("lineitem", "l1", "l_orderkey");
+        stmt.where_clause = Some(Expression::Exists {
+            subquery: Box::new(subquery),
+            negated: false,
+        });
+
+        let rewritten = rewrite_subquery_optimizations(&stmt);
+
+        // EXISTS should be decorrelated to IN
+        match &rewritten.where_clause {
+            Some(Expression::In { expr, subquery, negated }) => {
+                assert!(!negated, "Should not be negated");
+                // The outer expression should be l1.l_orderkey
+                match expr.as_ref() {
+                    Expression::ColumnRef { table: Some(t), column: c } => {
+                        assert_eq!(t, "l1");
+                        assert_eq!(c, "l_orderkey");
+                    }
+                    _ => panic!("Expected ColumnRef for outer expression"),
+                }
+                // Subquery should have DISTINCT and select l2.l_orderkey
+                assert!(subquery.distinct, "Decorrelated subquery should have DISTINCT");
+            }
+            Some(Expression::Exists { .. }) => {
+                panic!("EXISTS should have been decorrelated to IN");
+            }
+            _ => panic!("Expected IN expression after decorrelation"),
+        }
+    }
+
+    #[test]
+    fn test_not_exists_decorrelation_with_alias() {
+        // Test NOT EXISTS subquery decorrelation
+        // Pattern: NOT EXISTS (SELECT * FROM orders o WHERE o.o_custkey = c.c_custkey)
+        let mut subquery = simple_select_with_alias("orders", "o", "o_custkey");
+        subquery.where_clause = Some(Expression::BinaryOp {
+            op: BinaryOperator::Equal,
+            left: Box::new(Expression::ColumnRef {
+                table: Some("o".to_string()),
+                column: "o_custkey".to_string(),
+            }),
+            right: Box::new(Expression::ColumnRef {
+                table: Some("c".to_string()),
+                column: "c_custkey".to_string(),
+            }),
+        });
+
+        let mut stmt = simple_select_with_alias("customer", "c", "c_custkey");
+        stmt.where_clause = Some(Expression::Exists {
+            subquery: Box::new(subquery),
+            negated: true, // NOT EXISTS
+        });
+
+        let rewritten = rewrite_subquery_optimizations(&stmt);
+
+        // NOT EXISTS should be decorrelated to NOT IN
+        match &rewritten.where_clause {
+            Some(Expression::In { negated, .. }) => {
+                assert!(*negated, "NOT EXISTS should become NOT IN");
+            }
+            Some(Expression::Exists { negated, .. }) => {
+                panic!("NOT EXISTS should have been decorrelated to NOT IN, but got EXISTS (negated={})", negated);
+            }
+            _ => panic!("Expected IN expression after decorrelation"),
+        }
+    }
 }
