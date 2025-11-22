@@ -244,12 +244,12 @@ fn test_view_lookup_case_insensitive() {
         with_clause: None,
     };
 
-    let view = ViewDefinition {
-        name: "active_users".to_string(),
-        query: select_stmt,
-        columns: None,
-        with_check_option: false,
-    };
+    let view = ViewDefinition::new(
+        "active_users".to_string(),
+        None,
+        select_stmt,
+        false,
+    );
     db.catalog.create_view(view).unwrap();
 
     // Should find view with different cases (case-insensitive by default)
@@ -301,12 +301,12 @@ fn test_drop_view_case_insensitive() {
         with_clause: None,
     };
 
-    let view = ViewDefinition {
-        name: "product_view".to_string(),
-        query: select_stmt,
-        columns: None,
-        with_check_option: false,
-    };
+    let view = ViewDefinition::new(
+        "product_view".to_string(),
+        None,
+        select_stmt,
+        false,
+    );
     db.catalog.create_view(view).unwrap();
 
     // Drop with uppercase
@@ -363,12 +363,12 @@ fn test_view_case_sensitive_mode() {
         with_clause: None,
     };
 
-    let view = ViewDefinition {
-        name: "user_view".to_string(),
-        query: select_stmt,
-        columns: None,
-        with_check_option: false,
-    };
+    let view = ViewDefinition::new(
+        "user_view".to_string(),
+        None,
+        select_stmt,
+        false,
+    );
     db.catalog.create_view(view).unwrap();
 
     // Should only find with exact case
