@@ -80,12 +80,19 @@ impl JoinOrderContext {
     /// Compute join selectivities for each edge based on column NDV (number of distinct values)
     ///
     /// For equijoin A.x = B.y, selectivity = 1 / max(NDV(A.x), NDV(B.y))
-    /// This is more accurate than hardcoded 0.1 selectivity.
+    ///
+    /// **Important**: For composite join keys (multiple edges between same table pair),
+    /// this function multiplies all individual selectivities together. This prevents
+    /// memory explosions in queries like TPC-H Q9 where partsupp has TWO join conditions:
+    /// - ps_suppkey = l_suppkey (selectivity ~0.01)
+    /// - ps_partkey = l_partkey (selectivity ~0.05)
+    /// Combined: 0.01 × 0.05 = 0.0005 (much more selective!)
     pub(super) fn compute_edge_selectivities(
         edges: &[super::super::reorder::JoinEdge],
         database: &vibesql_storage::Database,
     ) -> HashMap<(String, String), f64> {
-        let mut selectivities = HashMap::new();
+        // First, compute individual edge selectivities
+        let mut individual_selectivities = Vec::new();
 
         for edge in edges {
             let left_table = edge.left_table.to_lowercase();
@@ -130,12 +137,34 @@ impl JoinOrderContext {
                 );
             }
 
-            // Store both directions
-            selectivities.insert((left_table.clone(), right_table.clone()), selectivity);
-            selectivities.insert((right_table, left_table), selectivity);
+            individual_selectivities.push(((left_table, right_table), selectivity));
         }
 
-        selectivities
+        // Now, combine selectivities for table pairs with multiple edges
+        // Group by (table1, table2) and multiply selectivities
+        let mut combined_selectivities = HashMap::new();
+
+        for ((left_table, right_table), selectivity) in individual_selectivities {
+            // Update forward direction
+            let forward_key = (left_table.clone(), right_table.clone());
+            let current = combined_selectivities.get(&forward_key).copied().unwrap_or(1.0);
+            combined_selectivities.insert(forward_key.clone(), current * selectivity);
+
+            // Update reverse direction
+            let reverse_key = (right_table.clone(), left_table.clone());
+            let current = combined_selectivities.get(&reverse_key).copied().unwrap_or(1.0);
+            combined_selectivities.insert(reverse_key, current * selectivity);
+
+            // Debug logging for composite keys
+            if std::env::var("JOIN_REORDER_VERBOSE").is_ok() && current != 1.0 {
+                eprintln!(
+                    "[JOIN_REORDER] Composite key detected: {}-{} combined selectivity: {:.6} -> {:.6}",
+                    left_table, right_table, current, current * selectivity
+                );
+            }
+        }
+
+        combined_selectivities
     }
 
     /// Estimate cost of joining next_table to already-joined tables
@@ -178,13 +207,19 @@ impl JoinOrderContext {
         JoinCost::new(output_cardinality, operations)
     }
 
-    /// Get the best (lowest) selectivity for joining next_table to any of the joined_tables
+    /// Get the best (most selective) edge for joining next_table to any of the joined_tables
+    ///
+    /// Note: Composite join keys (multiple edges between same table pair) are already
+    /// handled in compute_edge_selectivities, so the selectivities here are combined.
     fn get_edge_selectivity(&self, joined_tables: &HashSet<String>, next_table: &str) -> f64 {
         let mut best_selectivity = 0.5; // Default for cross join (no edge)
 
         for joined_table in joined_tables {
             let joined_lower = joined_table.to_lowercase();
-            if let Some(&sel) = self.edge_selectivities.get(&(joined_lower, next_table.to_string())) {
+            let next_lower = next_table.to_lowercase();
+
+            // Selectivity is pre-computed with composite keys already multiplied
+            if let Some(&sel) = self.edge_selectivities.get(&(joined_lower, next_lower)) {
                 if sel < best_selectivity {
                     best_selectivity = sel;
                 }
