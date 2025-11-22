@@ -380,9 +380,9 @@ pub fn extract_aggregates(
 /// // GROUP BY l_returnflag
 ///
 /// let rows = vec![
-///     Row::new(vec![SqlValue::Text("A".to_string()), SqlValue::Double(100.0)]),
-///     Row::new(vec![SqlValue::Text("B".to_string()), SqlValue::Double(200.0)]),
-///     Row::new(vec![SqlValue::Text("A".to_string()), SqlValue::Double(150.0)]),
+///     Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Double(100.0)]),
+///     Row::new(vec![SqlValue::Varchar("B".to_string()), SqlValue::Double(200.0)]),
+///     Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Double(150.0)]),
 /// ];
 ///
 /// let group_cols = vec![0]; // Group by first column (l_returnflag)
@@ -425,16 +425,14 @@ pub fn columnar_group_by(
         // Extract group key values for this row
         let mut group_key = Vec::with_capacity(group_cols.len());
         for &col_idx in group_cols {
-            if let Some(value) = scan.column(col_idx).nth(row_idx).flatten() {
-                group_key.push(value.clone());
-            } else {
-                // NULL in group key
-                group_key.push(SqlValue::Null);
-            }
+            let value = scan.row(row_idx)
+                .and_then(|row| row.get(col_idx))
+                .unwrap_or(&SqlValue::Null);
+            group_key.push(value.clone());
         }
 
         // Add row index to this group
-        groups.entry(group_key).or_insert_with(Vec::new).push(row_idx);
+        groups.entry(group_key).or_default().push(row_idx);
     }
 
     // Phase 2: Compute aggregates for each group
@@ -711,16 +709,16 @@ mod tests {
             let count = row.get(2).unwrap();
 
             match (status, category) {
-                (&SqlValue::Varchar(ref s), &SqlValue::Integer(1)) if s == "A" => {
+                (SqlValue::Varchar(s), SqlValue::Integer(1)) if s == "A" => {
                     assert_eq!(count, &SqlValue::Integer(2)); // Two rows with A,1
                 }
-                (&SqlValue::Varchar(ref s), &SqlValue::Integer(2)) if s == "A" => {
+                (SqlValue::Varchar(s), SqlValue::Integer(2)) if s == "A" => {
                     assert_eq!(count, &SqlValue::Integer(1)); // One row with A,2
                 }
-                (&SqlValue::Varchar(ref s), &SqlValue::Integer(1)) if s == "B" => {
+                (SqlValue::Varchar(s), SqlValue::Integer(1)) if s == "B" => {
                     assert_eq!(count, &SqlValue::Integer(1)); // One row with B,1
                 }
-                (&SqlValue::Varchar(ref s), &SqlValue::Integer(2)) if s == "B" => {
+                (SqlValue::Varchar(s), SqlValue::Integer(2)) if s == "B" => {
                     assert_eq!(count, &SqlValue::Integer(1)); // One row with B,2
                 }
                 _ => panic!("Unexpected group key: {:?}, {:?}", status, category),
@@ -841,8 +839,8 @@ mod tests {
         assert_eq!(result.len(), 2);
 
         // Find the groups
-        let a_group = result.iter().find(|r| matches!(r.get(0), Some(&SqlValue::Varchar(ref s)) if s == "A"));
-        let null_group = result.iter().find(|r| matches!(r.get(0), Some(&SqlValue::Null)));
+        let a_group = result.iter().find(|r| matches!(r.get(0), Some(SqlValue::Varchar(s)) if s == "A"));
+        let null_group = result.iter().find(|r| matches!(r.get(0), Some(SqlValue::Null)));
 
         assert!(a_group.is_some());
         assert!(null_group.is_some());
