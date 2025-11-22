@@ -25,6 +25,9 @@ wkt = { version = "0.10", optional = true }
 rstar = { version = "0.12", optional = true }
 lru = "0.12"
 
+# SIMD dependencies for columnar acceleration
+wide = { version = "0.7", optional = true }
+
 # Arrow dependencies for vectorized execution
 # Using 53.0+ for chrono 0.4.42 compatibility (fixes quarter() method ambiguity)
 arrow = "53.0"
@@ -55,6 +58,8 @@ default = ["parallel", "spatial"]
 parallel = ["rayon"]
 # Spatial/geospatial query support (optional, reduces binary size)
 spatial = ["geo", "wkt", "rstar"]
+# SIMD acceleration for columnar operations (experimental)
+simd = ["wide"]
 # Enable this feature for benchmarks that compare against other SQL engines
 # Usage: cargo bench --features benchmark-comparison
 benchmark-comparison = ["rusqlite", "duckdb"]
