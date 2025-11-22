@@ -17,7 +17,7 @@ mod tests;
 
 // Re-export join reorder analyzer for public tests
 // Re-export hash_join functions for internal use
-use hash_join::hash_join_inner;
+use hash_join::{hash_join_anti, hash_join_inner, hash_join_semi};
 // Re-export hash join iterator for public use
 pub use hash_join_iterator::HashJoinIterator;
 // Re-export nested loop join variants for internal use
@@ -220,8 +220,11 @@ pub(super) fn nested_loop_join(
     database: &vibesql_storage::Database,
     additional_equijoins: &[vibesql_ast::Expression],
 ) -> Result<FromResult, ExecutorError> {
-    // Try to use hash join for INNER JOINs with simple equi-join conditions
-    if let vibesql_ast::JoinType::Inner = join_type {
+    // Try to use hash join for INNER, SEMI, and ANTI JOINs with simple equi-join conditions
+    if matches!(
+        join_type,
+        vibesql_ast::JoinType::Inner | vibesql_ast::JoinType::Semi | vibesql_ast::JoinType::Anti
+    ) {
         // Get column count and right table info once for analysis
         // IMPORTANT: Sum up columns from ALL tables in the left schema,
         // not just the first table, to handle accumulated multi-table joins
@@ -262,12 +265,27 @@ pub(super) fn nested_loop_join(
                     (None, None)
                 };
 
-                let mut result = hash_join_inner(
-                    left,
-                    right,
-                    equi_join_info.left_col_idx,
-                    equi_join_info.right_col_idx,
-                )?;
+                let mut result = match join_type {
+                    vibesql_ast::JoinType::Inner => hash_join_inner(
+                        left,
+                        right,
+                        equi_join_info.left_col_idx,
+                        equi_join_info.right_col_idx,
+                    )?,
+                    vibesql_ast::JoinType::Semi => hash_join_semi(
+                        left,
+                        right,
+                        equi_join_info.left_col_idx,
+                        equi_join_info.right_col_idx,
+                    )?,
+                    vibesql_ast::JoinType::Anti => hash_join_anti(
+                        left,
+                        right,
+                        equi_join_info.left_col_idx,
+                        equi_join_info.right_col_idx,
+                    )?,
+                    _ => unreachable!("Only Inner/Semi/Anti should reach here"),
+                };
 
                 // For NATURAL JOIN, remove duplicate columns from the result
                 if natural {
@@ -309,12 +327,27 @@ pub(super) fn nested_loop_join(
                 };
 
                 // Found a WHERE clause equijoin suitable for hash join!
-                let mut result = hash_join_inner(
-                    left,
-                    right,
-                    equi_join_info.left_col_idx,
-                    equi_join_info.right_col_idx,
-                )?;
+                let mut result = match join_type {
+                    vibesql_ast::JoinType::Inner => hash_join_inner(
+                        left,
+                        right,
+                        equi_join_info.left_col_idx,
+                        equi_join_info.right_col_idx,
+                    )?,
+                    vibesql_ast::JoinType::Semi => hash_join_semi(
+                        left,
+                        right,
+                        equi_join_info.left_col_idx,
+                        equi_join_info.right_col_idx,
+                    )?,
+                    vibesql_ast::JoinType::Anti => hash_join_anti(
+                        left,
+                        right,
+                        equi_join_info.left_col_idx,
+                        equi_join_info.right_col_idx,
+                    )?,
+                    _ => unreachable!("Only Inner/Semi/Anti should reach here"),
+                };
 
                 // Apply remaining equijoins and conditions as post-join filters
                 let remaining_conditions: Vec<_> = additional_equijoins
