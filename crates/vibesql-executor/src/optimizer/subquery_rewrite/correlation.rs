@@ -94,23 +94,31 @@ pub(super) fn has_external_column_refs(expr: &Expression, subquery: &SelectStmt)
         }
 
         Expression::ColumnRef { table: None, column } => {
-            // Unqualified column refs: use TPC-H naming convention heuristic
+            // Unqualified column refs: Conservative approach
+            //
+            // Per SQL semantics (section 7.6 of SQL:1999), unqualified column references
+            // are resolved by searching innermost scope first. Without full schema
+            // information and symbol table analysis, we cannot definitively determine
+            // if an unqualified column reference is internal or external to the subquery.
             //
             // TPC-H uses a prefix convention where columns are prefixed with the first
             // letter of their table name: o_orderkey for orders, l_orderkey for lineitem.
-            // If a column's prefix doesn't match any table in the subquery's FROM clause,
-            // it's likely referencing an outer table.
-            //
-            // WARNING: This heuristic is TPC-H-specific and may produce incorrect results
-            // for schemas that don't follow this naming convention. For general-purpose
-            // correlation detection, full symbol table analysis would be required.
+            // We can use this as a heuristic ONLY when the column follows this pattern.
             //
             // Conservative behavior: Returns false (not external) when uncertain,
             // which may miss some optimizations but maintains correctness.
             if let Some(from) = &subquery.from {
                 let col_prefix = column.chars().next().unwrap_or('_').to_ascii_lowercase();
-                let from_table_prefixes = extract_table_prefixes(from);
-                !from_table_prefixes.iter().any(|tp| *tp == col_prefix)
+
+                // Only apply TPC-H heuristic if column appears to follow TPC-H naming
+                // convention (prefix + underscore, e.g., "o_orderkey", "l_shipdate")
+                if column.chars().nth(1) == Some('_') {
+                    let from_table_prefixes = extract_table_prefixes(from);
+                    !from_table_prefixes.iter().any(|tp| *tp == col_prefix)
+                } else {
+                    // Not TPC-H style column name: assume internal (conservative)
+                    false
+                }
             } else {
                 false
             }

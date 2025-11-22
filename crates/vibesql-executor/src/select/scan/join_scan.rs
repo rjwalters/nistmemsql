@@ -22,6 +22,8 @@ pub(crate) fn execute_join<F>(
     cte_results: &HashMap<String, CteResult>,
     database: &vibesql_storage::Database,
     where_clause: Option<&vibesql_ast::Expression>,
+    outer_row: Option<&vibesql_storage::Row>,
+    outer_schema: Option<&crate::schema::CombinedSchema>,
     execute_subquery: F,
 ) -> Result<super::FromResult, ExecutorError>
 where
@@ -29,8 +31,8 @@ where
 {
     // Execute left and right sides with WHERE clause for predicate pushdown
     // Note: ORDER BY is not optimized at JOIN level, so we pass None
-    let left_result = super::execute_from_clause(left, cte_results, database, where_clause, None, execute_subquery)?;
-    let right_result = super::execute_from_clause(right, cte_results, database, where_clause, None, execute_subquery)?;
+    let left_result = super::execute_from_clause(left, cte_results, database, where_clause, None, outer_row, outer_schema, execute_subquery)?;
+    let right_result = super::execute_from_clause(right, cte_results, database, where_clause, None, outer_row, outer_schema, execute_subquery)?;
 
     // For NATURAL JOIN, generate the implicit join condition based on common column names
     let natural_join_condition = if natural {

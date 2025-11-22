@@ -442,6 +442,8 @@ pub(crate) fn execute_with_join_reordering<F>(
     cte_results: &HashMap<String, CteResult>,
     database: &vibesql_storage::Database,
     where_clause: Option<&vibesql_ast::Expression>,
+    outer_row: Option<&vibesql_storage::Row>,
+    outer_schema: Option<&CombinedSchema>,
     execute_subquery: F,
 ) -> Result<super::FromResult, ExecutorError>
 where
@@ -565,7 +567,7 @@ where
                 ));
             }
         } else {
-            execute_table_scan(&table_ref.name, table_ref.alias.as_ref(), cte_results, database, where_clause, None)?
+            execute_table_scan(&table_ref.name, table_ref.alias.as_ref(), cte_results, database, where_clause, None, outer_row, outer_schema)?
         };
 
         // Record the column count for this table (using table_schemas to get column info)

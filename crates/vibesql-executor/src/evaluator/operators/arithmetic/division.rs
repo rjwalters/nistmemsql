@@ -29,7 +29,7 @@ impl Division {
         // SQLite: INTEGER / INTEGER → INTEGER (truncated division)
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
-                return Err(ExecutorError::DivisionByZero);
+                return Ok(Null);  // SQL standard: division by zero returns NULL
             }
 
             // Use TypeBehavior trait to determine result type
@@ -53,7 +53,7 @@ impl Division {
         // Use helper for type coercion
         let coerced = coerce_numeric_values(left, right, "/")?;
 
-        // Check for division by zero and raise error
+        // Check for division by zero and return NULL (SQL standard behavior)
         let is_zero = match &coerced {
             super::CoercedValues::ExactNumeric(_, right) => *right == 0,
             super::CoercedValues::ApproximateNumeric(_, right) => *right == 0.0,
@@ -61,7 +61,7 @@ impl Division {
         };
 
         if is_zero {
-            return Err(ExecutorError::DivisionByZero);
+            return Ok(Null);  // SQL standard: division by zero returns NULL
         }
 
         // Use TypeBehavior trait to determine result type based on original operands

@@ -5,6 +5,7 @@
 [![Coverage](https://img.shields.io/badge/coverage-86%25-green)](https://github.com/rjwalters/vibesql)
 [![sqltest](https://img.shields.io/endpoint?url=https://rjwalters.github.io/vibesql/badges/sql1999-conformance.json)](https://rjwalters.github.io/vibesql/conformance.html)
 [![SQLLogicTest](https://img.shields.io/endpoint?url=https://rjwalters.github.io/vibesql/badges/sqllogictest.json)](https://rjwalters.github.io/vibesql/conformance.html#SQLlogicTest)
+[![TPC-H](https://img.shields.io/badge/TPC--H-12%2F22%20passing-yellow)](https://github.com/rjwalters/vibesql/issues/2407)
 
 > **VibeSQL - AI-powered, SQL:1999 database implementation in Rust**
 
@@ -346,7 +347,14 @@ Errors: 2
 **Advanced Usage**:
 
 ```bash
-# Direct execution with custom timeout
+# Isolated execution (recommended for reliability)
+# Each query runs in separate subprocess to prevent cascading failures
+./scripts/bench-tpch-isolated.sh 30 /tmp/tpch_results.txt
+
+# Run single query
+QUERY_TIMEOUT_SECS=30 ./target/release/deps/tpch_profiling-* Q1
+
+# Direct execution with custom timeout (all queries in one process)
 QUERY_TIMEOUT_SECS=60 ./target/release/deps/tpch_profiling-* > /tmp/results.txt
 
 # View detailed output

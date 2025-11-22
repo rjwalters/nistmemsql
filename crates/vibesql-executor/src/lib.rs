@@ -32,6 +32,8 @@ pub mod schema;
 mod schema_ddl;
 pub mod select;
 mod select_into;
+#[cfg(feature = "simd")]
+pub mod simd;
 mod transaction;
 mod trigger_ddl;
 mod trigger_execution;

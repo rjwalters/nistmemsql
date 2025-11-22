@@ -4,9 +4,17 @@
 //!   cargo bench --package vibesql-executor --bench tpch_profiling --features benchmark-comparison --no-run && ./target/release/deps/tpch_profiling-*
 //!
 //! Set QUERY_TIMEOUT_SECS env var to limit per-query time (default: 30s)
+//!
+//! Run single query:
+//!   ./target/release/deps/tpch_profiling-* Q1
+//!   ./target/release/deps/tpch_profiling-* Q2
+//!
+//! Run all queries (default):
+//!   ./target/release/deps/tpch_profiling-*
 
 mod tpch;
 
+use std::env;
 use std::time::{Duration, Instant};
 use tpch::queries::*;
 use tpch::schema::load_vibesql;
@@ -77,21 +85,15 @@ fn main() {
     eprintln!("=== TPC-H Query Profiling ===");
 
     // Get timeout from env (default 30s)
-    let timeout_secs: u64 = std::env::var("QUERY_TIMEOUT_SECS")
+    let timeout_secs: u64 = env::var("QUERY_TIMEOUT_SECS")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(30);
     let timeout = Duration::from_secs(timeout_secs);
     eprintln!("Per-query timeout: {}s (set QUERY_TIMEOUT_SECS to change)", timeout_secs);
 
-    // Load database
-    eprintln!("\nLoading TPC-H database (SF 0.01)...");
-    let load_start = Instant::now();
-    let db = load_vibesql(0.01);
-    eprintln!("Database loaded in {:?}", load_start.elapsed());
-
-    // Run all 22 TPC-H queries to get baseline timings
-    let queries: Vec<(&str, &str)> = vec![
+    // All 22 TPC-H queries
+    let all_queries: Vec<(&str, &str)> = vec![
         ("Q1", TPCH_Q1),
         ("Q2", TPCH_Q2),
         ("Q3", TPCH_Q3),
@@ -116,9 +118,40 @@ fn main() {
         ("Q22", TPCH_Q22),
     ];
 
-    for (name, sql) in &queries {
+    // Check for single-query mode
+    let args: Vec<String> = env::args().collect();
+    let queries_to_run = if args.len() > 1 {
+        // Run only specified query
+        let target_query = &args[1];
+        eprintln!("Single-query mode: {}", target_query);
+        all_queries.into_iter()
+            .filter(|(name, _)| *name == target_query)
+            .collect()
+    } else {
+        // Run all queries
+        eprintln!("Running all 22 queries");
+        all_queries
+    };
+
+    if queries_to_run.is_empty() {
+        eprintln!("Error: Query '{}' not found. Valid queries: Q1-Q22", args[1]);
+        std::process::exit(1);
+    }
+
+    // Load database
+    eprintln!("\nLoading TPC-H database (SF 0.01)...");
+    let load_start = Instant::now();
+    let db = load_vibesql(0.01);
+    eprintln!("Database loaded in {:?}", load_start.elapsed());
+
+    // Run selected queries
+    for (name, sql) in &queries_to_run {
         run_query_detailed(&db, name, sql, timeout);
     }
 
-    eprintln!("\n=== Done - All 22 TPC-H Queries ===");
+    if queries_to_run.len() == 1 {
+        eprintln!("\n=== Done - Single Query ===");
+    } else {
+        eprintln!("\n=== Done - All 22 TPC-H Queries ===");
+    }
 }

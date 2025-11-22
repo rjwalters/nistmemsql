@@ -25,6 +25,8 @@ pub(crate) fn execute_table_scan(
     database: &vibesql_storage::Database,
     where_clause: Option<&vibesql_ast::Expression>,
     order_by: Option<&[vibesql_ast::OrderByItem]>,
+    outer_row: Option<&vibesql_storage::Row>,
+    outer_schema: Option<&CombinedSchema>,
 ) -> Result<super::FromResult, ExecutorError> {
     // Check if table is a CTE first (with case-insensitive lookup)
     let cte_result = cte_results.get(table_name).or_else(|| {
@@ -43,7 +45,9 @@ pub(crate) fn execute_table_scan(
         let mut rows = cte_rows.clone();
 
         // Apply table-local predicates from WHERE clause using pre-computed plan
-        if where_clause.is_some() {
+        // Skip predicate pushdown for correlated subqueries (filtering happens later with full context)
+        let is_correlated = outer_row.is_some() || outer_schema.is_some();
+        if where_clause.is_some() && !is_correlated {
             // Build predicate plan once for this table
             let predicate_plan = PredicatePlan::from_where_clause(where_clause, &schema)
                 .map_err(ExecutorError::InvalidWhereClause)?;
@@ -54,7 +58,8 @@ pub(crate) fn execute_table_scan(
                 &predicate_plan,
                 table_name,
                 database,
-                if !cte_results.is_empty() { Some(cte_results) } else { None },
+                None,  // No outer context for non-correlated predicate pushdown
+                None,
             )?;
         }
 
@@ -119,7 +124,9 @@ pub(crate) fn execute_table_scan(
         let mut rows = select_result.rows;
 
         // Apply table-local predicates from WHERE clause using pre-computed plan
-        if where_clause.is_some() {
+        // Skip predicate pushdown for correlated subqueries (filtering happens later with full context)
+        let is_correlated = outer_row.is_some() || outer_schema.is_some();
+        if where_clause.is_some() && !is_correlated {
             // Build predicate plan once for this table
             let predicate_plan = PredicatePlan::from_where_clause(where_clause, &schema)
                 .map_err(ExecutorError::InvalidWhereClause)?;
@@ -130,7 +137,8 @@ pub(crate) fn execute_table_scan(
                 &predicate_plan,
                 table_name,
                 database,
-                if !cte_results.is_empty() { Some(cte_results) } else { None },
+                None,  // No outer context for non-correlated predicate pushdown
+                None,
             )?;
         }
 
@@ -158,7 +166,20 @@ pub(crate) fn execute_table_scan(
     let row_slice = table.scan();
 
     // Check if we need to apply table-local predicates (Phase 1 optimization)
+    // NOTE: Skip predicate pushdown for correlated subqueries (when outer_row/outer_schema exist)
+    // because the predicates may reference outer columns that aren't available during table scan.
+    // For correlated subqueries, predicates are evaluated later with proper outer context.
     if let Some(where_expr) = where_clause {
+        // Skip predicate pushdown if this is a correlated subquery
+        let is_correlated = outer_row.is_some() || outer_schema.is_some();
+        if is_correlated {
+            // Return unfiltered rows for correlated subqueries
+            // Filtering will happen later with full outer row context
+            let rows = row_slice.to_vec();
+            use crate::select::from_iterator::FromIterator;
+            return Ok(super::FromResult::from_iterator(schema, FromIterator::from_table_scan(rows)));
+        }
+
         // Build predicate plan once for this table
         let predicate_plan = PredicatePlan::from_where_clause(Some(where_expr), &schema)
             .map_err(ExecutorError::InvalidWhereClause)?;
@@ -180,7 +201,8 @@ pub(crate) fn execute_table_scan(
                 &predicate_plan,
                 table_name,
                 database,
-                if !cte_results.is_empty() { Some(cte_results) } else { None },
+                None,  // No outer context for predicate pushdown
+                None,
             )?;
             return Ok(super::FromResult::from_rows(schema, filtered_rows));
         }
