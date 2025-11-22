@@ -53,11 +53,15 @@ pub(crate) fn apply_table_local_predicates_ref(
 
         // Fast path: Try columnar execution for non-correlated queries
         // Columnar execution is beneficial for:
-        // - Large row counts (>1000 rows)
+        // - Medium to large row counts (>=100 rows)
         // - Complex predicates with OR logic
         // - No outer context (correlated subqueries need full evaluator)
         // - No database functions (e.g., CURRENT_DATE)
-        if outer_row.is_none() && outer_schema.is_none() && rows.len() > 1000 {
+        //
+        // Threshold lowered from >1000 to >=100 rows for issue #2397:
+        // SQLLogicTest conformance tests create tables with ~1000 rows and run
+        // ~10,000 queries with complex predicates, benefiting from columnar filtering.
+        if outer_row.is_none() && outer_schema.is_none() && rows.len() >= 100 {
             use crate::select::columnar::{create_filter_bitmap_tree, extract_predicate_tree};
 
             if let Some(predicate_tree) = extract_predicate_tree(&combined_where, &schema) {
@@ -162,7 +166,8 @@ pub(crate) fn apply_table_local_predicates(
         let combined_where = combine_predicates_with_and(ordered_preds);
 
         // Fast path: Try columnar execution for non-correlated queries
-        if outer_row.is_none() && outer_schema.is_none() && rows.len() > 1000 {
+        // Threshold lowered to >=100 rows for better performance on SQLLogicTest queries
+        if outer_row.is_none() && outer_schema.is_none() && rows.len() >= 100 {
             use crate::select::columnar::{create_filter_bitmap_tree, extract_predicate_tree};
 
             if let Some(predicate_tree) = extract_predicate_tree(&combined_where, &schema) {
