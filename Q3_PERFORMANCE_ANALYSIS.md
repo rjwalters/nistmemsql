@@ -66,12 +66,12 @@ To achieve parity with SQLite (~27ms), Q3 needs a monomorphic plan implementatio
 Run benchmarks:
 ```bash
 # Quick profiling (60s timeout per query)
-./scripts/bench-tpch.sh 60 summary
+./scripts/bench-tpch.sh 60 summary | grep Q3
 
-# Detailed Q3 profiling with join debugging
-./scripts/profile_q3.sh
+# With join reordering debug output
+JOIN_REORDER_VERBOSE=1 ./scripts/bench-tpch.sh 60 summary | grep -A 5 Q3
 
-# Criterion benchmarks with comparison
+# Detailed criterion benchmarks with comparison
 cargo bench --package vibesql-executor --bench tpch_benchmark \
   --features benchmark-comparison -- q3
 ```
