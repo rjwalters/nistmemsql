@@ -37,7 +37,7 @@ mod cost;
 mod dfs;
 mod greedy;
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 
 use super::reorder::{JoinEdge, JoinOrderAnalyzer};
 
@@ -600,7 +600,7 @@ mod tests {
         // one previously-joined table (no CROSS JOINs)
         for i in 1..order.len() {
             let current_table = &order[i];
-            let previous_tables: HashSet<String> = order[0..i].iter().cloned().collect();
+            let previous_tables: BTreeSet<String> = order[0..i].iter().cloned().collect();
 
             let has_connection = search.context.has_join_edge(&previous_tables, current_table);
 
