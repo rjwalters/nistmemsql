@@ -271,7 +271,8 @@ impl<'schema, I: RowIterator> Iterator for LazyNestedLoopJoin<'schema, I> {
             }
 
             // We have a left row - iterate through right rows
-            let left_row = self.current_left.as_ref().unwrap();
+            // Clone to avoid long-lived borrow issues with Semi/Anti joins
+            let left_row = self.current_left.as_ref().unwrap().clone();
 
             while self.right_index < self.right_rows.len() {
                 let right_row = &self.right_rows[self.right_index];
@@ -279,7 +280,7 @@ impl<'schema, I: RowIterator> Iterator for LazyNestedLoopJoin<'schema, I> {
                 self.right_index += 1;
 
                 // Combine rows for condition check
-                let combined_row = Self::combine_rows(left_row, right_row);
+                let combined_row = Self::combine_rows(&left_row, right_row);
 
                 // Check join condition
                 match self.check_condition(&combined_row) {
@@ -293,9 +294,8 @@ impl<'schema, I: RowIterator> Iterator for LazyNestedLoopJoin<'schema, I> {
                             vibesql_ast::JoinType::Semi => {
                                 // Semi-join: return left row only (no duplicates)
                                 // Move to next left row immediately
-                                let result = left_row.clone();
                                 self.current_left = None;
-                                return Some(Ok(result));
+                                return Some(Ok(left_row));
                             }
                             vibesql_ast::JoinType::Anti => {
                                 // Anti-join: skip this left row (it has a match)
@@ -333,9 +333,8 @@ impl<'schema, I: RowIterator> Iterator for LazyNestedLoopJoin<'schema, I> {
                     }
                     vibesql_ast::JoinType::Anti => {
                         // Anti-join: return left row when NO matches found
-                        let result = left_row.clone();
-                        self.current_left = None; // Move to next left row
-                        return Some(Ok(result));
+                        self.current_left = None;
+                        return Some(Ok(left_row));
                     }
                     _ => {
                         // INNER/CROSS/RIGHT/SEMI: no match means don't emit
