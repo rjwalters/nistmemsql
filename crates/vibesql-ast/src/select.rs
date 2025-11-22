@@ -106,6 +106,10 @@ pub enum JoinType {
     RightOuter,
     FullOuter,
     Cross,
+    /// Semi-join: Returns left rows that have a match in right (no duplicates)
+    Semi,
+    /// Anti-join: Returns left rows that have NO match in right
+    Anti,
 }
 
 /// ORDER BY item

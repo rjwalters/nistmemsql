@@ -187,6 +187,90 @@ pub(super) fn hash_join_inner(
     Ok(FromResult::from_rows(combined_schema, result_rows))
 }
 
+/// Hash join LEFT OUTER JOIN implementation (optimized for equi-joins)
+///
+/// This implementation uses a hash join algorithm for better performance
+/// on equi-join conditions with LEFT OUTER JOIN semantics.
+///
+/// Algorithm:
+/// 1. Build phase: Hash the right table into a HashMap (O(m))
+/// 2. Probe phase: For each left row, lookup matches (O(n))
+///    - If matches found: emit left + right rows
+///    - If no match: emit left + NULLs (preserves left rows)
+///
+/// Total: O(n + m) instead of O(n * m) for nested loop join
+///
+/// Performance: Critical for Q13 where customer LEFT JOIN orders
+/// with 150k customers and 1.5M orders.
+pub(super) fn hash_join_left_outer(
+    mut left: FromResult,
+    mut right: FromResult,
+    left_col_idx: usize,
+    right_col_idx: usize,
+) -> Result<FromResult, ExecutorError> {
+    // Extract right table name and schema for combining
+    let right_table_name = right
+        .schema
+        .table_schemas
+        .keys()
+        .next()
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .clone();
+
+    let right_schema = right
+        .schema
+        .table_schemas
+        .get(&right_table_name)
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .1
+        .clone();
+
+    let right_col_count = right_schema.columns.len();
+
+    // Combine schemas
+    let combined_schema =
+        CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
+
+    // Build hash table on the RIGHT side (we need to preserve ALL left rows)
+    // For LEFT OUTER JOIN, we always probe with left, so build on right
+    let right_rows = right.rows();
+    let hash_table = build_hash_table_parallel(right_rows, right_col_idx);
+
+    // Probe with LEFT side, preserving unmatched left rows
+    let mut result_rows = Vec::new();
+    let left_rows = left.rows();
+
+    for left_row in left_rows {
+        let key = &left_row.values[left_col_idx];
+
+        // For NULL keys in left, still emit the row with NULL right side
+        if key == &vibesql_types::SqlValue::Null {
+            // Left row with NULLs for right columns
+            let null_right = create_null_row(right_col_count);
+            result_rows.push(combine_rows(left_row, &null_right));
+            continue;
+        }
+
+        if let Some(right_indices) = hash_table.get(key) {
+            // Found matches - emit all combinations
+            for &right_idx in right_indices {
+                result_rows.push(combine_rows(left_row, &right_rows[right_idx]));
+            }
+        } else {
+            // No match - emit left row with NULLs for right columns
+            let null_right = create_null_row(right_col_count);
+            result_rows.push(combine_rows(left_row, &null_right));
+        }
+    }
+
+    Ok(FromResult::from_rows(combined_schema, result_rows))
+}
+
+/// Create a row with all NULL values
+fn create_null_row(col_count: usize) -> vibesql_storage::Row {
+    vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Null; col_count])
+}
+
 #[cfg(test)]
 mod tests {
     use vibesql_catalog::{ColumnSchema, TableSchema};
@@ -555,5 +639,250 @@ mod tests {
         for row in result.rows() {
             assert_eq!(row.values.len(), 4); // 2 columns from left + 2 from right
         }
+    }
+
+    // Tests for hash_join_left_outer
+
+    #[test]
+    fn test_hash_join_left_outer_basic() {
+        // Test basic LEFT OUTER JOIN with matched left rows
+        // Left table: users(id, name)
+        let left = create_test_from_result(
+            "users",
+            vec![("id", DataType::Integer), ("name", DataType::Varchar { max_length: Some(50) })],
+            vec![
+                vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())],
+                vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())],
+                vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())],
+            ],
+        );
+
+        // Right table: orders(user_id, amount)
+        let right = create_test_from_result(
+            "orders",
+            vec![("user_id", DataType::Integer), ("amount", DataType::Integer)],
+            vec![
+                vec![SqlValue::Integer(1), SqlValue::Integer(100)],
+                vec![SqlValue::Integer(2), SqlValue::Integer(200)],
+            ],
+        );
+
+        let mut result = hash_join_left_outer(left, right, 0, 0).unwrap();
+
+        // Should have 3 rows: Alice with order, Bob with order, Charlie with NULLs
+        assert_eq!(result.rows().len(), 3);
+
+        // Verify Alice (id=1) has matching order
+        let alice_row = result.rows().iter().find(|r| r.values[0] == SqlValue::Integer(1)).unwrap();
+        assert_eq!(alice_row.values[1], SqlValue::Varchar("Alice".to_string()));
+        assert_eq!(alice_row.values[2], SqlValue::Integer(1)); // user_id
+        assert_eq!(alice_row.values[3], SqlValue::Integer(100)); // amount
+
+        // Verify Bob (id=2) has matching order
+        let bob_row = result.rows().iter().find(|r| r.values[0] == SqlValue::Integer(2)).unwrap();
+        assert_eq!(bob_row.values[1], SqlValue::Varchar("Bob".to_string()));
+        assert_eq!(bob_row.values[2], SqlValue::Integer(2)); // user_id
+        assert_eq!(bob_row.values[3], SqlValue::Integer(200)); // amount
+
+        // Verify Charlie (id=3) has NULL-padded right side
+        let charlie_row = result.rows().iter().find(|r| r.values[0] == SqlValue::Integer(3)).unwrap();
+        assert_eq!(charlie_row.values[1], SqlValue::Varchar("Charlie".to_string()));
+        assert_eq!(charlie_row.values[2], SqlValue::Null); // user_id
+        assert_eq!(charlie_row.values[3], SqlValue::Null); // amount
+    }
+
+    #[test]
+    fn test_hash_join_left_outer_unmatched_left_rows() {
+        // Test LEFT OUTER JOIN where all left rows are unmatched
+        let left = create_test_from_result(
+            "users",
+            vec![("id", DataType::Integer), ("name", DataType::Varchar { max_length: Some(50) })],
+            vec![
+                vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())],
+                vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())],
+            ],
+        );
+
+        // Right table with non-matching ids
+        let right = create_test_from_result(
+            "orders",
+            vec![("user_id", DataType::Integer), ("amount", DataType::Integer)],
+            vec![
+                vec![SqlValue::Integer(99), SqlValue::Integer(100)],
+                vec![SqlValue::Integer(98), SqlValue::Integer(200)],
+            ],
+        );
+
+        let mut result = hash_join_left_outer(left, right, 0, 0).unwrap();
+
+        // Should preserve all left rows with NULL-padded right side
+        assert_eq!(result.rows().len(), 2);
+
+        // All rows should have NULLs for right columns
+        for row in result.rows() {
+            assert_eq!(row.values.len(), 4);
+            assert_eq!(row.values[2], SqlValue::Null); // user_id
+            assert_eq!(row.values[3], SqlValue::Null); // amount
+        }
+    }
+
+    #[test]
+    fn test_hash_join_left_outer_multiple_matches() {
+        // Test LEFT OUTER JOIN where left rows match multiple right rows
+        let left = create_test_from_result(
+            "users",
+            vec![("id", DataType::Integer), ("name", DataType::Varchar { max_length: Some(50) })],
+            vec![
+                vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())],
+                vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())],
+            ],
+        );
+
+        // Right table with multiple orders for Alice
+        let right = create_test_from_result(
+            "orders",
+            vec![("user_id", DataType::Integer), ("amount", DataType::Integer)],
+            vec![
+                vec![SqlValue::Integer(1), SqlValue::Integer(100)],
+                vec![SqlValue::Integer(1), SqlValue::Integer(150)],
+                vec![SqlValue::Integer(1), SqlValue::Integer(200)],
+            ],
+        );
+
+        let mut result = hash_join_left_outer(left, right, 0, 0).unwrap();
+
+        // Alice should appear 3 times (one for each order), Bob once with NULLs
+        assert_eq!(result.rows().len(), 4);
+
+        // Count Alice's rows
+        let alice_orders: Vec<_> = result
+            .rows()
+            .iter()
+            .filter(|r| r.values[0] == SqlValue::Integer(1))
+            .collect();
+        assert_eq!(alice_orders.len(), 3);
+
+        // Verify all Alice rows have matching amounts
+        let amounts: Vec<_> = alice_orders
+            .iter()
+            .map(|r| r.values[3].clone())
+            .collect();
+        assert!(amounts.contains(&SqlValue::Integer(100)));
+        assert!(amounts.contains(&SqlValue::Integer(150)));
+        assert!(amounts.contains(&SqlValue::Integer(200)));
+
+        // Bob should have one row with NULLs
+        let bob_rows: Vec<_> = result
+            .rows()
+            .iter()
+            .filter(|r| r.values[0] == SqlValue::Integer(2))
+            .collect();
+        assert_eq!(bob_rows.len(), 1);
+        assert_eq!(bob_rows[0].values[2], SqlValue::Null);
+        assert_eq!(bob_rows[0].values[3], SqlValue::Null);
+    }
+
+    #[test]
+    fn test_hash_join_left_outer_null_keys() {
+        // Test LEFT OUTER JOIN with NULL keys in left table
+        let left = create_test_from_result(
+            "users",
+            vec![("id", DataType::Integer), ("name", DataType::Varchar { max_length: Some(50) })],
+            vec![
+                vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())],
+                vec![SqlValue::Null, SqlValue::Varchar("Unknown1".to_string())],
+                vec![SqlValue::Null, SqlValue::Varchar("Unknown2".to_string())],
+            ],
+        );
+
+        let right = create_test_from_result(
+            "orders",
+            vec![("user_id", DataType::Integer), ("amount", DataType::Integer)],
+            vec![
+                vec![SqlValue::Integer(1), SqlValue::Integer(100)],
+                vec![SqlValue::Null, SqlValue::Integer(200)], // NULL in right (shouldn't match)
+            ],
+        );
+
+        let mut result = hash_join_left_outer(left, right, 0, 0).unwrap();
+
+        // Should have 3 rows: Alice matched, both Unknowns with NULLs
+        assert_eq!(result.rows().len(), 3);
+
+        // Alice should have matching order
+        let alice_rows: Vec<_> = result
+            .rows()
+            .iter()
+            .filter(|r| r.values[0] == SqlValue::Integer(1))
+            .collect();
+        assert_eq!(alice_rows.len(), 1);
+        assert_eq!(alice_rows[0].values[3], SqlValue::Integer(100));
+
+        // Both Unknown users should have NULL right sides (NULLs don't match)
+        let null_key_rows: Vec<_> = result
+            .rows()
+            .iter()
+            .filter(|r| r.values[0] == SqlValue::Null)
+            .collect();
+        assert_eq!(null_key_rows.len(), 2);
+        for row in null_key_rows {
+            assert_eq!(row.values[2], SqlValue::Null); // user_id
+            assert_eq!(row.values[3], SqlValue::Null); // amount
+        }
+    }
+
+    #[test]
+    fn test_hash_join_left_outer_empty_right_table() {
+        // Test LEFT OUTER JOIN with empty right table
+        let left = create_test_from_result(
+            "users",
+            vec![("id", DataType::Integer), ("name", DataType::Varchar { max_length: Some(50) })],
+            vec![
+                vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())],
+                vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())],
+            ],
+        );
+
+        let right = create_test_from_result(
+            "orders",
+            vec![("user_id", DataType::Integer), ("amount", DataType::Integer)],
+            vec![],
+        );
+
+        let mut result = hash_join_left_outer(left, right, 0, 0).unwrap();
+
+        // Should preserve all left rows with NULL-padded right side
+        assert_eq!(result.rows().len(), 2);
+
+        // All rows should have NULLs for right columns
+        for row in result.rows() {
+            assert_eq!(row.values.len(), 4);
+            assert_eq!(row.values[2], SqlValue::Null);
+            assert_eq!(row.values[3], SqlValue::Null);
+        }
+    }
+
+    #[test]
+    fn test_hash_join_left_outer_empty_left_table() {
+        // Test LEFT OUTER JOIN with empty left table
+        let left = create_test_from_result(
+            "users",
+            vec![("id", DataType::Integer), ("name", DataType::Varchar { max_length: Some(50) })],
+            vec![],
+        );
+
+        let right = create_test_from_result(
+            "orders",
+            vec![("user_id", DataType::Integer), ("amount", DataType::Integer)],
+            vec![
+                vec![SqlValue::Integer(1), SqlValue::Integer(100)],
+                vec![SqlValue::Integer(2), SqlValue::Integer(200)],
+            ],
+        );
+
+        let mut result = hash_join_left_outer(left, right, 0, 0).unwrap();
+
+        // Should produce empty result (no left rows to preserve)
+        assert_eq!(result.rows().len(), 0);
     }
 }

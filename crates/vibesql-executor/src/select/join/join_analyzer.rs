@@ -149,3 +149,127 @@ fn extract_column_index(expr: &Expression, schema: &CombinedSchema) -> Option<us
         _ => None,
     }
 }
+
+/// Flatten nested OR conditions into a vector
+fn flatten_or_conditions<'a>(expr: &'a Expression, out: &mut Vec<&'a Expression>) {
+    match expr {
+        Expression::BinaryOp { op: BinaryOperator::Or, left, right } => {
+            flatten_or_conditions(left, out);
+            flatten_or_conditions(right, out);
+        }
+        _ => out.push(expr),
+    }
+}
+
+/// Analyze an OR expression to extract common equi-join predicates
+///
+/// For expressions like `(a.x = b.x AND ...) OR (a.x = b.x AND ...) OR (a.x = b.x AND ...)`,
+/// this will extract the common equi-join `a.x = b.x` that appears in ALL branches.
+///
+/// This enables hash join optimization for TPC-H Q19 and similar queries with complex OR conditions.
+///
+/// Returns Some(CompoundEquiJoinResult) if:
+/// - All OR branches contain the same equi-join condition
+/// - The equi-join can be used for hash join
+///
+/// Returns None if:
+/// - Branches have different equi-joins
+/// - No common equi-join found
+pub fn analyze_or_equi_join(
+    condition: &Expression,
+    schema: &CombinedSchema,
+    left_column_count: usize,
+) -> Option<CompoundEquiJoinResult> {
+    // Only process OR expressions
+    if !matches!(condition, Expression::BinaryOp { op: BinaryOperator::Or, .. }) {
+        return None;
+    }
+
+    // Flatten all OR branches
+    let mut or_branches = Vec::new();
+    flatten_or_conditions(condition, &mut or_branches);
+
+    if or_branches.is_empty() {
+        return None;
+    }
+
+    // For each branch, try to extract ALL equi-join conditions
+    // We need to find equi-joins that appear in EVERY branch
+    let mut branch_equijoins: Vec<Vec<EquiJoinInfo>> = Vec::new();
+
+    for branch in &or_branches {
+        let mut branch_joins = Vec::new();
+
+        // A branch might be a single equijoin or an AND of multiple conditions
+        match branch {
+            Expression::BinaryOp { op: BinaryOperator::Equal, .. } => {
+                // Single equality - check if it's an equi-join
+                if let Some(equi_join) = analyze_single_equi_join(branch, schema, left_column_count) {
+                    branch_joins.push(equi_join);
+                }
+            }
+            Expression::BinaryOp { op: BinaryOperator::And, .. } => {
+                // AND expression - extract all equi-joins from it
+                let mut and_conditions = Vec::new();
+                flatten_and_conditions(branch, &mut and_conditions);
+
+                for cond in and_conditions {
+                    if let Some(equi_join) = analyze_single_equi_join(cond, schema, left_column_count) {
+                        branch_joins.push(equi_join);
+                    }
+                }
+            }
+            _ => {
+                // Branch contains no equi-joins, can't optimize
+                return None;
+            }
+        }
+
+        // If this branch has no equi-joins, we can't find a common one
+        if branch_joins.is_empty() {
+            return None;
+        }
+
+        branch_equijoins.push(branch_joins);
+    }
+
+    // Now find equi-joins that appear in ALL branches
+    // We'll compare by (left_col_idx, right_col_idx)
+    if branch_equijoins.is_empty() {
+        return None;
+    }
+
+    // Check each equi-join from the first branch
+    for first_equijoin in &branch_equijoins[0] {
+        let mut found_in_all = true;
+
+        // Check if this equi-join appears in all other branches
+        for other_branch in &branch_equijoins[1..] {
+            let mut found_in_this_branch = false;
+            for other_equijoin in other_branch {
+                if first_equijoin.left_col_idx == other_equijoin.left_col_idx
+                    && first_equijoin.right_col_idx == other_equijoin.right_col_idx
+                {
+                    found_in_this_branch = true;
+                    break;
+                }
+            }
+
+            if !found_in_this_branch {
+                found_in_all = false;
+                break;
+            }
+        }
+
+        if found_in_all {
+            // Found a common equi-join! Return it with the original OR as remaining condition
+            return Some(CompoundEquiJoinResult {
+                equi_join: first_equijoin.clone(),
+                remaining_conditions: vec![condition.clone()],
+            });
+        }
+    }
+
+    // No common equi-join found
+    None
+}

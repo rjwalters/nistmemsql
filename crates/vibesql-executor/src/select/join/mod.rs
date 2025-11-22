@@ -7,6 +7,8 @@ use super::from_iterator::FromIterator;
 mod expression_mapper;
 mod hash_join;
 mod hash_join_iterator;
+mod hash_semi_join;
+mod hash_anti_join;
 mod join_analyzer;
 mod nested_loop;
 pub mod reorder;
@@ -18,6 +20,8 @@ mod tests;
 // Re-export join reorder analyzer for public tests
 // Re-export hash_join functions for internal use
 use hash_join::hash_join_inner;
+use hash_semi_join::hash_semi_join;
+use hash_anti_join::hash_anti_join;
 // Re-export hash join iterator for public use
 pub use hash_join_iterator::HashJoinIterator;
 // Re-export nested loop join variants for internal use
@@ -302,6 +306,60 @@ pub(super) fn nested_loop_join(
             }
         }
 
+        // Phase 3.2: Try OR conditions with common equi-join (TPC-H Q19 optimization)
+        // For expressions like `(a.x = b.x AND ...) OR (a.x = b.x AND ...) OR (a.x = b.x AND ...)`,
+        // extract the common equi-join `a.x = b.x` for hash join
+        if let Some(cond) = condition {
+            if let Some(or_result) =
+                join_analyzer::analyze_or_equi_join(cond, &temp_schema, left_col_count)
+            {
+                // Save schemas for NATURAL JOIN processing before moving left/right
+                let (left_schema_for_natural, right_schema_for_natural) = if natural {
+                    (Some(left.schema.clone()), Some(right.schema.clone()))
+                } else {
+                    (None, None)
+                };
+
+                let mut result = hash_join_inner(
+                    left,
+                    right,
+                    or_result.equi_join.left_col_idx,
+                    or_result.equi_join.right_col_idx,
+                )?;
+
+                // Apply remaining OR conditions as post-join filter
+                if !or_result.remaining_conditions.is_empty() {
+                    if let Some(filter_expr) = combine_with_and(or_result.remaining_conditions) {
+                        result = apply_post_join_filter(result, &filter_expr, database)?;
+                    }
+                }
+
+                // For NATURAL JOIN, remove duplicate columns from the result
+                if natural {
+                    if let (Some(left_schema), Some(right_schema_orig)) =
+                        (left_schema_for_natural, right_schema_for_natural)
+                    {
+                        let right_schema_for_removal = CombinedSchema {
+                            table_schemas: vec![(
+                                right_table_name_for_natural.clone(),
+                                (0, right_schema_orig.table_schemas.values().next().unwrap().1.clone()),
+                            )]
+                            .into_iter()
+                            .collect(),
+                            total_columns: right_schema_orig.total_columns,
+                        };
+                        result = remove_duplicate_columns_for_natural_join(
+                            result,
+                            &left_schema,
+                            &right_schema_for_removal,
+                        )?;
+                    }
+                }
+
+                return Ok(result);
+            }
+        }
+
         // Phase 3.1: If no ON condition hash join, try WHERE clause equijoins
         // Iterate through all additional equijoins to find one suitable for hash join
         for (idx, equijoin) in additional_equijoins.iter().enumerate() {
@@ -364,6 +422,82 @@ pub(super) fn nested_loop_join(
         }
     }
 
+    // Try to use hash join for SEMI/ANTI JOINs with equi-join conditions
+    if matches!(join_type, vibesql_ast::JoinType::Semi | vibesql_ast::JoinType::Anti) {
+        // Get column count for analysis
+        let left_col_count: usize =
+            left.schema.table_schemas.values().map(|(_, schema)| schema.columns.len()).sum();
+
+        let right_table_name = right
+            .schema
+            .table_schemas
+            .keys()
+            .next()
+            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+            .clone();
+
+        let right_schema = right
+            .schema
+            .table_schemas
+            .get(&right_table_name)
+            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+            .1
+            .clone();
+
+        let temp_schema =
+            CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
+
+        // Try ON condition first
+        if let Some(cond) = condition {
+            if let Some(equi_join_info) =
+                join_analyzer::analyze_equi_join(cond, &temp_schema, left_col_count)
+            {
+                let result = if matches!(join_type, vibesql_ast::JoinType::Semi) {
+                    hash_semi_join(
+                        left,
+                        right,
+                        equi_join_info.left_col_idx,
+                        equi_join_info.right_col_idx,
+                    )?
+                } else {
+                    hash_anti_join(
+                        left,
+                        right,
+                        equi_join_info.left_col_idx,
+                        equi_join_info.right_col_idx,
+                    )?
+                };
+
+                return Ok(result);
+            }
+        }
+
+        // Try WHERE clause equijoins
+        for equijoin in additional_equijoins.iter() {
+            if let Some(equi_join_info) =
+                join_analyzer::analyze_equi_join(equijoin, &temp_schema, left_col_count)
+            {
+                let result = if matches!(join_type, vibesql_ast::JoinType::Semi) {
+                    hash_semi_join(
+                        left,
+                        right,
+                        equi_join_info.left_col_idx,
+                        equi_join_info.right_col_idx,
+                    )?
+                } else {
+                    hash_anti_join(
+                        left,
+                        right,
+                        equi_join_info.left_col_idx,
+                        equi_join_info.right_col_idx,
+                    )?
+                };
+
+                return Ok(result);
+            }
+        }
+    }
+
     // Prepare combined join condition including additional equijoins from WHERE clause
     let mut all_join_conditions = Vec::new();
     if let Some(cond) = condition {
@@ -394,6 +528,13 @@ pub(super) fn nested_loop_join(
             nested_loop_full_outer_join(left, right, &combined_condition, database)
         }
         vibesql_ast::JoinType::Cross => nested_loop_cross_join(left, right, &combined_condition, database),
+        vibesql_ast::JoinType::Semi | vibesql_ast::JoinType::Anti => {
+            // Semi/Anti joins not supported in nested loop fallback yet
+            // They should be handled via hash join optimization above
+            return Err(ExecutorError::UnsupportedFeature(
+                "Semi/Anti joins require equi-join condition".to_string()
+            ));
+        }
     }?;
 
     // For NATURAL JOIN, remove duplicate columns from the result

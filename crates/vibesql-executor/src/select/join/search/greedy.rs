@@ -3,7 +3,7 @@
 //! This module implements a polynomial-time approximation algorithm for join
 //! order optimization when exhaustive search is impractical (8+ tables).
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use super::{JoinCost, JoinOrderContext};
 
@@ -29,8 +29,8 @@ impl JoinOrderContext {
             return Vec::new();
         }
 
-        let mut joined_tables = HashSet::new();
-        let mut remaining_tables: HashSet<String> = self.all_tables.clone();
+        let mut joined_tables = BTreeSet::new();
+        let mut remaining_tables: BTreeSet<String> = self.all_tables.clone();
         let mut join_order = Vec::new();
         let mut current_cardinality: usize;
 
