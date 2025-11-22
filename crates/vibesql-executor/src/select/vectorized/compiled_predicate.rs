@@ -36,6 +36,60 @@ enum CompiledPredicate {
     },
 }
 
+impl CompiledPredicate {
+    /// Estimate the selectivity of this predicate (fraction of rows that pass)
+    /// Lower selectivity = more selective (fewer rows pass) = evaluate first
+    fn estimate_selectivity(&self) -> f64 {
+        match self {
+            // Equality predicates are very selective (~0.1% of rows match)
+            CompiledPredicate::ColumnLiteral { op: ComparisonOp::Equal, .. } => 0.001,
+
+            // Inequality is very unselective (~99% of rows match)
+            CompiledPredicate::ColumnLiteral { op: ComparisonOp::NotEqual, .. } => 0.99,
+
+            // Range predicates: estimate based on operator
+            // < and > assume ~33% selectivity (rough estimate)
+            CompiledPredicate::ColumnLiteral { op: ComparisonOp::LessThan, .. } => 0.33,
+            CompiledPredicate::ColumnLiteral { op: ComparisonOp::GreaterThan, .. } => 0.33,
+
+            // <= and >= assume ~40% selectivity (slightly less selective)
+            CompiledPredicate::ColumnLiteral { op: ComparisonOp::LessThanOrEqual, .. } => 0.40,
+            CompiledPredicate::ColumnLiteral { op: ComparisonOp::GreaterThanOrEqual, .. } => 0.40,
+
+            // BETWEEN is moderately selective (~10% of rows)
+            CompiledPredicate::Between { negated: false, .. } => 0.10,
+
+            // NOT BETWEEN is unselective (~90% of rows)
+            CompiledPredicate::Between { negated: true, .. } => 0.90,
+        }
+    }
+
+    /// Get the column index referenced by this predicate
+    fn column_idx(&self) -> usize {
+        match self {
+            CompiledPredicate::ColumnLiteral { column_idx, .. } => *column_idx,
+            CompiledPredicate::Between { column_idx, .. } => *column_idx,
+        }
+    }
+
+    /// Check if this predicate is IS NULL check
+    fn is_null_check(&self) -> bool {
+        matches!(self, CompiledPredicate::ColumnLiteral {
+            op: ComparisonOp::Equal,
+            literal: SqlValue::Null,
+            ..
+        })
+    }
+
+    /// Check if this predicate requires non-null value (any comparison except IS NULL)
+    fn requires_non_null(&self) -> bool {
+        match self {
+            CompiledPredicate::ColumnLiteral { literal, .. } => !matches!(literal, SqlValue::Null),
+            CompiledPredicate::Between { .. } => true,
+        }
+    }
+}
+
 /// Supported comparison operators
 #[derive(Debug, Clone, Copy)]
 enum ComparisonOp {
@@ -70,7 +124,59 @@ impl CompiledWhereClause {
             return None;
         }
 
+        // Detect contradictions - if found, the WHERE clause is always false
+        if Self::detect_contradictions(&predicates) {
+            // Return a special "always false" compiled clause with impossible predicate
+            // This will cause the scan to return 0 rows efficiently
+            return None; // For now, fall back to regular evaluation (correctness first)
+        }
+
+        // Reorder predicates by selectivity (most selective first)
+        // This improves performance by failing early on rows that don't match
+        Self::reorder_by_selectivity(&mut predicates);
+
         Some(CompiledWhereClause { predicates })
+    }
+
+    /// Detect contradictions in predicates that make the WHERE clause always false
+    fn detect_contradictions(predicates: &[CompiledPredicate]) -> bool {
+        // Group predicates by column
+        use std::collections::HashMap;
+        let mut by_column: HashMap<usize, Vec<&CompiledPredicate>> = HashMap::new();
+
+        for pred in predicates {
+            by_column.entry(pred.column_idx()).or_default().push(pred);
+        }
+
+        // Check each column's predicates for contradictions
+        for (_col_idx, col_preds) in by_column.iter() {
+            // Check for "IS NULL AND <comparison>" contradiction
+            let has_null_check = col_preds.iter().any(|p| p.is_null_check());
+            let has_non_null_req = col_preds.iter().any(|p| p.requires_non_null());
+
+            if has_null_check && has_non_null_req {
+                // Contradiction: col IS NULL AND col > X (impossible)
+                return true;
+            }
+
+            // TODO: More sophisticated contradiction detection:
+            // - Multiple equality checks: col = 1 AND col = 2
+            // - Range contradictions: col > 100 AND col < 50
+            // - BETWEEN contradictions: col BETWEEN 1 AND 10 AND col > 100
+        }
+
+        false
+    }
+
+    /// Reorder predicates by selectivity (most selective first)
+    /// This improves performance by evaluating cheap, selective predicates early
+    fn reorder_by_selectivity(predicates: &mut Vec<CompiledPredicate>) {
+        // Sort by selectivity (ascending = most selective first)
+        predicates.sort_by(|a, b| {
+            a.estimate_selectivity()
+                .partial_cmp(&b.estimate_selectivity())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
     }
 
     /// Extract predicates from AND-combined expression
@@ -465,5 +571,142 @@ mod tests {
             ],
         };
         assert!(!compiled.evaluate(&row2).unwrap());
+    }
+
+    #[test]
+    fn test_predicate_reordering_by_selectivity() {
+        let schema = make_test_schema();
+
+        // Build: l_quantity < 100 AND l_discount = 0.05
+        // Equality (l_discount = 0.05) should be evaluated first (more selective)
+        let expr = Expression::BinaryOp {
+            left: Box::new(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "l_quantity".to_string(),
+                }),
+                op: BinaryOperator::LessThan,
+                right: Box::new(Expression::Literal(SqlValue::Integer(100))),
+            }),
+            op: BinaryOperator::And,
+            right: Box::new(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "l_discount".to_string(),
+                }),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Literal(SqlValue::Double(0.05))),
+            }),
+        };
+
+        let compiled = CompiledWhereClause::try_compile(&expr, &schema).unwrap();
+
+        // First predicate should be the equality (more selective)
+        // We can't directly access predicates, but we can verify compilation succeeded
+        assert_eq!(compiled.predicates.len(), 2);
+
+        // Verify that equality predicate comes first (most selective)
+        match &compiled.predicates[0] {
+            CompiledPredicate::ColumnLiteral { op: ComparisonOp::Equal, .. } => {
+                // Good! Equality is first
+            }
+            _ => panic!("Expected equality predicate to be first due to reordering"),
+        }
+    }
+
+    #[test]
+    fn test_selectivity_estimation() {
+        // Verify selectivity estimates are in expected ranges
+        let equal_pred = CompiledPredicate::ColumnLiteral {
+            column_idx: 0,
+            op: ComparisonOp::Equal,
+            literal: SqlValue::Integer(42),
+        };
+        assert_eq!(equal_pred.estimate_selectivity(), 0.001);
+
+        let not_equal_pred = CompiledPredicate::ColumnLiteral {
+            column_idx: 0,
+            op: ComparisonOp::NotEqual,
+            literal: SqlValue::Integer(42),
+        };
+        assert_eq!(not_equal_pred.estimate_selectivity(), 0.99);
+
+        let between_pred = CompiledPredicate::Between {
+            column_idx: 0,
+            low: SqlValue::Integer(1),
+            high: SqlValue::Integer(10),
+            negated: false,
+        };
+        assert_eq!(between_pred.estimate_selectivity(), 0.10);
+    }
+
+    #[test]
+    fn test_short_circuit_evaluation() {
+        let schema = make_test_schema();
+
+        // l_discount = 999.99 AND l_quantity < 24
+        // First predicate will fail, second should not be evaluated (but we can't verify this directly)
+        let expr = Expression::BinaryOp {
+            left: Box::new(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "l_discount".to_string(),
+                }),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Literal(SqlValue::Double(999.99))),
+            }),
+            op: BinaryOperator::And,
+            right: Box::new(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "l_quantity".to_string(),
+                }),
+                op: BinaryOperator::LessThan,
+                right: Box::new(Expression::Literal(SqlValue::Integer(24))),
+            }),
+        };
+
+        let compiled = CompiledWhereClause::try_compile(&expr, &schema).unwrap();
+
+        // Test row where first predicate fails
+        let row = Row {
+            values: vec![
+                SqlValue::Integer(10),  // l_quantity
+                SqlValue::Double(0.05), // l_discount (doesn't match 999.99)
+                SqlValue::Varchar("1994-01-01".to_string()),
+            ],
+        };
+
+        // Should return false (short-circuit on first predicate)
+        assert!(!compiled.evaluate(&row).unwrap());
+    }
+
+    #[test]
+    fn test_null_semantics_preserved() {
+        let schema = make_test_schema();
+
+        // l_quantity > 10
+        let expr = Expression::BinaryOp {
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "l_quantity".to_string(),
+            }),
+            op: BinaryOperator::GreaterThan,
+            right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+        };
+
+        let compiled = CompiledWhereClause::try_compile(&expr, &schema).unwrap();
+
+        // Test row with NULL value
+        let row = Row {
+            values: vec![
+                SqlValue::Null, // l_quantity is NULL
+                SqlValue::Double(0.05),
+                SqlValue::Varchar("1994-01-01".to_string()),
+            ],
+        };
+
+        // NULL > 10 should return false (not true, not NULL)
+        assert!(!compiled.evaluate(&row).unwrap());
     }
 }
