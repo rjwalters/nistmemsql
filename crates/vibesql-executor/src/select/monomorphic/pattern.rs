@@ -64,19 +64,10 @@ fn contains_aggregate(expr: &Expression, function_name: &str) -> bool {
             contains_aggregate(left, function_name) || contains_aggregate(right, function_name)
         }
         Expression::UnaryOp { expr, .. } => contains_aggregate(expr, function_name),
-        Expression::Case {
-            operand,
-            when_clauses,
-            else_result,
-        } => {
-            operand
-                .as_ref()
-                .map(|e| contains_aggregate(e, function_name))
-                .unwrap_or(false)
+        Expression::Case { operand, when_clauses, else_result } => {
+            operand.as_ref().map(|e| contains_aggregate(e, function_name)).unwrap_or(false)
                 || when_clauses.iter().any(|wc| {
-                    wc.conditions
-                        .iter()
-                        .any(|c| contains_aggregate(c, function_name))
+                    wc.conditions.iter().any(|c| contains_aggregate(c, function_name))
                         || contains_aggregate(&wc.result, function_name)
                 })
                 || else_result
@@ -93,21 +84,18 @@ fn contains_aggregate(expr: &Expression, function_name: &str) -> bool {
 /// This matches expressions like `col1 * col2` regardless of operand order (case-insensitive).
 pub fn contains_column_multiply(expr: &Expression, col1: &str, col2: &str) -> bool {
     match expr {
-        Expression::BinaryOp {
-            op: BinaryOperator::Multiply,
-            left,
-            right,
-        } => {
+        Expression::BinaryOp { op: BinaryOperator::Multiply, left, right } => {
             let (left_col, right_col) = match (left.as_ref(), right.as_ref()) {
-                (Expression::ColumnRef { column: c1, .. }, Expression::ColumnRef { column: c2, .. }) => {
-                    (c1.as_str(), c2.as_str())
-                }
+                (
+                    Expression::ColumnRef { column: c1, .. },
+                    Expression::ColumnRef { column: c2, .. },
+                ) => (c1.as_str(), c2.as_str()),
                 _ => return false,
             };
 
             // Check both orderings (case-insensitive)
-            (left_col.eq_ignore_ascii_case(col1) && right_col.eq_ignore_ascii_case(col2)) ||
-            (left_col.eq_ignore_ascii_case(col2) && right_col.eq_ignore_ascii_case(col1))
+            (left_col.eq_ignore_ascii_case(col1) && right_col.eq_ignore_ascii_case(col2))
+                || (left_col.eq_ignore_ascii_case(col2) && right_col.eq_ignore_ascii_case(col1))
         }
         Expression::AggregateFunction { args, .. } => {
             // Recursively check aggregate arguments
@@ -149,27 +137,15 @@ fn expression_references_column(expr: &Expression, column_name: &str) -> bool {
         Expression::IsNull { expr, .. } => expression_references_column(expr, column_name),
         Expression::InList { expr, values, .. } => {
             expression_references_column(expr, column_name)
-                || values
-                    .iter()
-                    .any(|v| expression_references_column(v, column_name))
+                || values.iter().any(|v| expression_references_column(v, column_name))
         }
         Expression::Function { args, .. } | Expression::AggregateFunction { args, .. } => {
-            args.iter()
-                .any(|arg| expression_references_column(arg, column_name))
+            args.iter().any(|arg| expression_references_column(arg, column_name))
         }
-        Expression::Case {
-            operand,
-            when_clauses,
-            else_result,
-        } => {
-            operand
-                .as_ref()
-                .map(|e| expression_references_column(e, column_name))
-                .unwrap_or(false)
+        Expression::Case { operand, when_clauses, else_result } => {
+            operand.as_ref().map(|e| expression_references_column(e, column_name)).unwrap_or(false)
                 || when_clauses.iter().any(|wc| {
-                    wc.conditions
-                        .iter()
-                        .any(|c| expression_references_column(c, column_name))
+                    wc.conditions.iter().any(|c| expression_references_column(c, column_name))
                         || expression_references_column(&wc.result, column_name)
                 })
                 || else_result
@@ -192,22 +168,16 @@ pub fn has_between_predicate(where_clause: &Option<Expression>, column_name: &st
 /// Recursively search for a BETWEEN predicate on a specific column (case-insensitive)
 fn find_between_predicate(expr: &Expression, column_name: &str) -> bool {
     match expr {
-        Expression::Between {
-            expr: inner_expr,
-            negated: false,
-            ..
-        } => {
+        Expression::Between { expr: inner_expr, negated: false, .. } => {
             if let Expression::ColumnRef { column, .. } = inner_expr.as_ref() {
                 column.eq_ignore_ascii_case(column_name)
             } else {
                 false
             }
         }
-        Expression::BinaryOp {
-            op: BinaryOperator::And,
-            left,
-            right,
-        } => find_between_predicate(left, column_name) || find_between_predicate(right, column_name),
+        Expression::BinaryOp { op: BinaryOperator::And, left, right } => {
+            find_between_predicate(left, column_name) || find_between_predicate(right, column_name)
+        }
         _ => false,
     }
 }
@@ -224,27 +194,19 @@ pub fn has_no_joins(from_clause: &Option<FromClause>) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_ast::{Expression, SelectItem};
+
+    use super::*;
 
     #[test]
     fn test_is_single_table() {
-        let from_table = Some(FromClause::Table {
-            name: "lineitem".to_string(),
-            alias: None,
-        });
+        let from_table = Some(FromClause::Table { name: "lineitem".to_string(), alias: None });
         assert!(is_single_table(&from_table, "lineitem"));
         assert!(!is_single_table(&from_table, "orders"));
 
         let from_join = Some(FromClause::Join {
-            left: Box::new(FromClause::Table {
-                name: "lineitem".to_string(),
-                alias: None,
-            }),
-            right: Box::new(FromClause::Table {
-                name: "orders".to_string(),
-                alias: None,
-            }),
+            left: Box::new(FromClause::Table { name: "lineitem".to_string(), alias: None }),
+            right: Box::new(FromClause::Table { name: "orders".to_string(), alias: None }),
             join_type: vibesql_ast::JoinType::Inner,
             condition: None,
             natural: false,
@@ -258,10 +220,7 @@ mod tests {
             expr: Expression::AggregateFunction {
                 name: "SUM".to_string(),
                 distinct: false,
-                args: vec![Expression::ColumnRef {
-                    table: None,
-                    column: "price".to_string(),
-                }],
+                args: vec![Expression::ColumnRef { table: None, column: "price".to_string() }],
             },
             alias: Some("total".to_string()),
         }];
@@ -270,10 +229,7 @@ mod tests {
         assert!(!has_aggregate_function(&select_with_sum, "COUNT"));
 
         let select_no_agg = vec![SelectItem::Expression {
-            expr: Expression::ColumnRef {
-                table: None,
-                column: "price".to_string(),
-            },
+            expr: Expression::ColumnRef { table: None, column: "price".to_string() },
             alias: None,
         }];
         assert!(!has_aggregate_function(&select_no_agg, "SUM"));
@@ -283,14 +239,8 @@ mod tests {
     fn test_contains_column_multiply() {
         let multiply_expr = Expression::BinaryOp {
             op: BinaryOperator::Multiply,
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "price".to_string(),
-            }),
-            right: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "discount".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "price".to_string() }),
+            right: Box::new(Expression::ColumnRef { table: None, column: "discount".to_string() }),
         };
 
         assert!(contains_column_multiply(&multiply_expr, "price", "discount"));
@@ -310,10 +260,7 @@ mod tests {
     fn test_where_references_column() {
         let where_expr = Some(Expression::BinaryOp {
             op: BinaryOperator::LessThan,
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "quantity".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "quantity".to_string() }),
             right: Box::new(Expression::Literal(vibesql_types::SqlValue::Integer(24))),
         });
 
@@ -325,10 +272,7 @@ mod tests {
     #[test]
     fn test_has_between_predicate() {
         let between_expr = Some(Expression::Between {
-            expr: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "discount".to_string(),
-            }),
+            expr: Box::new(Expression::ColumnRef { table: None, column: "discount".to_string() }),
             low: Box::new(Expression::Literal(vibesql_types::SqlValue::Double(0.05))),
             high: Box::new(Expression::Literal(vibesql_types::SqlValue::Double(0.07))),
             negated: false,

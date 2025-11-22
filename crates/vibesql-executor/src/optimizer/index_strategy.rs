@@ -4,10 +4,10 @@
 //! It replaces the scattered index predicate extraction logic with a unified
 //! approach that works with the typed `Predicate` enum.
 
+use vibesql_ast::{BinaryOperator, Expression};
 use vibesql_types::SqlValue;
 
 use super::predicate::Predicate;
-use vibesql_ast::{BinaryOperator, Expression};
 
 /// Strategy for using an index to evaluate a predicate
 #[allow(dead_code)]
@@ -26,10 +26,7 @@ pub enum IndexStrategy {
     /// Prefix lookup on multi-column index
     ///
     /// Used when matching the first N columns of a composite index
-    PrefixLookup {
-        columns: Vec<String>,
-        prefix_values: Vec<SqlValue>,
-    },
+    PrefixLookup { columns: Vec<String>, prefix_values: Vec<SqlValue> },
 
     /// Range scan with optional bounds
     ///
@@ -263,10 +260,9 @@ fn extract_prefix_strategy(expr: &Expression, index_columns: &[String]) -> Optio
 #[allow(dead_code)]
 fn is_column_ref(expr: &Expression, column_name: &str) -> bool {
     match expr {
-        Expression::ColumnRef {
-            table: _,
-            column: col,
-        } => col.to_lowercase() == column_name.to_lowercase(),
+        Expression::ColumnRef { table: _, column: col } => {
+            col.to_lowercase() == column_name.to_lowercase()
+        }
         _ => false,
     }
 }
@@ -276,20 +272,13 @@ mod tests {
     use super::*;
 
     fn make_index(columns: Vec<String>) -> IndexMetadata {
-        IndexMetadata {
-            name: "test_idx".to_string(),
-            columns,
-            unique: false,
-        }
+        IndexMetadata { name: "test_idx".to_string(), columns, unique: false }
     }
 
     #[test]
     fn test_exact_lookup_strategy() {
         let expr = Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "id".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
             op: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(SqlValue::Integer(42))),
         };
@@ -301,10 +290,7 @@ mod tests {
     #[test]
     fn test_range_scan_strategy() {
         let expr = Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "age".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "age".to_string() }),
             op: BinaryOperator::GreaterThan,
             right: Box::new(Expression::Literal(SqlValue::Integer(18))),
         };
@@ -316,10 +302,7 @@ mod tests {
     #[test]
     fn test_multi_lookup_strategy() {
         let expr = Expression::InList {
-            expr: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "status".to_string(),
-            }),
+            expr: Box::new(Expression::ColumnRef { table: None, column: "status".to_string() }),
             values: vec![
                 Expression::Literal(SqlValue::Varchar("active".to_string())),
                 Expression::Literal(SqlValue::Varchar("pending".to_string())),
@@ -334,10 +317,7 @@ mod tests {
     #[test]
     fn test_between_strategy() {
         let expr = Expression::Between {
-            expr: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "price".to_string(),
-            }),
+            expr: Box::new(Expression::ColumnRef { table: None, column: "price".to_string() }),
             low: Box::new(Expression::Literal(SqlValue::Integer(10))),
             high: Box::new(Expression::Literal(SqlValue::Integer(100))),
             negated: false,
@@ -351,10 +331,7 @@ mod tests {
     #[test]
     fn test_null_equality_returns_none() {
         let expr = Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "id".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
             op: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(SqlValue::Null)),
         };
@@ -365,10 +342,7 @@ mod tests {
 
     #[test]
     fn test_is_column_ref() {
-        let expr = Expression::ColumnRef {
-            table: None,
-            column: "name".to_string(),
-        };
+        let expr = Expression::ColumnRef { table: None, column: "name".to_string() };
         assert!(is_column_ref(&expr, "name"));
         assert!(is_column_ref(&expr, "NAME")); // Case insensitive
         assert!(!is_column_ref(&expr, "other"));
@@ -376,16 +350,11 @@ mod tests {
 
     #[test]
     fn test_strategy_columns() {
-        let strategy = IndexStrategy::ExactLookup {
-            column: "id".to_string(),
-            value: SqlValue::Integer(1),
-        };
+        let strategy =
+            IndexStrategy::ExactLookup { column: "id".to_string(), value: SqlValue::Integer(1) };
         assert_eq!(strategy.columns(), vec!["id"]);
 
-        let strategy = IndexStrategy::MultiLookup {
-            column: "status".to_string(),
-            values: vec![],
-        };
+        let strategy = IndexStrategy::MultiLookup { column: "status".to_string(), values: vec![] };
         assert_eq!(strategy.columns(), vec!["status"]);
     }
 }

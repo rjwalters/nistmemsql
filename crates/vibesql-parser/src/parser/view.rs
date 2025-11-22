@@ -88,7 +88,9 @@ impl Parser {
     ///
     /// Syntax:
     ///   DROP VIEW [IF EXISTS] view_name [CASCADE | RESTRICT]
-    pub(super) fn parse_drop_view_statement(&mut self) -> Result<vibesql_ast::DropViewStmt, ParseError> {
+    pub(super) fn parse_drop_view_statement(
+        &mut self,
+    ) -> Result<vibesql_ast::DropViewStmt, ParseError> {
         // Expect DROP keyword
         self.expect_keyword(Keyword::Drop)?;
 

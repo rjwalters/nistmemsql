@@ -64,28 +64,42 @@ where
         // Note: We ONLY reorder comma-list syntax (CROSS joins) because reordering
         // changes column positions in results. Explicit JOIN syntax has defined
         // column ordering that must be preserved.
-        if reorder::should_apply_join_reordering(table_count) && reorder::all_joins_are_cross(from) {
+        if reorder::should_apply_join_reordering(table_count) && reorder::all_joins_are_cross(from)
+        {
             // Apply join reordering optimization
-            return reorder::execute_with_join_reordering(from, cte_results, database, where_clause, execute_subquery);
+            return reorder::execute_with_join_reordering(
+                from,
+                cte_results,
+                database,
+                where_clause,
+                execute_subquery,
+            );
         }
     }
 
     // Fall back to standard execution (recursive left-deep joins)
     match from {
-        vibesql_ast::FromClause::Table { name, alias } => {
-            table::execute_table_scan(name, alias.as_ref(), cte_results, database, where_clause, order_by)
-        }
-        vibesql_ast::FromClause::Join { left, right, join_type, condition, natural } => join_scan::execute_join(
-            left,
-            right,
-            join_type,
-            condition,
-            *natural,
+        vibesql_ast::FromClause::Table { name, alias } => table::execute_table_scan(
+            name,
+            alias.as_ref(),
             cte_results,
             database,
             where_clause,
-            execute_subquery,
+            order_by,
         ),
+        vibesql_ast::FromClause::Join { left, right, join_type, condition, natural } => {
+            join_scan::execute_join(
+                left,
+                right,
+                join_type,
+                condition,
+                *natural,
+                cte_results,
+                database,
+                where_clause,
+                execute_subquery,
+            )
+        }
         vibesql_ast::FromClause::Subquery { query, alias } => {
             derived::execute_derived_table(query, alias, execute_subquery)
         }

@@ -1,6 +1,5 @@
 use std::env;
 
-use vibesql::catalog::{ColumnSchema, TableSchema};
 /**
  * Query Runner for Web Demo Examples
  *
@@ -11,9 +10,12 @@ use vibesql::catalog::{ColumnSchema, TableSchema};
  * Usage: cargo run --example query_runner
  */
 use vibesql::executor::SelectExecutor;
-use vibesql::parser::Parser;
-use vibesql::storage::{Database, Row};
-use vibesql::types::{DataType, SqlValue};
+use vibesql::{
+    catalog::{ColumnSchema, TableSchema},
+    parser::Parser,
+    storage::{Database, Row},
+    types::{DataType, SqlValue},
+};
 
 fn create_northwind_db() -> Database {
     let mut db = Database::new();
@@ -241,7 +243,9 @@ fn run_query(db: &Database, query: &str) {
                     .iter()
                     .enumerate()
                     .map(|(i, item)| match item {
-                        vibesql::ast::SelectItem::Expression { alias: Some(alias), .. } => alias.clone(),
+                        vibesql::ast::SelectItem::Expression { alias: Some(alias), .. } => {
+                            alias.clone()
+                        }
                         vibesql::ast::SelectItem::Expression { alias: None, .. } => {
                             format!("column{}", i + 1)
                         }

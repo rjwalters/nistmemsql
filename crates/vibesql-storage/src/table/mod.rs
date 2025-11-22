@@ -190,9 +190,7 @@ impl Table {
     /// Statistics are computed lazily on first access and cached.
     /// They are marked stale after significant data changes (> 10% of rows).
     pub fn statistics(&mut self) -> &crate::statistics::TableStatistics {
-        if self.statistics.is_none()
-            || self.statistics.as_ref().unwrap().needs_refresh()
-        {
+        if self.statistics.is_none() || self.statistics.as_ref().unwrap().needs_refresh() {
             self.statistics =
                 Some(crate::statistics::TableStatistics::compute(&self.rows, &self.schema));
             self.modifications_since_stats = 0;

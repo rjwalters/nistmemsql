@@ -4,10 +4,9 @@ use std::collections::HashMap;
 use rayon::prelude::*;
 
 use super::{combine_rows, FromResult};
-use crate::{errors::ExecutorError, schema::CombinedSchema};
-
 #[cfg(feature = "parallel")]
 use crate::select::parallel::ParallelConfig;
+use crate::{errors::ExecutorError, schema::CombinedSchema};
 
 /// Build hash table sequentially using indices (fallback for small inputs)
 ///
@@ -71,13 +70,12 @@ fn build_hash_table_parallel(
 
         // Phase 2: Sequential merge of partial tables
         // This is fast because we only touch keys that appear in multiple partitions
-        partial_tables.into_iter()
-            .fold(HashMap::new(), |mut acc, (_chunk_idx, partial)| {
-                for (key, mut indices) in partial {
-                    acc.entry(key).or_default().append(&mut indices);
-                }
-                acc
-            })
+        partial_tables.into_iter().fold(HashMap::new(), |mut acc, (_chunk_idx, partial)| {
+            for (key, mut indices) in partial {
+                acc.entry(key).or_default().append(&mut indices);
+            }
+            acc
+        })
     }
 
     #[cfg(not(feature = "parallel"))]
@@ -92,65 +90,6 @@ fn build_hash_table_parallel(
 // The actual join output size depends on data distribution and selectivity,
 // which we cannot accurately predict. Since hash join is already the optimal
 // algorithm for equijoins, we trust it to handle the join efficiently.
-
-/// Hash join SEMI JOIN implementation (optimized for EXISTS subqueries)
-///
-/// Semi-join returns rows from the left table where matching rows exist in the right table.
-/// This is perfect for optimizing EXISTS subqueries.
-///
-/// Algorithm:
-/// 1. Build phase: Create a HashSet of join keys from right table (O(n))
-/// 2. Probe phase: For each left row, check if key exists in set (O(m))
-/// Total: O(n + m) with minimal memory overhead
-///
-/// Key optimizations vs INNER JOIN:
-/// - Only stores keys (not full rows) in hash set
-/// - Returns left rows as-is (no row combination)
-/// - Early termination per key (first match is enough)
-/// - Much lower memory usage
-///
-/// Performance characteristics:
-/// - Time: O(n + m) vs O(n*m) for nested loop
-/// - Space: O(distinct keys) instead of O(n rows)
-/// - Expected speedup: 100-10,000x for large EXISTS queries
-pub(super) fn hash_join_semi(
-    mut left: FromResult,
-    mut right: FromResult,
-    left_col_idx: usize,
-    right_col_idx: usize,
-) -> Result<FromResult, ExecutorError> {
-    use std::collections::HashSet;
-
-    // Build phase: Create HashSet of right table join keys
-    // We only need to know if a key EXISTS, not store the rows
-    let mut key_set: HashSet<vibesql_types::SqlValue> = HashSet::new();
-    for row in right.rows() {
-        let key = row.values[right_col_idx].clone();
-        // Skip NULL values - they never match in equi-joins
-        if key != vibesql_types::SqlValue::Null {
-            key_set.insert(key);
-        }
-    }
-
-    // Probe phase: Filter left rows to only those with matching keys
-    let mut result_rows = Vec::new();
-    for row in left.rows() {
-        let key = &row.values[left_col_idx];
-
-        // Skip NULL values
-        if key == &vibesql_types::SqlValue::Null {
-            continue;
-        }
-
-        // If key exists in right table, include this left row
-        if key_set.contains(key) {
-            result_rows.push(row.clone());
-        }
-    }
-
-    // Return only left schema and rows (no combination with right)
-    Ok(FromResult::from_rows(left.schema, result_rows))
-}
 
 /// Hash join INNER JOIN implementation (optimized for equi-joins)
 ///
@@ -172,8 +111,8 @@ pub(super) fn hash_join_inner(
     left_col_idx: usize,
     right_col_idx: usize,
 ) -> Result<FromResult, ExecutorError> {
-    // Note: No memory limit check here. Hash join is already O(n+m) time and O(smaller_table) space,
-    // which is optimal for equijoins. We cannot predict output size accurately anyway.
+    // Note: No memory limit check here. Hash join is already O(n+m) time and O(smaller_table)
+    // space, which is optimal for equijoins. We cannot predict output size accurately anyway.
 
     // Extract right table name and schema for combining
     let right_table_name = right
@@ -711,12 +650,19 @@ mod tests {
 
         for (key, seq_indices) in seq_table.iter() {
             let par_indices = par_table.get(key).expect("Key should exist in parallel table");
-            assert_eq!(seq_indices.len(), par_indices.len(), "Row count mismatch for key {:?}", key);
+            assert_eq!(
+                seq_indices.len(),
+                par_indices.len(),
+                "Row count mismatch for key {:?}",
+                key
+            );
 
             // Verify all row indices are present (order may differ)
             for &seq_idx in seq_indices {
                 assert!(
-                    par_indices.iter().any(|&par_idx| build_rows[par_idx].values == build_rows[seq_idx].values),
+                    par_indices
+                        .iter()
+                        .any(|&par_idx| build_rows[par_idx].values == build_rows[seq_idx].values),
                     "Row not found in parallel table"
                 );
             }

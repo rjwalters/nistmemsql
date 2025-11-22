@@ -173,15 +173,11 @@ impl CostEstimator {
                     estimated_rows: (table_stats.row_count as f64 * selectivity) as usize,
                 }
             } else {
-                AccessMethod::TableScan {
-                    estimated_cost: table_scan_cost,
-                }
+                AccessMethod::TableScan { estimated_cost: table_scan_cost }
             }
         } else {
             // No index available, must use table scan
-            AccessMethod::TableScan {
-                estimated_cost: table_scan_cost,
-            }
+            AccessMethod::TableScan { estimated_cost: table_scan_cost }
         }
     }
 }
@@ -221,10 +217,11 @@ impl AccessMethod {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::Row;
     use vibesql_catalog::{ColumnSchema, TableSchema};
     use vibesql_types::{DataType, SqlValue};
+
+    use super::*;
+    use crate::Row;
 
     fn create_test_table_stats(row_count: usize) -> TableStatistics {
         let schema = TableSchema::new(
@@ -232,9 +229,8 @@ mod tests {
             vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
         );
 
-        let rows: Vec<Row> = (0..row_count)
-            .map(|i| Row::new(vec![SqlValue::Integer(i as i64)]))
-            .collect();
+        let rows: Vec<Row> =
+            (0..row_count).map(|i| Row::new(vec![SqlValue::Integer(i as i64)])).collect();
 
         TableStatistics::compute(&rows, &schema)
     }

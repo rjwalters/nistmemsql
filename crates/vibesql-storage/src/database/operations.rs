@@ -2,11 +2,15 @@
 // Table and Index Operations
 // ============================================================================
 
-use super::indexes::IndexManager;
-use crate::index::{extract_mbr_from_sql_value, SpatialIndex};
-use crate::{Row, StorageError, Table};
 use std::collections::HashMap;
+
 use vibesql_ast::IndexColumn;
+
+use super::indexes::IndexManager;
+use crate::{
+    index::{extract_mbr_from_sql_value, SpatialIndex},
+    Row, StorageError, Table,
+};
 
 /// Metadata for a spatial index
 #[derive(Debug, Clone)]
@@ -31,10 +35,7 @@ pub struct Operations {
 impl Operations {
     /// Create a new operations manager
     pub fn new() -> Self {
-        Operations {
-            index_manager: IndexManager::new(),
-            spatial_indexes: HashMap::new(),
-        }
+        Operations { index_manager: IndexManager::new(), spatial_indexes: HashMap::new() }
     }
 
     /// Set the database path for index storage
@@ -148,7 +149,11 @@ impl Operations {
 
         // Check user-defined unique indexes BEFORE inserting
         if let Some(table_schema) = catalog.get_table(table_name) {
-            self.index_manager.check_unique_constraints_for_insert(table_name, table_schema, &row)?;
+            self.index_manager.check_unique_constraints_for_insert(
+                table_name,
+                table_schema,
+                &row,
+            )?;
         }
 
         // Insert the row (this validates table-level constraints like PK, UNIQUE)

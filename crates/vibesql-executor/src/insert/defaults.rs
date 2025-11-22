@@ -47,15 +47,13 @@ pub fn evaluate_insert_expression_with_trigger_context(
             )))
         }
         vibesql_ast::Expression::PseudoVariable { .. } => {
-            // Pseudo-variables (OLD.x, NEW.y) require full expression evaluation with trigger context
+            // Pseudo-variables (OLD.x, NEW.y) require full expression evaluation with trigger
+            // context
             if let (Some(ctx), Some(db)) = (trigger_context, database) {
                 // Create a dummy row for evaluation (pseudo-variables don't depend on current row)
                 let dummy_row = vibesql_storage::Row::new(vec![]);
-                let evaluator = crate::ExpressionEvaluator::with_trigger_context(
-                    ctx.table_schema,
-                    db,
-                    ctx,
-                );
+                let evaluator =
+                    crate::ExpressionEvaluator::with_trigger_context(ctx.table_schema, db, ctx);
                 evaluator.eval(expr, &dummy_row)
             } else {
                 Err(ExecutorError::UnsupportedExpression(
@@ -64,19 +62,18 @@ pub fn evaluate_insert_expression_with_trigger_context(
             }
         }
         _ => {
-            // For any other expression type, use full expression evaluator if trigger context available
+            // For any other expression type, use full expression evaluator if trigger context
+            // available
             if let (Some(ctx), Some(db)) = (trigger_context, database) {
                 // Create a dummy row for evaluation
                 let dummy_row = vibesql_storage::Row::new(vec![]);
-                let evaluator = crate::ExpressionEvaluator::with_trigger_context(
-                    ctx.table_schema,
-                    db,
-                    ctx,
-                );
+                let evaluator =
+                    crate::ExpressionEvaluator::with_trigger_context(ctx.table_schema, db, ctx);
                 evaluator.eval(expr, &dummy_row)
             } else {
                 Err(ExecutorError::UnsupportedExpression(
-                    "Complex expressions in INSERT VALUES are only supported within trigger bodies".to_string(),
+                    "Complex expressions in INSERT VALUES are only supported within trigger bodies"
+                        .to_string(),
                 ))
             }
         }
@@ -106,8 +103,14 @@ pub fn evaluate_default_expression(
                 "CURRENT_DATE" => {
                     use chrono::Datelike;
                     let now = chrono::Local::now();
-                    let date = vibesql_types::Date::new(now.year(), now.month() as u8, now.day() as u8)
-                        .map_err(|e| ExecutorError::UnsupportedFeature(format!("Failed to create date: {}", e)))?;
+                    let date =
+                        vibesql_types::Date::new(now.year(), now.month() as u8, now.day() as u8)
+                            .map_err(|e| {
+                                ExecutorError::UnsupportedFeature(format!(
+                                    "Failed to create date: {}",
+                                    e
+                                ))
+                            })?;
                     Ok(vibesql_types::SqlValue::Date(date))
                 }
                 "CURRENT_TIME" => {
@@ -119,22 +122,36 @@ pub fn evaluate_default_expression(
                         time_naive.minute() as u8,
                         time_naive.second() as u8,
                         time_naive.nanosecond(),
-                    ).map_err(|e| ExecutorError::UnsupportedFeature(format!("Failed to create time: {}", e)))?;
+                    )
+                    .map_err(|e| {
+                        ExecutorError::UnsupportedFeature(format!("Failed to create time: {}", e))
+                    })?;
                     Ok(vibesql_types::SqlValue::Time(time))
                 }
                 "CURRENT_TIMESTAMP" => {
                     use chrono::{Datelike, Timelike};
                     let now = chrono::Local::now();
                     let time_naive = now.time();
-                    let date = vibesql_types::Date::new(now.year(), now.month() as u8, now.day() as u8)
-                        .map_err(|e| ExecutorError::UnsupportedFeature(format!("Failed to create date: {}", e)))?;
+                    let date =
+                        vibesql_types::Date::new(now.year(), now.month() as u8, now.day() as u8)
+                            .map_err(|e| {
+                                ExecutorError::UnsupportedFeature(format!(
+                                    "Failed to create date: {}",
+                                    e
+                                ))
+                            })?;
                     let time = vibesql_types::Time::new(
                         time_naive.hour() as u8,
                         time_naive.minute() as u8,
                         time_naive.second() as u8,
                         time_naive.nanosecond(),
-                    ).map_err(|e| ExecutorError::UnsupportedFeature(format!("Failed to create time: {}", e)))?;
-                    Ok(vibesql_types::SqlValue::Timestamp(vibesql_types::Timestamp::new(date, time)))
+                    )
+                    .map_err(|e| {
+                        ExecutorError::UnsupportedFeature(format!("Failed to create time: {}", e))
+                    })?;
+                    Ok(vibesql_types::SqlValue::Timestamp(vibesql_types::Timestamp::new(
+                        date, time,
+                    )))
                 }
                 "CURRENT_USER" | "USER" | "SESSION_USER" => {
                     // Return current user (placeholder - would come from session context)
@@ -171,10 +188,8 @@ pub fn apply_default_values(
                 let default_value = match default_expr {
                     vibesql_ast::Expression::NextValue { sequence_name } => {
                         // Get the next value from the sequence
-                        let seq = database
-                            .catalog
-                            .get_sequence_mut(sequence_name)
-                            .map_err(|e| {
+                        let seq =
+                            database.catalog.get_sequence_mut(sequence_name).map_err(|e| {
                                 ExecutorError::UnsupportedExpression(format!(
                                     "Sequence error: {:?}",
                                     e

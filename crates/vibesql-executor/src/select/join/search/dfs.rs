@@ -86,10 +86,8 @@ impl JoinOrderContext {
 
         // Try adding each unjoined table that can be joined to already-joined tables
         // First, try only tables with join edges (connected joins)
-        let mut candidates: Vec<&String> = self.all_tables
-            .iter()
-            .filter(|t| !state.joined_tables.contains(*t))
-            .collect();
+        let mut candidates: Vec<&String> =
+            self.all_tables.iter().filter(|t| !state.joined_tables.contains(*t)).collect();
 
         // Filter to connected candidates (unless this is the first table)
         if !state.joined_tables.is_empty() {
@@ -111,7 +109,11 @@ impl JoinOrderContext {
             }
 
             // Estimate cost of joining this table (using current intermediate result size)
-            let join_cost = self.estimate_join_cost(state.current_cardinality, &state.joined_tables, next_table);
+            let join_cost = self.estimate_join_cost(
+                state.current_cardinality,
+                &state.joined_tables,
+                next_table,
+            );
 
             // Create new state with this table added
             let mut next_state = state.clone();

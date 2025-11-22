@@ -1,9 +1,10 @@
 //! Table-level statistics
 
 use std::collections::HashMap;
+
 use instant::SystemTime;
-use super::{ColumnStatistics, SamplingConfig, SampleMetadata};
-use super::histogram::BucketStrategy;
+
+use super::{histogram::BucketStrategy, ColumnStatistics, SampleMetadata, SamplingConfig};
 
 /// Statistics for an entire table
 #[derive(Debug, Clone)]
@@ -27,10 +28,7 @@ pub struct TableStatistics {
 
 impl TableStatistics {
     /// Compute statistics by scanning the table
-    pub fn compute(
-        rows: &[crate::Row],
-        schema: &vibesql_catalog::TableSchema,
-    ) -> Self {
+    pub fn compute(rows: &[crate::Row], schema: &vibesql_catalog::TableSchema) -> Self {
         Self::compute_with_config(rows, schema, None, false, 100, BucketStrategy::EqualDepth)
     }
 
@@ -51,8 +49,9 @@ impl TableStatistics {
         histogram_buckets: usize,
         bucket_strategy: BucketStrategy,
     ) -> Self {
-        use super::sampling::{sample_rows};
         use rand::SeedableRng;
+
+        use super::sampling::sample_rows;
 
         let total_rows = rows.len();
         let config = sampling_config.unwrap_or_else(SamplingConfig::adaptive);
@@ -62,20 +61,12 @@ impl TableStatistics {
 
         // Sample rows if needed (Phase 5.2)
         let mut rng = rand::rngs::StdRng::from_entropy();
-        let sampled_rows = if should_sample {
-            sample_rows(rows, &config, &mut rng)
-        } else {
-            rows.to_vec()
-        };
+        let sampled_rows =
+            if should_sample { sample_rows(rows, &config, &mut rng) } else { rows.to_vec() };
 
         // Create sample metadata
         let sample_metadata = if should_sample {
-            Some(SampleMetadata::new(
-                total_rows,
-                sample_size,
-                true,
-                config.confidence_level,
-            ))
+            Some(SampleMetadata::new(total_rows, sample_size, true, config.confidence_level))
         } else {
             None
         };
@@ -108,10 +99,7 @@ impl TableStatistics {
     /// - Uses full scan for small tables (< 1000 rows)
     /// - Uses 10% sample for medium tables (1K-100K rows)
     /// - Uses fixed 10K sample for large tables (> 100K rows)
-    pub fn compute_sampled(
-        rows: &[crate::Row],
-        schema: &vibesql_catalog::TableSchema,
-    ) -> Self {
+    pub fn compute_sampled(rows: &[crate::Row], schema: &vibesql_catalog::TableSchema) -> Self {
         Self::compute_with_config(
             rows,
             schema,
@@ -131,8 +119,8 @@ impl TableStatistics {
             rows,
             schema,
             Some(SamplingConfig::adaptive()),
-            true,  // Enable histograms
-            100,   // 100 buckets
+            true, // Enable histograms
+            100,  // 100 buckets
             BucketStrategy::EqualDepth,
         )
     }
@@ -152,10 +140,11 @@ impl TableStatistics {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::Row;
     use vibesql_catalog::{ColumnSchema, TableSchema};
     use vibesql_types::{DataType, SqlValue};
+
+    use super::*;
+    use crate::Row;
 
     #[test]
     fn test_table_statistics() {

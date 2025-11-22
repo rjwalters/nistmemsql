@@ -7,13 +7,13 @@
 //! - Recursion depth limiting
 //! - Read-only enforcement
 
-use crate::errors::ExecutorError;
-use crate::procedural::ExecutionContext;
 use vibesql_ast::Expression;
 use vibesql_catalog::{Function, FunctionBody};
 use vibesql_parser::Parser;
 use vibesql_storage::Database;
 use vibesql_types::SqlValue;
+
+use crate::{errors::ExecutorError, procedural::ExecutionContext};
 
 /// Execute a user-defined function
 ///
@@ -48,12 +48,11 @@ pub fn execute_user_function(
     let mut ctx = ExecutionContext::new_function_context();
 
     // 3. Check recursion depth
-    ctx.enter_recursion()
-        .map_err(|e| ExecutorError::RecursionLimitExceeded {
-            message: e,
-            call_stack: vec![],  // TODO: Track call stack in Phase 7
-            max_depth: 100,
-        })?;
+    ctx.enter_recursion().map_err(|e| ExecutorError::RecursionLimitExceeded {
+        message: e,
+        call_stack: vec![], // TODO: Track call stack in Phase 7
+        max_depth: 100,
+    })?;
 
     // 4. Bind arguments to parameters
     // Note: All function parameters are IN only (no OUT/INOUT)
@@ -97,13 +96,14 @@ fn execute_simple_return(
     let sql_trimmed = sql.trim();
 
     // For simple RETURN functions, we need to parse and execute the RETURN statement
-    // Since there's no Statement::Procedural variant, we'll need to evaluate the expression directly
+    // Since there's no Statement::Procedural variant, we'll need to evaluate the expression
+    // directly
 
     // Extract the expression after RETURN keyword
     let return_upper = "RETURN";
     if !sql_trimmed.to_uppercase().starts_with(return_upper) {
         return Err(ExecutorError::InvalidFunctionBody(
-            "Simple function body must start with RETURN".to_string()
+            "Simple function body must start with RETURN".to_string(),
         ));
     }
 
@@ -112,8 +112,9 @@ fn execute_simple_return(
     // Parse just the expression
     // We'll use Parser::parse_sql with a SELECT wrapper to get the expression parsed
     let select_wrapper = format!("SELECT {}", expr_str);
-    let stmt = Parser::parse_sql(&select_wrapper)
-        .map_err(|e| ExecutorError::ParseError(format!("Failed to parse RETURN expression: {}", e)))?;
+    let stmt = Parser::parse_sql(&select_wrapper).map_err(|e| {
+        ExecutorError::ParseError(format!("Failed to parse RETURN expression: {}", e))
+    })?;
 
     // Extract the expression from the SELECT
     #[allow(clippy::collapsible_match)]
@@ -127,9 +128,7 @@ fn execute_simple_return(
         }
     }
 
-    Err(ExecutorError::InvalidFunctionBody(
-        "Could not parse RETURN expression".to_string()
-    ))
+    Err(ExecutorError::InvalidFunctionBody("Could not parse RETURN expression".to_string()))
 }
 
 /// Execute a BEGIN...END function body
@@ -161,14 +160,12 @@ fn execute_begin_end_body(
     // The proper fix is to update FunctionBody::BeginEnd to store Vec<ProceduralStatement>
     // and update the parser to populate it correctly.
 
-    Err(ExecutorError::UnsupportedFeature(
-        format!(
-            "Complex BEGIN...END function bodies not yet fully supported for function '{}'. \
+    Err(ExecutorError::UnsupportedFeature(format!(
+        "Complex BEGIN...END function bodies not yet fully supported for function '{}'. \
              Use simple RETURN expression functions (e.g., 'RETURN x + 10') instead. \
              Full BEGIN...END support requires updating FunctionBody to store parsed statements.",
-            func_name
-        )
-    ))
+        func_name
+    )))
 }
 
 impl ExecutionContext {
@@ -187,9 +184,10 @@ impl ExecutionContext {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_catalog::FunctionParam;
     use vibesql_types::DataType;
+
+    use super::*;
 
     #[test]
     fn test_simple_return_function() {
@@ -199,10 +197,7 @@ mod tests {
         let func = Function::new(
             "add_ten".to_string(),
             "public".to_string(),
-            vec![FunctionParam {
-                name: "x".to_string(),
-                data_type: DataType::Integer,
-            }],
+            vec![FunctionParam { name: "x".to_string(), data_type: DataType::Integer }],
             DataType::Integer,
             FunctionBody::RawSql("RETURN x + 10".to_string()),
         );
@@ -221,10 +216,7 @@ mod tests {
         let func = Function::new(
             "add_ten".to_string(),
             "public".to_string(),
-            vec![FunctionParam {
-                name: "x".to_string(),
-                data_type: DataType::Integer,
-            }],
+            vec![FunctionParam { name: "x".to_string(), data_type: DataType::Integer }],
             DataType::Integer,
             FunctionBody::RawSql("RETURN x + 10".to_string()),
         );
@@ -244,10 +236,7 @@ mod tests {
         let func = Function::new(
             "factorial".to_string(),
             "public".to_string(),
-            vec![FunctionParam {
-                name: "n".to_string(),
-                data_type: DataType::Integer,
-            }],
+            vec![FunctionParam { name: "n".to_string(), data_type: DataType::Integer }],
             DataType::Integer,
             FunctionBody::BeginEnd("BEGIN DECLARE x INT DEFAULT 5; RETURN x; END".to_string()),
         );

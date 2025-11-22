@@ -13,15 +13,27 @@ fn test_in_subquery_wildcard_multi_column_rejected() {
     let schema = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "x".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "y".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
-    db.insert_row("t1", vibesql_storage::Row::new(vec![
-        vibesql_types::SqlValue::Integer(1),
-        vibesql_types::SqlValue::Integer(99),
-    ])).unwrap();
+    db.insert_row(
+        "t1",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(99),
+        ]),
+    )
+    .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -42,7 +54,7 @@ fn test_in_subquery_wildcard_multi_column_rejected() {
                 with_clause: None,
                 set_operation: None,
                 distinct: false,
-                select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }], // * expands to 2 columns!
+                select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }], /* * expands to 2 columns! */
                 from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
                 where_clause: None,
                 group_by: None,
@@ -51,7 +63,8 @@ fn test_in_subquery_wildcard_multi_column_rejected() {
                 limit: None,
                 offset: None,
                 into_table: None,
-                into_variables: None,            }),
+                into_variables: None,
+            }),
             negated: false,
         }),
         group_by: None,
@@ -60,7 +73,8 @@ fn test_in_subquery_wildcard_multi_column_rejected() {
         limit: None,
         offset: None,
         into_table: None,
-        into_variables: None,    };
+        into_variables: None,
+    };
 
     let result = executor.execute(&stmt);
     assert!(result.is_err());
@@ -80,15 +94,27 @@ fn test_in_subquery_explicit_multi_column_rejected() {
     let schema = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "x".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "y".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
-    db.insert_row("t1", vibesql_storage::Row::new(vec![
-        vibesql_types::SqlValue::Integer(1),
-        vibesql_types::SqlValue::Integer(99),
-    ])).unwrap();
+    db.insert_row(
+        "t1",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(99),
+        ]),
+    )
+    .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -111,11 +137,17 @@ fn test_in_subquery_explicit_multi_column_rejected() {
                 distinct: false,
                 select_list: vec![
                     vibesql_ast::SelectItem::Expression {
-                        expr: vibesql_ast::Expression::ColumnRef { table: None, column: "x".to_string() },
+                        expr: vibesql_ast::Expression::ColumnRef {
+                            table: None,
+                            column: "x".to_string(),
+                        },
                         alias: None,
                     },
                     vibesql_ast::SelectItem::Expression {
-                        expr: vibesql_ast::Expression::ColumnRef { table: None, column: "y".to_string() },
+                        expr: vibesql_ast::Expression::ColumnRef {
+                            table: None,
+                            column: "y".to_string(),
+                        },
                         alias: None,
                     },
                 ],
@@ -127,7 +159,8 @@ fn test_in_subquery_explicit_multi_column_rejected() {
                 limit: None,
                 offset: None,
                 into_table: None,
-                into_variables: None,            }),
+                into_variables: None,
+            }),
             negated: false,
         }),
         group_by: None,
@@ -136,7 +169,8 @@ fn test_in_subquery_explicit_multi_column_rejected() {
         limit: None,
         offset: None,
         into_table: None,
-        into_variables: None,    };
+        into_variables: None,
+    };
 
     let result = executor.execute(&stmt);
     assert!(result.is_err());
@@ -156,15 +190,27 @@ fn test_in_subquery_single_column_accepted() {
     let schema = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "x".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "y".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
-    db.insert_row("t1", vibesql_storage::Row::new(vec![
-        vibesql_types::SqlValue::Integer(1),
-        vibesql_types::SqlValue::Integer(99),
-    ])).unwrap();
+    db.insert_row(
+        "t1",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(99),
+        ]),
+    )
+    .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -185,12 +231,13 @@ fn test_in_subquery_single_column_accepted() {
                 with_clause: None,
                 set_operation: None,
                 distinct: false,
-                select_list: vec![
-                    vibesql_ast::SelectItem::Expression {
-                        expr: vibesql_ast::Expression::ColumnRef { table: None, column: "x".to_string() },
-                        alias: None,
+                select_list: vec![vibesql_ast::SelectItem::Expression {
+                    expr: vibesql_ast::Expression::ColumnRef {
+                        table: None,
+                        column: "x".to_string(),
                     },
-                ],
+                    alias: None,
+                }],
                 from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
                 where_clause: None,
                 group_by: None,
@@ -199,7 +246,8 @@ fn test_in_subquery_single_column_accepted() {
                 limit: None,
                 offset: None,
                 into_table: None,
-                into_variables: None,            }),
+                into_variables: None,
+            }),
             negated: false,
         }),
         group_by: None,
@@ -208,7 +256,8 @@ fn test_in_subquery_single_column_accepted() {
         limit: None,
         offset: None,
         into_table: None,
-        into_variables: None,    };
+        into_variables: None,
+    };
 
     let result = executor.execute(&stmt);
     assert!(result.is_ok());
@@ -224,15 +273,27 @@ fn test_scalar_subquery_wildcard_multi_column_rejected() {
     let schema = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "x".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "y".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
-    db.insert_row("t1", vibesql_storage::Row::new(vec![
-        vibesql_types::SqlValue::Integer(1),
-        vibesql_types::SqlValue::Integer(99),
-    ])).unwrap();
+    db.insert_row(
+        "t1",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(99),
+        ]),
+    )
+    .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -247,7 +308,7 @@ fn test_scalar_subquery_wildcard_multi_column_rejected() {
                 with_clause: None,
                 set_operation: None,
                 distinct: false,
-                select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }], // * expands to 2 columns!
+                select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }], /* * expands to 2 columns! */
                 from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
                 where_clause: None,
                 group_by: None,
@@ -256,7 +317,8 @@ fn test_scalar_subquery_wildcard_multi_column_rejected() {
                 limit: None,
                 offset: None,
                 into_table: None,
-                into_variables: None,            })),
+                into_variables: None,
+            })),
             alias: None,
         }],
         from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
@@ -267,7 +329,8 @@ fn test_scalar_subquery_wildcard_multi_column_rejected() {
         limit: None,
         offset: None,
         into_table: None,
-        into_variables: None,    };
+        into_variables: None,
+    };
 
     let result = executor.execute(&stmt);
     assert!(result.is_err());

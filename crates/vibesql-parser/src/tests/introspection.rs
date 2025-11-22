@@ -1,7 +1,8 @@
 //! Tests for database introspection statements (SHOW, DESCRIBE)
 
-use crate::parser::Parser;
 use vibesql_ast::*;
+
+use crate::parser::Parser;
 
 #[test]
 fn test_show_tables() {

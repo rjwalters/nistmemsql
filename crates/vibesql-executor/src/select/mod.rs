@@ -15,10 +15,10 @@ mod order;
 mod parallel;
 #[cfg(feature = "parallel")]
 mod predicate_graph;
-mod vectorized;
 mod projection;
 pub(crate) mod scan;
 mod set_operations;
+mod vectorized;
 mod window;
 
 pub use iterator::{RowIterator, TableScanIterator};

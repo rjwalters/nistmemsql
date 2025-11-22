@@ -4,12 +4,11 @@
 //! Pages are fixed-size blocks (4KB) that form the foundation of persistent storage.
 
 use std::sync::Arc;
+#[cfg(target_arch = "wasm32")]
+use std::sync::Mutex;
 
 #[cfg(not(target_arch = "wasm32"))]
 use parking_lot::Mutex;
-
-#[cfg(target_arch = "wasm32")]
-use std::sync::Mutex;
 
 use crate::{StorageBackend, StorageError, StorageFile};
 
@@ -94,7 +93,14 @@ impl std::fmt::Debug for PageManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let state = lock!(self.state);
         f.debug_struct("PageManager")
-            .field("state", &format!("next_page_id: {}, free_pages: {}", state.next_page_id, state.free_pages.len()))
+            .field(
+                "state",
+                &format!(
+                    "next_page_id: {}, free_pages: {}",
+                    state.next_page_id,
+                    state.free_pages.len()
+                ),
+            )
             .finish()
     }
 }
@@ -274,10 +280,11 @@ impl PageManager {
 #[cfg(not(target_arch = "wasm32"))]
 mod tests {
     use std::sync::Arc;
+
     use tempfile::TempDir;
 
-    use crate::NativeStorage;
     use super::*;
+    use crate::NativeStorage;
 
     #[test]
     fn test_page_creation() {

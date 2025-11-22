@@ -112,7 +112,8 @@ fn execute_insert_internal(
         let mut full_row_values = vec![vibesql_types::SqlValue::Null; schema.columns.len()];
 
         for (expr, (col_idx, data_type)) in value_exprs.iter().zip(target_column_info.iter()) {
-            // Evaluate expression (literals, DEFAULT, procedural variables, and trigger pseudo-variables)
+            // Evaluate expression (literals, DEFAULT, procedural variables, and trigger
+            // pseudo-variables)
             let value = super::defaults::evaluate_insert_expression_with_trigger_context(
                 expr,
                 &schema.columns[*col_idx],
@@ -131,7 +132,8 @@ fn execute_insert_internal(
         super::defaults::apply_default_values(&schema, &mut full_row_values, db)?;
 
         // Validate all constraints in a single pass and extract index keys
-        // Skip PK/UNIQUE duplicate checks if using REPLACE conflict clause or ON DUPLICATE KEY UPDATE
+        // Skip PK/UNIQUE duplicate checks if using REPLACE conflict clause or ON DUPLICATE KEY
+        // UPDATE
         let skip_duplicate_checks =
             matches!(stmt.conflict_clause, Some(vibesql_ast::ConflictClause::Replace))
                 || stmt.on_duplicate_key_update.is_some();
@@ -187,20 +189,16 @@ fn execute_insert_internal(
         .is_some();
 
     let use_batch_insert = stmt.on_duplicate_key_update.is_none()
-        && !matches!(
-            stmt.conflict_clause,
-            Some(vibesql_ast::ConflictClause::Replace)
-        )
+        && !matches!(stmt.conflict_clause, Some(vibesql_ast::ConflictClause::Replace))
         && !has_insert_triggers;
 
     if use_batch_insert && validated_rows.len() > 1 {
         // Fast path: Use batch insert for multiple rows without triggers
-        let rows: Vec<vibesql_storage::Row> = validated_rows
-            .into_iter()
-            .map(vibesql_storage::Row::new)
-            .collect();
+        let rows: Vec<vibesql_storage::Row> =
+            validated_rows.into_iter().map(vibesql_storage::Row::new).collect();
 
-        rows_inserted = db.insert_rows_batch(&stmt.table_name, rows)
+        rows_inserted = db
+            .insert_rows_batch(&stmt.table_name, rows)
             .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;
     } else {
         // Slow path: Insert rows one by one (needed for triggers, special clauses)
@@ -222,10 +220,7 @@ fn execute_insert_internal(
                     continue;
                 }
                 // No conflict, fall through to insert
-            } else if matches!(
-                stmt.conflict_clause,
-                Some(vibesql_ast::ConflictClause::Replace)
-            ) {
+            } else if matches!(stmt.conflict_clause, Some(vibesql_ast::ConflictClause::Replace)) {
                 // If REPLACE conflict clause, delete conflicting rows first
                 super::replace::handle_replace_conflicts(
                     db,
@@ -246,14 +241,16 @@ fn execute_insert_internal(
             )?;
 
             // Get row count before insert to enable rollback
-            let row_count_before = db.get_table(&stmt.table_name)
+            let row_count_before = db
+                .get_table(&stmt.table_name)
                 .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?
                 .row_count();
 
             // Insert the row
             let row = vibesql_storage::Row::new(full_row_values);
-            db.insert_row(&stmt.table_name, row.clone())
-                .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;
+            db.insert_row(&stmt.table_name, row.clone()).map_err(|e| {
+                ExecutorError::UnsupportedExpression(format!("Storage error: {}", e))
+            })?;
 
             // Fire AFTER INSERT triggers
             // If AFTER triggers fail, we need to rollback the insert
@@ -269,7 +266,8 @@ fn execute_insert_internal(
                 // Rollback: Delete the row we just inserted
                 // Note: This is a simple rollback mechanism for Phase 3
                 // Full transaction support will come in a later phase
-                let table = db.get_table_mut(&stmt.table_name)
+                let table = db
+                    .get_table_mut(&stmt.table_name)
                     .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
                 // Delete the last row (the one we just inserted)

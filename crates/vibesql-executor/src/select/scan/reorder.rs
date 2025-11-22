@@ -85,25 +85,41 @@ fn extract_in_predicates_from_or(
         }
     }
 
-    fn extract_eq(pred: &Expression, table_set: &HashSet<String>) -> Option<(String, String, vibesql_types::SqlValue)> {
+    fn extract_eq(
+        pred: &Expression,
+        table_set: &HashSet<String>,
+    ) -> Option<(String, String, vibesql_types::SqlValue)> {
         if let Expression::BinaryOp { op: BinaryOperator::Equal, left, right } = pred {
-            if let (Expression::ColumnRef { table: Some(t), column: c }, Expression::Literal(v)) = (left.as_ref(), right.as_ref()) {
-                if table_set.contains(&t.to_lowercase()) { return Some((t.clone(), c.clone(), v.clone())); }
+            if let (Expression::ColumnRef { table: Some(t), column: c }, Expression::Literal(v)) =
+                (left.as_ref(), right.as_ref())
+            {
+                if table_set.contains(&t.to_lowercase()) {
+                    return Some((t.clone(), c.clone(), v.clone()));
+                }
             }
-            if let (Expression::Literal(v), Expression::ColumnRef { table: Some(t), column: c }) = (left.as_ref(), right.as_ref()) {
-                if table_set.contains(&t.to_lowercase()) { return Some((t.clone(), c.clone(), v.clone())); }
+            if let (Expression::Literal(v), Expression::ColumnRef { table: Some(t), column: c }) =
+                (left.as_ref(), right.as_ref())
+            {
+                if table_set.contains(&t.to_lowercase()) {
+                    return Some((t.clone(), c.clone(), v.clone()));
+                }
             }
         }
         None
     }
 
     for pred in flatten_and_chain(where_expr) {
-        if !matches!(&pred, Expression::BinaryOp { op: BinaryOperator::Or, .. }) { continue; }
+        if !matches!(&pred, Expression::BinaryOp { op: BinaryOperator::Or, .. }) {
+            continue;
+        }
         let mut branches: Vec<Vec<Expression>> = Vec::new();
         collect_or_branches(&pred, &mut branches);
-        if branches.len() < 2 { continue; }
+        if branches.len() < 2 {
+            continue;
+        }
 
-        let mut col_vals: HashMap<(String, String), HashSet<vibesql_types::SqlValue>> = HashMap::new();
+        let mut col_vals: HashMap<(String, String), HashSet<vibesql_types::SqlValue>> =
+            HashMap::new();
         let mut col_count: HashMap<(String, String), usize> = HashMap::new();
         for branch in &branches {
             let mut seen: HashSet<(String, String)> = HashSet::new();
@@ -114,12 +130,17 @@ fn extract_in_predicates_from_or(
                     seen.insert(k);
                 }
             }
-            for k in seen { *col_count.entry(k).or_default() += 1; }
+            for k in seen {
+                *col_count.entry(k).or_default() += 1;
+            }
         }
         for ((t, c), vals) in col_vals {
             if col_count.get(&(t.clone(), c.clone())) == Some(&branches.len()) && vals.len() >= 2 {
                 let in_pred = Expression::InList {
-                    expr: Box::new(Expression::ColumnRef { table: Some(t.clone()), column: c.clone() }),
+                    expr: Box::new(Expression::ColumnRef {
+                        table: Some(t.clone()),
+                        column: c.clone(),
+                    }),
                     values: vals.into_iter().map(Expression::Literal).collect(),
                     negated: false,
                 };
@@ -229,7 +250,10 @@ fn flatten_join_tree(from: &vibesql_ast::FromClause, tables: &mut Vec<TableRef>)
 }
 
 /// Extract all join conditions and WHERE predicates from a FROM clause
-fn extract_all_conditions(from: &vibesql_ast::FromClause, conditions: &mut Vec<vibesql_ast::Expression>) {
+fn extract_all_conditions(
+    from: &vibesql_ast::FromClause,
+    conditions: &mut Vec<vibesql_ast::Expression>,
+) {
     match from {
         vibesql_ast::FromClause::Table { .. } | vibesql_ast::FromClause::Subquery { .. } => {
             // No conditions in simple table refs
@@ -268,13 +292,11 @@ fn extract_referenced_tables(
         vibesql_ast::Expression::ColumnRef { table: None, column } => {
             // Infer table from column name prefix by matching against FROM clause tables
             // This handles naming conventions where columns are prefixed with table name/initials
-            // Example: C_CUSTKEY matches CUSTOMER, PS_PARTKEY matches PARTSUPP, emp_id matches employees
+            // Example: C_CUSTKEY matches CUSTOMER, PS_PARTKEY matches PARTSUPP, emp_id matches
+            // employees
 
             // Extract prefix: everything before the first underscore
-            let prefix = column
-                .split('_')
-                .next()
-                .unwrap_or("");
+            let prefix = column.split('_').next().unwrap_or("");
 
             if !prefix.is_empty() {
                 // Try to find a FROM clause table that starts with this prefix (case-insensitive)
@@ -301,7 +323,8 @@ fn extract_referenced_tables(
         vibesql_ast::Expression::UnaryOp { expr, .. } => {
             extract_referenced_tables(expr, output, available_tables);
         }
-        vibesql_ast::Expression::Function { args, .. } | vibesql_ast::Expression::AggregateFunction { args, .. } => {
+        vibesql_ast::Expression::Function { args, .. }
+        | vibesql_ast::Expression::AggregateFunction { args, .. } => {
             for arg in args {
                 extract_referenced_tables(arg, output, available_tables);
             }
@@ -355,7 +378,8 @@ fn extract_referenced_tables(
             extract_referenced_tables(expr, output, available_tables);
             extract_referenced_tables(pattern, output, available_tables);
         }
-        // For other expressions (literals, wildcards, subqueries, etc.), no direct column refs to extract
+        // For other expressions (literals, wildcards, subqueries, etc.), no direct column refs to
+        // extract
         _ => {}
     }
 }
@@ -364,7 +388,10 @@ fn extract_referenced_tables(
 ///
 /// Recursively walks the expression tree looking for binary equality operations
 /// that reference columns from two different tables.
-fn extract_where_equijoins(expr: &vibesql_ast::Expression, tables: &HashSet<String>) -> Vec<vibesql_ast::Expression> {
+fn extract_where_equijoins(
+    expr: &vibesql_ast::Expression,
+    tables: &HashSet<String>,
+) -> Vec<vibesql_ast::Expression> {
     use vibesql_ast::{BinaryOperator, Expression};
 
     let mut equijoins = Vec::new();
@@ -397,9 +424,7 @@ fn extract_where_equijoins(expr: &vibesql_ast::Expression, tables: &HashSet<Stri
                     let mut table_list: Vec<_> = tables.iter().collect();
                     table_list.sort_by_key(|b| std::cmp::Reverse(b.len()));
 
-                    table_list.into_iter()
-                        .find(|t| t.to_uppercase().starts_with(&prefix))
-                        .cloned()
+                    table_list.into_iter().find(|t| t.to_uppercase().starts_with(&prefix)).cloned()
                 };
 
                 let left_table = match left.as_ref() {
@@ -517,19 +542,28 @@ where
     }
 
     if std::env::var("JOIN_REORDER_VERBOSE").is_ok() && !table_local_predicates.is_empty() {
-        eprintln!("[JOIN_REORDER] Table-local predicates: {:?}",
-            table_local_predicates.keys().collect::<Vec<_>>());
+        eprintln!(
+            "[JOIN_REORDER] Table-local predicates: {:?}",
+            table_local_predicates.keys().collect::<Vec<_>>()
+        );
     }
 
     // Step 7: Use search to find optimal join order (with real statistics + selectivity)
-    let search = JoinOrderSearch::from_analyzer_with_predicates(&analyzer, database, &table_local_predicates);
+    let search = JoinOrderSearch::from_analyzer_with_predicates(
+        &analyzer,
+        database,
+        &table_local_predicates,
+    );
     let optimal_order = search.find_optimal_order();
 
     // Log the reordering decision (optional, for debugging)
     if std::env::var("JOIN_REORDER_VERBOSE").is_ok() {
         eprintln!("[JOIN_REORDER] Original order: {:?}", table_names);
         eprintln!("[JOIN_REORDER] Optimal order:  {:?}", optimal_order);
-        eprintln!("[JOIN_REORDER] Join conditions (including WHERE equijoins): {}", join_conditions.len());
+        eprintln!(
+            "[JOIN_REORDER] Join conditions (including WHERE equijoins): {}",
+            join_conditions.len()
+        );
     }
 
     // Step 8: Build a map from table name to TableRef for easy lookup
@@ -566,11 +600,19 @@ where
                 ));
             }
         } else {
-            execute_table_scan(&table_ref.name, table_ref.alias.as_ref(), cte_results, database, where_clause, None)?
+            execute_table_scan(
+                &table_ref.name,
+                table_ref.alias.as_ref(),
+                cte_results,
+                database,
+                where_clause,
+                None,
+            )?
         };
 
         // Record the column count for this table (using table_schemas to get column info)
-        let col_count = if let Some((_, schema)) = table_result.schema.table_schemas.get(table_name) {
+        let col_count = if let Some((_, schema)) = table_result.schema.table_schemas.get(table_name)
+        {
             schema.columns.len()
         } else {
             table_result.schema.total_columns
@@ -593,9 +635,11 @@ where
                 extract_referenced_tables(condition, &mut referenced_tables, &table_set);
 
                 // Check if condition connects the new table with any already-joined table
-                // Condition is applicable if it references the new table AND at least one joined table
+                // Condition is applicable if it references the new table AND at least one joined
+                // table
                 let references_new_table = referenced_tables.contains(&table_name.to_lowercase());
-                let references_joined_table = referenced_tables.iter().any(|t| joined_tables.contains(t));
+                let references_joined_table =
+                    referenced_tables.iter().any(|t| joined_tables.contains(t));
 
                 if references_new_table && references_joined_table {
                     applicable_conditions.push(condition.clone());
@@ -605,8 +649,12 @@ where
 
             // Debug logging for applicable conditions
             if std::env::var("JOIN_REORDER_VERBOSE").is_ok() {
-                eprintln!("[JOIN_REORDER] Joining {} to {:?}, found {} applicable conditions",
-                    table_name, joined_tables, applicable_conditions.len());
+                eprintln!(
+                    "[JOIN_REORDER] Joining {} to {:?}, found {} applicable conditions",
+                    table_name,
+                    joined_tables,
+                    applicable_conditions.len()
+                );
             }
 
             // Always use INNER join for comma-list joins, even when applicable_conditions is empty.
@@ -631,11 +679,13 @@ where
         joined_tables.insert(table_name.to_lowercase());
     }
 
-    let result = result.ok_or_else(|| ExecutorError::UnsupportedFeature("No tables in join".to_string()))?;
+    let result =
+        result.ok_or_else(|| ExecutorError::UnsupportedFeature("No tables in join".to_string()))?;
 
     // Step 11: Restore original column ordering if needed
     // Build column permutation: map from current position to target position
-    let column_permutation = build_column_permutation(&table_names, &optimal_order, &table_column_counts);
+    let column_permutation =
+        build_column_permutation(&table_names, &optimal_order, &table_column_counts);
 
     // Reorder rows according to the permutation
     let rows = result.data.into_rows();
@@ -679,13 +729,15 @@ fn build_reordered_schema(
             .table_schemas
             .get(table_name)
             .or_else(|| {
-                current_schema.table_schemas.iter().find_map(|(k, v): (&String, &(usize, vibesql_catalog::TableSchema))| {
-                    if k.to_lowercase() == table_lower {
-                        Some(v)
-                    } else {
-                        None
-                    }
-                })
+                current_schema.table_schemas.iter().find_map(
+                    |(k, v): (&String, &(usize, vibesql_catalog::TableSchema))| {
+                        if k.to_lowercase() == table_lower {
+                            Some(v)
+                        } else {
+                            None
+                        }
+                    },
+                )
             })
             .map(|(_, schema): &(usize, vibesql_catalog::TableSchema)| schema.clone());
 
@@ -707,8 +759,10 @@ fn build_reordered_schema(
 /// - Column counts: {tab0: 3, tab1: 3, tab2: 3}
 ///
 /// Returns permutation mapping current positions to original positions:
-/// - Current: [tab1.col0, tab1.col1, tab1.col2, tab0.col0, tab0.col1, tab0.col2, tab2.col0, tab2.col1, tab2.col2]
-/// - Target:  [tab0.col0, tab0.col1, tab0.col2, tab2.col0, tab2.col1, tab2.col2, tab1.col0, tab1.col1, tab1.col2]
+/// - Current: [tab1.col0, tab1.col1, tab1.col2, tab0.col0, tab0.col1, tab0.col2, tab2.col0,
+///   tab2.col1, tab2.col2]
+/// - Target:  [tab0.col0, tab0.col1, tab0.col2, tab2.col0, tab2.col1, tab2.col2, tab1.col0,
+///   tab1.col1, tab1.col2]
 /// - Permutation: [3, 4, 5, 6, 7, 8, 0, 1, 2]
 fn build_column_permutation(
     original_order: &[String],

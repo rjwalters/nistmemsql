@@ -1,16 +1,17 @@
 //! Individual record processing and execution.
 
-use std::collections::HashSet;
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use md5::Digest;
 
-use crate::MakeConnection;
-use crate::column_type::ColumnType;
-use crate::error_handling::AnyError;
-use crate::output::{RecordOutput, DBOutput};
-use crate::parser::*;
 use super::core::{AsyncDB, Runner};
+use crate::{
+    column_type::ColumnType,
+    error_handling::AnyError,
+    output::{DBOutput, RecordOutput},
+    parser::*,
+    MakeConnection,
+};
 
 impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
     pub async fn apply_record(
@@ -48,21 +49,13 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
             } => {
                 let sql = match self.may_substitute(sql, true) {
                     Ok(sql) => sql,
-                    Err(error) => {
-                        return RecordOutput::Statement {
-                            count: 0,
-                            error: Some(error),
-                        }
-                    }
+                    Err(error) => return RecordOutput::Statement { count: 0, error: Some(error) },
                 };
 
                 let conn = match self.conn.get(connection).await {
                     Ok(conn) => conn,
                     Err(e) => {
-                        return RecordOutput::Statement {
-                            count: 0,
-                            error: Some(Arc::new(e)),
-                        }
+                        return RecordOutput::Statement { count: 0, error: Some(Arc::new(e)) }
                     }
                 };
                 if should_skip(&self.labels, conn.engine_name(), &conditions) {
@@ -72,40 +65,24 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                 let ret = conn.run(&sql).await;
                 match ret {
                     Ok(out) => match out {
-                        DBOutput::Rows { types, rows } => RecordOutput::Query {
-                            types,
-                            rows,
-                            error: None,
-                        },
+                        DBOutput::Rows { types, rows } => {
+                            RecordOutput::Query { types, rows, error: None }
+                        }
                         DBOutput::StatementComplete(count) => {
                             RecordOutput::Statement { count, error: None }
                         }
                     },
-                    Err(e) => RecordOutput::Statement {
-                        count: 0,
-                        error: Some(Arc::new(e)),
-                    },
+                    Err(e) => RecordOutput::Statement { count: 0, error: Some(Arc::new(e)) },
                 }
             }
-            Record::System {
-                conditions,
-                command,
-                loc: _,
-                stdout: expected_stdout,
-                retry: _,
-            } => {
+            Record::System { conditions, command, loc: _, stdout: expected_stdout, retry: _ } => {
                 if should_skip(&self.labels, "", &conditions) {
                     return RecordOutput::Nothing;
                 }
 
                 let mut command = match self.may_substitute(command, false) {
                     Ok(command) => command,
-                    Err(error) => {
-                        return RecordOutput::System {
-                            stdout: None,
-                            error: Some(error),
-                        }
-                    }
+                    Err(error) => return RecordOutput::System { stdout: None, error: Some(error) },
                 };
 
                 let is_background = command.trim().ends_with('&');
@@ -131,10 +108,7 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                         Err(e) => Some(Arc::new(e)),
                     };
                     tracing::info!(target:"sqllogictest::system_command", command, "background system command spawned");
-                    return RecordOutput::System {
-                        error,
-                        stdout: None,
-                    };
+                    return RecordOutput::System { error, stdout: None };
                 }
 
                 cmd.stdout(std::process::Stdio::piped());
@@ -153,11 +127,7 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
 
                 let mut actual_stdout = None;
                 let error: Option<AnyError> = match result {
-                    Ok(std::process::Output {
-                        status,
-                        stdout,
-                        stderr,
-                    }) => {
+                    Ok(std::process::Output { status, stdout, stderr }) => {
                         let stdout = String::from_utf8_lossy(&stdout).to_string();
                         let stderr = String::from_utf8_lossy(&stderr).to_string();
                         tracing::info!(target:"sqllogictest::system_command", command, ?status, stdout, stderr, "system command executed");
@@ -167,11 +137,7 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                             }
                             None
                         } else {
-                            Some(Arc::new(SystemError {
-                                status,
-                                stdout,
-                                stderr,
-                            }))
+                            Some(Arc::new(SystemError { status, stdout, stderr }))
                         }
                     }
                     Err(error) => {
@@ -180,10 +146,7 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                     }
                 };
 
-                RecordOutput::System {
-                    error,
-                    stdout: actual_stdout,
-                }
+                RecordOutput::System { error, stdout: actual_stdout }
             }
             Record::Query {
                 conditions,
@@ -246,9 +209,10 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                     if types.len() == expected_types.len() {
                         types = expected_types.clone();
 
-                        // Reformat string values to match expected types (MySQL/SQLite normalization)
-                        // When test expects Real but we returned Integer, append ".000"
-                        // When test expects Integer but we returned Real, strip decimal if whole number
+                        // Reformat string values to match expected types (MySQL/SQLite
+                        // normalization) When test expects Real but we
+                        // returned Integer, append ".000" When test expects
+                        // Integer but we returned Real, strip decimal if whole number
                         // When test expects Integer but we returned TEXT, coerce to integer
                         for row in &mut rows {
                             for (col_idx, value) in row.iter_mut().enumerate() {
@@ -267,7 +231,8 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                                                 *value = format!("{}", f.trunc() as i64);
                                             }
                                         } else if value.parse::<i64>().is_err() {
-                                            // TEXT → Integer: coerce non-numeric text to 0 (SQLite affinity)
+                                            // TEXT → Integer: coerce non-numeric text to 0 (SQLite
+                                            // affinity)
                                             *value = "0".to_string();
                                         }
                                     }
@@ -300,11 +265,7 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                     }
                 };
 
-                let num_values = if value_sort {
-                    rows.len()
-                } else {
-                    rows.len() * types.len()
-                };
+                let num_values = if value_sort { rows.len() } else { rows.len() * types.len() };
 
                 if self.hash_threshold > 0 && num_values > self.hash_threshold {
                     let mut md5 = md5::Md5::new();
@@ -323,11 +284,7 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                     )]];
                 }
 
-                RecordOutput::Query {
-                    error: None,
-                    types,
-                    rows,
-                }
+                RecordOutput::Query { error: None, types, rows }
             }
             Record::Sleep { duration, .. } => {
                 D::sleep(duration).await;

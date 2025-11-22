@@ -63,8 +63,9 @@ impl ExpressionEvaluator<'_> {
 
             // For non-empty sets, check if subquery contains NULL
             for subquery_row in &rows {
-                let subquery_val =
-                    subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+                let subquery_val = subquery_row
+                    .get(0)
+                    .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
 
                 if matches!(subquery_val, vibesql_types::SqlValue::Null) {
                     // NULL IN (set with NULL) → NULL
@@ -137,7 +138,10 @@ impl ExpressionEvaluator<'_> {
         let rows = select_executor.execute(subquery)?;
 
         // Delegate to shared logic
-        super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())
+        super::super::subqueries_shared::eval_scalar_subquery_core(
+            &rows,
+            subquery.select_list.len(),
+        )
     }
 
     /// Evaluate EXISTS predicate
@@ -231,7 +235,9 @@ impl ExpressionEvaluator<'_> {
             &rows,
             op,
             quantifier,
-            |left, op, right| Self::eval_binary_op_static(left, op, right, vibesql_types::SqlMode::default()),
+            |left, op, right| {
+                Self::eval_binary_op_static(left, op, right, vibesql_types::SqlMode::default())
+            },
         )
     }
 }

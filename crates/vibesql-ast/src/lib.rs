@@ -27,7 +27,7 @@ pub use ddl::{
     DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTriggerStmt,
     DropTypeStmt, DropViewStmt, FetchOrientation, FetchStmt, FunctionParameter, IndexColumn,
     IndexType, InsertMethod, IsolationLevel, ModifyColumnStmt, OpenCursorStmt, ParameterMode,
-    ProcedureBody, ProcedureParameter, ProceduralStatement, ReferentialAction, ReindexStmt,
+    ProceduralStatement, ProcedureBody, ProcedureParameter, ReferentialAction, ReindexStmt,
     ReleaseSavepointStmt, RenameTableStmt, RollbackStmt, RollbackToSavepointStmt, RowFormat,
     SavepointStmt, SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
     SetTransactionStmt, SetVariableStmt, SqlSecurity, TableConstraint, TableConstraintKind,

@@ -4,8 +4,10 @@
 //! Thread-local pools eliminate lock contention for concurrent access.
 
 use std::cell::RefCell;
-use crate::Row;
+
 use vibesql_types::SqlValue;
+
+use crate::Row;
 
 /// Default initial capacity for row buffers
 const DEFAULT_ROW_CAPACITY: usize = 128;
@@ -113,10 +115,7 @@ impl QueryBufferPool {
         let row_buffers_pooled = ROW_POOL.with(|pool| pool.borrow().len());
         let value_buffers_pooled = VALUE_POOL.with(|pool| pool.borrow().len());
 
-        QueryBufferPoolStats {
-            row_buffers_pooled,
-            value_buffers_pooled,
-        }
+        QueryBufferPoolStats { row_buffers_pooled, value_buffers_pooled }
     }
 }
 
@@ -136,10 +135,7 @@ pub struct RowBufferGuard {
 impl RowBufferGuard {
     /// Create a new guard wrapping a buffer
     pub fn new(buffer: Vec<Row>, pool: QueryBufferPool) -> Self {
-        Self {
-            buffer: Some(buffer),
-            pool,
-        }
+        Self { buffer: Some(buffer), pool }
     }
 
     /// Take ownership of the buffer, consuming the guard without returning to pool
@@ -177,10 +173,7 @@ pub struct ValueBufferGuard {
 impl ValueBufferGuard {
     /// Create a new guard wrapping a buffer
     pub fn new(buffer: Vec<SqlValue>, pool: QueryBufferPool) -> Self {
-        Self {
-            buffer: Some(buffer),
-            pool,
-        }
+        Self { buffer: Some(buffer), pool }
     }
 
     /// Take ownership of the buffer, consuming the guard without returning to pool
@@ -275,8 +268,7 @@ mod tests {
 
     #[test]
     fn test_concurrent_access_thread_safety() {
-        use std::sync::Arc;
-        use std::thread;
+        use std::{sync::Arc, thread};
 
         let pool = Arc::new(QueryBufferPool::new());
         let mut handles = vec![];

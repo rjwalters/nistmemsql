@@ -16,13 +16,21 @@ fn test_scalar_subquery_in_where_clause() {
     let schema = vibesql_catalog::TableSchema::new(
         "employees".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "name".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(100) },
                 false,
             ),
-            vibesql_catalog::ColumnSchema::new("salary".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "salary".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -59,7 +67,8 @@ fn test_scalar_subquery_in_where_clause() {
     // Build subquery: SELECT AVG(salary) FROM employees
     let subquery = Box::new(vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -85,7 +94,8 @@ fn test_scalar_subquery_in_where_clause() {
     // Build main query: SELECT * FROM employees WHERE salary > (subquery)
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -124,13 +134,21 @@ fn test_scalar_subquery_in_select_list() {
     let schema = vibesql_catalog::TableSchema::new(
         "employees".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "name".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(100) },
                 false,
             ),
-            vibesql_catalog::ColumnSchema::new("salary".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "salary".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -158,7 +176,8 @@ fn test_scalar_subquery_in_select_list() {
     // Build subquery: SELECT MAX(salary) FROM employees
     let subquery = Box::new(vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -184,16 +203,23 @@ fn test_scalar_subquery_in_select_list() {
     // Build main query: SELECT name, salary, (subquery) as max_sal FROM employees
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
             vibesql_ast::SelectItem::Expression {
-                expr: vibesql_ast::Expression::ColumnRef { table: None, column: "name".to_string() },
+                expr: vibesql_ast::Expression::ColumnRef {
+                    table: None,
+                    column: "name".to_string(),
+                },
                 alias: None,
             },
             vibesql_ast::SelectItem::Expression {
-                expr: vibesql_ast::Expression::ColumnRef { table: None, column: "salary".to_string() },
+                expr: vibesql_ast::Expression::ColumnRef {
+                    table: None,
+                    column: "salary".to_string(),
+                },
                 alias: None,
             },
             vibesql_ast::SelectItem::Expression {
@@ -231,17 +257,26 @@ fn test_scalar_subquery_returns_null_when_empty() {
     // Create employees table
     let schema = vibesql_catalog::TableSchema::new(
         "employees".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "id".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
 
     // Insert one row with id=1
-    db.insert_row("employees", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1)])).unwrap();
+    db.insert_row(
+        "employees",
+        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1)]),
+    )
+    .unwrap();
 
     // Build subquery that returns no rows: SELECT id FROM employees WHERE id = 999
     let subquery = Box::new(vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -250,9 +285,14 @@ fn test_scalar_subquery_returns_null_when_empty() {
         }],
         from: Some(vibesql_ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: Some(vibesql_ast::Expression::BinaryOp {
-            left: Box::new(vibesql_ast::Expression::ColumnRef { table: None, column: "id".to_string() }),
+            left: Box::new(vibesql_ast::Expression::ColumnRef {
+                table: None,
+                column: "id".to_string(),
+            }),
             op: vibesql_ast::BinaryOperator::Equal,
-            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(999))),
+            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(
+                999,
+            ))),
         }),
         group_by: None,
         having: None,
@@ -264,7 +304,8 @@ fn test_scalar_subquery_returns_null_when_empty() {
     // Build main query: SELECT (subquery) as missing_id FROM employees
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {

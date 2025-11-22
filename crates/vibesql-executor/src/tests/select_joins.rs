@@ -11,7 +11,11 @@ fn test_inner_join_two_tables() {
     let users_schema = vibesql_catalog::TableSchema::new(
         "users".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "name".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(100) },
@@ -40,9 +44,21 @@ fn test_inner_join_two_tables() {
     let orders_schema = vibesql_catalog::TableSchema::new(
         "orders".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("user_id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("amount".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "user_id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "amount".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(orders_schema).unwrap();
@@ -68,13 +84,20 @@ fn test_inner_join_two_tables() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
         from: Some(vibesql_ast::FromClause::Join {
-            left: Box::new(vibesql_ast::FromClause::Table { name: "users".to_string(), alias: None }),
-            right: Box::new(vibesql_ast::FromClause::Table { name: "orders".to_string(), alias: None }),
+            left: Box::new(vibesql_ast::FromClause::Table {
+                name: "users".to_string(),
+                alias: None,
+            }),
+            right: Box::new(vibesql_ast::FromClause::Table {
+                name: "orders".to_string(),
+                alias: None,
+            }),
             join_type: vibesql_ast::JoinType::Inner,
             condition: Some(vibesql_ast::Expression::BinaryOp {
                 left: Box::new(vibesql_ast::Expression::ColumnRef {
@@ -110,7 +133,11 @@ fn test_right_outer_join() {
     let users_schema = vibesql_catalog::TableSchema::new(
         "users".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "name".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(100) },
@@ -140,9 +167,21 @@ fn test_right_outer_join() {
     let orders_schema = vibesql_catalog::TableSchema::new(
         "orders".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("user_id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("amount".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "user_id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "amount".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(orders_schema).unwrap();
@@ -169,13 +208,20 @@ fn test_right_outer_join() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
         from: Some(vibesql_ast::FromClause::Join {
-            left: Box::new(vibesql_ast::FromClause::Table { name: "users".to_string(), alias: None }),
-            right: Box::new(vibesql_ast::FromClause::Table { name: "orders".to_string(), alias: None }),
+            left: Box::new(vibesql_ast::FromClause::Table {
+                name: "users".to_string(),
+                alias: None,
+            }),
+            right: Box::new(vibesql_ast::FromClause::Table {
+                name: "orders".to_string(),
+                alias: None,
+            }),
             join_type: vibesql_ast::JoinType::RightOuter,
             condition: Some(vibesql_ast::Expression::BinaryOp {
                 left: Box::new(vibesql_ast::Expression::ColumnRef {
@@ -202,7 +248,8 @@ fn test_right_outer_join() {
     assert_eq!(result.len(), 2); // Both orders should appear
 
     // One row should have NULLs for user columns (order for user 999)
-    let null_count = result.iter().filter(|row| row.values[0] == vibesql_types::SqlValue::Null).count();
+    let null_count =
+        result.iter().filter(|row| row.values[0] == vibesql_types::SqlValue::Null).count();
     assert_eq!(null_count, 1, "Should have one row with NULL user");
 }
 
@@ -214,7 +261,11 @@ fn test_full_outer_join() {
     let users_schema = vibesql_catalog::TableSchema::new(
         "users".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "name".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(100) },
@@ -244,9 +295,21 @@ fn test_full_outer_join() {
     let orders_schema = vibesql_catalog::TableSchema::new(
         "orders".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("user_id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("amount".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "user_id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "amount".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(orders_schema).unwrap();
@@ -276,13 +339,20 @@ fn test_full_outer_join() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
         from: Some(vibesql_ast::FromClause::Join {
-            left: Box::new(vibesql_ast::FromClause::Table { name: "users".to_string(), alias: None }),
-            right: Box::new(vibesql_ast::FromClause::Table { name: "orders".to_string(), alias: None }),
+            left: Box::new(vibesql_ast::FromClause::Table {
+                name: "users".to_string(),
+                alias: None,
+            }),
+            right: Box::new(vibesql_ast::FromClause::Table {
+                name: "orders".to_string(),
+                alias: None,
+            }),
             join_type: vibesql_ast::JoinType::FullOuter,
             condition: Some(vibesql_ast::Expression::BinaryOp {
                 left: Box::new(vibesql_ast::Expression::ColumnRef {
@@ -327,7 +397,11 @@ fn test_cross_join() {
     let users_schema = vibesql_catalog::TableSchema::new(
         "users".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "name".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(100) },
@@ -357,7 +431,11 @@ fn test_cross_join() {
     let products_schema = vibesql_catalog::TableSchema::new(
         "products".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "name".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(100) },
@@ -395,13 +473,20 @@ fn test_cross_join() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
         from: Some(vibesql_ast::FromClause::Join {
-            left: Box::new(vibesql_ast::FromClause::Table { name: "users".to_string(), alias: None }),
-            right: Box::new(vibesql_ast::FromClause::Table { name: "products".to_string(), alias: None }),
+            left: Box::new(vibesql_ast::FromClause::Table {
+                name: "users".to_string(),
+                alias: None,
+            }),
+            right: Box::new(vibesql_ast::FromClause::Table {
+                name: "products".to_string(),
+                alias: None,
+            }),
             join_type: vibesql_ast::JoinType::Cross,
             condition: None, // CROSS JOIN has no condition
             natural: false,
@@ -426,13 +511,21 @@ fn test_cross_join_with_condition_fails() {
 
     let users_schema = vibesql_catalog::TableSchema::new(
         "users".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "id".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(users_schema).unwrap();
 
     let products_schema = vibesql_catalog::TableSchema::new(
         "products".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "id".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(products_schema).unwrap();
 
@@ -440,13 +533,20 @@ fn test_cross_join_with_condition_fails() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
         from: Some(vibesql_ast::FromClause::Join {
-            left: Box::new(vibesql_ast::FromClause::Table { name: "users".to_string(), alias: None }),
-            right: Box::new(vibesql_ast::FromClause::Table { name: "products".to_string(), alias: None }),
+            left: Box::new(vibesql_ast::FromClause::Table {
+                name: "users".to_string(),
+                alias: None,
+            }),
+            right: Box::new(vibesql_ast::FromClause::Table {
+                name: "products".to_string(),
+                alias: None,
+            }),
             join_type: vibesql_ast::JoinType::Cross,
             condition: Some(vibesql_ast::Expression::BinaryOp {
                 left: Box::new(vibesql_ast::Expression::ColumnRef {
@@ -483,7 +583,11 @@ fn test_inner_join_null_values_dont_match() {
     let t1_schema = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, true),
+            vibesql_catalog::ColumnSchema::new(
+                "x".to_string(),
+                vibesql_types::DataType::Integer,
+                true,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "name".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(100) },
@@ -513,7 +617,11 @@ fn test_inner_join_null_values_dont_match() {
     let t2_schema = vibesql_catalog::TableSchema::new(
         "t2".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, true),
+            vibesql_catalog::ColumnSchema::new(
+                "y".to_string(),
+                vibesql_types::DataType::Integer,
+                true,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "value".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(100) },

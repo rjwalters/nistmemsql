@@ -3,7 +3,9 @@
 //! This module provides reusable constraint validation that can be used by
 //! CREATE TABLE, ALTER TABLE, and other DDL executors.
 
-use vibesql_ast::{ColumnConstraintKind, ColumnDef, Expression, TableConstraint, TableConstraintKind};
+use vibesql_ast::{
+    ColumnConstraintKind, ColumnDef, Expression, TableConstraint, TableConstraintKind,
+};
 use vibesql_catalog::{ColumnSchema, TableSchema};
 
 use crate::errors::ExecutorError;
@@ -113,7 +115,8 @@ impl ConstraintValidator {
                         return Err(ExecutorError::MultiplePrimaryKeys);
                     }
                     // Extract column names from IndexColumn structs
-                    let column_names: Vec<String> = pk_cols.iter().map(|c| c.column_name.clone()).collect();
+                    let column_names: Vec<String> =
+                        pk_cols.iter().map(|c| c.column_name.clone()).collect();
                     result.primary_key = Some(column_names.clone());
                     // All PK columns must be NOT NULL
                     for col_name in &column_names {
@@ -124,7 +127,8 @@ impl ConstraintValidator {
                 }
                 TableConstraintKind::Unique { columns } => {
                     // Extract column names from IndexColumn structs
-                    let column_names: Vec<String> = columns.iter().map(|c| c.column_name.clone()).collect();
+                    let column_names: Vec<String> =
+                        columns.iter().map(|c| c.column_name.clone()).collect();
                     result.unique_constraints.push(column_names);
                 }
                 TableConstraintKind::Check { expr } => {

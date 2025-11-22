@@ -13,8 +13,16 @@ fn test_count_star_fast_path_simple() {
     let schema = vibesql_catalog::TableSchema::new(
         "test_table".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("value".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "value".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -23,7 +31,10 @@ fn test_count_star_fast_path_simple() {
     for i in 0..1000 {
         db.insert_row(
             "test_table",
-            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i), vibesql_types::SqlValue::Integer(i * 2)]),
+            vibesql_storage::Row::new(vec![
+                vibesql_types::SqlValue::Integer(i),
+                vibesql_types::SqlValue::Integer(i * 2),
+            ]),
         )
         .unwrap();
     }
@@ -31,7 +42,8 @@ fn test_count_star_fast_path_simple() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -62,14 +74,19 @@ fn test_count_star_fast_path_empty_table() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "empty_table".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "id".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
 
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -101,8 +118,16 @@ fn test_count_star_with_where_no_fast_path() {
     let schema = vibesql_catalog::TableSchema::new(
         "test_table".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("value".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "value".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -110,7 +135,10 @@ fn test_count_star_with_where_no_fast_path() {
     for i in 0..10 {
         db.insert_row(
             "test_table",
-            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i), vibesql_types::SqlValue::Integer(i * 2)]),
+            vibesql_storage::Row::new(vec![
+                vibesql_types::SqlValue::Integer(i),
+                vibesql_types::SqlValue::Integer(i * 2),
+            ]),
         )
         .unwrap();
     }
@@ -118,7 +146,8 @@ fn test_count_star_with_where_no_fast_path() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -131,7 +160,10 @@ fn test_count_star_with_where_no_fast_path() {
         }],
         from: Some(vibesql_ast::FromClause::Table { name: "test_table".to_string(), alias: None }),
         where_clause: Some(vibesql_ast::Expression::BinaryOp {
-            left: Box::new(vibesql_ast::Expression::ColumnRef { table: None, column: "value".to_string() }),
+            left: Box::new(vibesql_ast::Expression::ColumnRef {
+                table: None,
+                column: "value".to_string(),
+            }),
             op: vibesql_ast::BinaryOperator::GreaterThan,
             right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(5))),
         }),
@@ -155,8 +187,16 @@ fn test_count_star_with_group_by_no_fast_path() {
     let schema = vibesql_catalog::TableSchema::new(
         "test_table".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("category".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("value".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "category".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "value".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -164,39 +204,58 @@ fn test_count_star_with_group_by_no_fast_path() {
     // Insert rows with categories 1, 1, 2, 2, 2
     db.insert_row(
         "test_table",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(10)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(10),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "test_table",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(20)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(20),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "test_table",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(2), vibesql_types::SqlValue::Integer(30)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(2),
+            vibesql_types::SqlValue::Integer(30),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "test_table",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(2), vibesql_types::SqlValue::Integer(40)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(2),
+            vibesql_types::SqlValue::Integer(40),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "test_table",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(2), vibesql_types::SqlValue::Integer(50)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(2),
+            vibesql_types::SqlValue::Integer(50),
+        ]),
     )
     .unwrap();
 
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
             vibesql_ast::SelectItem::Expression {
-                expr: vibesql_ast::Expression::ColumnRef { table: None, column: "category".to_string() },
+                expr: vibesql_ast::Expression::ColumnRef {
+                    table: None,
+                    column: "category".to_string(),
+                },
                 alias: None,
             },
             vibesql_ast::SelectItem::Expression {
@@ -231,18 +290,27 @@ fn test_count_star_distinct_no_fast_path() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "test_table".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "id".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
 
     for i in 0..5 {
-        db.insert_row("test_table", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)])).unwrap();
+        db.insert_row(
+            "test_table",
+            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)]),
+        )
+        .unwrap();
     }
 
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: true, // DISTINCT specified
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -273,25 +341,37 @@ fn test_count_column_no_fast_path() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "test_table".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "id".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
 
     for i in 0..5 {
-        db.insert_row("test_table", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)])).unwrap();
+        db.insert_row(
+            "test_table",
+            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)]),
+        )
+        .unwrap();
     }
 
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
             expr: vibesql_ast::Expression::AggregateFunction {
                 name: "COUNT".to_string(),
                 distinct: false,
-                args: vec![vibesql_ast::Expression::ColumnRef { table: None, column: "id".to_string() }],
+                args: vec![vibesql_ast::Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }],
             },
             alias: None,
         }],
@@ -315,18 +395,27 @@ fn test_count_star_with_alias() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "test_table".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "id".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
 
     for i in 0..100 {
-        db.insert_row("test_table", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)])).unwrap();
+        db.insert_row(
+            "test_table",
+            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)]),
+        )
+        .unwrap();
     }
 
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -358,8 +447,16 @@ fn test_count_star_multiple_select_items_no_fast_path() {
     let schema = vibesql_catalog::TableSchema::new(
         "test_table".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("value".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "value".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -367,7 +464,10 @@ fn test_count_star_multiple_select_items_no_fast_path() {
     for i in 0..5 {
         db.insert_row(
             "test_table",
-            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i), vibesql_types::SqlValue::Integer(i * 10)]),
+            vibesql_storage::Row::new(vec![
+                vibesql_types::SqlValue::Integer(i),
+                vibesql_types::SqlValue::Integer(i * 10),
+            ]),
         )
         .unwrap();
     }
@@ -375,7 +475,8 @@ fn test_count_star_multiple_select_items_no_fast_path() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![

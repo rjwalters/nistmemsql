@@ -609,10 +609,7 @@ mod tests {
                 "Table {} at position {} has no join condition with previous tables {:?}. \
                  This would cause a CROSS JOIN and memory limit exceeded. \
                  Full order: {:?}",
-                current_table,
-                i,
-                previous_tables,
-                order
+                current_table, i, previous_tables, order
             );
         }
 

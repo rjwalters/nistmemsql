@@ -8,19 +8,23 @@
 //! - `rebalance`: Tree rebalancing after deletions
 
 use std::sync::Arc;
+
 use vibesql_types::DataType;
 
-use crate::page::{PageId, PageManager};
-use crate::StorageError;
-
-use super::super::calculate_degree;
-use super::datatype_serialization::{deserialize_datatype, serialize_datatype};
-use super::structure::{InternalNode, LeafNode};
+use super::{
+    super::calculate_degree,
+    datatype_serialization::{deserialize_datatype, serialize_datatype},
+    structure::{InternalNode, LeafNode},
+};
+use crate::{
+    page::{PageId, PageManager},
+    StorageError,
+};
 
 // Submodules
 mod bulk_load;
-mod insert;
 mod delete;
+mod insert;
 mod query;
 mod rebalance;
 
@@ -153,8 +157,7 @@ impl BTreeIndex {
         offset += 2;
 
         // Read key_schema length
-        let schema_len_bytes: [u8; 2] =
-            metadata_page.data[offset..offset + 2].try_into().unwrap();
+        let schema_len_bytes: [u8; 2] = metadata_page.data[offset..offset + 2].try_into().unwrap();
         let schema_len = u16::from_le_bytes(schema_len_bytes) as usize;
         offset += 2;
 
@@ -182,18 +185,15 @@ impl BTreeIndex {
         let mut offset = 0;
 
         // Write root_page_id
-        metadata_page.data[offset..offset + 8]
-            .copy_from_slice(&self.root_page_id.to_le_bytes());
+        metadata_page.data[offset..offset + 8].copy_from_slice(&self.root_page_id.to_le_bytes());
         offset += 8;
 
         // Write degree
-        metadata_page.data[offset..offset + 2]
-            .copy_from_slice(&(self.degree as u16).to_le_bytes());
+        metadata_page.data[offset..offset + 2].copy_from_slice(&(self.degree as u16).to_le_bytes());
         offset += 2;
 
         // Write height
-        metadata_page.data[offset..offset + 2]
-            .copy_from_slice(&(self.height as u16).to_le_bytes());
+        metadata_page.data[offset..offset + 2].copy_from_slice(&(self.height as u16).to_le_bytes());
         offset += 2;
 
         // Write key_schema length

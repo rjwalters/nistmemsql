@@ -6,13 +6,13 @@
 //!
 //! ## Test Strategy
 //!
-//! - **Fast Sampled Test** (`test_select5_sampled_regression`): Runs 1 representative 4-table
-//!   join query. This test runs in <1 second and is suitable for regular CI. It verifies
-//!   the predicate pushdown optimization is working.
+//! - **Fast Sampled Test** (`test_select5_sampled_regression`): Runs 1 representative 4-table join
+//!   query. This test runs in <1 second and is suitable for regular CI. It verifies the predicate
+//!   pushdown optimization is working.
 //!
 //! - **Full Test Suite** (`test_select5_full_suite`): Runs all 732 queries from the original
-//!   select5.test file. This takes 5-10 minutes and is disabled by default with `#[ignore]`.
-//!   Run manually with: `cargo test test_select5_full_suite -- --ignored`
+//!   select5.test file. This takes 5-10 minutes and is disabled by default with `#[ignore]`. Run
+//!   manually with: `cargo test test_select5_full_suite -- --ignored`
 //!
 //! ## Performance History
 //!
@@ -20,9 +20,9 @@
 //! - **After PR #1129 (predicate pushdown)**: 6.48 GB memory, 5-10 min runtime → Success but slow
 //! - **Current (sampled test)**: <100 MB memory, <10 sec runtime → Fast regression test
 
+use std::{path::Path, time::Duration};
+
 use ::sqllogictest::Runner;
-use std::path::Path;
-use std::time::Duration;
 
 #[path = "../sqllogictest/mod.rs"]
 mod sqllogictest;
@@ -87,7 +87,9 @@ async fn test_select5_full_suite() {
     let test_file = Path::new("third_party/sqllogictest/test/select5.test");
 
     if !test_file.exists() {
-        panic!("select5.test not found - run: git submodule update --init third_party/sqllogictest");
+        panic!(
+            "select5.test not found - run: git submodule update --init third_party/sqllogictest"
+        );
     }
 
     let mut runner = Runner::new(|| async { Ok(VibeSqlDB::new()) });

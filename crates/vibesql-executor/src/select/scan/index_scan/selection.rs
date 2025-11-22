@@ -4,7 +4,10 @@
 //! Supports both rule-based (simple) and cost-based (statistics-aware) selection.
 
 use vibesql_ast::Expression;
-use vibesql_storage::{Database, statistics::{CostEstimator, AccessMethod}};
+use vibesql_storage::{
+    statistics::{AccessMethod, CostEstimator},
+    Database,
+};
 
 /// Determines if an index scan is beneficial for the given query
 ///
@@ -65,7 +68,9 @@ pub(crate) fn should_use_index_scan(
                             .map(|item| {
                                 let col_name = match &item.expr {
                                     Expression::ColumnRef { column, .. } => column.clone(),
-                                    _ => unreachable!("can_use_index_for_order_by ensures simple column refs"),
+                                    _ => unreachable!(
+                                        "can_use_index_for_order_by ensures simple column refs"
+                                    ),
                                 };
                                 (col_name, item.direction.clone())
                             })
@@ -98,7 +103,8 @@ pub(crate) fn expression_filters_column(expr: &Expression, column_name: &str) ->
                 | vibesql_ast::BinaryOperator::LessThan
                 | vibesql_ast::BinaryOperator::LessThanOrEqual => {
                     // Check if either side is our column
-                    if is_column_reference(left, column_name) || is_column_reference(right, column_name)
+                    if is_column_reference(left, column_name)
+                        || is_column_reference(right, column_name)
                     {
                         return true;
                     }
@@ -218,7 +224,11 @@ pub(crate) fn cost_based_index_selection(
 
     // Try each index and find the one with lowest cost
     #[allow(clippy::type_complexity)]
-    let mut best_index: Option<(String, AccessMethod, Option<Vec<(String, vibesql_ast::OrderDirection)>>)> = None;
+    let mut best_index: Option<(
+        String,
+        AccessMethod,
+        Option<Vec<(String, vibesql_ast::OrderDirection)>>,
+    )> = None;
     let mut has_applicable_index_without_stats = false;
 
     for index_name in &indexes {
@@ -260,11 +270,8 @@ pub(crate) fn cost_based_index_selection(
             };
 
             // Use cost estimator to decide
-            let access_method = cost_estimator.choose_access_method(
-                table_stats,
-                Some(col_stats),
-                selectivity,
-            );
+            let access_method =
+                cost_estimator.choose_access_method(table_stats, Some(col_stats), selectivity);
 
             // Build sorted_columns metadata if ORDER BY can be satisfied
             let sorted_columns = if can_use_for_order {
@@ -275,7 +282,9 @@ pub(crate) fn cost_based_index_selection(
                         .map(|item| {
                             let col_name = match &item.expr {
                                 Expression::ColumnRef { column, .. } => column.clone(),
-                                _ => unreachable!("can_use_index_for_order_by ensures simple column refs"),
+                                _ => unreachable!(
+                                    "can_use_index_for_order_by ensures simple column refs"
+                                ),
                             };
                             (col_name, item.direction.clone())
                         })
@@ -330,12 +339,16 @@ pub(crate) fn estimate_selectivity(
             match op {
                 vibesql_ast::BinaryOperator::Equal => {
                     // Check if this is a predicate on our column
-                    if let (Expression::ColumnRef { column, .. }, Expression::Literal(value)) = (&**left, &**right) {
+                    if let (Expression::ColumnRef { column, .. }, Expression::Literal(value)) =
+                        (&**left, &**right)
+                    {
                         if column == column_name {
                             return col_stats.estimate_eq_selectivity(value);
                         }
                     }
-                    if let (Expression::Literal(value), Expression::ColumnRef { column, .. }) = (&**left, &**right) {
+                    if let (Expression::Literal(value), Expression::ColumnRef { column, .. }) =
+                        (&**left, &**right)
+                    {
                         if column == column_name {
                             return col_stats.estimate_eq_selectivity(value);
                         }
@@ -347,7 +360,9 @@ pub(crate) fn estimate_selectivity(
                 | vibesql_ast::BinaryOperator::LessThan
                 | vibesql_ast::BinaryOperator::LessThanOrEqual => {
                     // Range predicates
-                    if let (Expression::ColumnRef { column, .. }, Expression::Literal(value)) = (&**left, &**right) {
+                    if let (Expression::ColumnRef { column, .. }, Expression::Literal(value)) =
+                        (&**left, &**right)
+                    {
                         if column == column_name {
                             let op_str = match op {
                                 vibesql_ast::BinaryOperator::GreaterThan => ">",
@@ -381,7 +396,9 @@ pub(crate) fn estimate_selectivity(
             if let Expression::ColumnRef { column, .. } = &**expr {
                 if column == column_name {
                     // Estimate BETWEEN as: P(col >= low AND col <= high)
-                    if let (Expression::Literal(low_val), Expression::Literal(high_val)) = (&**low, &**high) {
+                    if let (Expression::Literal(low_val), Expression::Literal(high_val)) =
+                        (&**low, &**high)
+                    {
                         let low_sel = col_stats.estimate_range_selectivity(low_val, ">=");
                         let high_sel = col_stats.estimate_range_selectivity(high_val, "<=");
                         return low_sel * high_sel; // Assuming independence
@@ -396,18 +413,16 @@ pub(crate) fn estimate_selectivity(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_ast::BinaryOperator;
     use vibesql_types::SqlValue;
+
+    use super::*;
 
     #[test]
     fn test_expression_filters_column_simple() {
         let expr = Expression::BinaryOp {
             op: BinaryOperator::Equal,
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "age".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "age".to_string() }),
             right: Box::new(Expression::Literal(SqlValue::Integer(25))),
         };
 
@@ -421,18 +436,12 @@ mod tests {
             op: BinaryOperator::And,
             left: Box::new(Expression::BinaryOp {
                 op: BinaryOperator::GreaterThan,
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "age".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "age".to_string() }),
                 right: Box::new(Expression::Literal(SqlValue::Integer(18))),
             }),
             right: Box::new(Expression::BinaryOp {
                 op: BinaryOperator::Equal,
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "city".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "city".to_string() }),
                 right: Box::new(Expression::Literal(SqlValue::Varchar("Boston".to_string()))),
             }),
         };
@@ -444,10 +453,7 @@ mod tests {
 
     #[test]
     fn test_is_column_reference() {
-        let expr = Expression::ColumnRef {
-            table: None,
-            column: "age".to_string(),
-        };
+        let expr = Expression::ColumnRef { table: None, column: "age".to_string() };
 
         assert!(is_column_reference(&expr, "age"));
         assert!(!is_column_reference(&expr, "name"));

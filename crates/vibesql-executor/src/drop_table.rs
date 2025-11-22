@@ -332,6 +332,7 @@ mod tests {
     #[test]
     fn test_drop_table_cascades_to_indexes() {
         use vibesql_ast::{CreateIndexStmt, IndexColumn, OrderDirection};
+
         use crate::CreateIndexExecutor;
 
         let mut db = Database::new();
@@ -409,6 +410,7 @@ mod tests {
     #[test]
     fn test_drop_and_recreate_table_with_same_index_names() {
         use vibesql_ast::{CreateIndexStmt, IndexColumn, OrderDirection};
+
         use crate::CreateIndexExecutor;
 
         let mut db = Database::new();

@@ -20,8 +20,16 @@ fn test_table_local_predicate_applied_at_scan() {
     let schema = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("a".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("b".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "a".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "b".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -44,14 +52,12 @@ fn test_table_local_predicate_applied_at_scan() {
     // Should return only 1 row
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t1".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
         where_clause: Some(vibesql_ast::Expression::BinaryOp {
             left: Box::new(vibesql_ast::Expression::ColumnRef {
                 table: None,
@@ -86,8 +92,16 @@ fn test_multi_table_with_local_predicates() {
         let schema = vibesql_catalog::TableSchema::new(
             table_name.to_string(),
             vec![
-                vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-                vibesql_catalog::ColumnSchema::new("val".to_string(), vibesql_types::DataType::Integer, false),
+                vibesql_catalog::ColumnSchema::new(
+                    "id".to_string(),
+                    vibesql_types::DataType::Integer,
+                    false,
+                ),
+                vibesql_catalog::ColumnSchema::new(
+                    "val".to_string(),
+                    vibesql_types::DataType::Integer,
+                    false,
+                ),
             ],
         );
         db.create_table(schema).unwrap();
@@ -112,7 +126,8 @@ fn test_multi_table_with_local_predicates() {
     // With pushdown: 1 × 1 × 10 = 10 rows (much better!)
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -130,10 +145,7 @@ fn test_multi_table_with_local_predicates() {
                 condition: None,
                 natural: false,
             }),
-            right: Box::new(vibesql_ast::FromClause::Table {
-                name: "t3".to_string(),
-                alias: None,
-            }),
+            right: Box::new(vibesql_ast::FromClause::Table { name: "t3".to_string(), alias: None }),
             join_type: vibesql_ast::JoinType::Inner,
             condition: None,
             natural: false,
@@ -145,7 +157,9 @@ fn test_multi_table_with_local_predicates() {
                     column: "id".to_string(),
                 }),
                 op: vibesql_ast::BinaryOperator::Equal,
-                right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(5))),
+                right: Box::new(vibesql_ast::Expression::Literal(
+                    vibesql_types::SqlValue::Integer(5),
+                )),
             }),
             op: vibesql_ast::BinaryOperator::And,
             right: Box::new(vibesql_ast::Expression::BinaryOp {
@@ -154,7 +168,9 @@ fn test_multi_table_with_local_predicates() {
                     column: "id".to_string(),
                 }),
                 op: vibesql_ast::BinaryOperator::Equal,
-                right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(7))),
+                right: Box::new(vibesql_ast::Expression::Literal(
+                    vibesql_types::SqlValue::Integer(7),
+                )),
             }),
         }),
         group_by: None,
@@ -183,9 +199,21 @@ fn test_table_local_predicate_with_explicit_join() {
     let schema1 = vibesql_catalog::TableSchema::new(
         "orders".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("order_id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("customer_id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("amount".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "order_id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "customer_id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "amount".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema1).unwrap();
@@ -193,8 +221,16 @@ fn test_table_local_predicate_with_explicit_join() {
     let schema2 = vibesql_catalog::TableSchema::new(
         "customers".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("customer_id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("name".to_string(), vibesql_types::DataType::Varchar { max_length: Some(50) }, false),
+            vibesql_catalog::ColumnSchema::new(
+                "customer_id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "name".to_string(),
+                vibesql_types::DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
     );
     db.create_table(schema2).unwrap();
@@ -230,7 +266,8 @@ fn test_table_local_predicate_with_explicit_join() {
     // WHERE orders.amount > 110
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -263,7 +300,9 @@ fn test_table_local_predicate_with_explicit_join() {
                 column: "amount".to_string(),
             }),
             op: vibesql_ast::BinaryOperator::GreaterThan,
-            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(110))),
+            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(
+                110,
+            ))),
         }),
         group_by: None,
         having: None,
@@ -295,9 +334,21 @@ fn test_table_local_predicate_with_multiple_conditions() {
     let schema = vibesql_catalog::TableSchema::new(
         "products".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("price".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("stock".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "price".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "stock".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -320,14 +371,12 @@ fn test_table_local_predicate_with_multiple_conditions() {
     // Query: SELECT * FROM products WHERE price > 50 AND stock > 5
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "products".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "products".to_string(), alias: None }),
         where_clause: Some(vibesql_ast::Expression::BinaryOp {
             left: Box::new(vibesql_ast::Expression::BinaryOp {
                 left: Box::new(vibesql_ast::Expression::ColumnRef {
@@ -335,7 +384,9 @@ fn test_table_local_predicate_with_multiple_conditions() {
                     column: "price".to_string(),
                 }),
                 op: vibesql_ast::BinaryOperator::GreaterThan,
-                right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(50))),
+                right: Box::new(vibesql_ast::Expression::Literal(
+                    vibesql_types::SqlValue::Integer(50),
+                )),
             }),
             op: vibesql_ast::BinaryOperator::And,
             right: Box::new(vibesql_ast::Expression::BinaryOp {
@@ -344,7 +395,9 @@ fn test_table_local_predicate_with_multiple_conditions() {
                     column: "stock".to_string(),
                 }),
                 op: vibesql_ast::BinaryOperator::GreaterThan,
-                right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(5))),
+                right: Box::new(vibesql_ast::Expression::Literal(
+                    vibesql_types::SqlValue::Integer(5),
+                )),
             }),
         }),
         group_by: None,

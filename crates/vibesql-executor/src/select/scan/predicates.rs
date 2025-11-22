@@ -7,19 +7,18 @@
 //! **Phase 1 Optimization**: This module now uses `PredicatePlan` to avoid redundant
 //! WHERE clause decomposition. The plan is computed once at query start and passed through.
 
-use crate::{
-    errors::ExecutorError, evaluator::CombinedExpressionEvaluator,
-    optimizer::PredicatePlan, schema::CombinedSchema,
-};
-
 #[cfg(feature = "parallel")]
-use crate::select::parallel::ParallelConfig;
+use std::sync::Arc;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 #[cfg(feature = "parallel")]
-use std::sync::Arc;
+use crate::select::parallel::ParallelConfig;
+use crate::{
+    errors::ExecutorError, evaluator::CombinedExpressionEvaluator, optimizer::PredicatePlan,
+    schema::CombinedSchema,
+};
 
 /// Apply table-local predicates working with row references (zero-copy until filter passes)
 ///
@@ -36,9 +35,7 @@ pub(crate) fn apply_table_local_predicates_ref(
     database: &vibesql_storage::Database,
 ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
     // Get table statistics for selectivity-based ordering
-    let table_stats = database
-        .get_table(table_name)
-        .and_then(|table| table.get_statistics());
+    let table_stats = database.get_table(table_name).and_then(|table| table.get_statistics());
 
     // Get predicates ordered by selectivity (most selective first)
     let ordered_preds = predicate_plan.get_table_filters_ordered(table_name, table_stats);
@@ -111,9 +108,7 @@ pub(crate) fn apply_table_local_predicates(
     database: &vibesql_storage::Database,
 ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
     // Get table statistics for selectivity-based ordering
-    let table_stats = database
-        .get_table(table_name)
-        .and_then(|table| table.get_statistics());
+    let table_stats = database.get_table(table_name).and_then(|table| table.get_statistics());
 
     // Get predicates ordered by selectivity (most selective first)
     // Falls back to parse order if statistics unavailable
@@ -242,7 +237,9 @@ fn apply_predicates_parallel(
 }
 
 /// Helper function to combine predicates with AND operator
-pub(crate) fn combine_predicates_with_and(mut predicates: Vec<vibesql_ast::Expression>) -> vibesql_ast::Expression {
+pub(crate) fn combine_predicates_with_and(
+    mut predicates: Vec<vibesql_ast::Expression>,
+) -> vibesql_ast::Expression {
     if predicates.is_empty() {
         // This shouldn't happen, but default to TRUE
         vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Boolean(true))

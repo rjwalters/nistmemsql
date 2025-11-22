@@ -44,11 +44,7 @@ pub enum Predicate {
     /// These predicates must be applied after joins complete.
     ///
     /// Examples: `t1.a + t2.b > 10`, `t1.x = t2.y OR t1.z = t3.w`
-    Complex {
-        table_refs: Vec<TableId>,
-        column_refs: Vec<ColumnRef>,
-        expression: Expression,
-    },
+    Complex { table_refs: Vec<TableId>, column_refs: Vec<ColumnRef>, expression: Expression },
 
     /// Constant predicate (no table references)
     ///
@@ -89,10 +85,7 @@ impl Predicate {
             0 => {
                 // No table references - this is a constant expression
                 // Try to evaluate it (simplified version - just return false for now)
-                Ok(Predicate::Constant {
-                    value: false,
-                    expression: expr.clone(),
-                })
+                Ok(Predicate::Constant { value: false, expression: expr.clone() })
             }
             1 => {
                 // Single table - can be pushed to table scan
@@ -129,11 +122,7 @@ impl Predicate {
     pub fn table_refs(&self) -> Vec<&TableId> {
         match self {
             Predicate::TableLocal { table_id, .. } => vec![table_id],
-            Predicate::EquiJoin {
-                left_table,
-                right_table,
-                ..
-            } => vec![left_table, right_table],
+            Predicate::EquiJoin { left_table, right_table, .. } => vec![left_table, right_table],
             Predicate::Complex { table_refs, .. } => table_refs.iter().collect(),
             Predicate::Constant { .. } => vec![],
         }
@@ -163,7 +152,10 @@ impl Predicate {
 
 /// Extract all column references from an expression
 #[allow(dead_code)]
-fn extract_column_refs(expr: &Expression, schema: &CombinedSchema) -> Result<Vec<ColumnRef>, String> {
+fn extract_column_refs(
+    expr: &Expression,
+    schema: &CombinedSchema,
+) -> Result<Vec<ColumnRef>, String> {
     let mut column_refs = Vec::new();
     extract_column_refs_recursive(expr, schema, &mut column_refs)?;
     Ok(column_refs)
@@ -177,10 +169,7 @@ fn extract_column_refs_recursive(
     column_refs: &mut Vec<ColumnRef>,
 ) -> Result<(), String> {
     match expr {
-        Expression::ColumnRef {
-            table: Some(table_name),
-            column,
-        } => {
+        Expression::ColumnRef { table: Some(table_name), column } => {
             let normalized_table = table_name.to_lowercase();
             if !schema.table_schemas.contains_key(&normalized_table) {
                 return Err(format!("Unknown table: {}", table_name));
@@ -191,19 +180,12 @@ fn extract_column_refs_recursive(
             });
             Ok(())
         }
-        Expression::ColumnRef {
-            table: None,
-            column,
-        } => {
+        Expression::ColumnRef { table: None, column } => {
             // Unqualified column - resolve to table(s)
             let column_lower = column.to_lowercase();
             let mut found = false;
             for (table_name, (_start_idx, table_schema)) in &schema.table_schemas {
-                if table_schema
-                    .columns
-                    .iter()
-                    .any(|col| col.name.to_lowercase() == column_lower)
-                {
+                if table_schema.columns.iter().any(|col| col.name.to_lowercase() == column_lower) {
                     column_refs.push(ColumnRef {
                         table_id: TableId(table_name.clone()),
                         column_name: column_lower.clone(),
@@ -241,11 +223,7 @@ fn extract_column_refs_recursive(
             }
             Ok(())
         }
-        Expression::Case {
-            operand,
-            when_clauses,
-            else_result,
-        } => {
+        Expression::Case { operand, when_clauses, else_result } => {
             if let Some(op) = operand {
                 extract_column_refs_recursive(op, schema, column_refs)?;
             }
@@ -268,12 +246,7 @@ fn extract_column_refs_recursive(
 /// Check if an expression is a simple equijoin (t1.col = t2.col)
 #[allow(dead_code)]
 fn is_equijoin(expr: &Expression, column_refs: &[ColumnRef]) -> bool {
-    if let Expression::BinaryOp {
-        left,
-        op: vibesql_ast::BinaryOperator::Equal,
-        right,
-    } = expr
-    {
+    if let Expression::BinaryOp { left, op: vibesql_ast::BinaryOperator::Equal, right } = expr {
         // Both sides must be simple column references
         let left_is_col = matches!(left.as_ref(), Expression::ColumnRef { .. });
         let right_is_col = matches!(right.as_ref(), Expression::ColumnRef { .. });
@@ -296,12 +269,7 @@ fn extract_equijoin_columns(
         return Err("Equijoin must reference exactly 2 columns".to_string());
     }
 
-    if let Expression::BinaryOp {
-        left,
-        op: vibesql_ast::BinaryOperator::Equal,
-        ..
-    } = expr
-    {
+    if let Expression::BinaryOp { left, op: vibesql_ast::BinaryOperator::Equal, .. } = expr {
         // Determine which column appears first in the expression
         if let Expression::ColumnRef { table, column } = left.as_ref() {
             let left_table = table.as_ref().map(|t| t.to_lowercase());
@@ -325,9 +293,10 @@ fn extract_equijoin_columns(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_ast::BinaryOperator;
     use vibesql_types::SqlValue;
+
+    use super::*;
 
     #[test]
     fn test_table_id_equality() {
@@ -341,18 +310,12 @@ mod tests {
 
     #[test]
     fn test_column_ref_equality() {
-        let col1 = ColumnRef {
-            table_id: TableId("users".to_string()),
-            column_name: "id".to_string(),
-        };
-        let col2 = ColumnRef {
-            table_id: TableId("users".to_string()),
-            column_name: "id".to_string(),
-        };
-        let col3 = ColumnRef {
-            table_id: TableId("users".to_string()),
-            column_name: "name".to_string(),
-        };
+        let col1 =
+            ColumnRef { table_id: TableId("users".to_string()), column_name: "id".to_string() };
+        let col2 =
+            ColumnRef { table_id: TableId("users".to_string()), column_name: "id".to_string() };
+        let col3 =
+            ColumnRef { table_id: TableId("users".to_string()), column_name: "name".to_string() };
 
         assert_eq!(col1, col2);
         assert_ne!(col1, col3);
@@ -395,10 +358,7 @@ mod tests {
     #[test]
     fn test_constant_predicate_can_push_anywhere() {
         let expr = Expression::Literal(SqlValue::Boolean(true));
-        let pred = Predicate::Constant {
-            value: true,
-            expression: expr,
-        };
+        let pred = Predicate::Constant { value: true, expression: expr };
 
         let table_id = TableId("users".to_string());
         assert!(pred.can_push_to(&table_id));
@@ -406,14 +366,8 @@ mod tests {
 
     #[test]
     fn test_is_equijoin_valid() {
-        let col1 = ColumnRef {
-            table_id: TableId("t1".to_string()),
-            column_name: "a".to_string(),
-        };
-        let col2 = ColumnRef {
-            table_id: TableId("t2".to_string()),
-            column_name: "b".to_string(),
-        };
+        let col1 = ColumnRef { table_id: TableId("t1".to_string()), column_name: "a".to_string() };
+        let col2 = ColumnRef { table_id: TableId("t2".to_string()), column_name: "b".to_string() };
         let column_refs = vec![col1, col2];
 
         let expr = Expression::BinaryOp {
@@ -433,14 +387,8 @@ mod tests {
 
     #[test]
     fn test_is_equijoin_same_table() {
-        let col1 = ColumnRef {
-            table_id: TableId("t1".to_string()),
-            column_name: "a".to_string(),
-        };
-        let col2 = ColumnRef {
-            table_id: TableId("t1".to_string()),
-            column_name: "b".to_string(),
-        };
+        let col1 = ColumnRef { table_id: TableId("t1".to_string()), column_name: "a".to_string() };
+        let col2 = ColumnRef { table_id: TableId("t1".to_string()), column_name: "b".to_string() };
         let column_refs = vec![col1, col2];
 
         let expr = Expression::BinaryOp {

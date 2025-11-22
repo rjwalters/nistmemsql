@@ -16,8 +16,9 @@ use std::{cmp::Ordering, fmt, str::FromStr};
 /// - days: Total days
 /// - microseconds: Total time in microseconds (hours, minutes, seconds, fractions)
 ///
-/// Note: Equality and ordering are based on the internal representation (months, days, microseconds),
-/// not the string value. This means "1 YEAR" equals "12 MONTH" even though the strings differ.
+/// Note: Equality and ordering are based on the internal representation (months, days,
+/// microseconds), not the string value. This means "1 YEAR" equals "12 MONTH" even though the
+/// strings differ.
 #[derive(Debug, Clone)]
 pub struct Interval {
     /// The original interval string (e.g., "5 YEAR", "1-6 YEAR TO MONTH")
@@ -35,12 +36,7 @@ impl Interval {
     pub fn new(value: String) -> Self {
         // Parse the interval string to extract internal representation
         let (months, days, microseconds) = Self::parse_interval(&value);
-        Interval {
-            value,
-            months,
-            days,
-            microseconds,
-        }
+        Interval { value, months, days, microseconds }
     }
 
     /// Parse an interval string into (months, days, microseconds)
@@ -69,8 +65,7 @@ impl Interval {
                 let to_unit = parts[to_pos + 1];
 
                 // Handle YEAR TO MONTH (format: "Y-M" or "Y")
-                if from_unit.eq_ignore_ascii_case("YEAR") && to_unit.eq_ignore_ascii_case("MONTH")
-                {
+                if from_unit.eq_ignore_ascii_case("YEAR") && to_unit.eq_ignore_ascii_case("MONTH") {
                     if let Some(dash_pos) = value_part.find('-') {
                         let years: i32 = value_part[..dash_pos].parse().unwrap_or(0);
                         let month_part: i32 = value_part[dash_pos + 1..].parse().unwrap_or(0);
@@ -457,8 +452,10 @@ mod tests {
 
     #[test]
     fn test_interval_hash_consistency() {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
+        use std::{
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher},
+        };
 
         // Helper function to compute hash
         fn calculate_hash<T: Hash>(t: &T) -> u64 {

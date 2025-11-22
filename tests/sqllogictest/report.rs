@@ -58,9 +58,11 @@
 //! 3. Create ComparisonReport
 //! 4. Output in requested format (console/JSON/markdown)
 
-use super::metrics::BenchmarkMetrics;
-use serde::{Deserialize, Serialize};
 use std::fmt;
+
+use serde::{Deserialize, Serialize};
+
+use super::metrics::BenchmarkMetrics;
 
 /// Comparison report containing metrics from multiple engines
 #[allow(dead_code)]
@@ -251,9 +253,7 @@ impl ComparisonReport {
 
         output.push_str(&format!(
             "{:<25} {:<15} {:<15}\n",
-            "Failures",
-            self.baseline.fail_count,
-            self.comparison.fail_count,
+            "Failures", self.baseline.fail_count, self.comparison.fail_count,
         ));
 
         // Performance breakdown
@@ -281,17 +281,13 @@ impl ComparisonReport {
         if !self.comparison.errors.is_empty() {
             output.push_str(&format!(
                 "\n{} Failed Queries in {}:\n",
-                self.comparison.fail_count,
-                self.comparison.engine_name
+                self.comparison.fail_count, self.comparison.engine_name
             ));
             for (i, error) in self.comparison.errors.iter().take(10).enumerate() {
                 output.push_str(&format!("  {}. {}\n", i + 1, error));
             }
             if self.comparison.errors.len() > 10 {
-                output.push_str(&format!(
-                    "  ... and {} more\n",
-                    self.comparison.errors.len() - 10
-                ));
+                output.push_str(&format!("  ... and {} more\n", self.comparison.errors.len() - 10));
             }
         }
 
@@ -357,8 +353,7 @@ impl ComparisonReport {
 
         output.push_str(&format!(
             "| Failures | {} | {} | - |\n",
-            self.baseline.fail_count,
-            self.comparison.fail_count,
+            self.baseline.fail_count, self.comparison.fail_count,
         ));
 
         // Detailed breakdown
@@ -384,10 +379,7 @@ impl ComparisonReport {
 
         // Failed queries
         if !self.comparison.errors.is_empty() {
-            output.push_str(&format!(
-                "\n## Failed Queries ({})\n\n",
-                self.comparison.fail_count
-            ));
+            output.push_str(&format!("\n## Failed Queries ({})\n\n", self.comparison.fail_count));
             for (i, error) in self.comparison.errors.iter().take(10).enumerate() {
                 output.push_str(&format!("{}. `{}`\n", i + 1, error));
             }
@@ -478,8 +470,9 @@ impl fmt::Display for ComparisonReport {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::time::Duration;
+
+    use super::*;
 
     #[allow(dead_code)]
     fn create_sample_metrics(

@@ -1,6 +1,6 @@
+use std::{collections::HashMap, io};
+
 use bytes::{Buf, BufMut, BytesMut};
-use std::collections::HashMap;
-use std::io;
 use thiserror::Error;
 
 /// PostgreSQL protocol errors
@@ -102,10 +102,7 @@ pub struct FieldDescription {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FrontendMessage {
     /// Startup message
-    Startup {
-        protocol_version: i32,
-        params: HashMap<String, String>,
-    },
+    Startup { protocol_version: i32, params: HashMap<String, String> },
 
     /// Password message
     Password { password: String },
@@ -151,10 +148,7 @@ impl BackendMessage {
                 put_cstring(buf, value);
             }
 
-            BackendMessage::BackendKeyData {
-                process_id,
-                secret_key,
-            } => {
+            BackendMessage::BackendKeyData { process_id, secret_key } => {
                 buf.put_u8(b'K'); // BackendKeyData
                 buf.put_i32(12);
                 buf.put_i32(*process_id);
@@ -323,10 +317,7 @@ impl FrontendMessage {
             params.insert(key, value);
         }
 
-        Ok(Some(FrontendMessage::Startup {
-            protocol_version,
-            params,
-        }))
+        Ok(Some(FrontendMessage::Startup { protocol_version, params }))
     }
 }
 
@@ -383,10 +374,7 @@ mod tests {
     #[test]
     fn test_ready_for_query_encoding() {
         let mut buf = BytesMut::new();
-        BackendMessage::ReadyForQuery {
-            status: TransactionStatus::Idle,
-        }
-        .encode(&mut buf);
+        BackendMessage::ReadyForQuery { status: TransactionStatus::Idle }.encode(&mut buf);
 
         assert_eq!(buf[0], b'Z');
         assert_eq!(&buf[1..5], &[0, 0, 0, 5]);

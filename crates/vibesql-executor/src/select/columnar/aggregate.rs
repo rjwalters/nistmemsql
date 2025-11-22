@@ -1,12 +1,11 @@
 //! Columnar aggregation - high-performance aggregate computation
 
-use crate::errors::ExecutorError;
-use crate::schema::CombinedSchema;
 use vibesql_ast::Expression;
 use vibesql_storage::Row;
 use vibesql_types::SqlValue;
 
 use super::scan::ColumnarScan;
+use crate::{errors::ExecutorError, schema::CombinedSchema};
 
 /// Aggregate operation type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -74,11 +73,12 @@ fn compute_sum(
                 SqlValue::Float(v) => sum += *v as f64,
                 SqlValue::Double(v) => sum += v,
                 SqlValue::Numeric(v) => sum += v,
-                SqlValue::Null => {}, // NULL values don't contribute to sum
+                SqlValue::Null => {} // NULL values don't contribute to sum
                 _ => {
-                    return Err(ExecutorError::UnsupportedExpression(
-                        format!("Cannot compute SUM on non-numeric value: {:?}", value)
-                    ))
+                    return Err(ExecutorError::UnsupportedExpression(format!(
+                        "Cannot compute SUM on non-numeric value: {:?}",
+                        value
+                    )))
                 }
             }
             count += 1;
@@ -87,11 +87,7 @@ fn compute_sum(
 
     // Return appropriate type based on input
     // For now, always return Double for simplicity
-    Ok(if count > 0 {
-        SqlValue::Double(sum)
-    } else {
-        SqlValue::Null
-    })
+    Ok(if count > 0 { SqlValue::Double(sum) } else { SqlValue::Null })
 }
 
 /// Compute COUNT aggregate
@@ -204,15 +200,9 @@ fn compare_for_min_max(a: &SqlValue, b: &SqlValue) -> bool {
         (SqlValue::Integer(a), SqlValue::Integer(b)) => a.cmp(b),
         (SqlValue::Bigint(a), SqlValue::Bigint(b)) => a.cmp(b),
         (SqlValue::Smallint(a), SqlValue::Smallint(b)) => a.cmp(b),
-        (SqlValue::Float(a), SqlValue::Float(b)) => {
-            a.partial_cmp(b).unwrap_or(Ordering::Equal)
-        }
-        (SqlValue::Double(a), SqlValue::Double(b)) => {
-            a.partial_cmp(b).unwrap_or(Ordering::Equal)
-        }
-        (SqlValue::Numeric(a), SqlValue::Numeric(b)) => {
-            a.partial_cmp(b).unwrap_or(Ordering::Equal)
-        }
+        (SqlValue::Float(a), SqlValue::Float(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
+        (SqlValue::Double(a), SqlValue::Double(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
+        (SqlValue::Numeric(a), SqlValue::Numeric(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
         _ => Ordering::Equal,
     };
 
@@ -274,11 +264,7 @@ pub fn extract_aggregates(
 
     for expr in exprs {
         match expr {
-            Expression::AggregateFunction {
-                name,
-                distinct,
-                args,
-            } => {
+            Expression::AggregateFunction { name, distinct, args } => {
                 // DISTINCT not supported for columnar optimization
                 if *distinct {
                     return None;
@@ -385,9 +371,10 @@ mod tests {
 
     #[test]
     fn test_extract_aggregates_simple() {
-        use crate::schema::CombinedSchema;
         use vibesql_catalog::{ColumnSchema, TableSchema};
         use vibesql_types::DataType;
+
+        use crate::schema::CombinedSchema;
 
         // Create a simple schema with two columns
         let schema = TableSchema::new(
@@ -404,10 +391,7 @@ mod tests {
         let exprs = vec![Expression::AggregateFunction {
             name: "SUM".to_string(),
             distinct: false,
-            args: vec![Expression::ColumnRef {
-                table: None,
-                column: "col1".to_string(),
-            }],
+            args: vec![Expression::ColumnRef { table: None, column: "col1".to_string() }],
         }];
 
         let result = extract_aggregates(&exprs, &combined_schema);
@@ -434,18 +418,12 @@ mod tests {
             Expression::AggregateFunction {
                 name: "SUM".to_string(),
                 distinct: false,
-                args: vec![Expression::ColumnRef {
-                    table: None,
-                    column: "col1".to_string(),
-                }],
+                args: vec![Expression::ColumnRef { table: None, column: "col1".to_string() }],
             },
             Expression::AggregateFunction {
                 name: "AVG".to_string(),
                 distinct: false,
-                args: vec![Expression::ColumnRef {
-                    table: None,
-                    column: "col2".to_string(),
-                }],
+                args: vec![Expression::ColumnRef { table: None, column: "col2".to_string() }],
             },
         ];
 
@@ -459,9 +437,10 @@ mod tests {
 
     #[test]
     fn test_extract_aggregates_unsupported() {
-        use crate::schema::CombinedSchema;
         use vibesql_catalog::{ColumnSchema, TableSchema};
         use vibesql_types::DataType;
+
+        use crate::schema::CombinedSchema;
 
         let schema = TableSchema::new(
             "test".to_string(),
@@ -474,20 +453,14 @@ mod tests {
         let exprs = vec![Expression::AggregateFunction {
             name: "SUM".to_string(),
             distinct: true,
-            args: vec![Expression::ColumnRef {
-                table: None,
-                column: "col1".to_string(),
-            }],
+            args: vec![Expression::ColumnRef { table: None, column: "col1".to_string() }],
         }];
 
         let result = extract_aggregates(&exprs, &combined_schema);
         assert!(result.is_none());
 
         // Test non-aggregate expression (should return None)
-        let exprs = vec![Expression::ColumnRef {
-            table: None,
-            column: "col1".to_string(),
-        }];
+        let exprs = vec![Expression::ColumnRef { table: None, column: "col1".to_string() }];
 
         let result = extract_aggregates(&exprs, &combined_schema);
         assert!(result.is_none());
@@ -497,10 +470,7 @@ mod tests {
             name: "SUM".to_string(),
             distinct: false,
             args: vec![Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "col1".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),
                 op: vibesql_ast::BinaryOperator::Plus,
                 right: Box::new(Expression::Literal(SqlValue::Integer(1))),
             }],

@@ -2,14 +2,23 @@
 //!
 //! Simplified implementation using Arrow 53 scalar comparison API
 
-use crate::errors::ExecutorError;
-use arrow::array::{Array, ArrayRef, BooleanArray, Float64Array, Int64Array, StringArray, Date32Array, TimestampMicrosecondArray};
-use arrow::compute::{and_kleene as and_op, or_kleene as or_op, not as not_op, filter_record_batch};
-use arrow::compute::kernels::cmp::{eq, neq, lt, lt_eq, gt, gt_eq};
-use arrow::record_batch::RecordBatch;
-use arrow::datatypes::TimeUnit;
+use arrow::{
+    array::{
+        Array, ArrayRef, BooleanArray, Date32Array, Float64Array, Int64Array, StringArray,
+        TimestampMicrosecondArray,
+    },
+    compute::{
+        and_kleene as and_op, filter_record_batch,
+        kernels::cmp::{eq, gt, gt_eq, lt, lt_eq, neq},
+        not as not_op, or_kleene as or_op,
+    },
+    datatypes::TimeUnit,
+    record_batch::RecordBatch,
+};
 use vibesql_ast::{BinaryOperator, Expression};
 use vibesql_types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// Apply WHERE clause filter to a RecordBatch using SIMD operations
 pub fn filter_record_batch_simd(
@@ -27,27 +36,20 @@ fn evaluate_predicate_simd(
     expr: &Expression,
 ) -> Result<BooleanArray, ExecutorError> {
     match expr {
-        Expression::BinaryOp { left, op, right } => {
-            evaluate_binary_op_simd(batch, left, op, right)
-        }
-        Expression::Literal(value) => {
-            match value {
-                SqlValue::Boolean(b) => Ok(BooleanArray::from(vec![*b; batch.num_rows()])),
-                _ => Err(ExecutorError::Other("Non-boolean literal in WHERE clause".to_string())),
+        Expression::BinaryOp { left, op, right } => evaluate_binary_op_simd(batch, left, op, right),
+        Expression::Literal(value) => match value {
+            SqlValue::Boolean(b) => Ok(BooleanArray::from(vec![*b; batch.num_rows()])),
+            _ => Err(ExecutorError::Other("Non-boolean literal in WHERE clause".to_string())),
+        },
+        Expression::ColumnRef { column, .. } => get_boolean_column(batch, column),
+        Expression::UnaryOp { op, expr } => match op {
+            vibesql_ast::UnaryOperator::Not => {
+                let expr_mask = evaluate_predicate_simd(batch, expr)?;
+                not_op(&expr_mask)
+                    .map_err(|e| ExecutorError::Other(format!("SIMD NOT failed: {}", e)))
             }
-        }
-        Expression::ColumnRef { column, .. } => {
-            get_boolean_column(batch, column)
-        }
-        Expression::UnaryOp { op, expr } => {
-            match op {
-                vibesql_ast::UnaryOperator::Not => {
-                    let expr_mask = evaluate_predicate_simd(batch, expr)?;
-                    not_op(&expr_mask).map_err(|e| ExecutorError::Other(format!("SIMD NOT failed: {}", e)))
-                }
-                _ => Err(ExecutorError::Other(format!("Unsupported unary operator: {:?}", op))),
-            }
-        }
+            _ => Err(ExecutorError::Other(format!("Unsupported unary operator: {:?}", op))),
+        },
         _ => Err(ExecutorError::Other(format!("Unsupported SIMD predicate: {:?}", expr))),
     }
 }
@@ -71,7 +73,8 @@ fn evaluate_binary_op_simd(
 
             // Evaluate right side
             let right_mask = evaluate_predicate_simd(batch, right)?;
-            and_op(&left_mask, &right_mask).map_err(|e| ExecutorError::Other(format!("SIMD AND failed: {}", e)))
+            and_op(&left_mask, &right_mask)
+                .map_err(|e| ExecutorError::Other(format!("SIMD AND failed: {}", e)))
         }
         BinaryOperator::Or => {
             // Evaluate left side first
@@ -84,12 +87,15 @@ fn evaluate_binary_op_simd(
 
             // Evaluate right side
             let right_mask = evaluate_predicate_simd(batch, right)?;
-            or_op(&left_mask, &right_mask).map_err(|e| ExecutorError::Other(format!("SIMD OR failed: {}", e)))
+            or_op(&left_mask, &right_mask)
+                .map_err(|e| ExecutorError::Other(format!("SIMD OR failed: {}", e)))
         }
-        BinaryOperator::Equal | BinaryOperator::NotEqual | BinaryOperator::LessThan
-        | BinaryOperator::LessThanOrEqual | BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual => {
-            evaluate_comparison_simd(batch, left, op, right)
-        }
+        BinaryOperator::Equal
+        | BinaryOperator::NotEqual
+        | BinaryOperator::LessThan
+        | BinaryOperator::LessThanOrEqual
+        | BinaryOperator::GreaterThan
+        | BinaryOperator::GreaterThanOrEqual => evaluate_comparison_simd(batch, left, op, right),
         _ => Err(ExecutorError::Other(format!("Unsupported SIMD binary operator: {:?}", op))),
     }
 }
@@ -115,11 +121,16 @@ fn evaluate_comparison_simd(
 ) -> Result<BooleanArray, ExecutorError> {
     let (col_name, literal_value) = match (left, right) {
         (Expression::ColumnRef { column, .. }, Expression::Literal(val)) => (column, val),
-        _ => return Err(ExecutorError::Other("SIMD comparison requires: column <op> literal".to_string())),
+        _ => {
+            return Err(ExecutorError::Other(
+                "SIMD comparison requires: column <op> literal".to_string(),
+            ))
+        }
     };
 
     let schema = batch.schema();
-    let (col_idx, _) = schema.column_with_name(col_name)
+    let (col_idx, _) = schema
+        .column_with_name(col_name)
         .ok_or_else(|| ExecutorError::Other(format!("Column not found: {}", col_name)))?;
     let column = batch.column(col_idx);
 
@@ -128,13 +139,23 @@ fn evaluate_comparison_simd(
         arrow::datatypes::DataType::Float64 => compare_float64(column, literal_value, op),
         arrow::datatypes::DataType::Utf8 => compare_string(column, literal_value, op),
         arrow::datatypes::DataType::Date32 => compare_date32(column, literal_value, op),
-        arrow::datatypes::DataType::Timestamp(TimeUnit::Microsecond, None) => compare_timestamp(column, literal_value, op),
-        _ => Err(ExecutorError::Other(format!("Unsupported column type: {:?}", column.data_type()))),
+        arrow::datatypes::DataType::Timestamp(TimeUnit::Microsecond, None) => {
+            compare_timestamp(column, literal_value, op)
+        }
+        _ => {
+            Err(ExecutorError::Other(format!("Unsupported column type: {:?}", column.data_type())))
+        }
     }
 }
 
-fn compare_int64(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator) -> Result<BooleanArray, ExecutorError> {
-    let array = column.as_any().downcast_ref::<Int64Array>()
+fn compare_int64(
+    column: &ArrayRef,
+    literal: &SqlValue,
+    op: &BinaryOperator,
+) -> Result<BooleanArray, ExecutorError> {
+    let array = column
+        .as_any()
+        .downcast_ref::<Int64Array>()
         .ok_or_else(|| ExecutorError::Other("Failed to downcast Int64Array".to_string()))?;
 
     let val = match literal {
@@ -165,8 +186,14 @@ fn compare_int64(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator) -> 
     Ok(result)
 }
 
-fn compare_float64(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator) -> Result<BooleanArray, ExecutorError> {
-    let array = column.as_any().downcast_ref::<Float64Array>()
+fn compare_float64(
+    column: &ArrayRef,
+    literal: &SqlValue,
+    op: &BinaryOperator,
+) -> Result<BooleanArray, ExecutorError> {
+    let array = column
+        .as_any()
+        .downcast_ref::<Float64Array>()
         .ok_or_else(|| ExecutorError::Other("Failed to downcast Float64Array".to_string()))?;
 
     let val = match literal {
@@ -198,8 +225,14 @@ fn compare_float64(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator) -
     Ok(result)
 }
 
-fn compare_string(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator) -> Result<BooleanArray, ExecutorError> {
-    let array = column.as_any().downcast_ref::<StringArray>()
+fn compare_string(
+    column: &ArrayRef,
+    literal: &SqlValue,
+    op: &BinaryOperator,
+) -> Result<BooleanArray, ExecutorError> {
+    let array = column
+        .as_any()
+        .downcast_ref::<StringArray>()
         .ok_or_else(|| ExecutorError::Other("Failed to downcast StringArray".to_string()))?;
 
     let val = match literal {
@@ -229,10 +262,16 @@ fn compare_string(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator) ->
     Ok(result)
 }
 
-fn compare_date32(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator) -> Result<BooleanArray, ExecutorError> {
+fn compare_date32(
+    column: &ArrayRef,
+    literal: &SqlValue,
+    op: &BinaryOperator,
+) -> Result<BooleanArray, ExecutorError> {
     use super::batch::date_to_days_since_epoch;
 
-    let array = column.as_any().downcast_ref::<Date32Array>()
+    let array = column
+        .as_any()
+        .downcast_ref::<Date32Array>()
         .ok_or_else(|| ExecutorError::Other("Failed to downcast Date32Array".to_string()))?;
 
     let val = match literal {
@@ -262,11 +301,16 @@ fn compare_date32(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator) ->
     Ok(result)
 }
 
-fn compare_timestamp(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator) -> Result<BooleanArray, ExecutorError> {
+fn compare_timestamp(
+    column: &ArrayRef,
+    literal: &SqlValue,
+    op: &BinaryOperator,
+) -> Result<BooleanArray, ExecutorError> {
     use super::batch::timestamp_to_microseconds;
 
-    let array = column.as_any().downcast_ref::<TimestampMicrosecondArray>()
-        .ok_or_else(|| ExecutorError::Other("Failed to downcast TimestampMicrosecondArray".to_string()))?;
+    let array = column.as_any().downcast_ref::<TimestampMicrosecondArray>().ok_or_else(|| {
+        ExecutorError::Other("Failed to downcast TimestampMicrosecondArray".to_string())
+    })?;
 
     let val = match literal {
         SqlValue::Timestamp(ts) => timestamp_to_microseconds(ts),
@@ -297,19 +341,24 @@ fn compare_timestamp(column: &ArrayRef, literal: &SqlValue, op: &BinaryOperator)
 
 fn get_boolean_column(batch: &RecordBatch, col_name: &str) -> Result<BooleanArray, ExecutorError> {
     let schema = batch.schema();
-    let (col_idx, _) = schema.column_with_name(col_name)
+    let (col_idx, _) = schema
+        .column_with_name(col_name)
         .ok_or_else(|| ExecutorError::Other(format!("Column not found: {}", col_name)))?;
     let column = batch.column(col_idx);
-    let array = column.as_any().downcast_ref::<BooleanArray>()
+    let array = column
+        .as_any()
+        .downcast_ref::<BooleanArray>()
         .ok_or_else(|| ExecutorError::Other("Column is not boolean type".to_string()))?;
     Ok(array.clone())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use arrow::datatypes::{DataType, Field, Schema};
     use std::sync::Arc;
+
+    use arrow::datatypes::{DataType, Field, Schema};
+
+    use super::*;
 
     #[test]
     fn test_simd_filter_int64_gt() {

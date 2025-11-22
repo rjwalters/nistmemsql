@@ -68,8 +68,8 @@ pub fn is_correlated(subquery: &SelectStmt) -> bool {
 ///
 /// Current approach:
 /// - **Qualified refs** (e.g., `orders.region`): Can detect if table is external
-/// - **Unqualified refs** (e.g., `region`): Follow SQL resolution rules - assume
-///   internal first (matches innermost scope per SQL semantics)
+/// - **Unqualified refs** (e.g., `region`): Follow SQL resolution rules - assume internal first
+///   (matches innermost scope per SQL semantics)
 ///
 /// This conservative approach may:
 /// - Miss some correlations (when unqualified ref is actually external)
@@ -125,11 +125,7 @@ pub(super) fn has_external_column_refs(expr: &Expression, subquery: &SelectStmt)
 
         Expression::IsNull { expr, .. } => has_external_column_refs(expr, subquery),
 
-        Expression::Case {
-            operand,
-            when_clauses,
-            else_result,
-        } => {
+        Expression::Case { operand, when_clauses, else_result } => {
             operand.as_ref().is_some_and(|e| has_external_column_refs(e, subquery))
                 || when_clauses.iter().any(|clause| {
                     clause.conditions.iter().any(|cond| has_external_column_refs(cond, subquery))
@@ -164,14 +160,11 @@ pub(super) fn has_external_column_refs(expr: &Expression, subquery: &SelectStmt)
         }
 
         Expression::Position { substring, string, .. } => {
-            has_external_column_refs(substring, subquery) || has_external_column_refs(string, subquery)
+            has_external_column_refs(substring, subquery)
+                || has_external_column_refs(string, subquery)
         }
 
-        Expression::Trim {
-            removal_char,
-            string,
-            ..
-        } => {
+        Expression::Trim { removal_char, string, .. } => {
             removal_char.as_ref().is_some_and(|e| has_external_column_refs(e, subquery))
                 || has_external_column_refs(string, subquery)
         }

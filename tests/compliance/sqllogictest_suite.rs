@@ -50,12 +50,7 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     // Check if we're filtering to specific files (for parallel workers)
     let filter_files: Option<HashSet<String>> = env::var("SQLLOGICTEST_FILES")
         .ok()
-        .map(|files_str| {
-            files_str
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .collect()
-        });
+        .map(|files_str| files_str.split(',').map(|s| s.trim().to_string()).collect());
 
     // Find all .test files
     let pattern = format!("{}/**/*.test", test_dir.display());
@@ -64,11 +59,8 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
 
     // Filter out blocklisted files (exact matches and patterns)
     all_test_files.retain(|test_file| {
-        let relative_path = test_file
-            .strip_prefix(&test_dir)
-            .unwrap_or(test_file)
-            .to_string_lossy()
-            .to_string();
+        let relative_path =
+            test_file.strip_prefix(&test_dir).unwrap_or(test_file).to_string_lossy().to_string();
 
         // Check exact blocklist
         if blocklist.contains(&relative_path) {
@@ -122,11 +114,8 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
         files_tested += 1;
 
         // Get relative path from test_dir
-        let relative_path = test_file
-            .strip_prefix(&test_dir)
-            .unwrap_or(&test_file)
-            .to_string_lossy()
-            .to_string();
+        let relative_path =
+            test_file.strip_prefix(&test_dir).unwrap_or(&test_file).to_string_lossy().to_string();
 
         // Determine category from path
         let category = if relative_path.starts_with("select") {
@@ -186,10 +175,7 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
         }
     }
 
-    println!(
-        "\n✅ All {} test files completed!",
-        total_available_files
-    );
+    println!("\n✅ All {} test files completed!", total_available_files);
     println!("Total time: {:.1} seconds", start_time.elapsed().as_secs_f64());
     println!("Files tested: {}\n", files_tested);
 
@@ -297,10 +283,8 @@ fn main() {
     }
 
     // Collect all timed out files
-    let all_timed_out_files: Vec<String> = results.values()
-        .flat_map(|s| &s.timed_out_files)
-        .cloned()
-        .collect();
+    let all_timed_out_files: Vec<String> =
+        results.values().flat_map(|s| &s.timed_out_files).cloned().collect();
 
     let results_json = serde_json::json!({
         "summary": {

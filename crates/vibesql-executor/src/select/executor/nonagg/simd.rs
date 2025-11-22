@@ -6,8 +6,7 @@
 use crate::{
     errors::ExecutorError,
     select::vectorized::{
-        filter_record_batch_simd, record_batch_to_rows, rows_to_record_batch,
-        VECTORIZE_THRESHOLD,
+        filter_record_batch_simd, record_batch_to_rows, rows_to_record_batch, VECTORIZE_THRESHOLD,
     },
 };
 

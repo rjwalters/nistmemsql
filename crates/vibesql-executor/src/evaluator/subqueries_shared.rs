@@ -17,9 +17,10 @@
 //! - Both evaluators delegate to shared implementation
 //! - Maintain identical SQL semantics across both evaluators
 
-use crate::errors::ExecutorError;
 use vibesql_storage::Row;
 use vibesql_types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// Evaluate scalar subquery result - must return exactly one row and one column
 ///
@@ -30,7 +31,8 @@ use vibesql_types::SqlValue;
 ///
 /// ## Parameters
 /// - `rows`: The result set from executing the subquery
-/// - `_column_count`: Deprecated parameter, kept for API compatibility. Use actual column count from rows instead.
+/// - `_column_count`: Deprecated parameter, kept for API compatibility. Use actual column count
+///   from rows instead.
 ///
 /// ## Returns
 /// - `Ok(SqlValue::Null)` if no rows returned
@@ -64,10 +66,7 @@ pub fn eval_scalar_subquery_core(
     if rows.is_empty() {
         Ok(SqlValue::Null)
     } else {
-        rows[0]
-            .get(0)
-            .cloned()
-            .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })
+        rows[0].get(0).cloned().ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })
     }
 }
 
@@ -135,10 +134,7 @@ where
     // - ALL: returns TRUE (vacuously true - all zero rows satisfy the condition)
     // - ANY/SOME: returns FALSE (no rows to satisfy the condition)
     if rows.is_empty() {
-        return Ok(SqlValue::Boolean(matches!(
-            quantifier,
-            vibesql_ast::Quantifier::All
-        )));
+        return Ok(SqlValue::Boolean(matches!(quantifier, vibesql_ast::Quantifier::All)));
     }
 
     // If left value is NULL, result is NULL

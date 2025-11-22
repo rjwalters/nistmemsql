@@ -297,13 +297,10 @@ impl Keyword {
     /// Returns true if this keyword can be used as an unquoted column or table name.
     /// These are "unreserved" keywords that are only treated as keywords in specific contexts.
     ///
-    /// This follows SQLite's behavior where temporal type keywords (TIMESTAMP, DATE, TIME, INTERVAL)
-    /// can be used as identifiers without quoting.
+    /// This follows SQLite's behavior where temporal type keywords (TIMESTAMP, DATE, TIME,
+    /// INTERVAL) can be used as identifiers without quoting.
     pub fn can_be_identifier(&self) -> bool {
-        matches!(
-            self,
-            Keyword::Timestamp | Keyword::Date | Keyword::Time | Keyword::Interval
-        )
+        matches!(self, Keyword::Timestamp | Keyword::Date | Keyword::Time | Keyword::Interval)
     }
 }
 

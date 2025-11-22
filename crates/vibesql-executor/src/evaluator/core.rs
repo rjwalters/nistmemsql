@@ -36,7 +36,8 @@ pub struct ExpressionEvaluator<'a> {
     pub(super) procedural_context: Option<&'a crate::procedural::ExecutionContext>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
-    /// CSE cache for common sub-expression elimination with LRU eviction (shared via Rc across depth levels)
+    /// CSE cache for common sub-expression elimination with LRU eviction (shared via Rc across
+    /// depth levels)
     pub(super) cse_cache: Rc<RefCell<LruCache<u64, vibesql_types::SqlValue>>>,
     /// Whether CSE is enabled (can be disabled for debugging)
     pub(super) enable_cse: bool,
@@ -53,20 +54,24 @@ pub struct CombinedExpressionEvaluator<'a> {
     pub(super) procedural_context: Option<&'a crate::procedural::ExecutionContext>,
     /// Cache for column lookups to avoid repeated schema traversals
     column_cache: RefCell<HashMap<(Option<String>, String), usize>>,
-    /// Cache for non-correlated subquery results with LRU eviction (key = subquery hash, value = result rows)
-    /// Shared via Rc across child evaluators within a single statement execution.
+    /// Cache for non-correlated subquery results with LRU eviction (key = subquery hash, value =
+    /// result rows) Shared via Rc across child evaluators within a single statement execution.
     /// Cache lifetime is tied to the evaluator instance - each new evaluator gets a fresh cache.
     pub(super) subquery_cache: Rc<RefCell<LruCache<u64, Vec<vibesql_storage::Row>>>>,
-    /// Cache for IN/NOT IN subquery value sets with LRU eviction (key = subquery hash, value = (values, has_null))
-    /// Uses HashSet for O(1) membership testing instead of O(n) linear search through rows.
-    /// This provides massive speedup for anti-joins like TPC-H Q16.
-    pub(super) in_value_cache: Rc<RefCell<LruCache<u64, (std::collections::HashSet<vibesql_types::SqlValue>, bool)>>>,
-    /// Cache for correlated scalar subquery results (key = (subquery hash, correlation value), value = scalar result)
-    /// This enables O(distinct_keys) execution instead of O(n) for queries like TPC-H Q17
-    pub(super) correlated_scalar_cache: Rc<RefCell<LruCache<(u64, vibesql_types::SqlValue), vibesql_types::SqlValue>>>,
+    /// Cache for IN/NOT IN subquery value sets with LRU eviction (key = subquery hash, value =
+    /// (values, has_null)) Uses HashSet for O(1) membership testing instead of O(n) linear
+    /// search through rows. This provides massive speedup for anti-joins like TPC-H Q16.
+    pub(super) in_value_cache:
+        Rc<RefCell<LruCache<u64, (std::collections::HashSet<vibesql_types::SqlValue>, bool)>>>,
+    /// Cache for correlated scalar subquery results (key = (subquery hash, correlation value),
+    /// value = scalar result) This enables O(distinct_keys) execution instead of O(n) for
+    /// queries like TPC-H Q17
+    pub(super) correlated_scalar_cache:
+        Rc<RefCell<LruCache<(u64, vibesql_types::SqlValue), vibesql_types::SqlValue>>>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
-    /// CSE cache for common sub-expression elimination with LRU eviction (shared via Rc across depth levels)
+    /// CSE cache for common sub-expression elimination with LRU eviction (shared via Rc across
+    /// depth levels)
     pub(super) cse_cache: Rc<RefCell<LruCache<u64, vibesql_types::SqlValue>>>,
     /// Whether CSE is enabled (can be disabled for debugging)
     pub(super) enable_cse: bool,
@@ -84,9 +89,7 @@ impl<'a> ExpressionEvaluator<'a> {
             trigger_context: None,
             procedural_context: None,
             depth: 0,
-            cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(cache_size).unwrap()
-            ))),
+            cse_cache: Rc::new(RefCell::new(LruCache::new(NonZeroUsize::new(cache_size).unwrap()))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -123,7 +126,7 @@ impl<'a> ExpressionEvaluator<'a> {
             procedural_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap(),
             ))),
             enable_cse: Self::is_cse_enabled(),
         }
@@ -143,7 +146,7 @@ impl<'a> ExpressionEvaluator<'a> {
             procedural_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap(),
             ))),
             enable_cse: Self::is_cse_enabled(),
         }
@@ -164,7 +167,7 @@ impl<'a> ExpressionEvaluator<'a> {
             procedural_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap(),
             ))),
             enable_cse: Self::is_cse_enabled(),
         }
@@ -187,13 +190,14 @@ impl<'a> ExpressionEvaluator<'a> {
             procedural_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap(),
             ))),
             enable_cse: Self::is_cse_enabled(),
         }
     }
 
-    /// Create a new expression evaluator with procedural context for stored procedure/function execution
+    /// Create a new expression evaluator with procedural context for stored procedure/function
+    /// execution
     pub fn with_procedural_context(
         schema: &'a vibesql_catalog::TableSchema,
         database: &'a vibesql_storage::Database,
@@ -208,7 +212,7 @@ impl<'a> ExpressionEvaluator<'a> {
             procedural_context: Some(procedural_context),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap(),
             ))),
             enable_cse: Self::is_cse_enabled(),
         }
@@ -222,10 +226,7 @@ impl<'a> ExpressionEvaluator<'a> {
         right: &vibesql_types::SqlValue,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
         // Extract SQL mode from database, default to MySQL if not available
-        let sql_mode = self
-            .database
-            .map(|db| db.sql_mode())
-            .unwrap_or_default();
+        let sql_mode = self.database.map(|db| db.sql_mode()).unwrap_or_default();
 
         Self::eval_binary_op_static(left, op, right, sql_mode)
     }
@@ -310,10 +311,20 @@ impl<'a> ExpressionEvaluator<'a> {
                 &high,
                 sql_mode.clone(),
             )?;
-            Self::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high, sql_mode)
+            Self::eval_binary_op_static(
+                &lt_low,
+                &vibesql_ast::BinaryOperator::Or,
+                &gt_high,
+                sql_mode,
+            )
         } else {
             // BETWEEN: expr >= low AND expr <= high
-            Self::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high, sql_mode)
+            Self::eval_binary_op_static(
+                &ge_low,
+                &vibesql_ast::BinaryOperator::And,
+                &le_high,
+                sql_mode,
+            )
         }
     }
 
@@ -325,7 +336,10 @@ impl<'a> ExpressionEvaluator<'a> {
 
     /// Compare two SQL values for equality in simple CASE expressions
     /// Uses regular = comparison semantics where NULL = anything is UNKNOWN (false)
-    pub(crate) fn values_are_equal(left: &vibesql_types::SqlValue, right: &vibesql_types::SqlValue) -> bool {
+    pub(crate) fn values_are_equal(
+        left: &vibesql_types::SqlValue,
+        right: &vibesql_types::SqlValue,
+    ) -> bool {
         use vibesql_types::SqlValue::*;
 
         // SQL standard semantics for simple CASE equality:
@@ -346,11 +360,16 @@ impl<'a> ExpressionEvaluator<'a> {
             // Numeric type comparisons - convert to f64 for comparison
             // This handles: Numeric, Integer, Smallint, Bigint, Unsigned, Float, Real, Double
             (
-                Integer(_) | Smallint(_) | Bigint(_) | Unsigned(_) | Numeric(_) | Float(_) | Real(_) | Double(_),
-                Integer(_) | Smallint(_) | Bigint(_) | Unsigned(_) | Numeric(_) | Float(_) | Real(_) | Double(_)
+                Integer(_) | Smallint(_) | Bigint(_) | Unsigned(_) | Numeric(_) | Float(_)
+                | Real(_) | Double(_),
+                Integer(_) | Smallint(_) | Bigint(_) | Unsigned(_) | Numeric(_) | Float(_)
+                | Real(_) | Double(_),
             ) => {
                 // Convert both to f64 and compare
-                match (crate::evaluator::casting::to_f64(left), crate::evaluator::casting::to_f64(right)) {
+                match (
+                    crate::evaluator::casting::to_f64(left),
+                    crate::evaluator::casting::to_f64(right),
+                ) {
                     (Ok(a), Ok(b)) => (a - b).abs() < f64::EPSILON,
                     _ => false,
                 }
@@ -422,17 +441,17 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             subquery_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             in_value_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             correlated_scalar_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap(),
             ))),
             enable_cse: Self::is_cse_enabled(),
         }
@@ -452,17 +471,17 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             subquery_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             in_value_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             correlated_scalar_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap(),
             ))),
             enable_cse: Self::is_cse_enabled(),
         }
@@ -485,17 +504,17 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             subquery_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             in_value_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             correlated_scalar_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap(),
             ))),
             enable_cse: Self::is_cse_enabled(),
         }
@@ -516,17 +535,17 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             subquery_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             in_value_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             correlated_scalar_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap(),
             ))),
             enable_cse: Self::is_cse_enabled(),
         }
@@ -547,17 +566,17 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: Some(procedural_context),
             column_cache: RefCell::new(HashMap::new()),
             subquery_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             in_value_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             correlated_scalar_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap(),
             ))),
             enable_cse: Self::is_cse_enabled(),
         }
@@ -638,7 +657,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             correlated_scalar_cache: self.correlated_scalar_cache.clone(),
             depth: self.depth,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap(),
             ))),
             enable_cse: self.enable_cse,
         }
@@ -681,17 +700,17 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             subquery_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             in_value_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             correlated_scalar_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap(),
             ))),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
-                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap(),
             ))),
             enable_cse,
         }

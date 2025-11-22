@@ -9,5 +9,5 @@ mod aggregates;
 mod hash;
 
 // Re-export public API
-pub(super) use aggregates::{AggregateAccumulator, compare_sql_values};
+pub(super) use aggregates::{compare_sql_values, AggregateAccumulator};
 pub(super) use hash::group_rows;

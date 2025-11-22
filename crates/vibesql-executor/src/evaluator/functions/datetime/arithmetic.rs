@@ -6,8 +6,7 @@ use chrono::{Datelike, Duration, Local, NaiveDate, NaiveDateTime};
 use vibesql_types::SqlValue;
 
 use super::extract::{day, hour, minute, month, second, year};
-use crate::errors::ExecutorError;
-use crate::evaluator::coercion::coerce_to_date;
+use crate::{errors::ExecutorError, evaluator::coercion::coerce_to_date};
 
 /// DATEDIFF(date1, date2) - Calculate day difference between two dates
 /// SQL:1999 Core Feature E021-02: Date and time arithmetic
@@ -60,10 +59,10 @@ pub fn datediff(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// Units: 'YEAR', 'MONTH', 'DAY', 'HOUR', 'MINUTE', 'SECOND'
 ///
 /// Supports two syntaxes:
-/// 1. Legacy: `DATE_ADD(date, amount, unit)` - 3 arguments
-///    Example: `DATE_ADD('2024-01-01', 5, 'DAY')`
-/// 2. Standard: `DATE_ADD(date, INTERVAL)` - 2 arguments
-///    Example: `DATE_ADD('2024-01-01', INTERVAL '5' DAY)`
+/// 1. Legacy: `DATE_ADD(date, amount, unit)` - 3 arguments Example: `DATE_ADD('2024-01-01', 5,
+///    'DAY')`
+/// 2. Standard: `DATE_ADD(date, INTERVAL)` - 2 arguments Example: `DATE_ADD('2024-01-01', INTERVAL
+///    '5' DAY)`
 ///
 /// Supports automatic type coercion from VARCHAR to DATE.
 pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
@@ -79,11 +78,13 @@ pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             SqlValue::Date(_) | SqlValue::Timestamp(_) => args[0].clone(),
             SqlValue::Varchar(_) | SqlValue::Character(_) => coerce_to_date(&args[0])?,
             SqlValue::Null => SqlValue::Null,
-            val => return Err(ExecutorError::TypeMismatch {
-                left: val.clone(),
-                op: "DATE_ADD".to_string(),
-                right: SqlValue::Null,
-            }),
+            val => {
+                return Err(ExecutorError::TypeMismatch {
+                    left: val.clone(),
+                    op: "DATE_ADD".to_string(),
+                    right: SqlValue::Null,
+                })
+            }
         };
 
         match &args[1] {
@@ -95,7 +96,7 @@ pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             }
             _ => {
                 return Err(ExecutorError::UnsupportedFeature(
-                    "DATE_ADD with 2 arguments requires INTERVAL as second argument".to_string()
+                    "DATE_ADD with 2 arguments requires INTERVAL as second argument".to_string(),
                 ))
             }
         }
@@ -122,11 +123,13 @@ pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         SqlValue::Date(_) | SqlValue::Timestamp(_) => args[0].clone(),
         SqlValue::Varchar(_) | SqlValue::Character(_) => coerce_to_date(&args[0])?,
         SqlValue::Null => SqlValue::Null,
-        val => return Err(ExecutorError::TypeMismatch {
-            left: val.clone(),
-            op: "DATE_ADD".to_string(),
-            right: SqlValue::Null,
-        }),
+        val => {
+            return Err(ExecutorError::TypeMismatch {
+                left: val.clone(),
+                op: "DATE_ADD".to_string(),
+                right: SqlValue::Null,
+            })
+        }
     };
     let date_str = date_val_to_string(&date_val)?;
 
@@ -161,10 +164,10 @@ pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// SQL:1999 Core Feature E021-02: Date and time arithmetic
 ///
 /// Supports two syntaxes:
-/// 1. Legacy: `DATE_SUB(date, amount, unit)` - 3 arguments
-///    Example: `DATE_SUB('2024-01-01', 5, 'DAY')`
-/// 2. Standard: `DATE_SUB(date, INTERVAL)` - 2 arguments
-///    Example: `DATE_SUB('2024-01-01', INTERVAL '5' DAY)`
+/// 1. Legacy: `DATE_SUB(date, amount, unit)` - 3 arguments Example: `DATE_SUB('2024-01-01', 5,
+///    'DAY')`
+/// 2. Standard: `DATE_SUB(date, INTERVAL)` - 2 arguments Example: `DATE_SUB('2024-01-01', INTERVAL
+///    '5' DAY)`
 ///
 /// Supports automatic type coercion from VARCHAR to DATE.
 pub fn date_sub(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
@@ -180,11 +183,13 @@ pub fn date_sub(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             SqlValue::Date(_) | SqlValue::Timestamp(_) => args[0].clone(),
             SqlValue::Varchar(_) | SqlValue::Character(_) => coerce_to_date(&args[0])?,
             SqlValue::Null => SqlValue::Null,
-            val => return Err(ExecutorError::TypeMismatch {
-                left: val.clone(),
-                op: "DATE_SUB".to_string(),
-                right: SqlValue::Null,
-            }),
+            val => {
+                return Err(ExecutorError::TypeMismatch {
+                    left: val.clone(),
+                    op: "DATE_SUB".to_string(),
+                    right: SqlValue::Null,
+                })
+            }
         };
 
         match &args[1] {
@@ -196,7 +201,7 @@ pub fn date_sub(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             }
             _ => {
                 return Err(ExecutorError::UnsupportedFeature(
-                    "DATE_SUB with 2 arguments requires INTERVAL as second argument".to_string()
+                    "DATE_SUB with 2 arguments requires INTERVAL as second argument".to_string(),
                 ))
             }
         }
@@ -223,11 +228,13 @@ pub fn date_sub(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         SqlValue::Date(_) | SqlValue::Timestamp(_) => args[0].clone(),
         SqlValue::Varchar(_) | SqlValue::Character(_) => coerce_to_date(&args[0])?,
         SqlValue::Null => SqlValue::Null,
-        val => return Err(ExecutorError::TypeMismatch {
-            left: val.clone(),
-            op: "DATE_SUB".to_string(),
-            right: SqlValue::Null,
-        }),
+        val => {
+            return Err(ExecutorError::TypeMismatch {
+                left: val.clone(),
+                op: "DATE_SUB".to_string(),
+                right: SqlValue::Null,
+            })
+        }
     };
     let date_str = date_val_to_string(&date_val)?;
 
@@ -297,9 +304,15 @@ pub fn age(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
                 return Ok(SqlValue::Null);
             }
             (SqlValue::Date(d1), SqlValue::Date(d2)) => (d1.to_string(), d2.to_string()),
-            (SqlValue::Timestamp(ts1), SqlValue::Timestamp(ts2)) => (ts1.date.to_string(), ts2.date.to_string()),
-            (SqlValue::Date(d1), SqlValue::Timestamp(ts2)) => (d1.to_string(), ts2.date.to_string()),
-            (SqlValue::Timestamp(ts1), SqlValue::Date(d2)) => (ts1.date.to_string(), d2.to_string()),
+            (SqlValue::Timestamp(ts1), SqlValue::Timestamp(ts2)) => {
+                (ts1.date.to_string(), ts2.date.to_string())
+            }
+            (SqlValue::Date(d1), SqlValue::Timestamp(ts2)) => {
+                (d1.to_string(), ts2.date.to_string())
+            }
+            (SqlValue::Timestamp(ts1), SqlValue::Date(d2)) => {
+                (ts1.date.to_string(), d2.to_string())
+            }
             (a, b) => {
                 return Err(ExecutorError::UnsupportedFeature(format!(
                     "AGE requires date/timestamp arguments, got {:?} and {:?}",
@@ -472,14 +485,19 @@ pub(crate) fn date_add_subtract(
 
         // Convert NaiveDateTime to our Timestamp type
         use chrono::{Datelike, Timelike};
-        let date = vibesql_types::Date::new(new_timestamp.year(), new_timestamp.month() as u8, new_timestamp.day() as u8)
-            .map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid date: {}", e)))?;
+        let date = vibesql_types::Date::new(
+            new_timestamp.year(),
+            new_timestamp.month() as u8,
+            new_timestamp.day() as u8,
+        )
+        .map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid date: {}", e)))?;
         let time = vibesql_types::Time::new(
             new_timestamp.hour() as u8,
             new_timestamp.minute() as u8,
             new_timestamp.second() as u8,
             new_timestamp.nanosecond(),
-        ).map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid time: {}", e)))?;
+        )
+        .map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid time: {}", e)))?;
         Ok(SqlValue::Timestamp(vibesql_types::Timestamp::new(date, time)))
     } else {
         // Parse as date (extract date part if timestamp)
@@ -512,8 +530,11 @@ pub(crate) fn date_add_subtract(
                 // Time units on dates don't change the date
                 // Convert NaiveDate to our Date type
                 use chrono::Datelike;
-                let result_date = vibesql_types::Date::new(date.year(), date.month() as u8, date.day() as u8)
-                    .map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid date: {}", e)))?;
+                let result_date =
+                    vibesql_types::Date::new(date.year(), date.month() as u8, date.day() as u8)
+                        .map_err(|e| {
+                            ExecutorError::UnsupportedFeature(format!("Invalid date: {}", e))
+                        })?;
                 return Ok(SqlValue::Date(result_date));
             }
             _ => {
@@ -526,8 +547,9 @@ pub(crate) fn date_add_subtract(
 
         // Convert NaiveDate to our Date type
         use chrono::Datelike;
-        let result_date = vibesql_types::Date::new(new_date.year(), new_date.month() as u8, new_date.day() as u8)
-            .map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid date: {}", e)))?;
+        let result_date =
+            vibesql_types::Date::new(new_date.year(), new_date.month() as u8, new_date.day() as u8)
+                .map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid date: {}", e)))?;
         Ok(SqlValue::Date(result_date))
     }
 }

@@ -4,11 +4,13 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use crate::{MakeConnection, ColumnType};
-use crate::error_handling::{TestError, TestErrorKind, RecordKind};
-use crate::output::RecordOutput;
-use crate::parser::*;
 use super::core::{AsyncDB, Runner};
+use crate::{
+    error_handling::{RecordKind, TestError, TestErrorKind},
+    output::RecordOutput,
+    parser::*,
+    ColumnType, MakeConnection,
+};
 
 impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
     /// Run a single record without retry.
@@ -22,19 +24,11 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
             (_, RecordOutput::Nothing) => {}
             // Tolerate the mismatched return type...
             (
-                Record::Statement {
-                    sql, expected, loc, ..
-                },
-                RecordOutput::Query {
-                    error: None, rows, ..
-                },
+                Record::Statement { sql, expected, loc, .. },
+                RecordOutput::Query { error: None, rows, .. },
             ) => {
                 if let StatementExpect::Error(_) = expected {
-                    return Err(TestErrorKind::Ok {
-                        sql,
-                        kind: RecordKind::Query,
-                    }
-                    .at(loc));
+                    return Err(TestErrorKind::Ok { sql, kind: RecordKind::Query }.at(loc));
                 }
                 if let StatementExpect::Count(expected_count) = expected {
                     if expected_count != rows.len() as u64 {
@@ -48,17 +42,11 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                 }
             }
             (
-                Record::Query {
-                    loc, sql, expected, ..
-                },
+                Record::Query { loc, sql, expected, .. },
                 RecordOutput::Statement { error: None, .. },
             ) => match expected {
                 QueryExpect::Error(_) => {
-                    return Err(TestErrorKind::Ok {
-                        sql,
-                        kind: RecordKind::Query,
-                    }
-                    .at(loc))
+                    return Err(TestErrorKind::Ok { sql, kind: RecordKind::Query }.at(loc))
                 }
                 QueryExpect::Results { results, .. } if !results.is_empty() => {
                     return Err(TestErrorKind::QueryResultMismatch {
@@ -71,22 +59,11 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                 QueryExpect::Results { .. } => {}
             },
             (
-                Record::Statement {
-                    loc,
-                    connection: _,
-                    conditions: _,
-                    sql,
-                    expected,
-                    retry: _,
-                },
+                Record::Statement { loc, connection: _, conditions: _, sql, expected, retry: _ },
                 RecordOutput::Statement { count, error },
             ) => match (error, expected) {
                 (None, StatementExpect::Error(_)) => {
-                    return Err(TestErrorKind::Ok {
-                        sql,
-                        kind: RecordKind::Statement,
-                    }
-                    .at(loc))
+                    return Err(TestErrorKind::Ok { sql, kind: RecordKind::Statement }.at(loc))
                 }
                 (None, StatementExpect::Count(expected_count)) => {
                     if expected_count != *count {
@@ -120,23 +97,12 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                 }
             },
             (
-                Record::Query {
-                    loc,
-                    conditions: _,
-                    connection: _,
-                    sql,
-                    expected,
-                    retry: _,
-                },
+                Record::Query { loc, conditions: _, connection: _, sql, expected, retry: _ },
                 RecordOutput::Query { types, rows, error },
             ) => {
                 match (error, expected) {
                     (None, QueryExpect::Error(_)) => {
-                        return Err(TestErrorKind::Ok {
-                            sql,
-                            kind: RecordKind::Query,
-                        }
-                        .at(loc));
+                        return Err(TestErrorKind::Ok { sql, kind: RecordKind::Query }.at(loc));
                     }
                     (Some(e), QueryExpect::Error(expected_error)) => {
                         if !expected_error.is_match(&e.to_string()) {
@@ -185,7 +151,8 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                         };
 
                         if !(self.validator)(self.normalizer, &actual_results, &expected_results) {
-                            // Flatten the rows so each column value is on its own line for error reporting
+                            // Flatten the rows so each column value is on its own line for error
+                            // reporting
                             let output_rows: Vec<String> =
                                 rows.iter().flat_map(|strs| strs.iter().cloned()).collect_vec();
                             return Err(TestErrorKind::QueryResultMismatch {
@@ -199,24 +166,11 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                 };
             }
             (
-                Record::System {
-                    loc,
-                    conditions: _,
-                    command,
-                    stdout: expected_stdout,
-                    retry: _,
-                },
-                RecordOutput::System {
-                    error,
-                    stdout: actual_stdout,
-                },
+                Record::System { loc, conditions: _, command, stdout: expected_stdout, retry: _ },
+                RecordOutput::System { error, stdout: actual_stdout },
             ) => {
                 if let Some(err) = error {
-                    return Err(TestErrorKind::SystemFail {
-                        command,
-                        err: Arc::clone(err),
-                    }
-                    .at(loc));
+                    return Err(TestErrorKind::SystemFail { command, err: Arc::clone(err) }.at(loc));
                 }
                 match (expected_stdout, actual_stdout) {
                     (None, _) => {}

@@ -21,9 +21,7 @@ pub mod compiled_predicate;
 pub mod filter;
 pub mod predicate;
 
-pub use batch::{
-    rows_to_record_batch, record_batch_to_rows,
-};
+pub use batch::{record_batch_to_rows, rows_to_record_batch};
 pub use filter::filter_record_batch_simd;
 pub use predicate::apply_where_filter_vectorized;
 

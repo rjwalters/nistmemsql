@@ -1,10 +1,10 @@
 //! Basic DELETE operation tests
 
-use super::common::setup_users_table_with_active as setup_test_table;
 use vibesql_ast::{BinaryOperator, DeleteStmt, Expression, WhereClause};
 use vibesql_storage::Database;
 use vibesql_types::SqlValue;
 
+use super::common::setup_users_table_with_active as setup_test_table;
 use crate::DeleteExecutor;
 
 #[test]

@@ -64,9 +64,15 @@ impl SelectExecutor<'_> {
             }
 
             // CASE expression - may contain aggregates in operand, conditions, or results
-            vibesql_ast::Expression::Case { operand, when_clauses, else_result } => {
-                case::evaluate(self, operand, when_clauses, else_result, group_rows, group_key, evaluator)
-            }
+            vibesql_ast::Expression::Case { operand, when_clauses, else_result } => case::evaluate(
+                self,
+                operand,
+                when_clauses,
+                else_result,
+                group_rows,
+                group_key,
+                evaluator,
+            ),
 
             // Simple expressions that can potentially contain aggregates
             vibesql_ast::Expression::Cast { .. }
@@ -146,7 +152,9 @@ impl SelectExecutor<'_> {
                             // Try to extract column name from expression
                             match expr {
                                 vibesql_ast::Expression::ColumnRef { column, .. } => column.clone(),
-                                vibesql_ast::Expression::AggregateFunction { name, .. } => name.to_lowercase(),
+                                vibesql_ast::Expression::AggregateFunction { name, .. } => {
+                                    name.to_lowercase()
+                                }
                                 _ => format!("col{}", idx + 1),
                             }
                         };
@@ -156,7 +164,8 @@ impl SelectExecutor<'_> {
                             true,
                         ));
                     }
-                    vibesql_ast::SelectItem::Wildcard { .. } | vibesql_ast::SelectItem::QualifiedWildcard { .. } => {
+                    vibesql_ast::SelectItem::Wildcard { .. }
+                    | vibesql_ast::SelectItem::QualifiedWildcard { .. } => {
                         // This should not happen after expansion, but keep for safety
                         return Err(ExecutorError::UnsupportedFeature(
                             "SELECT * and qualified wildcards not supported with aggregates"
@@ -179,7 +188,8 @@ impl SelectExecutor<'_> {
                 ));
             }
 
-            let result_table_schema = vibesql_catalog::TableSchema::new("result".to_string(), result_columns);
+            let result_table_schema =
+                vibesql_catalog::TableSchema::new("result".to_string(), result_columns);
 
             // Create a CombinedSchema for the result set (with GROUP BY columns included)
             let mut table_schemas = std::collections::HashMap::new();
@@ -189,11 +199,14 @@ impl SelectExecutor<'_> {
                 total_columns: result_table_schema.columns.len(),
             };
 
-            let result_evaluator = CombinedExpressionEvaluator::with_database(&result_schema, self.database);
+            let result_evaluator =
+                CombinedExpressionEvaluator::with_database(&result_schema, self.database);
 
             // Evaluate ORDER BY expressions and attach sort keys to rows
-            let mut rows_with_keys: Vec<(vibesql_storage::Row, Vec<(vibesql_types::SqlValue, vibesql_ast::OrderDirection)>)> =
-                Vec::new();
+            let mut rows_with_keys: Vec<(
+                vibesql_storage::Row,
+                Vec<(vibesql_types::SqlValue, vibesql_ast::OrderDirection)>,
+            )> = Vec::new();
             for row in rows {
                 // Clear CSE cache before evaluating each row to prevent column values
                 // from being incorrectly cached across different rows
@@ -214,7 +227,9 @@ impl SelectExecutor<'_> {
                 for ((val_a, dir), (val_b, _)) in keys_a.iter().zip(keys_b.iter()) {
                     let cmp = match dir {
                         vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
-                        vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                        vibesql_ast::OrderDirection::Desc => {
+                            compare_sql_values(val_a, val_b).reverse()
+                        }
                     };
 
                     if cmp != std::cmp::Ordering::Equal {
@@ -246,7 +261,9 @@ impl SelectExecutor<'_> {
                             // Try to extract column name from expression
                             match expr {
                                 vibesql_ast::Expression::ColumnRef { column, .. } => column.clone(),
-                                vibesql_ast::Expression::AggregateFunction { name, .. } => name.to_lowercase(),
+                                vibesql_ast::Expression::AggregateFunction { name, .. } => {
+                                    name.to_lowercase()
+                                }
                                 _ => format!("col{}", idx + 1),
                             }
                         };
@@ -256,7 +273,8 @@ impl SelectExecutor<'_> {
                             true,
                         ));
                     }
-                    vibesql_ast::SelectItem::Wildcard { .. } | vibesql_ast::SelectItem::QualifiedWildcard { .. } => {
+                    vibesql_ast::SelectItem::Wildcard { .. }
+                    | vibesql_ast::SelectItem::QualifiedWildcard { .. } => {
                         // This should not happen after expansion, but keep for safety
                         return Err(ExecutorError::UnsupportedFeature(
                             "SELECT * and qualified wildcards not supported with aggregates"
@@ -266,7 +284,8 @@ impl SelectExecutor<'_> {
                 }
             }
 
-            let result_table_schema = vibesql_catalog::TableSchema::new("result".to_string(), result_columns);
+            let result_table_schema =
+                vibesql_catalog::TableSchema::new("result".to_string(), result_columns);
 
             // Create a CombinedSchema for the result set
             let mut table_schemas = std::collections::HashMap::new();
@@ -276,11 +295,14 @@ impl SelectExecutor<'_> {
                 total_columns: result_table_schema.columns.len(),
             };
 
-            let result_evaluator = CombinedExpressionEvaluator::with_database(&result_schema, self.database);
+            let result_evaluator =
+                CombinedExpressionEvaluator::with_database(&result_schema, self.database);
 
             // Evaluate ORDER BY expressions and attach sort keys to rows
-            let mut rows_with_keys: Vec<(vibesql_storage::Row, Vec<(vibesql_types::SqlValue, vibesql_ast::OrderDirection)>)> =
-                Vec::new();
+            let mut rows_with_keys: Vec<(
+                vibesql_storage::Row,
+                Vec<(vibesql_types::SqlValue, vibesql_ast::OrderDirection)>,
+            )> = Vec::new();
             for row in rows {
                 // Clear CSE cache before evaluating each row to prevent column values
                 // from being incorrectly cached across different rows
@@ -301,7 +323,9 @@ impl SelectExecutor<'_> {
                 for ((val_a, dir), (val_b, _)) in keys_a.iter().zip(keys_b.iter()) {
                     let cmp = match dir {
                         vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
-                        vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                        vibesql_ast::OrderDirection::Desc => {
+                            compare_sql_values(val_a, val_b).reverse()
+                        }
                     };
 
                     if cmp != std::cmp::Ordering::Equal {

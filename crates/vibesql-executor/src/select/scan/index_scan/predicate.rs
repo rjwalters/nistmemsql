@@ -110,7 +110,8 @@ fn extract_range_predicate(expr: &Expression, column_name: &str) -> Option<Range
                             });
                         }
                     }
-                    // Check if right side is our column and left side is a literal (flipped comparison)
+                    // Check if right side is our column and left side is a literal (flipped
+                    // comparison)
                     else if is_column_reference(right, column_name) {
                         if let Expression::Literal(value) = left.as_ref() {
                             // NULL comparisons always return no rows - can't optimize with index
@@ -207,7 +208,10 @@ fn extract_range_predicate(expr: &Expression, column_name: &str) -> Option<Range
 /// - IN predicates: IN (value1, value2, ...)
 ///
 /// Returns None if no suitable predicate found for the column.
-pub(crate) fn extract_index_predicate(expr: &Expression, column_name: &str) -> Option<IndexPredicate> {
+pub(crate) fn extract_index_predicate(
+    expr: &Expression,
+    column_name: &str,
+) -> Option<IndexPredicate> {
     // First try to extract a range predicate
     if let Some(range) = extract_range_predicate(expr, column_name) {
         return Some(IndexPredicate::Range(range));
@@ -300,8 +304,10 @@ pub(crate) fn where_clause_fully_satisfied_by_index(
                 }
                 // AND of range predicates on same column: col > 10 AND col < 20
                 vibesql_ast::BinaryOperator::And => {
-                    let left_satisfied = where_clause_fully_satisfied_by_index(left, indexed_column);
-                    let right_satisfied = where_clause_fully_satisfied_by_index(right, indexed_column);
+                    let left_satisfied =
+                        where_clause_fully_satisfied_by_index(left, indexed_column);
+                    let right_satisfied =
+                        where_clause_fully_satisfied_by_index(right, indexed_column);
                     left_satisfied && right_satisfied
                 }
                 _ => false,

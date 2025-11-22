@@ -27,7 +27,8 @@ impl AnalyzeExecutor {
     ///
     /// - `ANALYZE` with no table: Analyzes all tables in the database
     /// - `ANALYZE table_name`: Analyzes the specified table
-    /// - `ANALYZE table_name (cols)`: Analyzes the specified table (column list is currently advisory)
+    /// - `ANALYZE table_name (cols)`: Analyzes the specified table (column list is currently
+    ///   advisory)
     ///
     /// # Implementation Note
     ///
@@ -68,9 +69,7 @@ impl AnalyzeExecutor {
 
                         Ok(message)
                     }
-                    None => {
-                        Err(ExecutorError::TableNotFound(table_name.clone()))
-                    }
+                    None => Err(ExecutorError::TableNotFound(table_name.clone())),
                 }
             }
         }
@@ -127,21 +126,27 @@ mod tests {
         let table = db.get_table_mut(table_name).unwrap();
 
         // Insert some test data
-        table.insert(Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Alice".to_string()),
-            SqlValue::Integer(30),
-        ])).unwrap();
-        table.insert(Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Varchar("Bob".to_string()),
-            SqlValue::Integer(25),
-        ])).unwrap();
-        table.insert(Row::new(vec![
-            SqlValue::Integer(3),
-            SqlValue::Varchar("Charlie".to_string()),
-            SqlValue::Integer(35),
-        ])).unwrap();
+        table
+            .insert(Row::new(vec![
+                SqlValue::Integer(1),
+                SqlValue::Varchar("Alice".to_string()),
+                SqlValue::Integer(30),
+            ]))
+            .unwrap();
+        table
+            .insert(Row::new(vec![
+                SqlValue::Integer(2),
+                SqlValue::Varchar("Bob".to_string()),
+                SqlValue::Integer(25),
+            ]))
+            .unwrap();
+        table
+            .insert(Row::new(vec![
+                SqlValue::Integer(3),
+                SqlValue::Varchar("Charlie".to_string()),
+                SqlValue::Integer(35),
+            ]))
+            .unwrap();
     }
 
     #[test]
@@ -153,10 +158,7 @@ mod tests {
         insert_test_data(&mut db, "products");
 
         // ANALYZE with no target should analyze all tables
-        let analyze_stmt = AnalyzeStmt {
-            table_name: None,
-            columns: None,
-        };
+        let analyze_stmt = AnalyzeStmt { table_name: None, columns: None };
 
         let result = AnalyzeExecutor::execute(&analyze_stmt, &mut db);
         assert!(result.is_ok());
@@ -176,10 +178,7 @@ mod tests {
         insert_test_data(&mut db, "users");
 
         // Analyze the specific table
-        let analyze_stmt = AnalyzeStmt {
-            table_name: Some("users".to_string()),
-            columns: None,
-        };
+        let analyze_stmt = AnalyzeStmt { table_name: Some("users".to_string()), columns: None };
 
         let result = AnalyzeExecutor::execute(&analyze_stmt, &mut db);
         assert!(result.is_ok());
@@ -226,10 +225,8 @@ mod tests {
         create_test_table(&mut db, "empty_table");
 
         // Analyze empty table
-        let analyze_stmt = AnalyzeStmt {
-            table_name: Some("empty_table".to_string()),
-            columns: None,
-        };
+        let analyze_stmt =
+            AnalyzeStmt { table_name: Some("empty_table".to_string()), columns: None };
 
         let result = AnalyzeExecutor::execute(&analyze_stmt, &mut db);
         assert!(result.is_ok());
@@ -245,10 +242,8 @@ mod tests {
         let mut db = Database::new();
 
         // Try to analyze non-existent table
-        let analyze_stmt = AnalyzeStmt {
-            table_name: Some("nonexistent".to_string()),
-            columns: None,
-        };
+        let analyze_stmt =
+            AnalyzeStmt { table_name: Some("nonexistent".to_string()), columns: None };
 
         let result = AnalyzeExecutor::execute(&analyze_stmt, &mut db);
         assert!(result.is_err());
@@ -262,10 +257,7 @@ mod tests {
 
         // Insert initial data and analyze
         insert_test_data(&mut db, "users");
-        let analyze_stmt = AnalyzeStmt {
-            table_name: Some("users".to_string()),
-            columns: None,
-        };
+        let analyze_stmt = AnalyzeStmt { table_name: Some("users".to_string()), columns: None };
         AnalyzeExecutor::execute(&analyze_stmt, &mut db).unwrap();
 
         {
@@ -278,11 +270,13 @@ mod tests {
         {
             use vibesql_storage::Row;
             let table = db.get_table_mut("users").unwrap();
-            table.insert(Row::new(vec![
-                SqlValue::Integer(4),
-                SqlValue::Varchar("Diana".to_string()),
-                SqlValue::Integer(28),
-            ])).unwrap();
+            table
+                .insert(Row::new(vec![
+                    SqlValue::Integer(4),
+                    SqlValue::Varchar("Diana".to_string()),
+                    SqlValue::Integer(28),
+                ]))
+                .unwrap();
         }
 
         // Re-analyze

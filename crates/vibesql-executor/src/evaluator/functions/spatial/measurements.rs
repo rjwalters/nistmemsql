@@ -5,10 +5,11 @@
 
 #![cfg(feature = "spatial")]
 
-use vibesql_types::SqlValue;
-use crate::errors::ExecutorError;
-use super::{sql_value_to_geometry, Geometry};
 use geo::algorithm::{Area, BoundingRect, Centroid, ConvexHull, EuclideanDistance};
+use vibesql_types::SqlValue;
+
+use super::{sql_value_to_geometry, Geometry};
+use crate::errors::ExecutorError;
 
 /// Helper function to convert WKT string to geo::Geometry
 fn wkt_to_geo(wkt_str: &str) -> Result<geo::Geometry<f64>, ExecutorError> {
@@ -23,55 +24,43 @@ fn wkt_to_geo(wkt_str: &str) -> Result<geo::Geometry<f64>, ExecutorError> {
 /// Convert internal Geometry to geo::Geometry for spatial operations
 fn to_geo_geometry(geom: &Geometry) -> Result<geo::Geometry<f64>, ExecutorError> {
     match geom {
-        Geometry::Point { x, y } => {
-            Ok(geo::Geometry::Point(geo::Point::new(*x, *y)))
-        }
+        Geometry::Point { x, y } => Ok(geo::Geometry::Point(geo::Point::new(*x, *y))),
         Geometry::LineString { points } => {
-            let coords: Vec<geo::Coord<f64>> = points
-                .iter()
-                .map(|(x, y)| geo::Coord { x: *x, y: *y })
-                .collect();
+            let coords: Vec<geo::Coord<f64>> =
+                points.iter().map(|(x, y)| geo::Coord { x: *x, y: *y }).collect();
             Ok(geo::Geometry::LineString(geo::LineString(coords)))
         }
         Geometry::Polygon { rings } => {
             if rings.is_empty() {
                 return Err(ExecutorError::Other("Empty polygon".to_string()));
             }
-            
-            let exterior: Vec<geo::Coord<f64>> = rings[0]
-                .iter()
-                .map(|(x, y)| geo::Coord { x: *x, y: *y })
-                .collect();
+
+            let exterior: Vec<geo::Coord<f64>> =
+                rings[0].iter().map(|(x, y)| geo::Coord { x: *x, y: *y }).collect();
             let exterior_ring = geo::LineString(exterior);
-            
+
             let interiors: Vec<geo::LineString<f64>> = rings[1..]
                 .iter()
                 .map(|ring| {
-                    let coords: Vec<geo::Coord<f64>> = ring
-                        .iter()
-                        .map(|(x, y)| geo::Coord { x: *x, y: *y })
-                        .collect();
+                    let coords: Vec<geo::Coord<f64>> =
+                        ring.iter().map(|(x, y)| geo::Coord { x: *x, y: *y }).collect();
                     geo::LineString(coords)
                 })
                 .collect();
-            
+
             Ok(geo::Geometry::Polygon(geo::Polygon::new(exterior_ring, interiors)))
         }
         Geometry::MultiPoint { points } => {
-            let points: Vec<geo::Point<f64>> = points
-                .iter()
-                .map(|(x, y)| geo::Point::new(*x, *y))
-                .collect();
+            let points: Vec<geo::Point<f64>> =
+                points.iter().map(|(x, y)| geo::Point::new(*x, *y)).collect();
             Ok(geo::Geometry::MultiPoint(geo::MultiPoint(points)))
         }
         Geometry::MultiLineString { lines } => {
             let lines: Vec<geo::LineString<f64>> = lines
                 .iter()
                 .map(|line| {
-                    let coords: Vec<geo::Coord<f64>> = line
-                        .iter()
-                        .map(|(x, y)| geo::Coord { x: *x, y: *y })
-                        .collect();
+                    let coords: Vec<geo::Coord<f64>> =
+                        line.iter().map(|(x, y)| geo::Coord { x: *x, y: *y }).collect();
                     geo::LineString(coords)
                 })
                 .collect();
@@ -89,18 +78,16 @@ fn to_geo_geometry(geom: &Geometry) -> Result<geo::Geometry<f64>, ExecutorError>
                             .map(|(x, y)| geo::Coord { x: *x, y: *y })
                             .collect();
                         let exterior_ring = geo::LineString(exterior);
-                        
+
                         let interiors: Vec<geo::LineString<f64>> = poly_rings[1..]
                             .iter()
                             .map(|ring| {
-                                let coords: Vec<geo::Coord<f64>> = ring
-                                    .iter()
-                                    .map(|(x, y)| geo::Coord { x: *x, y: *y })
-                                    .collect();
+                                let coords: Vec<geo::Coord<f64>> =
+                                    ring.iter().map(|(x, y)| geo::Coord { x: *x, y: *y }).collect();
                                 geo::LineString(coords)
                             })
                             .collect();
-                        
+
                         Ok(geo::Polygon::new(exterior_ring, interiors))
                     }
                 })
@@ -108,10 +95,8 @@ fn to_geo_geometry(geom: &Geometry) -> Result<geo::Geometry<f64>, ExecutorError>
             Ok(geo::Geometry::MultiPolygon(geo::MultiPolygon(polys)))
         }
         Geometry::Collection { geometries } => {
-            let geoms: Vec<geo::Geometry<f64>> = geometries
-                .iter()
-                .map(to_geo_geometry)
-                .collect::<Result<Vec<_>, _>>()?;
+            let geoms: Vec<geo::Geometry<f64>> =
+                geometries.iter().map(to_geo_geometry).collect::<Result<Vec<_>, _>>()?;
             Ok(geo::Geometry::GeometryCollection(geo::GeometryCollection(geoms)))
         }
     }
@@ -121,9 +106,7 @@ fn to_geo_geometry(geom: &Geometry) -> Result<geo::Geometry<f64>, ExecutorError>
 #[allow(dead_code)]
 fn from_geo_geometry(geom: &geo::Geometry<f64>) -> Result<Geometry, ExecutorError> {
     match geom {
-        geo::Geometry::Point(p) => {
-            Ok(Geometry::Point { x: p.x(), y: p.y() })
-        }
+        geo::Geometry::Point(p) => Ok(Geometry::Point { x: p.x(), y: p.y() }),
         geo::Geometry::LineString(ls) => {
             let points = ls.coords().map(|c| (c.x, c.y)).collect();
             Ok(Geometry::LineString { points })
@@ -143,18 +126,17 @@ fn from_geo_geometry(geom: &geo::Geometry<f64>) -> Result<Geometry, ExecutorErro
             Ok(Geometry::MultiPoint { points })
         }
         geo::Geometry::MultiLineString(mls) => {
-            let lines = mls.0
-                .iter()
-                .map(|ls| ls.coords().map(|c| (c.x, c.y)).collect())
-                .collect();
+            let lines = mls.0.iter().map(|ls| ls.coords().map(|c| (c.x, c.y)).collect()).collect();
             Ok(Geometry::MultiLineString { lines })
         }
         geo::Geometry::MultiPolygon(mp) => {
-            let polygons = mp.0
+            let polygons = mp
+                .0
                 .iter()
                 .map(|poly| {
                     let mut rings = vec![];
-                    let exterior: Vec<(f64, f64)> = poly.exterior().coords().map(|c| (c.x, c.y)).collect();
+                    let exterior: Vec<(f64, f64)> =
+                        poly.exterior().coords().map(|c| (c.x, c.y)).collect();
                     rings.push(exterior);
                     for interior in poly.interiors() {
                         let ring: Vec<(f64, f64)> = interior.coords().map(|c| (c.x, c.y)).collect();
@@ -166,10 +148,7 @@ fn from_geo_geometry(geom: &geo::Geometry<f64>) -> Result<Geometry, ExecutorErro
             Ok(Geometry::MultiPolygon { polygons })
         }
         geo::Geometry::GeometryCollection(gc) => {
-            let geometries = gc.0
-                .iter()
-                .map(from_geo_geometry)
-                .collect::<Result<Vec<_>, _>>()?;
+            let geometries = gc.0.iter().map(from_geo_geometry).collect::<Result<Vec<_>, _>>()?;
             Ok(Geometry::Collection { geometries })
         }
         _ => Err(ExecutorError::UnsupportedFeature(
@@ -181,48 +160,46 @@ fn from_geo_geometry(geom: &geo::Geometry<f64>) -> Result<Geometry, ExecutorErro
 /// ST_Distance(geom1, geom2) - Calculate Euclidean distance between geometries
 pub fn st_distance(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::Other(
-            "ST_Distance expects exactly 2 arguments".to_string(),
-        ));
+        return Err(ExecutorError::Other("ST_Distance expects exactly 2 arguments".to_string()));
     }
 
     match (&args[0], &args[1]) {
         (SqlValue::Null, _) | (_, SqlValue::Null) => Ok(SqlValue::Null),
-        (SqlValue::Varchar(wkt1) | SqlValue::Character(wkt1),
-         SqlValue::Varchar(wkt2) | SqlValue::Character(wkt2)) => {
+        (
+            SqlValue::Varchar(wkt1) | SqlValue::Character(wkt1),
+            SqlValue::Varchar(wkt2) | SqlValue::Character(wkt2),
+        ) => {
             let geom1 = wkt_to_geo(wkt1)?;
             let geom2 = wkt_to_geo(wkt2)?;
 
             let distance = match (&geom1, &geom2) {
-                (geo::Geometry::Point(p1), geo::Geometry::Point(p2)) => {
-                    p1.euclidean_distance(p2)
-                }
+                (geo::Geometry::Point(p1), geo::Geometry::Point(p2)) => p1.euclidean_distance(p2),
                 _ => {
                     // For other geometry types, calculate minimum distance
                     // between any two points in the geometries
                     // This is a simplified version - full implementation would handle all types
                     match (&geom1, &geom2) {
-                        (geo::Geometry::Point(p), geo::Geometry::LineString(ls)) |
-                        (geo::Geometry::LineString(ls), geo::Geometry::Point(p)) => {
-                            ls.coords()
-                                .map(|coord| {
-                                    let p2 = geo::Point::new(coord.x, coord.y);
-                                    p.euclidean_distance(&p2)
-                                })
-                                .fold(f64::INFINITY, f64::min)
-                        }
-                        (geo::Geometry::Point(p), geo::Geometry::Polygon(poly)) |
-                        (geo::Geometry::Polygon(poly), geo::Geometry::Point(p)) => {
-                            poly.exterior().coords()
-                                .map(|coord| {
-                                    let p2 = geo::Point::new(coord.x, coord.y);
-                                    p.euclidean_distance(&p2)
-                                })
-                                .fold(f64::INFINITY, f64::min)
-                        }
+                        (geo::Geometry::Point(p), geo::Geometry::LineString(ls))
+                        | (geo::Geometry::LineString(ls), geo::Geometry::Point(p)) => ls
+                            .coords()
+                            .map(|coord| {
+                                let p2 = geo::Point::new(coord.x, coord.y);
+                                p.euclidean_distance(&p2)
+                            })
+                            .fold(f64::INFINITY, f64::min),
+                        (geo::Geometry::Point(p), geo::Geometry::Polygon(poly))
+                        | (geo::Geometry::Polygon(poly), geo::Geometry::Point(p)) => poly
+                            .exterior()
+                            .coords()
+                            .map(|coord| {
+                                let p2 = geo::Point::new(coord.x, coord.y);
+                                p.euclidean_distance(&p2)
+                            })
+                            .fold(f64::INFINITY, f64::min),
                         _ => {
                             return Err(ExecutorError::Other(
-                                "ST_Distance not fully supported between these geometry types".to_string()
+                                "ST_Distance not fully supported between these geometry types"
+                                    .to_string(),
                             ));
                         }
                     }
@@ -231,18 +208,16 @@ pub fn st_distance(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
             Ok(SqlValue::Double(distance))
         }
-        _ => Err(ExecutorError::Other(
-            "ST_Distance requires VARCHAR geometry arguments".to_string(),
-        )),
+        _ => {
+            Err(ExecutorError::Other("ST_Distance requires VARCHAR geometry arguments".to_string()))
+        }
     }
 }
 
 /// ST_Length(geom) - Calculate length of LineString
 pub fn st_length(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::Other(
-            "ST_Length expects exactly 1 argument".to_string(),
-        ));
+        return Err(ExecutorError::Other("ST_Length expects exactly 1 argument".to_string()));
     }
 
     match &args[0] {
@@ -279,18 +254,16 @@ pub fn st_length(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
                 )),
             }
         }
-        _ => Err(ExecutorError::Other(
-            "ST_Length requires a VARCHAR geometry argument".to_string(),
-        )),
+        _ => {
+            Err(ExecutorError::Other("ST_Length requires a VARCHAR geometry argument".to_string()))
+        }
     }
 }
 
 /// ST_Perimeter(geom) - Calculate perimeter of Polygon
 pub fn st_perimeter(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::Other(
-            "ST_Perimeter expects exactly 1 argument".to_string(),
-        ));
+        return Err(ExecutorError::Other("ST_Perimeter expects exactly 1 argument".to_string()));
     }
 
     match &args[0] {
@@ -343,9 +316,7 @@ pub fn st_perimeter(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// ST_Area(geom) - Calculate area of Polygon
 pub fn st_area(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::Other(
-            "ST_Area expects exactly 1 argument".to_string(),
-        ));
+        return Err(ExecutorError::Other("ST_Area expects exactly 1 argument".to_string()));
     }
 
     match &args[0] {
@@ -367,18 +338,14 @@ pub fn st_area(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
                 )),
             }
         }
-        _ => Err(ExecutorError::Other(
-            "ST_Area requires a VARCHAR geometry argument".to_string(),
-        )),
+        _ => Err(ExecutorError::Other("ST_Area requires a VARCHAR geometry argument".to_string())),
     }
 }
 
 /// ST_Centroid(geom) - Find center point (geometric center of mass)
 pub fn st_centroid(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::Other(
-            "ST_Centroid expects exactly 1 argument".to_string(),
-        ));
+        return Err(ExecutorError::Other("ST_Centroid expects exactly 1 argument".to_string()));
     }
 
     match &args[0] {
@@ -388,10 +355,7 @@ pub fn st_centroid(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
             match geom.centroid() {
                 Some(centroid) => {
-                    let result_geom = Geometry::Point { 
-                        x: centroid.x(),
-                        y: centroid.y(),
-                    };
+                    let result_geom = Geometry::Point { x: centroid.x(), y: centroid.y() };
                     let result_value = super::geometry_to_sql_value(result_geom, 0);
                     Ok(result_value)
                 }
@@ -410,9 +374,7 @@ pub fn st_centroid(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// ST_Envelope(geom) - Get bounding box as a Polygon
 pub fn st_envelope(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::Other(
-            "ST_Envelope expects exactly 1 argument".to_string(),
-        ));
+        return Err(ExecutorError::Other("ST_Envelope expects exactly 1 argument".to_string()));
     }
 
     match &args[0] {
@@ -452,9 +414,7 @@ pub fn st_envelope(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// ST_ConvexHull(geom) - Find smallest convex polygon containing geometry
 pub fn st_convex_hull(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::Other(
-            "ST_ConvexHull expects exactly 1 argument".to_string(),
-        ));
+        return Err(ExecutorError::Other("ST_ConvexHull expects exactly 1 argument".to_string()));
     }
 
     match &args[0] {
@@ -477,7 +437,8 @@ pub fn st_convex_hull(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             // Convert the Polygon back to internal Geometry
             let result_geom = {
                 let mut rings = vec![];
-                let exterior: Vec<(f64, f64)> = hull_poly.exterior().coords().map(|c| (c.x, c.y)).collect();
+                let exterior: Vec<(f64, f64)> =
+                    hull_poly.exterior().coords().map(|c| (c.x, c.y)).collect();
                 rings.push(exterior);
                 for interior in hull_poly.interiors() {
                     let ring: Vec<(f64, f64)> = interior.coords().map(|c| (c.x, c.y)).collect();
@@ -485,7 +446,7 @@ pub fn st_convex_hull(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
                 }
                 Geometry::Polygon { rings }
             };
-            
+
             let result_value = super::geometry_to_sql_value(result_geom, 0);
             Ok(result_value)
         }
@@ -529,10 +490,7 @@ pub fn st_point_on_surface(args: &[SqlValue]) -> Result<SqlValue, ExecutorError>
                     // For non-convex, this is still a reasonable approximation
                     match geom.centroid() {
                         Some(centroid) => {
-                            let result_geom = Geometry::Point {
-                                x: centroid.x(),
-                                y: centroid.y(),
-                            };
+                            let result_geom = Geometry::Point { x: centroid.x(), y: centroid.y() };
                             let result_value = super::geometry_to_sql_value(result_geom, 0);
                             Ok(result_value)
                         }
@@ -553,9 +511,7 @@ pub fn st_point_on_surface(args: &[SqlValue]) -> Result<SqlValue, ExecutorError>
 /// ST_Boundary(geom) - Get boundary of geometry (exterior ring for polygons, endpoints for lines)
 pub fn st_boundary(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::Other(
-            "ST_Boundary expects exactly 1 argument".to_string(),
-        ));
+        return Err(ExecutorError::Other("ST_Boundary expects exactly 1 argument".to_string()));
     }
 
     match &args[0] {
@@ -572,7 +528,9 @@ pub fn st_boundary(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
                 Geometry::LineString { points } => {
                     // Boundary of a line is a multi-point of the endpoints
                     if points.is_empty() {
-                        return Ok(SqlValue::Varchar("__GEOMETRY__GEOMETRYCOLLECTION()".to_string()));
+                        return Ok(SqlValue::Varchar(
+                            "__GEOMETRY__GEOMETRYCOLLECTION()".to_string(),
+                        ));
                     }
                     if points.len() == 1 {
                         let (x, y) = points[0];
@@ -585,22 +543,24 @@ pub fn st_boundary(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
                     let last = points[points.len() - 1];
                     if first == last {
                         // Closed linestring (ring): boundary is empty
-                        return Ok(SqlValue::Varchar("__GEOMETRY__GEOMETRYCOLLECTION()".to_string()));
+                        return Ok(SqlValue::Varchar(
+                            "__GEOMETRY__GEOMETRYCOLLECTION()".to_string(),
+                        ));
                     }
-                    Geometry::MultiPoint {
-                        points: vec![first, last],
-                    }
+                    Geometry::MultiPoint { points: vec![first, last] }
                 }
                 Geometry::Polygon { rings } => {
                     // Boundary of a polygon is all its rings as a MultiLineString
                     if rings.is_empty() {
-                        return Ok(SqlValue::Varchar("__GEOMETRY__GEOMETRYCOLLECTION()".to_string()));
+                        return Ok(SqlValue::Varchar(
+                            "__GEOMETRY__GEOMETRYCOLLECTION()".to_string(),
+                        ));
                     }
-                    Geometry::MultiLineString {
-                        lines: rings.clone(),
-                    }
+                    Geometry::MultiLineString { lines: rings.clone() }
                 }
-                Geometry::MultiPoint { .. } | Geometry::MultiLineString { .. } | Geometry::MultiPolygon { .. } => {
+                Geometry::MultiPoint { .. }
+                | Geometry::MultiLineString { .. }
+                | Geometry::MultiPolygon { .. } => {
                     // Boundary of multi-geometries: aggregate boundaries
                     // For simplicity, we'll return empty geometry collection for now
                     return Ok(SqlValue::Varchar("__GEOMETRY__GEOMETRYCOLLECTION()".to_string()));
@@ -619,7 +579,8 @@ pub fn st_boundary(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     }
 }
 
-/// ST_HausdorffDistance(geom1, geom2) - Maximum distance between any point in geom1 to nearest point in geom2
+/// ST_HausdorffDistance(geom1, geom2) - Maximum distance between any point in geom1 to nearest
+/// point in geom2
 pub fn st_hausdorff_distance(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 2 {
         return Err(ExecutorError::Other(
@@ -664,23 +625,13 @@ fn calculate_hausdorff_distance(
     // Maximum distance from any point in geom1 to nearest point in geom2
     let max_dist_1_to_2 = coords1
         .iter()
-        .map(|p1| {
-            coords2
-                .iter()
-                .map(|p2| p1.euclidean_distance(p2))
-                .fold(f64::INFINITY, f64::min)
-        })
+        .map(|p1| coords2.iter().map(|p2| p1.euclidean_distance(p2)).fold(f64::INFINITY, f64::min))
         .fold(f64::NEG_INFINITY, f64::max);
 
     // Maximum distance from any point in geom2 to nearest point in geom1
     let max_dist_2_to_1 = coords2
         .iter()
-        .map(|p2| {
-            coords1
-                .iter()
-                .map(|p1| p2.euclidean_distance(p1))
-                .fold(f64::INFINITY, f64::min)
-        })
+        .map(|p2| coords1.iter().map(|p1| p2.euclidean_distance(p1)).fold(f64::INFINITY, f64::min))
         .fold(f64::NEG_INFINITY, f64::max);
 
     Ok(f64::max(max_dist_1_to_2, max_dist_2_to_1))

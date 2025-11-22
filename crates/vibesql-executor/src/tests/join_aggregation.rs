@@ -41,13 +41,19 @@ fn setup_join_test_data(db: &mut Database) {
     // Insert departments using direct database API
     db.insert_row(
         "departments",
-        vibesql_storage::Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Engineering".to_string())]),
+        vibesql_storage::Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Engineering".to_string()),
+        ]),
     )
     .unwrap();
 
     db.insert_row(
         "departments",
-        vibesql_storage::Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Sales".to_string())]),
+        vibesql_storage::Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Sales".to_string()),
+        ]),
     )
     .unwrap();
 
@@ -128,7 +134,8 @@ fn test_inner_join_with_group_by_count() {
     // ORDER BY emp_count DESC
     let select_stmt = SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -230,7 +237,8 @@ fn test_left_join_with_group_by_avg_salary() {
     // ORDER BY avg_salary DESC
     let select_stmt = SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -333,7 +341,8 @@ fn test_join_group_by_with_having() {
     // HAVING COUNT(e.emp_id) >= 2
     let select_stmt = SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -429,7 +438,8 @@ fn test_join_group_by_multiple_aggregates() {
     // GROUP BY d.dept_name
     let select_stmt = SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![

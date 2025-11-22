@@ -53,7 +53,8 @@ pub fn handle_replace_conflicts(
 
         // Check if this row matches any UNIQUE constraint
         for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate() {
-            if let Some(unique_values) = unique_matches.get(constraint_idx).and_then(|v| v.as_ref()) {
+            if let Some(unique_values) = unique_matches.get(constraint_idx).and_then(|v| v.as_ref())
+            {
                 let row_unique_values: Vec<vibesql_types::SqlValue> =
                     unique_indices.iter().map(|&idx| row.values[idx].clone()).collect();
                 if row_unique_values == *unique_values {

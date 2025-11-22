@@ -3,16 +3,19 @@
 //! This module provides schema creation and data loading functions for TPC-H
 //! benchmark tables across multiple database engines (VibeSQL, SQLite, DuckDB).
 
-use super::data::{TPCHData, NATIONS, PRIORITIES, REGIONS, SEGMENTS, SHIP_MODES, PART_BRANDS, PART_CONTAINERS, PART_TYPES};
-use vibesql_storage::Database as VibeDB;
-use vibesql_types::Date;
+use std::str::FromStr;
 
 #[cfg(feature = "benchmark-comparison")]
 use duckdb::Connection as DuckDBConn;
 #[cfg(feature = "benchmark-comparison")]
 use rusqlite::Connection as SqliteConn;
+use vibesql_storage::Database as VibeDB;
+use vibesql_types::Date;
 
-use std::str::FromStr;
+use super::data::{
+    TPCHData, NATIONS, PART_BRANDS, PART_CONTAINERS, PART_TYPES, PRIORITIES, REGIONS, SEGMENTS,
+    SHIP_MODES,
+};
 
 // =============================================================================
 // Database Loaders
@@ -116,9 +119,7 @@ fn create_tpch_schema_vibesql(db: &mut VibeDB) {
             },
             ColumnSchema {
                 name: "R_COMMENT".to_string(),
-                data_type: DataType::Varchar {
-                    max_length: Some(152),
-                },
+                data_type: DataType::Varchar { max_length: Some(152) },
                 nullable: true,
                 default_value: None,
             },
@@ -150,9 +151,7 @@ fn create_tpch_schema_vibesql(db: &mut VibeDB) {
             },
             ColumnSchema {
                 name: "N_COMMENT".to_string(),
-                data_type: DataType::Varchar {
-                    max_length: Some(152),
-                },
+                data_type: DataType::Varchar { max_length: Some(152) },
                 nullable: true,
                 default_value: None,
             },
@@ -196,10 +195,7 @@ fn create_tpch_schema_vibesql(db: &mut VibeDB) {
             },
             ColumnSchema {
                 name: "C_ACCTBAL".to_string(),
-                data_type: DataType::Decimal {
-                    precision: 15,
-                    scale: 2,
-                },
+                data_type: DataType::Decimal { precision: 15, scale: 2 },
                 nullable: false,
                 default_value: None,
             },
@@ -211,9 +207,7 @@ fn create_tpch_schema_vibesql(db: &mut VibeDB) {
             },
             ColumnSchema {
                 name: "C_COMMENT".to_string(),
-                data_type: DataType::Varchar {
-                    max_length: Some(117),
-                },
+                data_type: DataType::Varchar { max_length: Some(117) },
                 nullable: true,
                 default_value: None,
             },
@@ -245,10 +239,7 @@ fn create_tpch_schema_vibesql(db: &mut VibeDB) {
             },
             ColumnSchema {
                 name: "O_TOTALPRICE".to_string(),
-                data_type: DataType::Decimal {
-                    precision: 15,
-                    scale: 2,
-                },
+                data_type: DataType::Decimal { precision: 15, scale: 2 },
                 nullable: false,
                 default_value: None,
             },
@@ -316,37 +307,25 @@ fn create_tpch_schema_vibesql(db: &mut VibeDB) {
             },
             ColumnSchema {
                 name: "L_QUANTITY".to_string(),
-                data_type: DataType::Decimal {
-                    precision: 15,
-                    scale: 2,
-                },
+                data_type: DataType::Decimal { precision: 15, scale: 2 },
                 nullable: false,
                 default_value: None,
             },
             ColumnSchema {
                 name: "L_EXTENDEDPRICE".to_string(),
-                data_type: DataType::Decimal {
-                    precision: 15,
-                    scale: 2,
-                },
+                data_type: DataType::Decimal { precision: 15, scale: 2 },
                 nullable: false,
                 default_value: None,
             },
             ColumnSchema {
                 name: "L_DISCOUNT".to_string(),
-                data_type: DataType::Decimal {
-                    precision: 15,
-                    scale: 2,
-                },
+                data_type: DataType::Decimal { precision: 15, scale: 2 },
                 nullable: false,
                 default_value: None,
             },
             ColumnSchema {
                 name: "L_TAX".to_string(),
-                data_type: DataType::Decimal {
-                    precision: 15,
-                    scale: 2,
-                },
+                data_type: DataType::Decimal { precision: 15, scale: 2 },
                 nullable: false,
                 default_value: None,
             },
@@ -438,18 +417,13 @@ fn create_tpch_schema_vibesql(db: &mut VibeDB) {
             },
             ColumnSchema {
                 name: "S_ACCTBAL".to_string(),
-                data_type: DataType::Decimal {
-                    precision: 15,
-                    scale: 2,
-                },
+                data_type: DataType::Decimal { precision: 15, scale: 2 },
                 nullable: false,
                 default_value: None,
             },
             ColumnSchema {
                 name: "S_COMMENT".to_string(),
-                data_type: DataType::Varchar {
-                    max_length: Some(101),
-                },
+                data_type: DataType::Varchar { max_length: Some(101) },
                 nullable: true,
                 default_value: None,
             },
@@ -505,10 +479,7 @@ fn create_tpch_schema_vibesql(db: &mut VibeDB) {
             },
             ColumnSchema {
                 name: "P_RETAILPRICE".to_string(),
-                data_type: DataType::Decimal {
-                    precision: 15,
-                    scale: 2,
-                },
+                data_type: DataType::Decimal { precision: 15, scale: 2 },
                 nullable: false,
                 default_value: None,
             },
@@ -546,10 +517,7 @@ fn create_tpch_schema_vibesql(db: &mut VibeDB) {
             },
             ColumnSchema {
                 name: "PS_SUPPLYCOST".to_string(),
-                data_type: DataType::Decimal {
-                    precision: 15,
-                    scale: 2,
-                },
+                data_type: DataType::Decimal { precision: 15, scale: 2 },
                 nullable: false,
                 default_value: None,
             },
@@ -1002,9 +970,7 @@ fn load_customer_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
 
 #[cfg(feature = "benchmark-comparison")]
 fn load_customer_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
-    let mut stmt = conn
-        .prepare("INSERT INTO customer VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-        .unwrap();
+    let mut stmt = conn.prepare("INSERT INTO customer VALUES (?, ?, ?, ?, ?, ?, ?, ?)").unwrap();
 
     for i in 0..data.customer_count {
         let nation_key = i % 25;
@@ -1025,9 +991,7 @@ fn load_customer_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
 
 #[cfg(feature = "benchmark-comparison")]
 fn load_customer_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
-    let mut stmt = conn
-        .prepare("INSERT INTO customer VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-        .unwrap();
+    let mut stmt = conn.prepare("INSERT INTO customer VALUES (?, ?, ?, ?, ?, ?, ?, ?)").unwrap();
 
     for i in 0..data.customer_count {
         let nation_key = i % 25;
@@ -1071,9 +1035,7 @@ fn load_supplier_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
 
 #[cfg(feature = "benchmark-comparison")]
 fn load_supplier_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
-    let mut stmt = conn
-        .prepare("INSERT INTO supplier VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .unwrap();
+    let mut stmt = conn.prepare("INSERT INTO supplier VALUES (?, ?, ?, ?, ?, ?, ?)").unwrap();
 
     for i in 0..data.supplier_count {
         let nation_key = i % 25;
@@ -1093,9 +1055,7 @@ fn load_supplier_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
 
 #[cfg(feature = "benchmark-comparison")]
 fn load_supplier_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
-    let mut stmt = conn
-        .prepare("INSERT INTO supplier VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .unwrap();
+    let mut stmt = conn.prepare("INSERT INTO supplier VALUES (?, ?, ?, ?, ?, ?, ?)").unwrap();
 
     for i in 0..data.supplier_count {
         let nation_key = i % 25;
@@ -1118,9 +1078,10 @@ fn load_supplier_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
 // =============================================================================
 
 fn load_part_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
-    use super::data::{COLORS, CONTAINERS, TYPES};
     use vibesql_storage::Row;
     use vibesql_types::SqlValue;
+
+    use super::data::{COLORS, CONTAINERS, TYPES};
     for i in 0..data.part_count {
         let color1 = COLORS[i % COLORS.len()];
         let color2 = COLORS[(i * 7) % COLORS.len()];
@@ -1151,7 +1112,10 @@ fn load_partsupp_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
     // Each part is supplied by 4 suppliers
     for part_key in 1..=data.part_count {
         for j in 0..4 {
-            let supp_key = ((part_key + (j * (data.supplier_count / 4 + (part_key - 1) / data.supplier_count))) % data.supplier_count) + 1;
+            let supp_key = ((part_key
+                + (j * (data.supplier_count / 4 + (part_key - 1) / data.supplier_count)))
+                % data.supplier_count)
+                + 1;
             let availqty = ((part_key * 17 + j * 31) % 9999) + 1;
             let supplycost = ((part_key * 13 + j * 7) % 100000) as f64 / 100.0 + 1.0;
             let row = Row::new(vec![
@@ -1195,9 +1159,7 @@ fn load_orders_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
 
 #[cfg(feature = "benchmark-comparison")]
 fn load_orders_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
-    let mut stmt = conn
-        .prepare("INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .unwrap();
+    let mut stmt = conn.prepare("INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").unwrap();
 
     for i in 0..data.orders_count {
         let cust_key = (i % data.customer_count) + 1;
@@ -1221,9 +1183,7 @@ fn load_orders_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
 
 #[cfg(feature = "benchmark-comparison")]
 fn load_orders_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
-    let mut stmt = conn
-        .prepare("INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .unwrap();
+    let mut stmt = conn.prepare("INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").unwrap();
 
     for i in 0..data.orders_count {
         let cust_key = (i % data.customer_count) + 1;
@@ -1417,9 +1377,7 @@ fn load_part_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
 
 #[cfg(feature = "benchmark-comparison")]
 fn load_part_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
-    let mut stmt = conn
-        .prepare("INSERT INTO part VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .unwrap();
+    let mut stmt = conn.prepare("INSERT INTO part VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").unwrap();
 
     for i in 0..data.part_count {
         let size = (i % 50) + 1;
@@ -1441,9 +1399,7 @@ fn load_part_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
 
 #[cfg(feature = "benchmark-comparison")]
 fn load_part_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
-    let mut stmt = conn
-        .prepare("INSERT INTO part VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .unwrap();
+    let mut stmt = conn.prepare("INSERT INTO part VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").unwrap();
 
     for i in 0..data.part_count {
         let size = (i % 50) + 1;

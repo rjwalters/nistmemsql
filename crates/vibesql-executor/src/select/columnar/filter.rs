@@ -1,8 +1,9 @@
 //! Columnar filtering - efficient predicate evaluation on column data
 
-use crate::{errors::ExecutorError, schema::CombinedSchema};
 use vibesql_ast::{BinaryOperator, Expression};
 use vibesql_types::SqlValue;
+
+use crate::{errors::ExecutorError, schema::CombinedSchema};
 
 /// Apply a filter to row indices based on column predicates
 ///
@@ -134,11 +135,7 @@ pub enum ColumnPredicate {
     Equal { column_idx: usize, value: SqlValue },
 
     /// column BETWEEN low AND high
-    Between {
-        column_idx: usize,
-        low: SqlValue,
-        high: SqlValue,
-    },
+    Between { column_idx: usize, low: SqlValue, high: SqlValue },
 }
 
 /// Extract simple column predicates from a WHERE clause expression
@@ -178,11 +175,7 @@ fn extract_predicates_recursive(
 ) -> Option<()> {
     match expr {
         // AND: extract predicates from both sides
-        Expression::BinaryOp {
-            left,
-            op: BinaryOperator::And,
-            right,
-        } => {
+        Expression::BinaryOp { left, op: BinaryOperator::And, right } => {
             extract_predicates_recursive(left, schema, predicates)?;
             extract_predicates_recursive(right, schema, predicates)?;
             Some(())
@@ -196,26 +189,21 @@ fn extract_predicates_recursive(
             {
                 let column_idx = schema.get_column_index(table.as_deref(), column)?;
                 let predicate = match op {
-                    BinaryOperator::LessThan => ColumnPredicate::LessThan {
-                        column_idx,
-                        value: value.clone(),
-                    },
-                    BinaryOperator::GreaterThan => ColumnPredicate::GreaterThan {
-                        column_idx,
-                        value: value.clone(),
-                    },
-                    BinaryOperator::LessThanOrEqual => ColumnPredicate::LessThanOrEqual {
-                        column_idx,
-                        value: value.clone(),
-                    },
-                    BinaryOperator::GreaterThanOrEqual => ColumnPredicate::GreaterThanOrEqual {
-                        column_idx,
-                        value: value.clone(),
-                    },
-                    BinaryOperator::Equal => ColumnPredicate::Equal {
-                        column_idx,
-                        value: value.clone(),
-                    },
+                    BinaryOperator::LessThan => {
+                        ColumnPredicate::LessThan { column_idx, value: value.clone() }
+                    }
+                    BinaryOperator::GreaterThan => {
+                        ColumnPredicate::GreaterThan { column_idx, value: value.clone() }
+                    }
+                    BinaryOperator::LessThanOrEqual => {
+                        ColumnPredicate::LessThanOrEqual { column_idx, value: value.clone() }
+                    }
+                    BinaryOperator::GreaterThanOrEqual => {
+                        ColumnPredicate::GreaterThanOrEqual { column_idx, value: value.clone() }
+                    }
+                    BinaryOperator::Equal => {
+                        ColumnPredicate::Equal { column_idx, value: value.clone() }
+                    }
                     _ => return None, // Unsupported operator
                 };
                 predicates.push(predicate);
@@ -229,26 +217,21 @@ fn extract_predicates_recursive(
                 let column_idx = schema.get_column_index(table.as_deref(), column)?;
                 let predicate = match op {
                     // Reverse the comparison: literal < column => column > literal
-                    BinaryOperator::LessThan => ColumnPredicate::GreaterThan {
-                        column_idx,
-                        value: value.clone(),
-                    },
-                    BinaryOperator::GreaterThan => ColumnPredicate::LessThan {
-                        column_idx,
-                        value: value.clone(),
-                    },
-                    BinaryOperator::LessThanOrEqual => ColumnPredicate::GreaterThanOrEqual {
-                        column_idx,
-                        value: value.clone(),
-                    },
-                    BinaryOperator::GreaterThanOrEqual => ColumnPredicate::LessThanOrEqual {
-                        column_idx,
-                        value: value.clone(),
-                    },
-                    BinaryOperator::Equal => ColumnPredicate::Equal {
-                        column_idx,
-                        value: value.clone(),
-                    },
+                    BinaryOperator::LessThan => {
+                        ColumnPredicate::GreaterThan { column_idx, value: value.clone() }
+                    }
+                    BinaryOperator::GreaterThan => {
+                        ColumnPredicate::LessThan { column_idx, value: value.clone() }
+                    }
+                    BinaryOperator::LessThanOrEqual => {
+                        ColumnPredicate::GreaterThanOrEqual { column_idx, value: value.clone() }
+                    }
+                    BinaryOperator::GreaterThanOrEqual => {
+                        ColumnPredicate::LessThanOrEqual { column_idx, value: value.clone() }
+                    }
+                    BinaryOperator::Equal => {
+                        ColumnPredicate::Equal { column_idx, value: value.clone() }
+                    }
                     _ => return None, // Unsupported operator
                 };
                 predicates.push(predicate);
@@ -259,13 +242,7 @@ fn extract_predicates_recursive(
         }
 
         // BETWEEN: column BETWEEN low AND high
-        Expression::Between {
-            expr: inner,
-            low,
-            high,
-            negated: false,
-            symmetric: _,
-        } => {
+        Expression::Between { expr: inner, low, high, negated: false, symmetric: _ } => {
             if let Expression::ColumnRef { table, column } = inner.as_ref() {
                 if let (Expression::Literal(low_val), Expression::Literal(high_val)) =
                     (low.as_ref(), high.as_ref())
@@ -350,18 +327,10 @@ fn compare_values(a: &SqlValue, b: &SqlValue) -> std::cmp::Ordering {
         (SqlValue::Integer(a), SqlValue::Integer(b)) => a.cmp(b),
         (SqlValue::Bigint(a), SqlValue::Bigint(b)) => a.cmp(b),
         (SqlValue::Smallint(a), SqlValue::Smallint(b)) => a.cmp(b),
-        (SqlValue::Float(a), SqlValue::Float(b)) => {
-            a.partial_cmp(b).unwrap_or(Ordering::Equal)
-        }
-        (SqlValue::Double(a), SqlValue::Double(b)) => {
-            a.partial_cmp(b).unwrap_or(Ordering::Equal)
-        }
-        (SqlValue::Numeric(a), SqlValue::Numeric(b)) => {
-            a.partial_cmp(b).unwrap_or(Ordering::Equal)
-        }
-        (SqlValue::Real(a), SqlValue::Real(b)) => {
-            a.partial_cmp(b).unwrap_or(Ordering::Equal)
-        }
+        (SqlValue::Float(a), SqlValue::Float(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
+        (SqlValue::Double(a), SqlValue::Double(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
+        (SqlValue::Numeric(a), SqlValue::Numeric(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
+        (SqlValue::Real(a), SqlValue::Real(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
         (SqlValue::Varchar(a), SqlValue::Varchar(b)) => a.cmp(b),
         (SqlValue::Character(a), SqlValue::Character(b)) => a.cmp(b),
         (SqlValue::Date(a), SqlValue::Date(b)) => a.cmp(b),
@@ -383,10 +352,7 @@ mod tests {
 
     #[test]
     fn test_less_than_predicate() {
-        let pred = ColumnPredicate::LessThan {
-            column_idx: 0,
-            value: SqlValue::Integer(10),
-        };
+        let pred = ColumnPredicate::LessThan { column_idx: 0, value: SqlValue::Integer(10) };
 
         assert!(evaluate_predicate(&pred, &SqlValue::Integer(5)));
         assert!(!evaluate_predicate(&pred, &SqlValue::Integer(10)));
@@ -429,10 +395,8 @@ mod tests {
         assert!(bitmap.iter().all(|&x| x));
 
         // Test with LessThan predicate
-        let predicates = vec![ColumnPredicate::LessThan {
-            column_idx: 0,
-            value: SqlValue::Integer(18),
-        }];
+        let predicates =
+            vec![ColumnPredicate::LessThan { column_idx: 0, value: SqlValue::Integer(18) }];
         let bitmap = create_filter_bitmap(rows.len(), &predicates, |row_idx, col_idx| {
             rows.get(row_idx).and_then(|row| row.get(col_idx))
         })

@@ -40,8 +40,10 @@ pub fn analyze_equi_join(
 
             if std::env::var("JOIN_DEBUG").is_ok() {
                 eprintln!("[JOIN_ANALYZER] Analyzing equijoin: {:?} = {:?}", left, right);
-                eprintln!("[JOIN_ANALYZER] left_idx={:?}, right_idx={:?}, left_col_count={}",
-                    left_idx_opt, right_idx_opt, left_column_count);
+                eprintln!(
+                    "[JOIN_ANALYZER] left_idx={:?}, right_idx={:?}, left_col_count={}",
+                    left_idx_opt, right_idx_opt, left_column_count
+                );
             }
 
             if let (Some(left_idx), Some(right_idx)) = (left_idx_opt, right_idx_opt) {
@@ -49,7 +51,11 @@ pub fn analyze_equi_join(
                 if left_idx < left_column_count && right_idx >= left_column_count {
                     // Left column from left table, right column from right table
                     if std::env::var("JOIN_DEBUG").is_ok() {
-                        eprintln!("[JOIN_ANALYZER] SUCCESS: left_col={}, right_col={}", left_idx, right_idx - left_column_count);
+                        eprintln!(
+                            "[JOIN_ANALYZER] SUCCESS: left_col={}, right_col={}",
+                            left_idx,
+                            right_idx - left_column_count
+                        );
                     }
                     return Some(EquiJoinInfo {
                         left_col_idx: left_idx,
@@ -58,7 +64,11 @@ pub fn analyze_equi_join(
                 } else if right_idx < left_column_count && left_idx >= left_column_count {
                     // Left column from right table, right column from left table (swapped)
                     if std::env::var("JOIN_DEBUG").is_ok() {
-                        eprintln!("[JOIN_ANALYZER] SUCCESS (swapped): left_col={}, right_col={}", right_idx, left_idx - left_column_count);
+                        eprintln!(
+                            "[JOIN_ANALYZER] SUCCESS (swapped): left_col={}, right_col={}",
+                            right_idx,
+                            left_idx - left_column_count
+                        );
                     }
                     return Some(EquiJoinInfo {
                         left_col_idx: right_idx,
@@ -103,7 +113,8 @@ pub fn analyze_equi_join(
     }
 }
 
-/// Check if a condition is a complex expression (contains AND/OR/other operators beyond simple equality)
+/// Check if a condition is a complex expression (contains AND/OR/other operators beyond simple
+/// equality)
 ///
 /// Returns true if the expression is anything other than a simple `col1 = col2` equality.
 /// This is used to determine if a condition should still be applied as a post-join filter
@@ -136,9 +147,10 @@ fn extract_column_index(expr: &Expression, schema: &CombinedSchema) -> Option<us
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_catalog::{ColumnSchema, TableSchema};
     use vibesql_types::DataType;
+
+    use super::*;
     use crate::schema::CombinedSchema;
 
     /// Helper to create a test schema with two tables

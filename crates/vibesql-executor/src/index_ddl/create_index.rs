@@ -96,9 +96,10 @@ impl CreateIndexExecutor {
             if let Some(prefix_len) = index_col.prefix_length {
                 // Prefix length must be positive
                 if prefix_len == 0 {
-                    return Err(ExecutorError::InvalidIndexDefinition(
-                        format!("Prefix length must be greater than 0 for column '{}'", index_col.column_name),
-                    ));
+                    return Err(ExecutorError::InvalidIndexDefinition(format!(
+                        "Prefix length must be greater than 0 for column '{}'",
+                        index_col.column_name
+                    )));
                 }
 
                 // Prefix length should only be used with string columns
@@ -122,19 +123,18 @@ impl CreateIndexExecutor {
                 // This prevents accidental extremely large prefix specifications
                 const MAX_PREFIX_LENGTH: u64 = 65536;
                 if prefix_len > MAX_PREFIX_LENGTH {
-                    return Err(ExecutorError::InvalidIndexDefinition(
-                        format!(
-                            "Prefix length {} is too large for column '{}' (maximum: {})",
-                            prefix_len, index_col.column_name, MAX_PREFIX_LENGTH
-                        ),
-                    ));
+                    return Err(ExecutorError::InvalidIndexDefinition(format!(
+                        "Prefix length {} is too large for column '{}' (maximum: {})",
+                        prefix_len, index_col.column_name, MAX_PREFIX_LENGTH
+                    )));
                 }
             }
         }
 
         // Check if index already exists (either B-tree or spatial)
         let index_name = &stmt.index_name;
-        let index_exists = database.index_exists(index_name) || database.spatial_index_exists(index_name);
+        let index_exists =
+            database.index_exists(index_name) || database.spatial_index_exists(index_name);
 
         if index_exists {
             if stmt.if_not_exists {
@@ -158,8 +158,12 @@ impl CreateIndexExecutor {
                         .map(|col| vibesql_catalog::IndexedColumn {
                             column_name: col.column_name.clone(),
                             order: match col.direction {
-                                vibesql_ast::OrderDirection::Asc => vibesql_catalog::SortOrder::Ascending,
-                                vibesql_ast::OrderDirection::Desc => vibesql_catalog::SortOrder::Descending,
+                                vibesql_ast::OrderDirection::Asc => {
+                                    vibesql_catalog::SortOrder::Ascending
+                                }
+                                vibesql_ast::OrderDirection::Desc => {
+                                    vibesql_catalog::SortOrder::Descending
+                                }
                             },
                             prefix_length: col.prefix_length,
                         })
@@ -168,7 +172,8 @@ impl CreateIndexExecutor {
                 );
                 database.catalog.add_index(index_metadata)?;
 
-                // B-tree index (use unqualified name for storage, database handles qualification internally)
+                // B-tree index (use unqualified name for storage, database handles qualification
+                // internally)
                 database.create_index(
                     index_name.clone(),
                     table_name.clone(),
@@ -181,11 +186,9 @@ impl CreateIndexExecutor {
                     index_name, qualified_table_name
                 ))
             }
-            vibesql_ast::IndexType::Fulltext => {
-                Err(ExecutorError::UnsupportedFeature(
-                    "FULLTEXT indexes are not yet implemented".to_string(),
-                ))
-            }
+            vibesql_ast::IndexType::Fulltext => Err(ExecutorError::UnsupportedFeature(
+                "FULLTEXT indexes are not yet implemented".to_string(),
+            )),
             vibesql_ast::IndexType::Spatial => {
                 // Spatial index validation: must be exactly 1 column
                 if stmt.columns.len() != 1 {
@@ -197,9 +200,8 @@ impl CreateIndexExecutor {
                 let column_name = &stmt.columns[0].column_name;
 
                 // Get the column index
-                let col_idx = table_schema
-                    .get_column_index(column_name)
-                    .ok_or_else(|| ExecutorError::ColumnNotFound {
+                let col_idx = table_schema.get_column_index(column_name).ok_or_else(|| {
+                    ExecutorError::ColumnNotFound {
                         column_name: column_name.clone(),
                         table_name: qualified_table_name.clone(),
                         searched_tables: vec![qualified_table_name.clone()],
@@ -208,9 +210,11 @@ impl CreateIndexExecutor {
                             .iter()
                             .map(|c| c.name.clone())
                             .collect(),
-                    })?;
+                    }
+                })?;
 
-                // Extract MBRs from all existing rows (use unqualified name, database handles qualification)
+                // Extract MBRs from all existing rows (use unqualified name, database handles
+                // qualification)
                 let table = database
                     .get_table(&table_name)
                     .ok_or_else(|| ExecutorError::TableNotFound(qualified_table_name.clone()))?;
@@ -366,8 +370,16 @@ mod tests {
             table_name: "users".to_string(),
             index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![
-                IndexColumn { column_name: "email".to_string(), direction: OrderDirection::Asc, prefix_length: None },
-                IndexColumn { column_name: "name".to_string(), direction: OrderDirection::Desc, prefix_length: None },
+                IndexColumn {
+                    column_name: "email".to_string(),
+                    direction: OrderDirection::Asc,
+                    prefix_length: None,
+                },
+                IndexColumn {
+                    column_name: "name".to_string(),
+                    direction: OrderDirection::Desc,
+                    prefix_length: None,
+                },
             ],
         };
 

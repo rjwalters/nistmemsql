@@ -71,7 +71,9 @@ impl Parser {
     }
 
     /// Parse additive expression (handles +, -, and ||)
-    pub(super) fn parse_additive_expression(&mut self) -> Result<vibesql_ast::Expression, ParseError> {
+    pub(super) fn parse_additive_expression(
+        &mut self,
+    ) -> Result<vibesql_ast::Expression, ParseError> {
         let mut left = self.parse_multiplicative_expression()?;
 
         loop {
@@ -84,7 +86,11 @@ impl Parser {
             self.advance();
 
             let right = self.parse_multiplicative_expression()?;
-            left = vibesql_ast::Expression::BinaryOp { op, left: Box::new(left), right: Box::new(right) };
+            left = vibesql_ast::Expression::BinaryOp {
+                op,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
         }
 
         Ok(left)
@@ -107,7 +113,11 @@ impl Parser {
             self.advance();
 
             let right = self.parse_unary_expression()?;
-            left = vibesql_ast::Expression::BinaryOp { op, left: Box::new(left), right: Box::new(right) };
+            left = vibesql_ast::Expression::BinaryOp {
+                op,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
         }
 
         Ok(left)
@@ -115,7 +125,9 @@ impl Parser {
 
     /// Parse comparison expression (handles =, <, >, <=, >=, !=, <>, IN, BETWEEN, LIKE, IS NULL)
     /// These operators have lower precedence than arithmetic operators
-    pub(super) fn parse_comparison_expression(&mut self) -> Result<vibesql_ast::Expression, ParseError> {
+    pub(super) fn parse_comparison_expression(
+        &mut self,
+    ) -> Result<vibesql_ast::Expression, ParseError> {
         let mut left = self.parse_additive_expression()?;
 
         // Check for IN operator (including NOT IN) and BETWEEN (including NOT BETWEEN)
@@ -329,7 +341,11 @@ impl Parser {
             }
 
             let right = self.parse_additive_expression()?;
-            left = vibesql_ast::Expression::BinaryOp { op, left: Box::new(left), right: Box::new(right) };
+            left = vibesql_ast::Expression::BinaryOp {
+                op,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
         }
 
         // Check for IS NULL / IS NOT NULL
@@ -360,12 +376,18 @@ impl Parser {
             Token::Symbol('+') => {
                 self.advance();
                 let expr = self.parse_unary_expression()?;
-                Ok(vibesql_ast::Expression::UnaryOp { op: vibesql_ast::UnaryOperator::Plus, expr: Box::new(expr) })
+                Ok(vibesql_ast::Expression::UnaryOp {
+                    op: vibesql_ast::UnaryOperator::Plus,
+                    expr: Box::new(expr),
+                })
             }
             Token::Symbol('-') => {
                 self.advance();
                 let expr = self.parse_unary_expression()?;
-                Ok(vibesql_ast::Expression::UnaryOp { op: vibesql_ast::UnaryOperator::Minus, expr: Box::new(expr) })
+                Ok(vibesql_ast::Expression::UnaryOp {
+                    op: vibesql_ast::UnaryOperator::Minus,
+                    expr: Box::new(expr),
+                })
             }
             _ => self.parse_primary_expression(),
         }

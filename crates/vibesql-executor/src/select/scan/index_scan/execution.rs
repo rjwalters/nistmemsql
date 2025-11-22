@@ -5,9 +5,8 @@
 use vibesql_ast::Expression;
 use vibesql_storage::{Database, Row};
 
-use crate::{errors::ExecutorError, optimizer::PredicatePlan, schema::CombinedSchema};
-
 use super::predicate::{extract_index_predicate, IndexPredicate};
+use crate::{errors::ExecutorError, optimizer::PredicatePlan, schema::CombinedSchema};
 
 /// Execute an index scan
 ///
@@ -44,14 +43,12 @@ pub(crate) fn execute_index_scan(
         .ok_or_else(|| ExecutorError::IndexNotFound(index_name.to_string()))?;
 
     // Get the first indexed column (for predicate extraction)
-    let indexed_column = index_metadata
-        .columns
-        .first()
-        .map(|col| col.column_name.as_str())
-        .unwrap_or("");
+    let indexed_column =
+        index_metadata.columns.first().map(|col| col.column_name.as_str()).unwrap_or("");
 
     // Try to extract index predicate (range or IN) for the indexed column
-    let index_predicate = where_clause.and_then(|expr| extract_index_predicate(expr, indexed_column));
+    let index_predicate =
+        where_clause.and_then(|expr| extract_index_predicate(expr, indexed_column));
 
     // Performance optimization: Determine if WHERE filtering can be skipped
     // Check if the index predicate fully satisfies the WHERE clause
@@ -60,8 +57,8 @@ pub(crate) fn execute_index_scan(
             // Only skip WHERE filtering if we're certain the index handles everything
             !where_clause_fully_satisfied_by_index(where_expr, indexed_column, &index_predicate)
         }
-        (Some(_), None) => true,  // WHERE present but no index predicate extracted
-        (None, _) => false,         // No WHERE clause
+        (Some(_), None) => true, // WHERE present but no index predicate extracted
+        (None, _) => false,      // No WHERE clause
     };
 
     // Determine if this is a multi-column index
@@ -95,10 +92,7 @@ pub(crate) fn execute_index_scan(
             // Full index scan - collect all row indices from the index in index key order
             // (Will be sorted by row index later if needed, see lines 425-427)
             // Note: values() now returns owned Vec<usize>, so no need for .copied()
-            index_data
-                .values()
-                .flatten()
-                .collect()
+            index_data.values().flatten().collect()
         }
     };
 
@@ -120,10 +114,8 @@ pub(crate) fn execute_index_scan(
 
     // Zero-copy optimization: Work with row references until the final step
     // This avoids cloning rows that will be filtered out by the WHERE clause
-    let row_refs: Vec<&Row> = matching_row_indices
-        .iter()
-        .filter_map(|idx| all_rows.get(*idx))
-        .collect();
+    let row_refs: Vec<&Row> =
+        matching_row_indices.iter().filter_map(|idx| all_rows.get(*idx)).collect();
 
     // Apply WHERE clause predicates if needed (zero-copy filtering)
     // Performance optimization: Skip WHERE clause evaluation if the index already
@@ -141,13 +133,7 @@ pub(crate) fn execute_index_scan(
             .map_err(ExecutorError::InvalidWhereClause)?;
 
         // Filter with zero-copy references
-        apply_where_filter_zerocopy(
-            row_refs,
-            &schema,
-            &predicate_plan,
-            table_name,
-            database,
-        )?
+        apply_where_filter_zerocopy(row_refs, &schema, &predicate_plan, table_name, database)?
     } else {
         row_refs
     };
@@ -166,9 +152,7 @@ pub(crate) fn execute_index_scan(
 
     // Final step: Clone only the filtered rows
     // This is the only place where cloning happens, and only for rows that survived filtering
-    let rows: Vec<Row> = filtered_row_refs
-        .into_iter().cloned()
-        .collect();
+    let rows: Vec<Row> = filtered_row_refs.into_iter().cloned().collect();
 
     // Return results with sorting metadata if available
     // If WHERE clause was fully handled by index (!need_where_filter), indicate this
@@ -198,13 +182,13 @@ fn apply_where_filter_zerocopy<'a>(
     table_name: &str,
     database: &vibesql_storage::Database,
 ) -> Result<Vec<&'a Row>, ExecutorError> {
-    use crate::evaluator::CombinedExpressionEvaluator;
-    use crate::select::scan::predicates::combine_predicates_with_and;
+    use crate::{
+        evaluator::CombinedExpressionEvaluator,
+        select::scan::predicates::combine_predicates_with_and,
+    };
 
     // Get table statistics for selectivity-based ordering
-    let table_stats = database
-        .get_table(table_name)
-        .and_then(|table| table.get_statistics());
+    let table_stats = database.get_table(table_name).and_then(|table| table.get_statistics());
 
     // Get predicates ordered by selectivity (most selective first)
     let ordered_preds = predicate_plan.get_table_filters_ordered(table_name, table_stats);
@@ -273,12 +257,13 @@ fn apply_where_filter_zerocopy<'a>(
 
 /// Apply WHERE filter using zero-copy row references with parallel execution
 ///
-/// This function filters rows using Rayon's parallel iterators while maintaining zero-copy semantics.
-/// Only used for large datasets where parallelization provides performance benefits.
+/// This function filters rows using Rayon's parallel iterators while maintaining zero-copy
+/// semantics. Only used for large datasets where parallelization provides performance benefits.
 ///
 /// # Performance
-/// Parallelization is beneficial for datasets where `ParallelConfig::should_parallelize_scan()` returns true,
-/// typically for 10,000+ rows. The overhead of thread spawning is amortized across many rows.
+/// Parallelization is beneficial for datasets where `ParallelConfig::should_parallelize_scan()`
+/// returns true, typically for 10,000+ rows. The overhead of thread spawning is amortized across
+/// many rows.
 #[cfg(feature = "parallel")]
 fn apply_where_filter_zerocopy_parallel<'a>(
     row_refs: Vec<&'a Row>,
@@ -286,8 +271,9 @@ fn apply_where_filter_zerocopy_parallel<'a>(
     combined_where: vibesql_ast::Expression,
     evaluator: crate::evaluator::CombinedExpressionEvaluator,
 ) -> Result<Vec<&'a Row>, ExecutorError> {
-    use rayon::prelude::*;
     use std::sync::Arc;
+
+    use rayon::prelude::*;
 
     // Clone expression for thread-safe sharing
     let where_expr_arc = Arc::new(combined_where);
@@ -301,14 +287,15 @@ fn apply_where_filter_zerocopy_parallel<'a>(
         .into_par_iter()
         .map(|row_ref| {
             // Create thread-local evaluator with independent caches
-            let thread_evaluator = crate::evaluator::CombinedExpressionEvaluator::from_parallel_components(
-                schema,
-                database,
-                outer_row,
-                outer_schema,
-                window_mapping,
-                enable_cse,
-            );
+            let thread_evaluator =
+                crate::evaluator::CombinedExpressionEvaluator::from_parallel_components(
+                    schema,
+                    database,
+                    outer_row,
+                    outer_schema,
+                    window_mapping,
+                    enable_cse,
+                );
 
             // Evaluate predicate for this row reference (no cloning)
             let include_row = match thread_evaluator.eval(&where_expr_arc, row_ref)? {
@@ -375,20 +362,22 @@ fn where_clause_fully_satisfied_by_index(
     indexed_column: &str,
     index_predicate: &Option<IndexPredicate>,
 ) -> bool {
-    use super::super::super::scan::index_scan::selection::is_column_reference;
     use vibesql_ast::BinaryOperator;
 
+    use super::super::super::scan::index_scan::selection::is_column_reference;
+
     let Some(pred) = index_predicate else {
-        return false;  // No index predicate, can't be satisfied
+        return false; // No index predicate, can't be satisfied
     };
 
     match where_expr {
         // Simple equality: WHERE col = value
         Expression::BinaryOp { left, op: BinaryOperator::Equal, right } => {
             // Check if this is exactly "indexed_column = literal"
-            let is_indexed_col_equals_literal =
-                (is_column_reference(left, indexed_column) && matches!(right.as_ref(), Expression::Literal(_)))
-                || (is_column_reference(right, indexed_column) && matches!(left.as_ref(), Expression::Literal(_)));
+            let is_indexed_col_equals_literal = (is_column_reference(left, indexed_column)
+                && matches!(right.as_ref(), Expression::Literal(_)))
+                || (is_column_reference(right, indexed_column)
+                    && matches!(left.as_ref(), Expression::Literal(_)));
 
             if !is_indexed_col_equals_literal {
                 return false;
@@ -421,16 +410,19 @@ fn where_clause_fully_satisfied_by_index(
                 | BinaryOperator::GreaterThanOrEqual
                 | BinaryOperator::LessThan
                 | BinaryOperator::LessThanOrEqual => {
-                    // Check if this is "indexed_column <op> literal" or "literal <op> indexed_column"
-                    let is_simple_range =
-                        (is_column_reference(left, indexed_column) && matches!(right.as_ref(), Expression::Literal(_)))
-                        || (is_column_reference(right, indexed_column) && matches!(left.as_ref(), Expression::Literal(_)));
+                    // Check if this is "indexed_column <op> literal" or "literal <op>
+                    // indexed_column"
+                    let is_simple_range = (is_column_reference(left, indexed_column)
+                        && matches!(right.as_ref(), Expression::Literal(_)))
+                        || (is_column_reference(right, indexed_column)
+                            && matches!(left.as_ref(), Expression::Literal(_)));
 
                     if !is_simple_range {
                         return false;
                     }
 
-                    // Verify the index predicate is a range (any range is fine for simple comparisons)
+                    // Verify the index predicate is a range (any range is fine for simple
+                    // comparisons)
                     matches!(pred, IndexPredicate::Range(_))
                 }
 
@@ -441,27 +433,33 @@ fn where_clause_fully_satisfied_by_index(
                     // For now, be conservative and reject AND unless it's obviously safe
                     // The predicate extraction already handles simple "col >= a AND col <= b" cases
 
-                    // Check if this is exactly the pattern: indexed_col >= val AND indexed_col <= val
+                    // Check if this is exactly the pattern: indexed_col >= val AND indexed_col <=
+                    // val
                     match (left.as_ref(), right.as_ref()) {
                         (
                             Expression::BinaryOp { left: l_left, op: l_op, right: l_right },
                             Expression::BinaryOp { left: r_left, op: r_op, right: r_right },
                         ) => {
                             // Both sides must reference our indexed column
-                            let left_has_col = is_column_reference(l_left, indexed_column) || is_column_reference(l_right, indexed_column);
-                            let right_has_col = is_column_reference(r_left, indexed_column) || is_column_reference(r_right, indexed_column);
+                            let left_has_col = is_column_reference(l_left, indexed_column)
+                                || is_column_reference(l_right, indexed_column);
+                            let right_has_col = is_column_reference(r_left, indexed_column)
+                                || is_column_reference(r_right, indexed_column);
 
                             if !left_has_col || !right_has_col {
-                                return false;  // Not both sides on our column
+                                return false; // Not both sides on our column
                             }
 
                             // Both sides must be range operators
-                            let is_range_op = |op: &BinaryOperator| matches!(op,
-                                BinaryOperator::GreaterThan
-                                | BinaryOperator::GreaterThanOrEqual
-                                | BinaryOperator::LessThan
-                                | BinaryOperator::LessThanOrEqual
-                            );
+                            let is_range_op = |op: &BinaryOperator| {
+                                matches!(
+                                    op,
+                                    BinaryOperator::GreaterThan
+                                        | BinaryOperator::GreaterThanOrEqual
+                                        | BinaryOperator::LessThan
+                                        | BinaryOperator::LessThanOrEqual
+                                )
+                            };
 
                             if !is_range_op(l_op) || !is_range_op(r_op) {
                                 return false;
@@ -471,11 +469,11 @@ fn where_clause_fully_satisfied_by_index(
                             matches!(pred, IndexPredicate::Range(range)
                                 if range.start.is_some() && range.end.is_some())
                         }
-                        _ => false,  // Not the right structure
+                        _ => false, // Not the right structure
                     }
                 }
 
-                _ => false,  // Other binary operators not handled
+                _ => false, // Other binary operators not handled
             }
         }
 

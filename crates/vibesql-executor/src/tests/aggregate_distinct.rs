@@ -11,8 +11,16 @@ fn create_test_db_with_duplicates() -> vibesql_storage::Database {
     let schema = vibesql_catalog::TableSchema::new(
         "sales".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("amount".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "amount".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -21,32 +29,50 @@ fn create_test_db_with_duplicates() -> vibesql_storage::Database {
     // Unique values: 100, 200, 300 (3 distinct values)
     db.insert_row(
         "sales",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(100)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(100),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "sales",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(2), vibesql_types::SqlValue::Integer(100)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(2),
+            vibesql_types::SqlValue::Integer(100),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "sales",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(3), vibesql_types::SqlValue::Integer(200)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(3),
+            vibesql_types::SqlValue::Integer(200),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "sales",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(4), vibesql_types::SqlValue::Integer(100)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(4),
+            vibesql_types::SqlValue::Integer(100),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "sales",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(5), vibesql_types::SqlValue::Integer(300)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(5),
+            vibesql_types::SqlValue::Integer(300),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "sales",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(6), vibesql_types::SqlValue::Integer(200)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(6),
+            vibesql_types::SqlValue::Integer(200),
+        ]),
     )
     .unwrap();
 
@@ -61,7 +87,8 @@ fn test_count_distinct_basic() {
     // SELECT COUNT(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -98,7 +125,8 @@ fn test_count_distinct_vs_count_all() {
     // SELECT COUNT(amount), COUNT(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -137,8 +165,9 @@ fn test_count_distinct_vs_count_all() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(6)); // COUNT(amount) - all rows
-    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Integer(3)); // COUNT(DISTINCT amount) - unique
-                                                                  // values
+    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Integer(3)); // COUNT(DISTINCT amount)
+                                                                          // - unique
+                                                                          // values
 }
 
 #[test]
@@ -149,7 +178,8 @@ fn test_sum_distinct() {
     // SELECT SUM(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -186,7 +216,8 @@ fn test_sum_distinct_vs_sum_all() {
     // SELECT SUM(amount), SUM(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -238,7 +269,8 @@ fn test_avg_distinct() {
     // SELECT AVG(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -275,7 +307,8 @@ fn test_min_distinct() {
     // SELECT MIN(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -312,7 +345,8 @@ fn test_max_distinct() {
     // SELECT MAX(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -355,9 +389,12 @@ fn test_count_distinct_with_nulls() {
     db.create_table(schema).unwrap();
 
     // Insert values including NULLs: 1, 1, 2, NULL, NULL
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1)])).unwrap();
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1)])).unwrap();
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(2)])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1)]))
+        .unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1)]))
+        .unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(2)]))
+        .unwrap();
     db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Null])).unwrap();
     db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Null])).unwrap();
 
@@ -366,14 +403,18 @@ fn test_count_distinct_with_nulls() {
     // SELECT COUNT(DISTINCT val) FROM test
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
             expr: vibesql_ast::Expression::AggregateFunction {
                 name: "COUNT".to_string(),
                 distinct: true,
-                args: vec![vibesql_ast::Expression::ColumnRef { table: None, column: "val".to_string() }],
+                args: vec![vibesql_ast::Expression::ColumnRef {
+                    table: None,
+                    column: "val".to_string(),
+                }],
             },
             alias: None,
         }],
@@ -397,21 +438,29 @@ fn test_distinct_all_same_value() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "test".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("val".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "val".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
 
     // Insert same value 3 times
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(42)])).unwrap();
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(42)])).unwrap();
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(42)])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(42)]))
+        .unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(42)]))
+        .unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(42)]))
+        .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
     // SELECT COUNT(DISTINCT val), SUM(DISTINCT val) FROM test
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -460,7 +509,11 @@ fn test_distinct_empty_table() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "empty_test".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("val".to_string(), vibesql_types::DataType::Integer, true)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "val".to_string(),
+            vibesql_types::DataType::Integer,
+            true,
+        )],
     );
     db.create_table(schema).unwrap();
 
@@ -469,7 +522,8 @@ fn test_distinct_empty_table() {
     // SELECT COUNT(DISTINCT val), SUM(DISTINCT val) FROM empty_test
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![

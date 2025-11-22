@@ -9,9 +9,10 @@
 //! - Cache key hash computation
 //! - Cache lookup
 
-use crate::{correlation::is_correlated, errors::ExecutorError, schema::CombinedSchema};
 use vibesql_ast::Expression;
 use vibesql_storage::Database;
+
+use crate::{correlation::is_correlated, errors::ExecutorError, schema::CombinedSchema};
 
 /// Pre-evaluate non-correlated scalar subqueries in a HAVING expression.
 ///
@@ -78,10 +79,7 @@ fn rewrite_expression(
         // Unary operations - recursively rewrite inner expression
         Expression::UnaryOp { op, expr: inner } => {
             let new_inner = rewrite_expression(inner, schema, database)?;
-            Ok(Expression::UnaryOp {
-                op: op.clone(),
-                expr: Box::new(new_inner),
-            })
+            Ok(Expression::UnaryOp { op: op.clone(), expr: Box::new(new_inner) })
         }
 
         // All other expressions - return as-is
@@ -89,4 +87,3 @@ fn rewrite_expression(
         _ => Ok(expr.clone()),
     }
 }
-

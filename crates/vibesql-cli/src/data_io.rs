@@ -125,10 +125,7 @@ impl DataIO {
             let columns: Vec<String> = obj.keys().cloned().collect();
 
             if columns.is_empty() {
-                return Err(anyhow::anyhow!(
-                    "Row {} has no columns",
-                    idx + 1
-                ));
+                return Err(anyhow::anyhow!("Row {} has no columns", idx + 1));
             }
 
             let values: Vec<String> = columns
@@ -220,6 +217,7 @@ mod tests {
     #[test]
     fn test_import_json_basic() {
         use std::io::Write;
+
         use tempfile::NamedTempFile;
 
         // Create temporary JSON file
@@ -232,10 +230,7 @@ mod tests {
         temp_file.flush().unwrap();
 
         // Import JSON
-        let statements = DataIO::import_json(
-            temp_file.path().to_str().unwrap(),
-            "users"
-        ).unwrap();
+        let statements = DataIO::import_json(temp_file.path().to_str().unwrap(), "users").unwrap();
 
         // Verify we got 2 INSERT statements
         assert_eq!(statements.len(), 2);
@@ -249,6 +244,7 @@ mod tests {
     #[test]
     fn test_import_json_sql_injection() {
         use std::io::Write;
+
         use tempfile::NamedTempFile;
 
         // Create JSON with SQL injection attempt
@@ -260,10 +256,8 @@ mod tests {
         temp_file.flush().unwrap();
 
         // Import JSON
-        let statements = DataIO::import_json(
-            temp_file.path().to_str().unwrap(),
-            "test_table"
-        ).unwrap();
+        let statements =
+            DataIO::import_json(temp_file.path().to_str().unwrap(), "test_table").unwrap();
 
         // Verify single quotes are properly escaped
         assert_eq!(statements.len(), 1);
@@ -278,6 +272,7 @@ mod tests {
     #[test]
     fn test_import_json_invalid_format() {
         use std::io::Write;
+
         use tempfile::NamedTempFile;
 
         // Create invalid JSON file
@@ -286,10 +281,7 @@ mod tests {
         temp_file.flush().unwrap();
 
         // Attempt to import
-        let result = DataIO::import_json(
-            temp_file.path().to_str().unwrap(),
-            "users"
-        );
+        let result = DataIO::import_json(temp_file.path().to_str().unwrap(), "users");
 
         // Should fail with error
         assert!(result.is_err());
@@ -299,6 +291,7 @@ mod tests {
     #[test]
     fn test_import_json_empty_array() {
         use std::io::Write;
+
         use tempfile::NamedTempFile;
 
         // Create empty JSON array
@@ -307,10 +300,7 @@ mod tests {
         temp_file.flush().unwrap();
 
         // Attempt to import
-        let result = DataIO::import_json(
-            temp_file.path().to_str().unwrap(),
-            "users"
-        );
+        let result = DataIO::import_json(temp_file.path().to_str().unwrap(), "users");
 
         // Should fail with error
         assert!(result.is_err());

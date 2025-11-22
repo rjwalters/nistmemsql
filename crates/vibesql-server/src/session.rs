@@ -20,28 +20,17 @@ pub struct Session {
 /// Simplified execution result for wire protocol
 #[derive(Debug)]
 pub enum ExecutionResult {
-    Select {
-        rows: Vec<Row>,
-        columns: Vec<Column>,
-    },
-    Insert {
-        rows_affected: usize,
-    },
-    Update {
-        rows_affected: usize,
-    },
-    Delete {
-        rows_affected: usize,
-    },
+    Select { rows: Vec<Row>, columns: Vec<Column> },
+    Insert { rows_affected: usize },
+    Update { rows_affected: usize },
+    Delete { rows_affected: usize },
     CreateTable,
     CreateIndex,
     CreateView,
     DropTable,
     DropIndex,
     DropView,
-    Other {
-        message: String,
-    },
+    Other { message: String },
 }
 
 impl ExecutionResult {
@@ -89,12 +78,7 @@ impl Session {
     pub fn new(database: String, user: String) -> Result<Self> {
         let db = Database::new();
 
-        Ok(Self {
-            database,
-            user,
-            db,
-            in_transaction: false,
-        })
+        Ok(Self { database, user, db, in_transaction: false })
     }
 
     /// Execute a SQL query
@@ -109,7 +93,8 @@ impl Session {
                 let rows = executor.execute(&select_stmt)?;
 
                 // Convert to our result format
-                let result_rows: Vec<Row> = rows.iter().map(|r| Row { values: r.values.clone() }).collect();
+                let result_rows: Vec<Row> =
+                    rows.iter().map(|r| Row { values: r.values.clone() }).collect();
 
                 // TODO: Get actual column names from select statement
                 let columns = if !rows.is_empty() {
@@ -120,24 +105,24 @@ impl Session {
                     Vec::new()
                 };
 
-                Ok(ExecutionResult::Select {
-                    rows: result_rows,
-                    columns,
-                })
+                Ok(ExecutionResult::Select { rows: result_rows, columns })
             }
 
             vibesql_ast::Statement::Insert(insert_stmt) => {
-                let affected = vibesql_executor::InsertExecutor::execute(&mut self.db, &insert_stmt)?;
+                let affected =
+                    vibesql_executor::InsertExecutor::execute(&mut self.db, &insert_stmt)?;
                 Ok(ExecutionResult::Insert { rows_affected: affected })
             }
 
             vibesql_ast::Statement::Update(update_stmt) => {
-                let affected = vibesql_executor::UpdateExecutor::execute(&update_stmt, &mut self.db)?;
+                let affected =
+                    vibesql_executor::UpdateExecutor::execute(&update_stmt, &mut self.db)?;
                 Ok(ExecutionResult::Update { rows_affected: affected })
             }
 
             vibesql_ast::Statement::Delete(delete_stmt) => {
-                let affected = vibesql_executor::DeleteExecutor::execute(&delete_stmt, &mut self.db)?;
+                let affected =
+                    vibesql_executor::DeleteExecutor::execute(&delete_stmt, &mut self.db)?;
                 Ok(ExecutionResult::Delete { rows_affected: affected })
             }
 
@@ -173,9 +158,7 @@ impl Session {
 
             _ => {
                 // For now, return a generic success for other statements
-                Ok(ExecutionResult::Other {
-                    message: "Command completed successfully".to_string(),
-                })
+                Ok(ExecutionResult::Other { message: "Command completed successfully".to_string() })
             }
         }
     }

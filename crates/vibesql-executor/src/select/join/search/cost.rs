@@ -9,7 +9,8 @@ use std::collections::{HashMap, HashSet};
 use super::{JoinCost, JoinOrderContext};
 
 impl JoinOrderContext {
-    /// Extract table cardinalities from actual table statistics, adjusted by WHERE clause selectivity
+    /// Extract table cardinalities from actual table statistics, adjusted by WHERE clause
+    /// selectivity
     ///
     /// Uses real row counts from database tables and applies selectivity estimation
     /// for WHERE clause predicates that filter specific tables.
@@ -22,35 +23,34 @@ impl JoinOrderContext {
 
         for table_name in analyzer.tables() {
             // Get actual table row count from database
-            let base_rows = database
-                .get_table(table_name.as_str())
-                .map(|t| t.row_count())
-                .unwrap_or(10000); // Fallback for CTEs/subqueries
+            let base_rows =
+                database.get_table(table_name.as_str()).map(|t| t.row_count()).unwrap_or(10000); // Fallback for CTEs/subqueries
 
             // Apply selectivity estimation for local predicates on this table
-            let estimated_rows = if let Some(predicates) = table_local_predicates.get(&table_name.to_lowercase()) {
-                // Get table statistics for selectivity estimation
-                let stats = database
-                    .get_table(table_name.as_str())
-                    .and_then(|t| t.get_statistics());
+            let estimated_rows =
+                if let Some(predicates) = table_local_predicates.get(&table_name.to_lowercase()) {
+                    // Get table statistics for selectivity estimation
+                    let stats =
+                        database.get_table(table_name.as_str()).and_then(|t| t.get_statistics());
 
-                if let Some(stats) = stats {
-                    // Estimate combined selectivity of all local predicates
-                    let mut selectivity = 1.0;
-                    for pred in predicates {
-                        let pred_sel = crate::optimizer::selectivity::estimate_selectivity(pred, stats);
-                        selectivity *= pred_sel;
+                    if let Some(stats) = stats {
+                        // Estimate combined selectivity of all local predicates
+                        let mut selectivity = 1.0;
+                        for pred in predicates {
+                            let pred_sel =
+                                crate::optimizer::selectivity::estimate_selectivity(pred, stats);
+                            selectivity *= pred_sel;
+                        }
+                        // Apply selectivity to base row count
+                        std::cmp::max(1, (base_rows as f64 * selectivity) as usize)
+                    } else {
+                        // No stats available, use heuristic: assume each predicate filters ~30%
+                        let selectivity = 0.3_f64.powi(predicates.len() as i32);
+                        std::cmp::max(1, (base_rows as f64 * selectivity) as usize)
                     }
-                    // Apply selectivity to base row count
-                    std::cmp::max(1, (base_rows as f64 * selectivity) as usize)
                 } else {
-                    // No stats available, use heuristic: assume each predicate filters ~30%
-                    let selectivity = 0.3_f64.powi(predicates.len() as i32);
-                    std::cmp::max(1, (base_rows as f64 * selectivity) as usize)
-                }
-            } else {
-                base_rows
-            };
+                    base_rows
+                };
 
             // Debug logging
             if std::env::var("JOIN_REORDER_VERBOSE").is_ok() && base_rows != estimated_rows {
@@ -97,7 +97,9 @@ impl JoinOrderContext {
                 .and_then(|t| t.get_statistics())
                 .and_then(|stats| {
                     // Try exact match, uppercase, lowercase
-                    stats.columns.get(&edge.left_column)
+                    stats
+                        .columns
+                        .get(&edge.left_column)
                         .or_else(|| stats.columns.get(&edge.left_column.to_uppercase()))
                         .or_else(|| stats.columns.get(&edge.left_column.to_lowercase()))
                 })
@@ -109,7 +111,9 @@ impl JoinOrderContext {
                 .get_table(&edge.right_table)
                 .and_then(|t| t.get_statistics())
                 .and_then(|stats| {
-                    stats.columns.get(&edge.right_column)
+                    stats
+                        .columns
+                        .get(&edge.right_column)
                         .or_else(|| stats.columns.get(&edge.right_column.to_uppercase()))
                         .or_else(|| stats.columns.get(&edge.right_column.to_lowercase()))
                 })
@@ -124,9 +128,13 @@ impl JoinOrderContext {
             if std::env::var("JOIN_REORDER_VERBOSE").is_ok() {
                 eprintln!(
                     "[JOIN_REORDER] Edge {}.{} = {}.{}: NDV({}, {}) -> selectivity {:.6}",
-                    edge.left_table, edge.left_column,
-                    edge.right_table, edge.right_column,
-                    left_ndv, right_ndv, selectivity
+                    edge.left_table,
+                    edge.left_column,
+                    edge.right_table,
+                    edge.right_column,
+                    left_ndv,
+                    right_ndv,
+                    selectivity
                 );
             }
 
@@ -184,7 +192,8 @@ impl JoinOrderContext {
 
         for joined_table in joined_tables {
             let joined_lower = joined_table.to_lowercase();
-            if let Some(&sel) = self.edge_selectivities.get(&(joined_lower, next_table.to_string())) {
+            if let Some(&sel) = self.edge_selectivities.get(&(joined_lower, next_table.to_string()))
+            {
                 if sel < best_selectivity {
                     best_selectivity = sel;
                 }

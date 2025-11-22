@@ -165,10 +165,8 @@ impl SchemaExecutor {
         let empty_row = vibesql_storage::Row::new(vec![]);
 
         // Create an expression evaluator with database context
-        let evaluator = crate::evaluator::ExpressionEvaluator::with_database(
-            &empty_schema,
-            database,
-        );
+        let evaluator =
+            crate::evaluator::ExpressionEvaluator::with_database(&empty_schema, database);
 
         // Evaluate the value expression
         let value = evaluator.eval(&stmt.value, &empty_row)?;

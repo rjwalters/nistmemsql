@@ -16,12 +16,12 @@ mod foreign_keys;
 mod row_selector;
 mod value_updater;
 
-use vibesql_ast::UpdateStmt;
 use constraints::ConstraintValidator;
 use foreign_keys::ForeignKeyValidator;
 use row_selector::RowSelector;
-use vibesql_storage::Database;
 use value_updater::ValueUpdater;
+use vibesql_ast::UpdateStmt;
+use vibesql_storage::Database;
 
 use crate::{
     errors::ExecutorError, evaluator::ExpressionEvaluator, privilege_checker::PrivilegeChecker,
@@ -129,7 +129,8 @@ impl UpdateExecutor {
         Self::execute_internal(stmt, database, schema, None, None)
     }
 
-    /// Internal implementation supporting both schema caching, procedural context, and trigger context
+    /// Internal implementation supporting both schema caching, procedural context, and trigger
+    /// context
     fn execute_internal(
         stmt: &UpdateStmt,
         database: &mut Database,

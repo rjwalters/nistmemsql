@@ -9,13 +9,12 @@
 use std::collections::HashMap;
 
 use super::predicates::{apply_table_local_predicates, apply_table_local_predicates_ref};
+#[cfg(feature = "parallel")]
+use crate::select::parallel::parallel_scan_materialize;
 use crate::{
     errors::ExecutorError, optimizer::PredicatePlan, privilege_checker::PrivilegeChecker,
     schema::CombinedSchema, select::cte::CteResult,
 };
-
-#[cfg(feature = "parallel")]
-use crate::select::parallel::parallel_scan_materialize;
 
 /// Execute a table scan (handles CTEs, views, and regular tables)
 pub(crate) fn execute_table_scan(
@@ -74,7 +73,8 @@ pub(crate) fn execute_table_scan(
             select_result.columns.clone()
         };
 
-        // Since views can have arbitrary SELECT expressions, we derive column types from the first row
+        // Since views can have arbitrary SELECT expressions, we derive column types from the first
+        // row
         let columns = if !select_result.rows.is_empty() {
             let first_row = &select_result.rows[0];
             column_names
@@ -130,9 +130,18 @@ pub(crate) fn execute_table_scan(
     PrivilegeChecker::check_select(database, table_name)?;
 
     // Check if we should use an index scan (with cost-based selection)
-    if let Some((index_name, sorted_columns)) = super::index_scan::cost_based_index_selection(table_name, where_clause, order_by, database) {
+    if let Some((index_name, sorted_columns)) =
+        super::index_scan::cost_based_index_selection(table_name, where_clause, order_by, database)
+    {
         // Use index scan for potentially better performance
-        return super::index_scan::execute_index_scan(table_name, &index_name, alias, where_clause, sorted_columns, database);
+        return super::index_scan::execute_index_scan(
+            table_name,
+            &index_name,
+            alias,
+            where_clause,
+            sorted_columns,
+            database,
+        );
     }
 
     // Use database table (fall back to table scan)
@@ -155,10 +164,14 @@ pub(crate) fn execute_table_scan(
         // Check if there are actually table-local predicates for this table
         if predicate_plan.has_table_filters(table_name) {
             // Try columnar filter optimization first (for simple predicates)
-            if let Some(column_predicates) = crate::select::columnar::extract_column_predicates(where_expr, &schema) {
+            if let Some(column_predicates) =
+                crate::select::columnar::extract_column_predicates(where_expr, &schema)
+            {
                 // Use fast columnar filtering
-                let indices = crate::select::columnar::apply_columnar_filter(row_slice, &column_predicates)?;
-                let filtered_rows: Vec<_> = indices.into_iter().filter_map(|idx| row_slice.get(idx).cloned()).collect();
+                let indices =
+                    crate::select::columnar::apply_columnar_filter(row_slice, &column_predicates)?;
+                let filtered_rows: Vec<_> =
+                    indices.into_iter().filter_map(|idx| row_slice.get(idx).cloned()).collect();
                 return Ok(super::FromResult::from_rows(schema, filtered_rows));
             }
 

@@ -3,10 +3,11 @@
 //! This module handles key lookups, range scans, and multi-key queries
 //! with full support for non-unique indexes (duplicate keys).
 
+use super::{
+    super::structure::{Key, LeafNode, RowId},
+    BTreeIndex,
+};
 use crate::StorageError;
-
-use super::super::structure::{Key, LeafNode, RowId};
-use super::BTreeIndex;
 
 impl BTreeIndex {
     /// Look up all row IDs for a given key
@@ -209,9 +210,7 @@ impl BTreeIndex {
         for _ in 0..self.height - 1 {
             let internal = self.read_internal_node(current_page_id)?;
             if internal.children.is_empty() {
-                return Err(StorageError::IoError(
-                    "Internal node has no children".to_string(),
-                ));
+                return Err(StorageError::IoError("Internal node has no children".to_string()));
             }
             // Always take first child (leftmost)
             current_page_id = internal.children[0];

@@ -34,20 +34,19 @@
 // Experimental module - allow dead code warnings for future optimization work
 #![allow(dead_code)]
 
-mod scan;
-mod filter;
 mod aggregate;
+mod filter;
+mod scan;
 
-pub use scan::ColumnarScan;
+pub use aggregate::{compute_multiple_aggregates, extract_aggregates, AggregateOp};
 pub use filter::{
     apply_columnar_filter, create_filter_bitmap, extract_column_predicates, ColumnPredicate,
 };
-pub use aggregate::{compute_multiple_aggregates, extract_aggregates, AggregateOp};
-
-use crate::errors::ExecutorError;
-use crate::schema::CombinedSchema;
+pub use scan::ColumnarScan;
 use vibesql_storage::Row;
 use vibesql_types::SqlValue;
+
+use crate::{errors::ExecutorError, schema::CombinedSchema};
 
 /// Execute a columnar aggregate query with filtering
 ///
@@ -155,8 +154,9 @@ pub fn execute_columnar(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_types::Date;
+
+    use super::*;
 
     /// Test the full columnar pipeline: filter + aggregation
     #[test]
@@ -170,9 +170,9 @@ mod tests {
 
         let rows = vec![
             Row::new(vec![
-                SqlValue::Integer(10), // quantity
+                SqlValue::Integer(10),   // quantity
                 SqlValue::Double(100.0), // extendedprice
-                SqlValue::Double(0.06), // discount
+                SqlValue::Double(0.06),  // discount
                 SqlValue::Date(Date::new(1994, 6, 1).unwrap()),
             ]),
             Row::new(vec![
@@ -197,10 +197,7 @@ mod tests {
 
         // Predicates: quantity < 24 AND discount BETWEEN 0.05 AND 0.07
         let predicates = vec![
-            ColumnPredicate::LessThan {
-                column_idx: 0,
-                value: SqlValue::Integer(24),
-            },
+            ColumnPredicate::LessThan { column_idx: 0, value: SqlValue::Integer(24) },
             ColumnPredicate::Between {
                 column_idx: 2,
                 low: SqlValue::Double(0.05),
@@ -210,7 +207,7 @@ mod tests {
 
         // Aggregates: SUM(extendedprice), COUNT(*)
         let aggregates = vec![
-            (1, AggregateOp::Sum), // SUM(extendedprice)
+            (1, AggregateOp::Sum),   // SUM(extendedprice)
             (0, AggregateOp::Count), // COUNT(*)
         ];
 
@@ -221,7 +218,9 @@ mod tests {
 
         // Only rows 0 and 2 pass the filter (quantity < 24 AND discount in range)
         // SUM(extendedprice) = 100.0 + 150.0 = 250.0
-        assert!(matches!(result_row.get(0), Some(&SqlValue::Double(sum)) if (sum - 250.0).abs() < 0.001));
+        assert!(
+            matches!(result_row.get(0), Some(&SqlValue::Double(sum)) if (sum - 250.0).abs() < 0.001)
+        );
         // COUNT(*) = 2
         assert_eq!(result_row.get(1), Some(&SqlValue::Integer(2)));
     }
@@ -236,11 +235,7 @@ mod tests {
         ];
 
         let predicates = vec![];
-        let aggregates = vec![
-            (0, AggregateOp::Sum),
-            (1, AggregateOp::Avg),
-            (0, AggregateOp::Max),
-        ];
+        let aggregates = vec![(0, AggregateOp::Sum), (1, AggregateOp::Avg), (0, AggregateOp::Max)];
 
         let result = execute_columnar_aggregate(&rows, &predicates, &aggregates).unwrap();
 
@@ -248,9 +243,13 @@ mod tests {
         let result_row = &result[0];
 
         // SUM(col0) = 60
-        assert!(matches!(result_row.get(0), Some(&SqlValue::Double(sum)) if (sum - 60.0).abs() < 0.001));
+        assert!(
+            matches!(result_row.get(0), Some(&SqlValue::Double(sum)) if (sum - 60.0).abs() < 0.001)
+        );
         // AVG(col1) = 2.5
-        assert!(matches!(result_row.get(1), Some(&SqlValue::Double(avg)) if (avg - 2.5).abs() < 0.001));
+        assert!(
+            matches!(result_row.get(1), Some(&SqlValue::Double(avg)) if (avg - 2.5).abs() < 0.001)
+        );
         // MAX(col0) = 30
         assert_eq!(result_row.get(2), Some(&SqlValue::Integer(30)));
     }
@@ -258,16 +257,12 @@ mod tests {
     /// Test columnar execution with empty result set
     #[test]
     fn test_columnar_pipeline_empty_result() {
-        let rows = vec![
-            Row::new(vec![SqlValue::Integer(100)]),
-            Row::new(vec![SqlValue::Integer(200)]),
-        ];
+        let rows =
+            vec![Row::new(vec![SqlValue::Integer(100)]), Row::new(vec![SqlValue::Integer(200)])];
 
         // Filter that matches nothing
-        let predicates = vec![ColumnPredicate::LessThan {
-            column_idx: 0,
-            value: SqlValue::Integer(50),
-        }];
+        let predicates =
+            vec![ColumnPredicate::LessThan { column_idx: 0, value: SqlValue::Integer(50) }];
 
         let aggregates = vec![(0, AggregateOp::Sum), (0, AggregateOp::Count)];
 
@@ -284,10 +279,11 @@ mod tests {
 
     // AST Integration Tests
 
-    use crate::schema::CombinedSchema;
     use vibesql_ast::{BinaryOperator, Expression};
     use vibesql_catalog::{ColumnSchema, TableSchema};
     use vibesql_types::DataType;
+
+    use crate::schema::CombinedSchema;
 
     fn make_test_schema() -> CombinedSchema {
         let schema = TableSchema::new(
@@ -318,10 +314,7 @@ mod tests {
         let aggregates = vec![Expression::AggregateFunction {
             name: "SUM".to_string(),
             distinct: false,
-            args: vec![Expression::ColumnRef {
-                table: None,
-                column: "price".to_string(),
-            }],
+            args: vec![Expression::ColumnRef { table: None, column: "price".to_string() }],
         }];
 
         let result = execute_columnar(&rows, None, &aggregates, &schema);
@@ -349,10 +342,7 @@ mod tests {
 
         // SELECT SUM(price) FROM test WHERE quantity < 25
         let filter = Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "quantity".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "quantity".to_string() }),
             op: BinaryOperator::LessThan,
             right: Box::new(Expression::Literal(SqlValue::Integer(25))),
         };
@@ -360,10 +350,7 @@ mod tests {
         let aggregates = vec![Expression::AggregateFunction {
             name: "SUM".to_string(),
             distinct: false,
-            args: vec![Expression::ColumnRef {
-                table: None,
-                column: "price".to_string(),
-            }],
+            args: vec![Expression::ColumnRef { table: None, column: "price".to_string() }],
         }];
 
         let result = execute_columnar(&rows, Some(&filter), &aggregates, &schema);
@@ -394,10 +381,7 @@ mod tests {
             Expression::AggregateFunction {
                 name: "SUM".to_string(),
                 distinct: false,
-                args: vec![Expression::ColumnRef {
-                    table: None,
-                    column: "price".to_string(),
-                }],
+                args: vec![Expression::ColumnRef { table: None, column: "price".to_string() }],
             },
             Expression::AggregateFunction {
                 name: "COUNT".to_string(),
@@ -407,10 +391,7 @@ mod tests {
             Expression::AggregateFunction {
                 name: "AVG".to_string(),
                 distinct: false,
-                args: vec![Expression::ColumnRef {
-                    table: None,
-                    column: "quantity".to_string(),
-                }],
+                args: vec![Expression::ColumnRef { table: None, column: "quantity".to_string() }],
             },
         ];
 
@@ -451,10 +432,7 @@ mod tests {
         let aggregates = vec![Expression::AggregateFunction {
             name: "SUM".to_string(),
             distinct: true,
-            args: vec![Expression::ColumnRef {
-                table: None,
-                column: "price".to_string(),
-            }],
+            args: vec![Expression::ColumnRef { table: None, column: "price".to_string() }],
         }];
 
         let result = execute_columnar(&rows, None, &aggregates, &schema);
@@ -486,10 +464,7 @@ mod tests {
         let aggregates = vec![Expression::AggregateFunction {
             name: "SUM".to_string(),
             distinct: false,
-            args: vec![Expression::ColumnRef {
-                table: None,
-                column: "price".to_string(),
-            }],
+            args: vec![Expression::ColumnRef { table: None, column: "price".to_string() }],
         }];
 
         let result = execute_columnar(&rows, Some(&filter), &aggregates, &schema);

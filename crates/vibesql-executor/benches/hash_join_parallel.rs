@@ -105,21 +105,17 @@ fn bench_hash_join_scaling(c: &mut Criterion) {
 
         group.throughput(Throughput::Elements(size as u64));
 
-        group.bench_with_input(
-            BenchmarkId::new("equi_join", size),
-            &size,
-            |b, _| {
-                b.iter(|| {
-                    let stmt = parse_select(
-                        "SELECT c.name, o.amount
+        group.bench_with_input(BenchmarkId::new("equi_join", size), &size, |b, _| {
+            b.iter(|| {
+                let stmt = parse_select(
+                    "SELECT c.name, o.amount
                          FROM customers c
-                         JOIN orders o ON c.id = o.customer_id;"
-                    );
-                    let executor = SelectExecutor::new(&db);
-                    black_box(executor.execute(&stmt).unwrap())
-                });
-            },
-        );
+                         JOIN orders o ON c.id = o.customer_id;",
+                );
+                let executor = SelectExecutor::new(&db);
+                black_box(executor.execute(&stmt).unwrap())
+            });
+        });
     }
 
     group.finish();
@@ -144,7 +140,7 @@ fn bench_hash_join_cardinality(c: &mut Criterion) {
                 let stmt = parse_select(
                     "SELECT c.name, o.amount
                      FROM customers c
-                     JOIN orders o ON c.id = o.customer_id;"
+                     JOIN orders o ON c.id = o.customer_id;",
                 );
                 let executor = SelectExecutor::new(&db);
                 black_box(executor.execute(&stmt).unwrap())
@@ -162,7 +158,7 @@ fn bench_hash_join_cardinality(c: &mut Criterion) {
                 let stmt = parse_select(
                     "SELECT c.name, o.amount
                      FROM customers c
-                     JOIN orders o ON c.id = o.customer_id;"
+                     JOIN orders o ON c.id = o.customer_id;",
                 );
                 let executor = SelectExecutor::new(&db);
                 black_box(executor.execute(&stmt).unwrap())
@@ -188,21 +184,17 @@ fn bench_hash_build_phase(c: &mut Criterion) {
 
         group.throughput(Throughput::Elements(build_size as u64));
 
-        group.bench_with_input(
-            BenchmarkId::new("build_phase", build_size),
-            &build_size,
-            |b, _| {
-                b.iter(|| {
-                    let stmt = parse_select(
-                        "SELECT c.name, o.amount
+        group.bench_with_input(BenchmarkId::new("build_phase", build_size), &build_size, |b, _| {
+            b.iter(|| {
+                let stmt = parse_select(
+                    "SELECT c.name, o.amount
                          FROM customers c
-                         JOIN orders o ON c.id = o.customer_id;"
-                    );
-                    let executor = SelectExecutor::new(&db);
-                    black_box(executor.execute(&stmt).unwrap())
-                });
-            },
-        );
+                         JOIN orders o ON c.id = o.customer_id;",
+                );
+                let executor = SelectExecutor::new(&db);
+                black_box(executor.execute(&stmt).unwrap())
+            });
+        });
     }
 
     group.finish();
@@ -220,21 +212,17 @@ fn bench_threshold_behavior(c: &mut Criterion) {
         let mut db = Database::new();
         setup_join_tables(&mut db, size / 10, size);
 
-        group.bench_with_input(
-            BenchmarkId::new("auto_threshold", size),
-            &size,
-            |b, _| {
-                b.iter(|| {
-                    let stmt = parse_select(
-                        "SELECT c.name, o.amount
+        group.bench_with_input(BenchmarkId::new("auto_threshold", size), &size, |b, _| {
+            b.iter(|| {
+                let stmt = parse_select(
+                    "SELECT c.name, o.amount
                          FROM customers c
-                         JOIN orders o ON c.id = o.customer_id;"
-                    );
-                    let executor = SelectExecutor::new(&db);
-                    black_box(executor.execute(&stmt).unwrap())
-                });
-            },
-        );
+                         JOIN orders o ON c.id = o.customer_id;",
+                );
+                let executor = SelectExecutor::new(&db);
+                black_box(executor.execute(&stmt).unwrap())
+            });
+        });
     }
 
     group.finish();

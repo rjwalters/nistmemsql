@@ -10,30 +10,19 @@
 //! - Use type-specific comparison functions to skip type coercion
 //! - Direct memory access to column values
 
-use crate::{
-    errors::ExecutorError,
-    schema::CombinedSchema,
-};
 use vibesql_ast::{BinaryOperator, Expression};
 use vibesql_storage::Row;
 use vibesql_types::SqlValue;
+
+use crate::{errors::ExecutorError, schema::CombinedSchema};
 
 /// A compiled simple predicate for fast evaluation
 #[derive(Debug, Clone)]
 enum CompiledPredicate {
     /// Column comparison: column_idx op literal_value
-    ColumnLiteral {
-        column_idx: usize,
-        op: ComparisonOp,
-        literal: SqlValue,
-    },
+    ColumnLiteral { column_idx: usize, op: ComparisonOp, literal: SqlValue },
     /// BETWEEN: column_idx BETWEEN low AND high
-    Between {
-        column_idx: usize,
-        low: SqlValue,
-        high: SqlValue,
-        negated: bool,
-    },
+    Between { column_idx: usize, low: SqlValue, high: SqlValue, negated: bool },
 }
 
 /// Supported comparison operators
@@ -55,10 +44,7 @@ pub struct CompiledWhereClause {
 impl CompiledWhereClause {
     /// Try to compile a WHERE clause into the optimized form
     /// Returns None if the WHERE clause contains unsupported patterns
-    pub fn try_compile(
-        where_expr: &Expression,
-        schema: &CombinedSchema,
-    ) -> Option<Self> {
+    pub fn try_compile(where_expr: &Expression, schema: &CombinedSchema) -> Option<Self> {
         let mut predicates = Vec::new();
 
         // Try to extract AND-combined predicates
@@ -82,8 +68,8 @@ impl CompiledWhereClause {
         match expr {
             Expression::BinaryOp { left, op: BinaryOperator::And, right } => {
                 // Recursively extract from left and right
-                Self::extract_and_predicates(left, schema, predicates) &&
-                Self::extract_and_predicates(right, schema, predicates)
+                Self::extract_and_predicates(left, schema, predicates)
+                    && Self::extract_and_predicates(right, schema, predicates)
             }
             Expression::Between { expr: col_expr, low, high, negated, symmetric: _ } => {
                 // Try to compile BETWEEN predicate
@@ -129,12 +115,7 @@ impl CompiledWhereClause {
             _ => return false,
         };
 
-        predicates.push(CompiledPredicate::Between {
-            column_idx,
-            low,
-            high,
-            negated,
-        });
+        predicates.push(CompiledPredicate::Between { column_idx, low, high, negated });
 
         true
     }
@@ -163,23 +144,17 @@ impl CompiledWhereClause {
         };
 
         // Try column on left, literal on right
-        if let (Some(column_idx), Some(literal)) = (
-            Self::try_extract_column(left, schema),
-            Self::try_extract_literal(right),
-        ) {
-            predicates.push(CompiledPredicate::ColumnLiteral {
-                column_idx,
-                op: comp_op,
-                literal,
-            });
+        if let (Some(column_idx), Some(literal)) =
+            (Self::try_extract_column(left, schema), Self::try_extract_literal(right))
+        {
+            predicates.push(CompiledPredicate::ColumnLiteral { column_idx, op: comp_op, literal });
             return true;
         }
 
         // Try literal on left, column on right (flip operator)
-        if let (Some(literal), Some(column_idx)) = (
-            Self::try_extract_literal(left),
-            Self::try_extract_column(right, schema),
-        ) {
+        if let (Some(literal), Some(column_idx)) =
+            (Self::try_extract_literal(left), Self::try_extract_column(right, schema))
+        {
             let flipped_op = Self::flip_operator(comp_op);
             predicates.push(CompiledPredicate::ColumnLiteral {
                 column_idx,
@@ -235,7 +210,11 @@ impl CompiledWhereClause {
 
     /// Evaluate a single compiled predicate
     #[inline(always)]
-    fn evaluate_single(&self, predicate: &CompiledPredicate, row: &Row) -> Result<bool, ExecutorError> {
+    fn evaluate_single(
+        &self,
+        predicate: &CompiledPredicate,
+        row: &Row,
+    ) -> Result<bool, ExecutorError> {
         match predicate {
             CompiledPredicate::ColumnLiteral { column_idx, op, literal } => {
                 let column_value = &row.values[*column_idx];
@@ -251,7 +230,12 @@ impl CompiledWhereClause {
 
     /// Fast comparison of SQL values with type-specific logic
     #[inline(always)]
-    fn compare_values(&self, left: &SqlValue, right: &SqlValue, op: ComparisonOp) -> Result<bool, ExecutorError> {
+    fn compare_values(
+        &self,
+        left: &SqlValue,
+        right: &SqlValue,
+        op: ComparisonOp,
+    ) -> Result<bool, ExecutorError> {
         use SqlValue::*;
 
         // Handle NULL - comparisons with NULL return NULL (false in WHERE context)
@@ -272,10 +256,10 @@ impl CompiledWhereClause {
             (Real(l), Real(r)) => Ok(self.apply_op_float(*l, *r, op)),
 
             // String comparisons (dates are stored as strings in TPC-H)
-            (Varchar(l), Varchar(r)) |
-            (Character(l), Character(r)) |
-            (Varchar(l), Character(r)) |
-            (Character(l), Varchar(r)) => Ok(self.apply_op(l.as_str(), r.as_str(), op)),
+            (Varchar(l), Varchar(r))
+            | (Character(l), Character(r))
+            | (Varchar(l), Character(r))
+            | (Character(l), Varchar(r)) => Ok(self.apply_op(l.as_str(), r.as_str(), op)),
 
             // Cross-type comparisons - fall back to slower path
             _ => self.compare_values_generic(left, right, op),
@@ -283,10 +267,16 @@ impl CompiledWhereClause {
     }
 
     /// Generic comparison for cross-type cases
-    fn compare_values_generic(&self, left: &SqlValue, right: &SqlValue, op: ComparisonOp) -> Result<bool, ExecutorError> {
+    fn compare_values_generic(
+        &self,
+        left: &SqlValue,
+        right: &SqlValue,
+        op: ComparisonOp,
+    ) -> Result<bool, ExecutorError> {
         // Use the existing operator registry for correctness
-        use crate::evaluator::operators::OperatorRegistry;
         use vibesql_ast::BinaryOperator;
+
+        use crate::evaluator::operators::OperatorRegistry;
 
         let ast_op = match op {
             ComparisonOp::Equal => BinaryOperator::Equal,
@@ -302,9 +292,9 @@ impl CompiledWhereClause {
         match result {
             SqlValue::Boolean(b) => Ok(b),
             SqlValue::Null => Ok(false),
-            _ => Err(ExecutorError::InvalidWhereClause(
-                "Comparison must return boolean".to_string()
-            )),
+            _ => {
+                Err(ExecutorError::InvalidWhereClause("Comparison must return boolean".to_string()))
+            }
         }
     }
 
@@ -336,7 +326,12 @@ impl CompiledWhereClause {
 
     /// Check if value is between low and high (inclusive)
     #[inline(always)]
-    fn is_between(&self, value: &SqlValue, low: &SqlValue, high: &SqlValue) -> Result<bool, ExecutorError> {
+    fn is_between(
+        &self,
+        value: &SqlValue,
+        low: &SqlValue,
+        high: &SqlValue,
+    ) -> Result<bool, ExecutorError> {
         // BETWEEN is inclusive on both ends: value >= low AND value <= high
         let ge_low = self.compare_values(value, low, ComparisonOp::GreaterThanOrEqual)?;
         let le_high = self.compare_values(value, high, ComparisonOp::LessThanOrEqual)?;
@@ -346,9 +341,10 @@ impl CompiledWhereClause {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_catalog::{ColumnSchema, TableSchema};
     use vibesql_types::DataType;
+
+    use super::*;
 
     fn make_test_schema() -> CombinedSchema {
         let schema = TableSchema::new(
@@ -383,10 +379,7 @@ mod tests {
 
         // l_quantity < 24
         let expr = Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "l_quantity".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "l_quantity".to_string() }),
             op: BinaryOperator::LessThan,
             right: Box::new(Expression::Literal(SqlValue::Integer(24))),
         };
@@ -436,10 +429,7 @@ mod tests {
 
         // l_quantity < 24
         let expr = Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "l_quantity".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "l_quantity".to_string() }),
             op: BinaryOperator::LessThan,
             right: Box::new(Expression::Literal(SqlValue::Integer(24))),
         };

@@ -2,15 +2,16 @@
 // Resource Tracker - Memory and disk budget tracking for adaptive index management
 // ============================================================================
 
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use instant::Instant;
-
-#[cfg(not(target_arch = "wasm32"))]
-use parking_lot::RwLock;
-
 #[cfg(target_arch = "wasm32")]
 use std::sync::RwLock;
+use std::{
+    collections::HashMap,
+    sync::atomic::{AtomicU64, AtomicUsize, Ordering},
+};
+
+use instant::Instant;
+#[cfg(not(target_arch = "wasm32"))]
+use parking_lot::RwLock;
 
 // Helper macros to abstract over parking_lot vs std::sync RwLock differences
 macro_rules! read_lock {
@@ -249,9 +250,11 @@ impl Default for ResourceTracker {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::thread;
+
     use instant::Duration;
+
+    use super::*;
 
     #[test]
     fn test_resource_tracker_basic() {
@@ -264,8 +267,8 @@ mod tests {
         // Register an in-memory index
         tracker.register_index(
             "idx1".to_string(),
-            1000,  // 1KB memory
-            0,     // 0 disk
+            1000, // 1KB memory
+            0,    // 0 disk
             IndexBackend::InMemory,
         );
 
@@ -275,8 +278,8 @@ mod tests {
         // Register a disk-backed index
         tracker.register_index(
             "idx2".to_string(),
-            0,      // 0 memory
-            5000,   // 5KB disk
+            0,    // 0 memory
+            5000, // 5KB disk
             IndexBackend::DiskBacked,
         );
 
@@ -352,7 +355,7 @@ mod tests {
         assert_eq!(tracker.get_backend("idx1"), Some(IndexBackend::InMemory));
 
         // Spill to disk
-        tracker.mark_spilled("idx1", 800);  // Might compress when writing to disk
+        tracker.mark_spilled("idx1", 800); // Might compress when writing to disk
 
         assert_eq!(tracker.memory_used(), 0);
         assert_eq!(tracker.disk_used(), 800);

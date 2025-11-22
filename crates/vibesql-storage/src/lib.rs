@@ -15,26 +15,26 @@ pub mod row;
 pub mod statistics;
 pub mod table;
 
-pub use backend::{StorageBackend, StorageFile};
-pub use buffer::{BufferPool, BufferPoolStats};
-pub use database::{
-    Database, DatabaseConfig, IndexData, IndexManager, IndexMetadata, SpillPolicy,
-    SpatialIndexMetadata, TransactionState,
-};
-pub use error::StorageError;
-pub use query_buffer_pool::{QueryBufferPool, QueryBufferPoolStats, RowBufferGuard, ValueBufferGuard};
-pub use index::{extract_mbr_from_sql_value, SpatialIndex, SpatialIndexEntry};
-pub use persistence::load::{parse_sql_statements, read_sql_dump};
-pub use row::Row;
-pub use statistics::{ColumnStatistics, TableStatistics};
-pub use table::Table;
-
 // Platform-specific exports
 #[cfg(not(target_arch = "wasm32"))]
 pub use backend::{NativeFile, NativeStorage};
-
 #[cfg(target_arch = "wasm32")]
 pub use backend::{OpfsFile, OpfsStorage};
+pub use backend::{StorageBackend, StorageFile};
+pub use buffer::{BufferPool, BufferPoolStats};
+pub use database::{
+    Database, DatabaseConfig, IndexData, IndexManager, IndexMetadata, SpatialIndexMetadata,
+    SpillPolicy, TransactionState,
+};
+pub use error::StorageError;
+pub use index::{extract_mbr_from_sql_value, SpatialIndex, SpatialIndexEntry};
+pub use persistence::load::{parse_sql_statements, read_sql_dump};
+pub use query_buffer_pool::{
+    QueryBufferPool, QueryBufferPoolStats, RowBufferGuard, ValueBufferGuard,
+};
+pub use row::Row;
+pub use statistics::{ColumnStatistics, TableStatistics};
+pub use table::Table;
 
 #[cfg(test)]
 mod tests {

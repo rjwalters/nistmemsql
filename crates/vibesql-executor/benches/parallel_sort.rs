@@ -91,10 +91,7 @@ fn bench_simple_integer_sort(c: &mut Criterion) {
                 &(row_count, cores),
                 |b, &(_, cores)| {
                     // Create a new thread pool for each benchmark
-                    let pool = rayon::ThreadPoolBuilder::new()
-                        .num_threads(cores)
-                        .build()
-                        .unwrap();
+                    let pool = rayon::ThreadPoolBuilder::new().num_threads(cores).build().unwrap();
 
                     pool.install(|| {
                         b.iter(|| {
@@ -126,16 +123,12 @@ fn bench_multi_column_sort(c: &mut Criterion) {
                 BenchmarkId::new(format!("{}_cores", cores), row_count),
                 &(row_count, cores),
                 |b, &(_, cores)| {
-                    let pool = rayon::ThreadPoolBuilder::new()
-                        .num_threads(cores)
-                        .build()
-                        .unwrap();
+                    let pool = rayon::ThreadPoolBuilder::new().num_threads(cores).build().unwrap();
 
                     pool.install(|| {
                         b.iter(|| {
-                            let stmt = parse_select(
-                                "SELECT * FROM sort_test ORDER BY category, id DESC;",
-                            );
+                            let stmt =
+                                parse_select("SELECT * FROM sort_test ORDER BY category, id DESC;");
                             let executor = SelectExecutor::new(&db);
                             black_box(executor.execute(&stmt).unwrap())
                         });
@@ -163,10 +156,7 @@ fn bench_string_sort(c: &mut Criterion) {
                 BenchmarkId::new(format!("{}_cores", cores), row_count),
                 &(row_count, cores),
                 |b, &(_, cores)| {
-                    let pool = rayon::ThreadPoolBuilder::new()
-                        .num_threads(cores)
-                        .build()
-                        .unwrap();
+                    let pool = rayon::ThreadPoolBuilder::new().num_threads(cores).build().unwrap();
 
                     pool.install(|| {
                         b.iter(|| {
@@ -198,10 +188,7 @@ fn bench_sort_with_nulls(c: &mut Criterion) {
                 BenchmarkId::new(format!("{}_cores", cores), row_count),
                 &(row_count, cores),
                 |b, &(_, cores)| {
-                    let pool = rayon::ThreadPoolBuilder::new()
-                        .num_threads(cores)
-                        .build()
-                        .unwrap();
+                    let pool = rayon::ThreadPoolBuilder::new().num_threads(cores).build().unwrap();
 
                     pool.install(|| {
                         b.iter(|| {
@@ -232,24 +219,17 @@ fn bench_threshold_boundary(c: &mut Criterion) {
 
         // Test with 8 cores (aggressive threshold: 5,000)
         let cores = 8;
-        group.bench_with_input(
-            BenchmarkId::new("8_cores", row_count),
-            &row_count,
-            |b, &_| {
-                let pool = rayon::ThreadPoolBuilder::new()
-                    .num_threads(cores)
-                    .build()
-                    .unwrap();
+        group.bench_with_input(BenchmarkId::new("8_cores", row_count), &row_count, |b, &_| {
+            let pool = rayon::ThreadPoolBuilder::new().num_threads(cores).build().unwrap();
 
-                pool.install(|| {
-                    b.iter(|| {
-                        let stmt = parse_select("SELECT * FROM sort_test ORDER BY id;");
-                        let executor = SelectExecutor::new(&db);
-                        black_box(executor.execute(&stmt).unwrap())
-                    });
+            pool.install(|| {
+                b.iter(|| {
+                    let stmt = parse_select("SELECT * FROM sort_test ORDER BY id;");
+                    let executor = SelectExecutor::new(&db);
+                    black_box(executor.execute(&stmt).unwrap())
                 });
-            },
-        );
+            });
+        });
     }
 
     group.finish();
@@ -288,10 +268,7 @@ fn bench_presorted_data(c: &mut Criterion) {
                 BenchmarkId::new(format!("{}_cores", cores), row_count),
                 &(row_count, cores),
                 |b, &(_, cores)| {
-                    let pool = rayon::ThreadPoolBuilder::new()
-                        .num_threads(cores)
-                        .build()
-                        .unwrap();
+                    let pool = rayon::ThreadPoolBuilder::new().num_threads(cores).build().unwrap();
 
                     pool.install(|| {
                         b.iter(|| {
@@ -340,10 +317,7 @@ fn bench_reverse_sorted_data(c: &mut Criterion) {
                 BenchmarkId::new(format!("{}_cores", cores), row_count),
                 &(row_count, cores),
                 |b, &(_, cores)| {
-                    let pool = rayon::ThreadPoolBuilder::new()
-                        .num_threads(cores)
-                        .build()
-                        .unwrap();
+                    let pool = rayon::ThreadPoolBuilder::new().num_threads(cores).build().unwrap();
 
                     pool.install(|| {
                         b.iter(|| {

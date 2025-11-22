@@ -1,22 +1,24 @@
 //! Sqllogictest parser.
 
 // Submodules
-pub mod location;
-pub mod error_parser;
-pub mod retry_parser;
 pub mod directive_parser;
+pub mod error_parser;
+pub mod location;
+pub mod parser_core;
 pub mod record_parser;
 pub mod records;
-pub mod parser_core;
+pub mod retry_parser;
 
 // Re-exports from submodules
-pub use self::location::Location;
-pub use self::error_parser::ExpectedError;
-pub use self::retry_parser::RetryConfig;
-pub use self::directive_parser::{Control, Condition, Connection, SortMode, ResultMode, ControlItem};
-pub use self::record_parser::{StatementExpect, QueryExpect};
-pub use self::records::{Record, Injected};
-pub use self::parser_core::{parse, parse_with_name, parse_file};
+pub use self::{
+    directive_parser::{Condition, Connection, Control, ControlItem, ResultMode, SortMode},
+    error_parser::ExpectedError,
+    location::Location,
+    parser_core::{parse, parse_file, parse_with_name},
+    record_parser::{QueryExpect, StatementExpect},
+    records::{Injected, Record},
+    retry_parser::RetryConfig,
+};
 
 /// The error type for parsing sqllogictest.
 #[derive(thiserror::Error, Debug, PartialEq, Eq, Clone)]
@@ -82,8 +84,7 @@ impl ParseErrorKind {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
-    use std::path::Path;
+    use std::{io::Write, path::Path};
 
     use super::*;
     use crate::{ColumnType, DefaultColumnType};
@@ -97,10 +98,7 @@ mod tests {
         let records = parse::<DefaultColumnType>(script).unwrap();
         assert_eq!(
             records,
-            vec![Record::Comment(vec![
-                " comment 1".to_string(),
-                "  comment 2".to_string(),
-            ]),]
+            vec![Record::Comment(vec![" comment 1".to_string(), "  comment 2".to_string(),]),]
         );
     }
 
@@ -214,18 +212,13 @@ select * from foo;
         let filename = filename.as_ref();
         let records = parse_file::<T>(filename).expect("parsing to complete");
 
-        let unparsed = records
-            .iter()
-            .map(|record| record.to_string())
-            .collect::<Vec<_>>();
+        let unparsed = records.iter().map(|record| record.to_string()).collect::<Vec<_>>();
 
         let output_contents = unparsed.join("\n");
 
         // The original and parsed records should be logically equivalent
         let mut output_file = tempfile::NamedTempFile::new().expect("Error creating tempfile");
-        output_file
-            .write_all(output_contents.as_bytes())
-            .expect("Unable to write file");
+        output_file.write_all(output_contents.as_bytes()).expect("Unable to write file");
         output_file.flush().unwrap();
 
         let output_path = output_file.into_temp_path();

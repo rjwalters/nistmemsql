@@ -7,9 +7,7 @@
 
 use std::collections::HashMap;
 
-use crate::{
-    errors::ExecutorError, optimizer::PredicatePlan, select::cte::CteResult,
-};
+use crate::{errors::ExecutorError, optimizer::PredicatePlan, select::cte::CteResult};
 
 /// Execute a JOIN operation
 #[allow(clippy::too_many_arguments)]
@@ -29,8 +27,22 @@ where
 {
     // Execute left and right sides with WHERE clause for predicate pushdown
     // Note: ORDER BY is not optimized at JOIN level, so we pass None
-    let left_result = super::execute_from_clause(left, cte_results, database, where_clause, None, execute_subquery)?;
-    let right_result = super::execute_from_clause(right, cte_results, database, where_clause, None, execute_subquery)?;
+    let left_result = super::execute_from_clause(
+        left,
+        cte_results,
+        database,
+        where_clause,
+        None,
+        execute_subquery,
+    )?;
+    let right_result = super::execute_from_clause(
+        right,
+        cte_results,
+        database,
+        where_clause,
+        None,
+        execute_subquery,
+    )?;
 
     // For NATURAL JOIN, generate the implicit join condition based on common column names
     let natural_join_condition = if natural {
@@ -45,7 +57,8 @@ where
     // If we have a WHERE clause, use predicate plan to extract equijoin conditions (Phase 1)
     let equijoin_predicates = if let Some(where_expr) = where_clause {
         // Build combined schema for WHERE clause analysis using SchemaBuilder for O(n) performance
-        let mut schema_builder = crate::schema::SchemaBuilder::from_schema(left_result.schema.clone());
+        let mut schema_builder =
+            crate::schema::SchemaBuilder::from_schema(left_result.schema.clone());
         for (table_name, (_start_idx, table_schema)) in &right_result.schema.table_schemas {
             schema_builder.add_table(table_name.clone(), table_schema.clone());
         }
@@ -101,14 +114,16 @@ where
 /// Finds all common column names between the left and right schemas (case-insensitive)
 /// and creates an AND chain of equality conditions.
 ///
-/// Returns None if there are no common columns (which means NATURAL JOIN should behave like CROSS JOIN)
+/// Returns None if there are no common columns (which means NATURAL JOIN should behave like CROSS
+/// JOIN)
 fn generate_natural_join_condition(
     left_schema: &crate::schema::CombinedSchema,
     right_schema: &crate::schema::CombinedSchema,
 ) -> Result<Option<vibesql_ast::Expression>, ExecutorError> {
     use std::collections::HashMap;
 
-    // Get all column names from left schema (normalized to lowercase for case-insensitive comparison)
+    // Get all column names from left schema (normalized to lowercase for case-insensitive
+    // comparison)
     let mut left_columns: HashMap<String, Vec<(String, String)>> = HashMap::new(); // lowercase_name -> [(table, actual_name)]
     for (table_name, (_table_idx, table_schema)) in &left_schema.table_schemas {
         for col in &table_schema.columns {

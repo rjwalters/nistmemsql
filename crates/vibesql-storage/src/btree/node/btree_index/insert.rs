@@ -3,18 +3,21 @@
 //! This module handles key insertion with support for duplicate keys (non-unique indexes),
 //! node splitting, and propagation of splits up the tree.
 
-use crate::page::PageId;
-use crate::StorageError;
-
-use super::super::structure::{InternalNode, Key, LeafNode, RowId};
-use super::BTreeIndex;
+use super::{
+    super::structure::{InternalNode, Key, LeafNode, RowId},
+    BTreeIndex,
+};
+use crate::{page::PageId, StorageError};
 
 impl BTreeIndex {
     /// Navigate to leaf node that should contain the key, returning the path from root
     ///
     /// Returns (leaf_node, path) where path is Vec<(PageId, child_index)>
     /// The path tracks which child was taken at each internal node level
-    pub(super) fn find_leaf_path(&self, key: &Key) -> Result<(LeafNode, Vec<(PageId, usize)>), StorageError> {
+    pub(super) fn find_leaf_path(
+        &self,
+        key: &Key,
+    ) -> Result<(LeafNode, Vec<(PageId, usize)>), StorageError> {
         let mut path = Vec::new();
         let mut current_page_id = self.root_page_id;
 

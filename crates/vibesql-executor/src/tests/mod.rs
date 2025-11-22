@@ -33,21 +33,24 @@
 //! - `quantified_comparison_tests`: Quantified comparison tests (ALL, ANY, SOME with subqueries)
 //! - `create_table_tests`: CREATE TABLE executor tests (basic table creation, data types, spatial
 //!   types)
-//! - `fulltext_search`: Full-text search integration tests (MATCH...AGAINST natural language, boolean mode)
+//! - `fulltext_search`: Full-text search integration tests (MATCH...AGAINST natural language,
+//!   boolean mode)
 //! - `trigger_tests`: Trigger creation and execution tests
 //! - `truncate_cascade_tests`: TRUNCATE TABLE CASCADE/RESTRICT tests (issue #1393)
 //! - `truncate_table_tests`: TRUNCATE TABLE tests (single table, multiple tables, IF EXISTS)
 //! - `view_tests`: VIEW support tests (CREATE/DROP/SELECT, OR REPLACE, CASCADE)
 //! - `index_scan_tests`: Index scan optimization tests (Phase 5a of issue #1387)
-//! - `index_optimization`: Index optimization edge case tests (BETWEEN, IN, commute, numeric types - issue #1821)
-//! - `order_by_index_optimization_tests`: ORDER BY index optimization tests (Phase 5b of issue #1429)
-//! - `alter_table_constraints`: ALTER TABLE ADD/DROP PRIMARY KEY and FOREIGN KEY tests (Phase 6 of issue #1388)
-//! - `non_unique_disk_index_tests`: Non-unique disk-backed index integration tests (issue #1575, PR #1571)
+//! - `index_optimization`: Index optimization edge case tests (BETWEEN, IN, commute, numeric types
+//!   - issue #1821)
+//! - `order_by_index_optimization_tests`: ORDER BY index optimization tests (Phase 5b of issue
+//!   #1429)
+//! - `alter_table_constraints`: ALTER TABLE ADD/DROP PRIMARY KEY and FOREIGN KEY tests (Phase 6 of
+//!   issue #1388)
+//! - `non_unique_disk_index_tests`: Non-unique disk-backed index integration tests (issue #1575, PR
+//!   #1571)
 //! - `monomorphic_integration_tests`: Generic monomorphic pattern integration tests (issue #2244)
 
-mod common;
 mod aggregate_caching;
-mod alter_table_constraints;
 mod aggregate_count_sum_avg_tests;
 mod aggregate_distinct;
 mod aggregate_edge_case_tests;
@@ -56,8 +59,10 @@ mod aggregate_having_tests;
 mod aggregate_min_max_tests;
 mod aggregate_random_patterns;
 mod aggregate_without_from;
+mod alter_table_constraints;
 mod auto_increment_tests;
 mod between_predicates;
+mod common;
 mod comparison_ops;
 mod count_star_fast_path;
 mod create_table_constraints;
@@ -66,8 +71,8 @@ mod error_display;
 mod expression_eval;
 mod fulltext_search;
 mod function_tests;
-mod index_scan_tests;
 mod index_optimization;
+mod index_scan_tests;
 mod issue_938_integer_type_preservation;
 mod join_aggregation;
 mod lazy_evaluation_tests;
@@ -82,8 +87,8 @@ mod phase3_join_optimization;
 mod predicate_pushdown;
 mod predicate_tests;
 mod prefix_index_tests;
-mod procedures;
 mod privilege_checker_tests;
+mod procedures;
 mod quantified_comparison_tests;
 mod query_timeout_tests;
 mod scalar_subquery_basic_tests;

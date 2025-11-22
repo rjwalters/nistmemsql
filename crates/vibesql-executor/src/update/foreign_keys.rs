@@ -60,7 +60,8 @@ impl ForeignKeyValidator {
     /// Check that no child tables reference a row that is about to be deleted or updated.
     ///
     /// This is called before updating a primary key to ensure referential integrity.
-    /// If foreign keys have ON UPDATE CASCADE, this function will propagate the update to child rows.
+    /// If foreign keys have ON UPDATE CASCADE, this function will propagate the update to child
+    /// rows.
     pub fn check_no_child_references(
         db: &mut Database,
         parent_table_name: &str,
@@ -162,7 +163,8 @@ impl ForeignKeyValidator {
                                 .map(|(row_idx, mut child_row)| {
                                     // Set FK columns to NULL
                                     for &fk_col_idx in &fk.column_indices {
-                                        child_row.values[fk_col_idx] = vibesql_types::SqlValue::Null;
+                                        child_row.values[fk_col_idx] =
+                                            vibesql_types::SqlValue::Null;
                                     }
                                     (row_idx, child_row)
                                 })
@@ -171,12 +173,15 @@ impl ForeignKeyValidator {
                             cascade_updates.push((table_name.clone(), updated_rows));
                         }
                         vibesql_catalog::ReferentialAction::SetDefault => {
-                            // Set child FK columns to their default values by evaluating expressions
-                            // First, collect default expressions (clone to avoid holding borrow)
+                            // Set child FK columns to their default values by evaluating
+                            // expressions First, collect default
+                            // expressions (clone to avoid holding borrow)
                             let default_exprs: Vec<Option<vibesql_ast::Expression>> = fk
                                 .column_indices
                                 .iter()
-                                .map(|&fk_col_idx| child_schema.columns[fk_col_idx].default_value.clone())
+                                .map(|&fk_col_idx| {
+                                    child_schema.columns[fk_col_idx].default_value.clone()
+                                })
                                 .collect();
 
                             // Evaluate default values for each FK column
@@ -187,15 +192,25 @@ impl ForeignKeyValidator {
                                     match default_expr {
                                         vibesql_ast::Expression::NextValue { sequence_name } => {
                                             // Get the next value from the sequence
-                                            let seq = db.catalog.get_sequence_mut(&sequence_name).map_err(|e| {
-                                                ExecutorError::UnsupportedExpression(format!("Sequence error: {:?}", e))
-                                            })?;
+                                            let seq =
+                                                db.catalog
+                                                    .get_sequence_mut(&sequence_name)
+                                                    .map_err(|e| {
+                                                        ExecutorError::UnsupportedExpression(
+                                                            format!("Sequence error: {:?}", e),
+                                                        )
+                                                    })?;
                                             let next_val = seq.next_value().map_err(|e| {
-                                                ExecutorError::ConstraintViolation(format!("Sequence error: {}", e))
+                                                ExecutorError::ConstraintViolation(format!(
+                                                    "Sequence error: {}",
+                                                    e
+                                                ))
                                             })?;
                                             vibesql_types::SqlValue::Integer(next_val)
                                         }
-                                        _ => crate::insert::defaults::evaluate_default_expression(&default_expr)?,
+                                        _ => crate::insert::defaults::evaluate_default_expression(
+                                            &default_expr,
+                                        )?,
                                     }
                                 } else {
                                     // No default value defined, use NULL
@@ -218,7 +233,8 @@ impl ForeignKeyValidator {
 
                             cascade_updates.push((table_name.clone(), updated_rows));
                         }
-                        vibesql_catalog::ReferentialAction::NoAction | vibesql_catalog::ReferentialAction::Restrict => {
+                        vibesql_catalog::ReferentialAction::NoAction
+                        | vibesql_catalog::ReferentialAction::Restrict => {
                             // Block the update when child references exist
                             return Err(ExecutorError::ConstraintViolation(format!(
                                 "FOREIGN KEY constraint violation: cannot update a parent row when a foreign key constraint exists. The conflict occurred in table \'{}\', constraint \'{}\'.",

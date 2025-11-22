@@ -10,6 +10,11 @@ mod modulo;
 mod multiplication;
 mod subtraction;
 
+pub use addition::Addition;
+pub use division::Division;
+pub use modulo::Modulo;
+pub use multiplication::Multiplication;
+pub use subtraction::Subtraction;
 use vibesql_types::SqlValue;
 
 use crate::{
@@ -18,12 +23,6 @@ use crate::{
         boolean_to_i64, is_approximate_numeric, is_exact_numeric, to_f64, to_i64,
     },
 };
-
-pub use addition::Addition;
-pub use division::Division;
-pub use modulo::Modulo;
-pub use multiplication::Multiplication;
-pub use subtraction::Subtraction;
 
 /// Result of type coercion for arithmetic operations
 pub(super) enum CoercedValues {
@@ -180,14 +179,23 @@ mod tests {
     #[test]
     fn test_integer_division() {
         // Division returns Numeric for integer operands in MySQL mode (exact decimal arithmetic)
-        let result = ArithmeticOps::divide(&SqlValue::Integer(15), &SqlValue::Integer(3), vibesql_types::SqlMode::default()).unwrap();
+        let result = ArithmeticOps::divide(
+            &SqlValue::Integer(15),
+            &SqlValue::Integer(3),
+            vibesql_types::SqlMode::default(),
+        )
+        .unwrap();
         assert_eq!(result, SqlValue::Numeric(5.0));
     }
 
     #[test]
     fn test_division_by_zero() {
         // Division by zero should return NULL (SQL standard behavior)
-        let result = ArithmeticOps::divide(&SqlValue::Integer(5), &SqlValue::Integer(0), vibesql_types::SqlMode::default());
+        let result = ArithmeticOps::divide(
+            &SqlValue::Integer(5),
+            &SqlValue::Integer(0),
+            vibesql_types::SqlMode::default(),
+        );
         assert_eq!(result.unwrap(), SqlValue::Null);
     }
 
@@ -266,20 +274,32 @@ mod tests {
     #[test]
     fn test_boolean_division() {
         // 10 / TRUE = 10.0 (booleans coerce to integers, then division returns exact decimal)
-        let result =
-            ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(true), vibesql_types::SqlMode::default()).unwrap();
+        let result = ArithmeticOps::divide(
+            &SqlValue::Integer(10),
+            &SqlValue::Boolean(true),
+            vibesql_types::SqlMode::default(),
+        )
+        .unwrap();
         assert_eq!(result, SqlValue::Numeric(10.0));
 
         // TRUE / TRUE = 1.0
-        let result =
-            ArithmeticOps::divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true), vibesql_types::SqlMode::default()).unwrap();
+        let result = ArithmeticOps::divide(
+            &SqlValue::Boolean(true),
+            &SqlValue::Boolean(true),
+            vibesql_types::SqlMode::default(),
+        )
+        .unwrap();
         assert_eq!(result, SqlValue::Numeric(1.0));
     }
 
     #[test]
     fn test_boolean_division_by_false() {
         // 10 / FALSE should return NULL (SQL standard behavior)
-        let result = ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(false), vibesql_types::SqlMode::default());
+        let result = ArithmeticOps::divide(
+            &SqlValue::Integer(10),
+            &SqlValue::Boolean(false),
+            vibesql_types::SqlMode::default(),
+        );
         assert_eq!(result.unwrap(), SqlValue::Null);
     }
 
@@ -315,7 +335,8 @@ mod tests {
     #[test]
     fn test_numeric_multiply_integer() {
         // Numeric * Integer should preserve Numeric type
-        let result = ArithmeticOps::multiply(&SqlValue::Numeric(1.0), &SqlValue::Integer(85)).unwrap();
+        let result =
+            ArithmeticOps::multiply(&SqlValue::Numeric(1.0), &SqlValue::Integer(85)).unwrap();
         assert!(matches!(result, SqlValue::Numeric(_)));
         if let SqlValue::Numeric(n) = result {
             assert_eq!(n, 85.0);
@@ -335,7 +356,8 @@ mod tests {
     #[test]
     fn test_numeric_subtract_integer() {
         // Numeric - Integer should preserve Numeric type
-        let result = ArithmeticOps::subtract(&SqlValue::Numeric(10.0), &SqlValue::Integer(3)).unwrap();
+        let result =
+            ArithmeticOps::subtract(&SqlValue::Numeric(10.0), &SqlValue::Integer(3)).unwrap();
         assert!(matches!(result, SqlValue::Numeric(_)));
         if let SqlValue::Numeric(n) = result {
             assert_eq!(n, 7.0);
@@ -345,7 +367,12 @@ mod tests {
     #[test]
     fn test_numeric_divide_integer() {
         // Numeric / Integer should preserve Numeric type
-        let result = ArithmeticOps::divide(&SqlValue::Numeric(10.0), &SqlValue::Integer(2), vibesql_types::SqlMode::default()).unwrap();
+        let result = ArithmeticOps::divide(
+            &SqlValue::Numeric(10.0),
+            &SqlValue::Integer(2),
+            vibesql_types::SqlMode::default(),
+        )
+        .unwrap();
         assert!(matches!(result, SqlValue::Numeric(_)));
         if let SqlValue::Numeric(n) = result {
             assert_eq!(n, 5.0);
@@ -355,7 +382,8 @@ mod tests {
     #[test]
     fn test_numeric_chain_operations() {
         // Test complex expression: 1.0 * 85 * -28 * 83
-        let step1 = ArithmeticOps::multiply(&SqlValue::Numeric(1.0), &SqlValue::Integer(85)).unwrap();
+        let step1 =
+            ArithmeticOps::multiply(&SqlValue::Numeric(1.0), &SqlValue::Integer(85)).unwrap();
         assert!(matches!(step1, SqlValue::Numeric(_)));
 
         let step2 = ArithmeticOps::multiply(&step1, &SqlValue::Integer(-28)).unwrap();
@@ -392,7 +420,8 @@ mod tests {
     #[test]
     fn test_numeric_modulo_integer() {
         // Numeric % Integer should preserve Numeric type
-        let result = ArithmeticOps::modulo(&SqlValue::Numeric(10.0), &SqlValue::Integer(3)).unwrap();
+        let result =
+            ArithmeticOps::modulo(&SqlValue::Numeric(10.0), &SqlValue::Integer(3)).unwrap();
         assert!(matches!(result, SqlValue::Numeric(_)));
         if let SqlValue::Numeric(n) = result {
             assert_eq!(n, 1.0);
@@ -407,7 +436,8 @@ mod tests {
         assert_eq!(result, SqlValue::Integer(3));
 
         // Standard mode: Integer - Integer → Integer
-        let result = ArithmeticOps::subtract(&SqlValue::Integer(91), &SqlValue::Integer(0)).unwrap();
+        let result =
+            ArithmeticOps::subtract(&SqlValue::Integer(91), &SqlValue::Integer(0)).unwrap();
         assert_eq!(result, SqlValue::Integer(91));
 
         // Standard mode: Integer * Integer → Integer
@@ -422,7 +452,8 @@ mod tests {
         assert_eq!(result, SqlValue::Integer(3));
 
         // MySQL mode: Integer - Integer → Integer (unary negation case)
-        let result = ArithmeticOps::subtract(&SqlValue::Integer(0), &SqlValue::Integer(-91)).unwrap();
+        let result =
+            ArithmeticOps::subtract(&SqlValue::Integer(0), &SqlValue::Integer(-91)).unwrap();
         assert_eq!(result, SqlValue::Integer(91));
 
         // MySQL mode: Integer * Integer → Integer
@@ -456,10 +487,7 @@ mod tests {
             ArithmeticOps::add(&SqlValue::Integer(23), &SqlValue::Null).unwrap(),
             SqlValue::Null
         );
-        assert_eq!(
-            ArithmeticOps::add(&SqlValue::Null, &SqlValue::Null).unwrap(),
-            SqlValue::Null
-        );
+        assert_eq!(ArithmeticOps::add(&SqlValue::Null, &SqlValue::Null).unwrap(), SqlValue::Null);
     }
 
     #[test]
@@ -489,11 +517,21 @@ mod tests {
     #[test]
     fn test_null_division() {
         assert_eq!(
-            ArithmeticOps::divide(&SqlValue::Null, &SqlValue::Integer(23), vibesql_types::SqlMode::default()).unwrap(),
+            ArithmeticOps::divide(
+                &SqlValue::Null,
+                &SqlValue::Integer(23),
+                vibesql_types::SqlMode::default()
+            )
+            .unwrap(),
             SqlValue::Null
         );
         assert_eq!(
-            ArithmeticOps::divide(&SqlValue::Integer(23), &SqlValue::Null, vibesql_types::SqlMode::default()).unwrap(),
+            ArithmeticOps::divide(
+                &SqlValue::Integer(23),
+                &SqlValue::Null,
+                vibesql_types::SqlMode::default()
+            )
+            .unwrap(),
             SqlValue::Null
         );
     }

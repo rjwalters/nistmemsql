@@ -91,7 +91,9 @@ fn flatten_join_tree(from: &FromClause) -> Option<FlattenedJoinTree> {
 /// Extract join conditions from a join tree
 ///
 /// Returns a list of (left_table_name, right_table_name, join_condition) tuples
-fn extract_join_conditions(from: &FromClause) -> Vec<(String, String, Option<vibesql_ast::Expression>)> {
+fn extract_join_conditions(
+    from: &FromClause,
+) -> Vec<(String, String, Option<vibesql_ast::Expression>)> {
     let mut conditions = Vec::new();
 
     fn extract_recursive(
@@ -177,7 +179,8 @@ where
     let all_conditions = extract_join_conditions(from);
 
     // Build a map of (left_table, right_table) -> condition for quick lookup
-    let mut condition_map: HashMap<(String, String), Option<vibesql_ast::Expression>> = HashMap::new();
+    let mut condition_map: HashMap<(String, String), Option<vibesql_ast::Expression>> =
+        HashMap::new();
     for (left, right, cond) in all_conditions {
         condition_map.insert((left.clone(), right.clone()), cond.clone());
         // Also add reverse for flexibility (both directions for flexibility in matching)

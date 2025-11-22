@@ -39,17 +39,12 @@ use crate::{
 pub fn load_sql_dump<P: AsRef<Path>>(path: P) -> Result<Database, ExecutorError> {
     // Read the SQL dump file using storage utility
     let sql_content = vibesql_storage::read_sql_dump(&path).map_err(|e| {
-        ExecutorError::Other(format!(
-            "Failed to read database file {:?}: {}",
-            path.as_ref(),
-            e
-        ))
+        ExecutorError::Other(format!("Failed to read database file {:?}: {}", path.as_ref(), e))
     })?;
 
     // Split into individual statements using storage utility
-    let statements = vibesql_storage::parse_sql_statements(&sql_content).map_err(|e| {
-        ExecutorError::Other(format!("Failed to parse SQL dump: {}", e))
-    })?;
+    let statements = vibesql_storage::parse_sql_statements(&sql_content)
+        .map_err(|e| ExecutorError::Other(format!("Failed to parse SQL dump: {}", e)))?;
 
     // Create a new database to populate
     let mut db = Database::new();
@@ -133,9 +128,9 @@ fn truncate_for_error(s: &str, max_len: usize) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::{fs, io::Write};
+
     use super::*;
-    use std::fs;
-    use std::io::Write;
 
     #[test]
     fn test_load_simple_database() {
@@ -188,10 +183,7 @@ CREATE TABLE test_schema.products (id INTEGER, price REAL);
     fn test_load_nonexistent_file() {
         let result = load_sql_dump("/tmp/nonexistent_file.sql");
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("does not exist"));
+        assert!(result.unwrap_err().to_string().contains("does not exist"));
     }
 
     #[test]
@@ -201,10 +193,7 @@ CREATE TABLE test_schema.products (id INTEGER, price REAL);
 
         let result = load_sql_dump(temp_file);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Failed to parse"));
+        assert!(result.unwrap_err().to_string().contains("Failed to parse"));
 
         fs::remove_file(temp_file).unwrap();
     }
@@ -218,10 +207,7 @@ CREATE TABLE test_schema.products (id INTEGER, price REAL);
 
         let result = load_sql_dump(temp_file);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("binary SQLite database"));
+        assert!(result.unwrap_err().to_string().contains("binary SQLite database"));
 
         fs::remove_file(temp_file).unwrap();
     }

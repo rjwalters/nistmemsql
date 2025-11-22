@@ -1,8 +1,7 @@
 //! Database introspection statement parsing (SHOW, DESCRIBE)
 
 use super::{ParseError, Parser};
-use crate::keywords::Keyword;
-use crate::token::Token;
+use crate::{keywords::Keyword, token::Token};
 
 impl Parser {
     /// Helper to parse a string literal
@@ -38,7 +37,9 @@ impl Parser {
             Token::Keyword(Keyword::Columns) | Token::Keyword(Keyword::Fields) => {
                 Ok(vibesql_ast::Statement::ShowColumns(self.parse_show_columns()?))
             }
-            Token::Keyword(Keyword::Index) | Token::Keyword(Keyword::Indexes) | Token::Keyword(Keyword::Keys) => {
+            Token::Keyword(Keyword::Index)
+            | Token::Keyword(Keyword::Indexes)
+            | Token::Keyword(Keyword::Keys) => {
                 Ok(vibesql_ast::Statement::ShowIndex(self.parse_show_index()?))
             }
             Token::Keyword(Keyword::Create) => {
@@ -46,9 +47,7 @@ impl Parser {
                 if self.peek_keyword(Keyword::Table) {
                     Ok(vibesql_ast::Statement::ShowCreateTable(self.parse_show_create_table()?))
                 } else {
-                    Err(ParseError {
-                        message: "Expected TABLE after SHOW CREATE".to_string(),
-                    })
+                    Err(ParseError { message: "Expected TABLE after SHOW CREATE".to_string() })
                 }
             }
             _ => Err(ParseError {
@@ -126,9 +125,7 @@ impl Parser {
 
         // COLUMNS or FIELDS (synonyms)
         if !self.peek_keyword(Keyword::Columns) && !self.peek_keyword(Keyword::Fields) {
-            return Err(ParseError {
-                message: "Expected COLUMNS or FIELDS".to_string(),
-            });
+            return Err(ParseError { message: "Expected COLUMNS or FIELDS".to_string() });
         }
         self.advance();
 
@@ -160,13 +157,7 @@ impl Parser {
             None
         };
 
-        Ok(vibesql_ast::ShowColumnsStmt {
-            table_name,
-            database,
-            full,
-            like_pattern,
-            where_clause,
-        })
+        Ok(vibesql_ast::ShowColumnsStmt { table_name, database, full, like_pattern, where_clause })
     }
 
     /// Parse SHOW INDEX FROM table [FROM database]

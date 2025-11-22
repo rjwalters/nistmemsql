@@ -1,8 +1,8 @@
+use super::from_iterator::FromIterator;
 use crate::{
     errors::ExecutorError, evaluator::CombinedExpressionEvaluator, optimizer::combine_with_and,
     schema::CombinedSchema,
 };
-use super::from_iterator::FromIterator;
 
 mod expression_mapper;
 mod hash_join;
@@ -66,8 +66,12 @@ impl FromData {
             {
                 let materialize_time = materialize_start.elapsed();
                 if let Self::Materialized(rows) = self {
-                    eprintln!("[Q6 PROFILE] Row materialization (collect_vec): {:?} ({} rows, {:?}/row)",
-                        materialize_time, rows.len(), materialize_time / rows.len() as u32);
+                    eprintln!(
+                        "[Q6 PROFILE] Row materialization (collect_vec): {:?} ({} rows, {:?}/row)",
+                        materialize_time,
+                        rows.len(),
+                        materialize_time / rows.len() as u32
+                    );
                 }
             }
         }
@@ -107,7 +111,12 @@ impl FromResult {
         rows: Vec<vibesql_storage::Row>,
         sorted_by: Vec<(String, vibesql_ast::OrderDirection)>,
     ) -> Self {
-        Self { schema, data: FromData::Materialized(rows), sorted_by: Some(sorted_by), where_filtered: false }
+        Self {
+            schema,
+            data: FromData::Materialized(rows),
+            sorted_by: Some(sorted_by),
+            where_filtered: false,
+        }
     }
 
     /// Create a FromResult from materialized rows with WHERE filtering already applied
@@ -151,7 +160,10 @@ impl FromResult {
 /// Helper function to combine two rows without unnecessary cloning
 /// Only creates a single combined row, avoiding intermediate clones
 #[inline]
-fn combine_rows(left_row: &vibesql_storage::Row, right_row: &vibesql_storage::Row) -> vibesql_storage::Row {
+fn combine_rows(
+    left_row: &vibesql_storage::Row,
+    right_row: &vibesql_storage::Row,
+) -> vibesql_storage::Row {
     let mut combined_values = Vec::with_capacity(left_row.values.len() + right_row.values.len());
     combined_values.extend_from_slice(&left_row.values);
     combined_values.extend_from_slice(&right_row.values);
@@ -295,7 +307,16 @@ pub(super) fn nested_loop_join(
                         let right_schema_for_removal = CombinedSchema {
                             table_schemas: vec![(
                                 right_table_name_for_natural.clone(),
-                                (0, right_schema_orig.table_schemas.values().next().unwrap().1.clone()),
+                                (
+                                    0,
+                                    right_schema_orig
+                                        .table_schemas
+                                        .values()
+                                        .next()
+                                        .unwrap()
+                                        .1
+                                        .clone(),
+                                ),
                             )]
                             .into_iter()
                             .collect(),
@@ -316,9 +337,15 @@ pub(super) fn nested_loop_join(
         // Phase 3.1: If no ON condition hash join, try WHERE clause equijoins
         // Iterate through all additional equijoins to find one suitable for hash join
         if std::env::var("JOIN_DEBUG").is_ok() {
-            eprintln!("[JOIN_DEBUG] Checking {} additional equijoins for hash join optimization", additional_equijoins.len());
-            eprintln!("[JOIN_DEBUG] left_col_count={}, temp_schema tables: {:?}",
-                left_col_count, temp_schema.table_schemas.keys().collect::<Vec<_>>());
+            eprintln!(
+                "[JOIN_DEBUG] Checking {} additional equijoins for hash join optimization",
+                additional_equijoins.len()
+            );
+            eprintln!(
+                "[JOIN_DEBUG] left_col_count={}, temp_schema tables: {:?}",
+                left_col_count,
+                temp_schema.table_schemas.keys().collect::<Vec<_>>()
+            );
         }
         for (idx, equijoin) in additional_equijoins.iter().enumerate() {
             if std::env::var("JOIN_DEBUG").is_ok() {
@@ -328,8 +355,10 @@ pub(super) fn nested_loop_join(
                 join_analyzer::analyze_equi_join(equijoin, &temp_schema, left_col_count)
             {
                 if std::env::var("JOIN_DEBUG").is_ok() {
-                    eprintln!("[JOIN_DEBUG] Found suitable equijoin! left_col={}, right_col={}",
-                        equi_join_info.left_col_idx, equi_join_info.right_col_idx);
+                    eprintln!(
+                        "[JOIN_DEBUG] Found suitable equijoin! left_col={}, right_col={}",
+                        equi_join_info.left_col_idx, equi_join_info.right_col_idx
+                    );
                 }
                 // Save schemas for NATURAL JOIN processing before moving left/right
                 let (left_schema_for_natural, right_schema_for_natural) = if natural {
@@ -389,7 +418,16 @@ pub(super) fn nested_loop_join(
                         let right_schema_for_removal = CombinedSchema {
                             table_schemas: vec![(
                                 right_table_name_for_natural.clone(),
-                                (0, right_schema_orig.table_schemas.values().next().unwrap().1.clone()),
+                                (
+                                    0,
+                                    right_schema_orig
+                                        .table_schemas
+                                        .values()
+                                        .next()
+                                        .unwrap()
+                                        .1
+                                        .clone(),
+                                ),
                             )]
                             .into_iter()
                             .collect(),
@@ -458,7 +496,16 @@ pub(super) fn nested_loop_join(
                         let right_schema_for_removal = CombinedSchema {
                             table_schemas: vec![(
                                 right_table_name_for_natural.clone(),
-                                (0, right_schema_orig.table_schemas.values().next().unwrap().1.clone()),
+                                (
+                                    0,
+                                    right_schema_orig
+                                        .table_schemas
+                                        .values()
+                                        .next()
+                                        .unwrap()
+                                        .1
+                                        .clone(),
+                                ),
                             )]
                             .into_iter()
                             .collect(),
@@ -479,7 +526,9 @@ pub(super) fn nested_loop_join(
 
     // Prepare combined join condition including additional equijoins from WHERE clause
     if std::env::var("JOIN_DEBUG").is_ok() {
-        eprintln!("[JOIN_DEBUG] No hash join optimization found - falling back to nested loop join!");
+        eprintln!(
+            "[JOIN_DEBUG] No hash join optimization found - falling back to nested loop join!"
+        );
     }
     let mut all_join_conditions = Vec::new();
     if let Some(cond) = condition {
@@ -499,7 +548,9 @@ pub(super) fn nested_loop_join(
     };
 
     let mut result = match join_type {
-        vibesql_ast::JoinType::Inner => nested_loop_inner_join(left, right, &combined_condition, database),
+        vibesql_ast::JoinType::Inner => {
+            nested_loop_inner_join(left, right, &combined_condition, database)
+        }
         vibesql_ast::JoinType::LeftOuter => {
             nested_loop_left_outer_join(left, right, &combined_condition, database)
         }
@@ -509,7 +560,9 @@ pub(super) fn nested_loop_join(
         vibesql_ast::JoinType::FullOuter => {
             nested_loop_full_outer_join(left, right, &combined_condition, database)
         }
-        vibesql_ast::JoinType::Cross => nested_loop_cross_join(left, right, &combined_condition, database),
+        vibesql_ast::JoinType::Cross => {
+            nested_loop_cross_join(left, right, &combined_condition, database)
+        }
         vibesql_ast::JoinType::Semi => {
             nested_loop_semi_join(left, right, &combined_condition, database)
         }
@@ -520,8 +573,11 @@ pub(super) fn nested_loop_join(
 
     // For NATURAL JOIN, remove duplicate columns from the result
     if natural {
-        if let (Some(left_schema), Some(right_schema)) = (left_schema_for_natural, right_schema_for_natural) {
-            result = remove_duplicate_columns_for_natural_join(result, &left_schema, &right_schema)?;
+        if let (Some(left_schema), Some(right_schema)) =
+            (left_schema_for_natural, right_schema_for_natural)
+        {
+            result =
+                remove_duplicate_columns_for_natural_join(result, &left_schema, &right_schema)?;
         }
     }
 
@@ -545,10 +601,11 @@ fn remove_duplicate_columns_for_natural_join(
     for (table_name, (_table_idx, table_schema)) in &left_schema.table_schemas {
         for col in &table_schema.columns {
             let lowercase = col.name.to_lowercase();
-            left_column_map
-                .entry(lowercase)
-                .or_default()
-                .push((table_name.clone(), col.name.clone(), col_idx));
+            left_column_map.entry(lowercase).or_default().push((
+                table_name.clone(),
+                col.name.clone(),
+                col_idx,
+            ));
             col_idx += 1;
         }
     }
@@ -575,9 +632,8 @@ fn remove_duplicate_columns_for_natural_join(
 
     // Project out the duplicate columns from the result
     let total_cols = left_col_count + col_idx;
-    let keep_indices: Vec<usize> = (0..total_cols)
-        .filter(|i| !right_duplicate_indices.contains(i))
-        .collect();
+    let keep_indices: Vec<usize> =
+        (0..total_cols).filter(|i| !right_duplicate_indices.contains(i)).collect();
 
     // Build new schema without duplicate columns
     let mut new_schema = CombinedSchema { table_schemas: HashMap::new(), total_columns: 0 };
@@ -594,14 +650,11 @@ fn remove_duplicate_columns_for_natural_join(
         }
 
         if !new_cols.is_empty() {
-            let new_table_schema = vibesql_catalog::TableSchema::new(
-                table_schema.name.clone(),
-                new_cols,
-            );
-            new_schema.table_schemas.insert(
-                table_name.clone(),
-                (new_schema.total_columns, new_table_schema.clone()),
-            );
+            let new_table_schema =
+                vibesql_catalog::TableSchema::new(table_schema.name.clone(), new_cols);
+            new_schema
+                .table_schemas
+                .insert(table_name.clone(), (new_schema.total_columns, new_table_schema.clone()));
             new_schema.total_columns += new_table_schema.columns.len();
         }
     }
@@ -611,10 +664,8 @@ fn remove_duplicate_columns_for_natural_join(
     let new_rows: Vec<vibesql_storage::Row> = rows
         .iter()
         .map(|row| {
-            let new_values: Vec<vibesql_types::SqlValue> = keep_indices
-                .iter()
-                .filter_map(|&i| row.values.get(i).cloned())
-                .collect();
+            let new_values: Vec<vibesql_types::SqlValue> =
+                keep_indices.iter().filter_map(|&i| row.values.get(i).cloned()).collect();
             vibesql_storage::Row::new(new_values)
         })
         .collect();

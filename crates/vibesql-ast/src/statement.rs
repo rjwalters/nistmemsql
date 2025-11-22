@@ -4,18 +4,18 @@
 
 use crate::{
     AlterSequenceStmt, AlterTableStmt, AlterTriggerStmt, AnalyzeStmt, BeginStmt, CallStmt,
-    CloseCursorStmt, CommitStmt, CreateAssertionStmt, CreateCharacterSetStmt,
-    CreateCollationStmt, CreateDomainStmt, CreateFunctionStmt, CreateIndexStmt,
-    CreateProcedureStmt, CreateRoleStmt, CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt,
-    CreateTranslationStmt, CreateTriggerStmt, CreateTypeStmt, CreateViewStmt, DeclareCursorStmt,
-    DeleteStmt, DescribeStmt, DropAssertionStmt, DropCharacterSetStmt, DropCollationStmt,
-    DropDomainStmt, DropFunctionStmt, DropIndexStmt, DropProcedureStmt, DropRoleStmt,
-    DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTriggerStmt,
-    DropTypeStmt, DropViewStmt, FetchStmt, GrantStmt, InsertStmt, OpenCursorStmt, ReindexStmt,
-    ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
-    SelectStmt, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
-    SetTransactionStmt, SetVariableStmt, ShowColumnsStmt, ShowCreateTableStmt, ShowDatabasesStmt,
-    ShowIndexStmt, ShowTablesStmt, TruncateTableStmt, UpdateStmt,
+    CloseCursorStmt, CommitStmt, CreateAssertionStmt, CreateCharacterSetStmt, CreateCollationStmt,
+    CreateDomainStmt, CreateFunctionStmt, CreateIndexStmt, CreateProcedureStmt, CreateRoleStmt,
+    CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt,
+    CreateTriggerStmt, CreateTypeStmt, CreateViewStmt, DeclareCursorStmt, DeleteStmt, DescribeStmt,
+    DropAssertionStmt, DropCharacterSetStmt, DropCollationStmt, DropDomainStmt, DropFunctionStmt,
+    DropIndexStmt, DropProcedureStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt,
+    DropTableStmt, DropTranslationStmt, DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchStmt,
+    GrantStmt, InsertStmt, OpenCursorStmt, ReindexStmt, ReleaseSavepointStmt, RevokeStmt,
+    RollbackStmt, RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetCatalogStmt, SetNamesStmt,
+    SetSchemaStmt, SetTimeZoneStmt, SetTransactionStmt, SetVariableStmt, ShowColumnsStmt,
+    ShowCreateTableStmt, ShowDatabasesStmt, ShowIndexStmt, ShowTablesStmt, TruncateTableStmt,
+    UpdateStmt,
 };
 
 // ============================================================================

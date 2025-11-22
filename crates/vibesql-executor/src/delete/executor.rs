@@ -5,9 +5,7 @@ use vibesql_storage::Database;
 
 use super::integrity::check_no_child_references;
 use crate::{
-    errors::ExecutorError,
-    evaluator::ExpressionEvaluator,
-    privilege_checker::PrivilegeChecker,
+    errors::ExecutorError, evaluator::ExpressionEvaluator, privilege_checker::PrivilegeChecker,
     truncate_validation::can_use_truncate,
 };
 
@@ -54,7 +52,10 @@ impl DeleteExecutor {
     /// // Insert rows
     /// db.insert_row(
     ///     "users",
-    ///     vibesql_storage::Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    ///     vibesql_storage::Row::new(vec![
+    ///         SqlValue::Integer(1),
+    ///         SqlValue::Varchar("Alice".to_string()),
+    ///     ]),
     /// )
     /// .unwrap();
     /// db.insert_row(

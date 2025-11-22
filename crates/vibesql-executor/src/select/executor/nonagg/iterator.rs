@@ -23,7 +23,9 @@ impl SelectExecutor<'_> {
     ///
     /// Iterator execution is beneficial for queries that don't require full materialization.
     /// We must materialize for: ORDER BY, DISTINCT, and window functions.
-    pub(in crate::select::executor) fn can_use_iterator_execution(stmt: &vibesql_ast::SelectStmt) -> bool {
+    pub(in crate::select::executor) fn can_use_iterator_execution(
+        stmt: &vibesql_ast::SelectStmt,
+    ) -> bool {
         // Can't use iterators if we have ORDER BY (requires sorting all rows)
         if stmt.order_by.is_some() {
             return false;
@@ -68,22 +70,23 @@ impl SelectExecutor<'_> {
 
         // Create evaluator for WHERE clause
         // Priority: 1) outer context (for subqueries) 2) procedural context 3) just database
-        let evaluator = if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
-            CombinedExpressionEvaluator::with_database_and_outer_context(
-                &schema,
-                self.database,
-                outer_row,
-                outer_schema,
-            )
-        } else if let Some(proc_ctx) = self.procedural_context {
-            CombinedExpressionEvaluator::with_database_and_procedural_context(
-                &schema,
-                self.database,
-                proc_ctx,
-            )
-        } else {
-            CombinedExpressionEvaluator::with_database(&schema, self.database)
-        };
+        let evaluator =
+            if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+                CombinedExpressionEvaluator::with_database_and_outer_context(
+                    &schema,
+                    self.database,
+                    outer_row,
+                    outer_schema,
+                )
+            } else if let Some(proc_ctx) = self.procedural_context {
+                CombinedExpressionEvaluator::with_database_and_procedural_context(
+                    &schema,
+                    self.database,
+                    proc_ctx,
+                )
+            } else {
+                CombinedExpressionEvaluator::with_database(&schema, self.database)
+            };
 
         // Validate WHERE clause subqueries upfront (before row iteration)
         // This ensures schema validation happens even for empty result sets
@@ -92,7 +95,8 @@ impl SelectExecutor<'_> {
         }
 
         // Stage 1: Table scan
-        let mut iterator: Box<dyn RowIterator> = Box::new(TableScanIterator::new(schema.clone(), rows));
+        let mut iterator: Box<dyn RowIterator> =
+            Box::new(TableScanIterator::new(schema.clone(), rows));
 
         // Stage 2: WHERE filter (if present)
         if let Some(where_expr) = &stmt.where_clause {
@@ -108,12 +112,22 @@ impl SelectExecutor<'_> {
                     // WHERE TRUE - no filtering needed, keep current iterator
                 }
                 crate::optimizer::WhereOptimization::Optimized(expr) => {
-                    // Apply optimized WHERE clause - use the evaluator that has outer context if present
-                    iterator = Box::new(FilterIterator::new(iterator, expr, evaluator.clone_for_new_expression()));
+                    // Apply optimized WHERE clause - use the evaluator that has outer context if
+                    // present
+                    iterator = Box::new(FilterIterator::new(
+                        iterator,
+                        expr,
+                        evaluator.clone_for_new_expression(),
+                    ));
                 }
                 crate::optimizer::WhereOptimization::Unchanged(Some(expr)) => {
-                    // Apply original WHERE clause - use the evaluator that has outer context if present
-                    iterator = Box::new(FilterIterator::new(iterator, expr.clone(), evaluator.clone_for_new_expression()));
+                    // Apply original WHERE clause - use the evaluator that has outer context if
+                    // present
+                    iterator = Box::new(FilterIterator::new(
+                        iterator,
+                        expr.clone(),
+                        evaluator.clone_for_new_expression(),
+                    ));
                 }
                 crate::optimizer::WhereOptimization::Unchanged(None) => {
                     // No WHERE clause - keep current iterator
@@ -147,18 +161,21 @@ impl SelectExecutor<'_> {
         // Queries without explicit ORDER BY get sorted by all columns in schema order
         // This ensures SQLLogicTest compatibility and deterministic behavior
         // Skip sorting if data is already sorted from index scan
-        let needs_implicit_sort = stmt.order_by.is_none() && sorted_by.is_none() && !filtered_rows.is_empty();
+        let needs_implicit_sort =
+            stmt.order_by.is_none() && sorted_by.is_none() && !filtered_rows.is_empty();
 
         if needs_implicit_sort {
             use crate::select::grouping::compare_sql_values;
 
             #[cfg(feature = "parallel")]
             {
-                use crate::select::parallel::ParallelConfig;
                 use rayon::prelude::*;
 
+                use crate::select::parallel::ParallelConfig;
+
                 // Use parallel sorting for larger datasets
-                let should_parallel = ParallelConfig::global().should_parallelize_sort(filtered_rows.len());
+                let should_parallel =
+                    ParallelConfig::global().should_parallelize_sort(filtered_rows.len());
 
                 if should_parallel {
                     filtered_rows.par_sort_by(|row_a, row_b| {

@@ -43,10 +43,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum GraphOperation {
     /// Table scan with predicates
-    TableScan {
-        table_name: String,
-        predicates: Vec<vibesql_ast::Expression>,
-    },
+    TableScan { table_name: String, predicates: Vec<vibesql_ast::Expression> },
 
     /// Join two intermediate results
     Join {
@@ -58,9 +55,7 @@ pub enum GraphOperation {
     },
 
     /// Apply complex predicates to final result
-    Filter {
-        predicates: Vec<vibesql_ast::Expression>,
-    },
+    Filter { predicates: Vec<vibesql_ast::Expression> },
 }
 
 /// A layer in the execution graph (all operations can run in parallel)
@@ -89,10 +84,7 @@ pub struct PredicateDependencyGraph {
 impl PredicateDependencyGraph {
     /// Create an empty graph
     pub fn new() -> Self {
-        Self {
-            layers: Vec::new(),
-            total_operations: 0,
-        }
+        Self { layers: Vec::new(), total_operations: 0 }
     }
 
     /// Build dependency graph from PredicateDecomposition
@@ -125,23 +117,15 @@ impl PredicateDependencyGraph {
         // Layer 0: Independent table scans
         let mut scan_operations = Vec::new();
         for table_name in &table_names {
-            let predicates = decomposition
-                .table_local_predicates
-                .get(table_name)
-                .cloned()
-                .unwrap_or_default();
+            let predicates =
+                decomposition.table_local_predicates.get(table_name).cloned().unwrap_or_default();
 
-            scan_operations.push(GraphOperation::TableScan {
-                table_name: table_name.clone(),
-                predicates,
-            });
+            scan_operations
+                .push(GraphOperation::TableScan { table_name: table_name.clone(), predicates });
         }
 
         if !scan_operations.is_empty() {
-            graph.add_layer(ExecutionLayer {
-                operations: scan_operations,
-                layer_id: 0,
-            });
+            graph.add_layer(ExecutionLayer { operations: scan_operations, layer_id: 0 });
         }
 
         // Layers 1+: Joins (for now, sequential - will optimize later)
@@ -155,14 +139,19 @@ impl PredicateDependencyGraph {
             let mut joins_to_remove = Vec::new();
 
             // Find joins where both tables are ready
-            for (idx, (left_table, left_col, right_table, right_col, condition)) in remaining_joins.iter().enumerate() {
+            for (idx, (left_table, left_col, right_table, right_col, condition)) in
+                remaining_joins.iter().enumerate()
+            {
                 let can_schedule = if current_layer == 1 {
-                    // For first layer: both tables must be from initial scans (not yet in joined_tables)
+                    // For first layer: both tables must be from initial scans (not yet in
+                    // joined_tables)
                     !joined_tables.contains(left_table) && !joined_tables.contains(right_table)
                 } else {
-                    // For subsequent layers: both tables must be available (from scan or previous joins)
-                    (joined_tables.contains(left_table) || table_names.contains(left_table)) &&
-                    (joined_tables.contains(right_table) || table_names.contains(right_table))
+                    // For subsequent layers: both tables must be available (from scan or previous
+                    // joins)
+                    (joined_tables.contains(left_table) || table_names.contains(left_table))
+                        && (joined_tables.contains(right_table)
+                            || table_names.contains(right_table))
                 };
 
                 if can_schedule {
@@ -333,10 +322,7 @@ mod tests {
 
     #[test]
     fn test_extract_table_names_single() {
-        let from = FromClause::Table {
-            name: "users".to_string(),
-            alias: None,
-        };
+        let from = FromClause::Table { name: "users".to_string(), alias: None };
         let tables = extract_table_names(&from);
         assert_eq!(tables, vec!["users"]);
     }
@@ -344,14 +330,8 @@ mod tests {
     #[test]
     fn test_extract_table_names_join() {
         let from = FromClause::Join {
-            left: Box::new(FromClause::Table {
-                name: "users".to_string(),
-                alias: None,
-            }),
-            right: Box::new(FromClause::Table {
-                name: "orders".to_string(),
-                alias: None,
-            }),
+            left: Box::new(FromClause::Table { name: "users".to_string(), alias: None }),
+            right: Box::new(FromClause::Table { name: "orders".to_string(), alias: None }),
             join_type: vibesql_ast::JoinType::Inner,
             condition: None,
             natural: false,

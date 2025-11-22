@@ -8,10 +8,11 @@
 //! This prevents cross-file contamination when reusing Database instances
 //! (e.g., in SQLLogicTest pooled DB adapter).
 
-use crate::{Database, Row};
 use vibesql_ast::{IndexColumn, OrderDirection};
 use vibesql_catalog::{ColumnSchema, TableSchema};
 use vibesql_types::{DataType, SqlValue};
+
+use crate::{Database, Row};
 
 #[test]
 fn test_reset_clears_catalog_and_indexes() {
@@ -26,7 +27,11 @@ fn test_reset_clears_catalog_and_indexes() {
         "users".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(255) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(255) },
+                false,
+            ),
         ],
     );
     db.create_table(schema.clone()).unwrap();
@@ -47,18 +52,12 @@ fn test_reset_clears_catalog_and_indexes() {
     // Insert some data
     db.insert_row(
         "users",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Alice".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "users",
-        Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Varchar("Bob".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
     )
     .unwrap();
 
@@ -103,18 +102,12 @@ fn test_reset_clears_catalog_and_indexes() {
     // Insert different data
     db.insert_row(
         "users",
-        Row::new(vec![
-            SqlValue::Integer(10),
-            SqlValue::Varchar("Charlie".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(10), SqlValue::Varchar("Charlie".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "users",
-        Row::new(vec![
-            SqlValue::Integer(20),
-            SqlValue::Varchar("Diana".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(20), SqlValue::Varchar("Diana".to_string())]),
     )
     .unwrap();
 
@@ -126,7 +119,8 @@ fn test_reset_clears_catalog_and_indexes() {
     assert_eq!(table.row_count(), 2, "Table should have only new rows after reset");
 
     // Verify index was recreated successfully (old index metadata was cleared)
-    // If stale index metadata existed, creating the index would have failed or returned wrong results
+    // If stale index metadata existed, creating the index would have failed or returned wrong
+    // results
     let index = db.get_index("idx_users_id").unwrap();
     // Just verify that index was successfully recreated - exact table name format may vary
     assert_eq!(index.columns.len(), 1, "Index should have exactly one column");
@@ -144,14 +138,13 @@ fn test_reset_clears_spatial_indexes() {
         "locations".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("point".to_string(), DataType::CharacterLargeObject, false),  // Using CLOB as placeholder for geometry
+            ColumnSchema::new("point".to_string(), DataType::CharacterLargeObject, false), /* Using CLOB as placeholder for geometry */
         ],
     );
     db.create_table(schema.clone()).unwrap();
 
     // Create a spatial index
-    use crate::index::SpatialIndex;
-    use crate::database::operations::SpatialIndexMetadata;
+    use crate::{database::operations::SpatialIndexMetadata, index::SpatialIndex};
 
     let spatial_metadata = SpatialIndexMetadata {
         index_name: "idx_locations_point".to_string(),
@@ -173,8 +166,15 @@ fn test_reset_clears_spatial_indexes() {
     db.reset();
 
     // Verify spatial index is cleared
-    assert!(!db.spatial_index_exists("idx_locations_point"), "Spatial index should not exist after reset");
-    assert_eq!(db.list_spatial_indexes().len(), 0, "All spatial indexes should be cleared after reset");
+    assert!(
+        !db.spatial_index_exists("idx_locations_point"),
+        "Spatial index should not exist after reset"
+    );
+    assert_eq!(
+        db.list_spatial_indexes().len(),
+        0,
+        "All spatial indexes should be cleared after reset"
+    );
 
     // ============================================================================
     // SECOND USAGE: Recreate same spatial index
@@ -198,8 +198,9 @@ fn test_reset_clears_spatial_indexes() {
 
 #[test]
 fn test_reset_preserves_database_config() {
-    use crate::DatabaseConfig;
     use std::path::PathBuf;
+
+    use crate::DatabaseConfig;
 
     // Create database with custom config and path
     let config = DatabaseConfig::server_default();
@@ -253,7 +254,11 @@ fn test_reset_multiple_tables_and_indexes() {
             table_name.clone(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("value".to_string(), DataType::Varchar { max_length: Some(255) }, false),
+                ColumnSchema::new(
+                    "value".to_string(),
+                    DataType::Varchar { max_length: Some(255) },
+                    false,
+                ),
             ],
         );
         db.create_table(schema).unwrap();
@@ -278,10 +283,7 @@ fn test_reset_multiple_tables_and_indexes() {
         // Insert data
         db.insert_row(
             &table_name,
-            Row::new(vec![
-                SqlValue::Integer(i as i64),
-                SqlValue::Varchar(format!("value{}", i)),
-            ]),
+            Row::new(vec![SqlValue::Integer(i as i64), SqlValue::Varchar(format!("value{}", i))]),
         )
         .unwrap();
     }

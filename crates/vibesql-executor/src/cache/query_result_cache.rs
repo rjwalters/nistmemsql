@@ -134,8 +134,9 @@ impl QueryResultCache {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_types::SqlValue;
+
+    use super::*;
 
     fn make_test_row(values: Vec<SqlValue>) -> Row {
         Row::new(values)

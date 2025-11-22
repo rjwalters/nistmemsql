@@ -12,9 +12,11 @@ fn setup_q18_database() -> vibesql_storage::Database {
     // Customer table (simplified - just custkey)
     let customer_schema = vibesql_catalog::TableSchema::new(
         "CUSTOMER".to_string(),
-        vec![
-            vibesql_catalog::ColumnSchema::new("C_CUSTKEY".to_string(), vibesql_types::DataType::Integer, false),
-        ],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "C_CUSTKEY".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(customer_schema).unwrap();
 
@@ -22,9 +24,21 @@ fn setup_q18_database() -> vibesql_storage::Database {
     let orders_schema = vibesql_catalog::TableSchema::new(
         "ORDERS".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("O_ORDERKEY".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("O_CUSTKEY".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("O_TOTALPRICE".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "O_ORDERKEY".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "O_CUSTKEY".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "O_TOTALPRICE".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(orders_schema).unwrap();
@@ -33,8 +47,16 @@ fn setup_q18_database() -> vibesql_storage::Database {
     let lineitem_schema = vibesql_catalog::TableSchema::new(
         "LINEITEM".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("L_ORDERKEY".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("L_QUANTITY".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "L_ORDERKEY".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "L_QUANTITY".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(lineitem_schema).unwrap();

@@ -7,10 +7,12 @@
 //! - Verify generic patterns are selected (not TPC-H fallback)
 //! - Confirm correct query results
 
-use super::super::*;
 use std::str::FromStr;
+
 use vibesql_parser::Parser;
 use vibesql_types::{DataType, Date, SqlValue};
+
+use super::super::*;
 
 /// Test 1: Sales revenue calculation with date range and BETWEEN filters
 #[test]
@@ -24,9 +26,21 @@ fn test_generic_pattern_sales_revenue() {
         vec![
             vibesql_catalog::ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             vibesql_catalog::ColumnSchema::new("SALE_DATE".to_string(), DataType::Date, false),
-            vibesql_catalog::ColumnSchema::new("PRICE".to_string(), DataType::DoublePrecision, false),
-            vibesql_catalog::ColumnSchema::new("DISCOUNT".to_string(), DataType::DoublePrecision, false),
-            vibesql_catalog::ColumnSchema::new("QUANTITY".to_string(), DataType::DoublePrecision, false),
+            vibesql_catalog::ColumnSchema::new(
+                "PRICE".to_string(),
+                DataType::DoublePrecision,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "DISCOUNT".to_string(),
+                DataType::DoublePrecision,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "QUANTITY".to_string(),
+                DataType::DoublePrecision,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -34,9 +48,9 @@ fn test_generic_pattern_sales_revenue() {
     // Insert test data - some rows will match filters, some won't
     let test_data = vec![
         // Rows that should match (date in range, discount in BETWEEN, quantity < 50)
-        (1, "2024-01-05", 100.0, 0.15, 10.0),  // revenue = 100 * 0.15 = 15.0
-        (2, "2024-01-15", 200.0, 0.12, 20.0),  // revenue = 200 * 0.12 = 24.0
-        (3, "2024-01-25", 150.0, 0.18, 30.0),  // revenue = 150 * 0.18 = 27.0
+        (1, "2024-01-05", 100.0, 0.15, 10.0), // revenue = 100 * 0.15 = 15.0
+        (2, "2024-01-15", 200.0, 0.12, 20.0), // revenue = 200 * 0.12 = 24.0
+        (3, "2024-01-25", 150.0, 0.18, 30.0), // revenue = 150 * 0.18 = 27.0
         // Total expected: 66.0
 
         // Rows that should NOT match
@@ -105,8 +119,16 @@ fn test_generic_pattern_order_volume() {
         "PURCHASE_ORDERS".to_string(),
         vec![
             vibesql_catalog::ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("QUANTITY".to_string(), DataType::DoublePrecision, false),
-            vibesql_catalog::ColumnSchema::new("UNIT_PRICE".to_string(), DataType::DoublePrecision, false),
+            vibesql_catalog::ColumnSchema::new(
+                "QUANTITY".to_string(),
+                DataType::DoublePrecision,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "UNIT_PRICE".to_string(),
+                DataType::DoublePrecision,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -114,13 +136,13 @@ fn test_generic_pattern_order_volume() {
     // Insert test data
     let test_data = vec![
         // Should match (quantity < 100)
-        (1, 10.0, 50.0),   // total = 500.0
-        (2, 20.0, 30.0),   // total = 600.0
-        (3, 50.0, 25.0),   // total = 1250.0
+        (1, 10.0, 50.0), // total = 500.0
+        (2, 20.0, 30.0), // total = 600.0
+        (3, 50.0, 25.0), // total = 1250.0
         // Expected: 2350.0
 
         // Should NOT match
-        (4, 150.0, 30.0),  // quantity >= 100
+        (4, 150.0, 30.0), // quantity >= 100
     ];
 
     for (id, quantity, price) in test_data {
@@ -172,8 +194,16 @@ fn test_generic_pattern_count_with_filters() {
         "PRODUCTS".to_string(),
         vec![
             vibesql_catalog::ColumnSchema::new("PRODUCT_ID".to_string(), DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("PRICE".to_string(), DataType::DoublePrecision, false),
-            vibesql_catalog::ColumnSchema::new("STOCK_QUANTITY".to_string(), DataType::DoublePrecision, false),
+            vibesql_catalog::ColumnSchema::new(
+                "PRICE".to_string(),
+                DataType::DoublePrecision,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "STOCK_QUANTITY".to_string(),
+                DataType::DoublePrecision,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -188,10 +218,10 @@ fn test_generic_pattern_count_with_filters() {
         // Expected count: 4
 
         // Should NOT match
-        (5, 40.0, 50.0),     // price too low
-        (6, 600.0, 50.0),    // price too high
-        (7, 100.0, 5.0),     // stock too low
-        (8, 100.0, 1500.0),  // stock too high
+        (5, 40.0, 50.0),    // price too low
+        (6, 600.0, 50.0),   // price too high
+        (7, 100.0, 5.0),    // stock too low
+        (8, 100.0, 1500.0), // stock too high
     ];
 
     for (id, price, stock) in test_data {
@@ -244,7 +274,11 @@ fn test_generic_pattern_simple_sum() {
         "INVOICES".to_string(),
         vec![
             vibesql_catalog::ColumnSchema::new("INVOICE_ID".to_string(), DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("AMOUNT".to_string(), DataType::DoublePrecision, false),
+            vibesql_catalog::ColumnSchema::new(
+                "AMOUNT".to_string(),
+                DataType::DoublePrecision,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new("STATUS".to_string(), DataType::Integer, false),
         ],
     );
@@ -313,7 +347,11 @@ fn test_generic_pattern_not_tpch_fallback() {
         "CUSTOM_TRANSACTIONS".to_string(),
         vec![
             vibesql_catalog::ColumnSchema::new("TXN_DATE".to_string(), DataType::Date, false),
-            vibesql_catalog::ColumnSchema::new("AMOUNT".to_string(), DataType::DoublePrecision, false),
+            vibesql_catalog::ColumnSchema::new(
+                "AMOUNT".to_string(),
+                DataType::DoublePrecision,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new("FEE".to_string(), DataType::DoublePrecision, false),
         ],
     );
@@ -378,7 +416,11 @@ fn test_generic_pattern_no_matching_rows() {
     let schema = vibesql_catalog::TableSchema::new(
         "DATA".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("VALUE".to_string(), DataType::DoublePrecision, false),
+            vibesql_catalog::ColumnSchema::new(
+                "VALUE".to_string(),
+                DataType::DoublePrecision,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new("CATEGORY".to_string(), DataType::Integer, false),
         ],
     );
@@ -387,10 +429,7 @@ fn test_generic_pattern_no_matching_rows() {
     // Insert data that won't match filters
     db.insert_row(
         "DATA",
-        vibesql_storage::Row::new(vec![
-            SqlValue::Double(100.0),
-            SqlValue::Integer(1),
-        ]),
+        vibesql_storage::Row::new(vec![SqlValue::Double(100.0), SqlValue::Integer(1)]),
     )
     .unwrap();
 
@@ -434,17 +473,21 @@ fn test_generic_pattern_mixed_types_disabled() {
         "METRICS".to_string(),
         vec![
             vibesql_catalog::ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("FLOAT_VALUE".to_string(), DataType::DoublePrecision, false),
+            vibesql_catalog::ColumnSchema::new(
+                "FLOAT_VALUE".to_string(),
+                DataType::DoublePrecision,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
 
     // Insert test data
     let test_data = vec![
-        (10, 1.5),   // Should NOT match (float_value <= 1.5)
-        (20, 2.0),   // Should match -> 2.0
-        (30, 2.5),   // Should match -> 2.5
-        // Expected: 2.0 + 2.5 = 4.5
+        (10, 1.5), // Should NOT match (float_value <= 1.5)
+        (20, 2.0), // Should match -> 2.0
+        (30, 2.5), /* Should match -> 2.5
+                    * Expected: 2.0 + 2.5 = 4.5 */
     ];
 
     for (int_val, float_val) in test_data {

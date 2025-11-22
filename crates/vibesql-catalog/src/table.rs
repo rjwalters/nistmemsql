@@ -259,7 +259,9 @@ impl TableSchema {
             .collect();
 
         // Remove check constraints that reference the removed column
-        self.check_constraints.retain(|(_name, expr)| !Self::expression_references_column(expr, &removed_column.name));
+        self.check_constraints.retain(|(_name, expr)| {
+            !Self::expression_references_column(expr, &removed_column.name)
+        });
 
         Ok(())
     }
@@ -333,7 +335,10 @@ impl TableSchema {
     }
 
     /// Add a unique constraint
-    pub fn add_unique_constraint(&mut self, columns: Vec<String>) -> Result<(), crate::CatalogError> {
+    pub fn add_unique_constraint(
+        &mut self,
+        columns: Vec<String>,
+    ) -> Result<(), crate::CatalogError> {
         // Verify all columns exist
         for col_name in &columns {
             if !self.has_column(col_name) {
@@ -376,7 +381,10 @@ impl TableSchema {
     }
 
     /// Remove a unique constraint by column names
-    pub fn drop_unique_constraint(&mut self, columns: &[String]) -> Result<(), crate::CatalogError> {
+    pub fn drop_unique_constraint(
+        &mut self,
+        columns: &[String],
+    ) -> Result<(), crate::CatalogError> {
         let original_len = self.unique_constraints.len();
         self.unique_constraints.retain(|constraint| constraint != columns);
         if self.unique_constraints.len() == original_len {
@@ -406,7 +414,8 @@ impl TableSchema {
             vibesql_ast::Expression::UnaryOp { expr, .. } => {
                 Self::expression_references_column(expr, column_name)
             }
-            vibesql_ast::Expression::Function { args, .. } | vibesql_ast::Expression::AggregateFunction { args, .. } => {
+            vibesql_ast::Expression::Function { args, .. }
+            | vibesql_ast::Expression::AggregateFunction { args, .. } => {
                 args.iter().any(|arg| Self::expression_references_column(arg, column_name))
             }
             vibesql_ast::Expression::IsNull { expr, .. } => {
@@ -447,7 +456,8 @@ impl TableSchema {
                 // and not remove check constraints with subqueries
                 false
             }
-            vibesql_ast::Expression::In { expr, .. } | vibesql_ast::Expression::InList { expr, .. } => {
+            vibesql_ast::Expression::In { expr, .. }
+            | vibesql_ast::Expression::InList { expr, .. } => {
                 Self::expression_references_column(expr, column_name)
             }
             vibesql_ast::Expression::Between { expr, low, high, .. } => {
@@ -490,7 +500,9 @@ impl TableSchema {
 
                 false
             }
-            vibesql_ast::Expression::Cast { expr, .. } => Self::expression_references_column(expr, column_name),
+            vibesql_ast::Expression::Cast { expr, .. } => {
+                Self::expression_references_column(expr, column_name)
+            }
             vibesql_ast::Expression::Position { substring, string, .. } => {
                 Self::expression_references_column(substring, column_name)
                     || Self::expression_references_column(string, column_name)

@@ -11,7 +11,11 @@ fn test_select_star() {
     let schema = vibesql_catalog::TableSchema::new(
         "users".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "name".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(100) },
@@ -40,7 +44,8 @@ fn test_select_star() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -68,13 +73,21 @@ fn test_select_specific_columns() {
     let schema = vibesql_catalog::TableSchema::new(
         "users".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "name".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(100) },
                 true,
             ),
-            vibesql_catalog::ColumnSchema::new("age".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "age".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -91,12 +104,16 @@ fn test_select_specific_columns() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
             vibesql_ast::SelectItem::Expression {
-                expr: vibesql_ast::Expression::ColumnRef { table: None, column: "name".to_string() },
+                expr: vibesql_ast::Expression::ColumnRef {
+                    table: None,
+                    column: "name".to_string(),
+                },
                 alias: None,
             },
             vibesql_ast::SelectItem::Expression {

@@ -32,8 +32,12 @@ impl ExpressionEvaluator<'_> {
         let mut high_val = self.eval(high, row)?;
 
         // Check if bounds are reversed (low > high)
-        let gt_result =
-            Self::eval_binary_op_static(&low_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val, sql_mode.clone())?;
+        let gt_result = Self::eval_binary_op_static(
+            &low_val,
+            &vibesql_ast::BinaryOperator::GreaterThan,
+            &high_val,
+            sql_mode.clone(),
+        )?;
 
         if let vibesql_types::SqlValue::Boolean(true) = gt_result {
             if symmetric {
@@ -55,20 +59,46 @@ impl ExpressionEvaluator<'_> {
             }
         }
 
-        let ge_low =
-            Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::GreaterThanOrEqual, &low_val, sql_mode.clone())?;
+        let ge_low = Self::eval_binary_op_static(
+            &expr_val,
+            &vibesql_ast::BinaryOperator::GreaterThanOrEqual,
+            &low_val,
+            sql_mode.clone(),
+        )?;
 
-        let le_high =
-            Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::LessThanOrEqual, &high_val, sql_mode.clone())?;
+        let le_high = Self::eval_binary_op_static(
+            &expr_val,
+            &vibesql_ast::BinaryOperator::LessThanOrEqual,
+            &high_val,
+            sql_mode.clone(),
+        )?;
 
         if negated {
-            let lt_low =
-                Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::LessThan, &low_val, sql_mode.clone())?;
-            let gt_high =
-                Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val, sql_mode.clone())?;
-            Self::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high, sql_mode)
+            let lt_low = Self::eval_binary_op_static(
+                &expr_val,
+                &vibesql_ast::BinaryOperator::LessThan,
+                &low_val,
+                sql_mode.clone(),
+            )?;
+            let gt_high = Self::eval_binary_op_static(
+                &expr_val,
+                &vibesql_ast::BinaryOperator::GreaterThan,
+                &high_val,
+                sql_mode.clone(),
+            )?;
+            Self::eval_binary_op_static(
+                &lt_low,
+                &vibesql_ast::BinaryOperator::Or,
+                &gt_high,
+                sql_mode,
+            )
         } else {
-            Self::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high, sql_mode)
+            Self::eval_binary_op_static(
+                &ge_low,
+                &vibesql_ast::BinaryOperator::And,
+                &le_high,
+                sql_mode,
+            )
         }
     }
 
@@ -96,10 +126,14 @@ impl ExpressionEvaluator<'_> {
         let string_val = self.eval(string, row)?;
 
         match (&substring_val, &string_val) {
-            (vibesql_types::SqlValue::Null, _) | (_, vibesql_types::SqlValue::Null) => Ok(vibesql_types::SqlValue::Null),
+            (vibesql_types::SqlValue::Null, _) | (_, vibesql_types::SqlValue::Null) => {
+                Ok(vibesql_types::SqlValue::Null)
+            }
             (
-                vibesql_types::SqlValue::Varchar(needle) | vibesql_types::SqlValue::Character(needle),
-                vibesql_types::SqlValue::Varchar(haystack) | vibesql_types::SqlValue::Character(haystack),
+                vibesql_types::SqlValue::Varchar(needle)
+                | vibesql_types::SqlValue::Character(needle),
+                vibesql_types::SqlValue::Varchar(haystack)
+                | vibesql_types::SqlValue::Character(haystack),
             ) => match haystack.find(needle.as_str()) {
                 Some(pos) => Ok(vibesql_types::SqlValue::Integer((pos + 1) as i64)),
                 None => Ok(vibesql_types::SqlValue::Integer(0)),
@@ -131,7 +165,9 @@ impl ExpressionEvaluator<'_> {
 
         // Extract the string value
         let s = match &string_val {
-            vibesql_types::SqlValue::Varchar(s) | vibesql_types::SqlValue::Character(s) => s.as_str(),
+            vibesql_types::SqlValue::Varchar(s) | vibesql_types::SqlValue::Character(s) => {
+                s.as_str()
+            }
             _ => {
                 return Err(ExecutorError::TypeMismatch {
                     left: string_val.clone(),
@@ -214,7 +250,9 @@ impl ExpressionEvaluator<'_> {
         let pattern_val = self.eval(pattern, row)?;
 
         let text = match expr_val {
-            vibesql_types::SqlValue::Varchar(ref s) | vibesql_types::SqlValue::Character(ref s) => s.clone(),
+            vibesql_types::SqlValue::Varchar(ref s) | vibesql_types::SqlValue::Character(ref s) => {
+                s.clone()
+            }
             vibesql_types::SqlValue::Null => return Ok(vibesql_types::SqlValue::Null),
             _ => {
                 return Err(ExecutorError::TypeMismatch {
@@ -226,7 +264,9 @@ impl ExpressionEvaluator<'_> {
         };
 
         let pattern_str = match pattern_val {
-            vibesql_types::SqlValue::Varchar(ref s) | vibesql_types::SqlValue::Character(ref s) => s.clone(),
+            vibesql_types::SqlValue::Varchar(ref s) | vibesql_types::SqlValue::Character(ref s) => {
+                s.clone()
+            }
             vibesql_types::SqlValue::Null => return Ok(vibesql_types::SqlValue::Null),
             _ => {
                 return Err(ExecutorError::TypeMismatch {
@@ -278,7 +318,8 @@ impl ExpressionEvaluator<'_> {
                 continue;
             }
 
-            let eq_result = self.eval_binary_op(&expr_val, &vibesql_ast::BinaryOperator::Equal, &value)?;
+            let eq_result =
+                self.eval_binary_op(&expr_val, &vibesql_ast::BinaryOperator::Equal, &value)?;
 
             if matches!(eq_result, vibesql_types::SqlValue::Boolean(true)) {
                 return Ok(vibesql_types::SqlValue::Boolean(!negated));

@@ -1,7 +1,6 @@
 // Integration tests for database file persistence
 
-use std::fs;
-use std::process::Command;
+use std::{fs, process::Command};
 
 #[test]
 fn test_command_mode_persistence() {
@@ -45,10 +44,7 @@ fn test_command_mode_persistence() {
     assert!(output.status.success(), "INSERT should succeed");
 
     // Verify the file was created
-    assert!(
-        std::path::Path::new(test_db).exists(),
-        "Database file should exist"
-    );
+    assert!(std::path::Path::new(test_db).exists(), "Database file should exist");
 
     // Verify the file contains the expected SQL (note: identifiers are uppercased)
     let content = fs::read_to_string(test_db).expect("Should be able to read database file");
@@ -56,10 +52,7 @@ fn test_command_mode_persistence() {
         content.to_uppercase().contains("CREATE TABLE TEST_USERS"),
         "Database should contain CREATE TABLE statement"
     );
-    assert!(
-        content.contains("Alice"),
-        "Database should contain inserted data"
-    );
+    assert!(content.contains("Alice"), "Database should contain inserted data");
 
     // Query the data in a new session
     let output = Command::new("cargo")
@@ -78,10 +71,7 @@ fn test_command_mode_persistence() {
 
     assert!(output.status.success(), "SELECT should succeed");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        stdout.contains("Alice"),
-        "Query should return inserted data"
-    );
+    assert!(stdout.contains("Alice"), "Query should return inserted data");
 
     // Clean up
     let _ = fs::remove_file(test_db);
@@ -176,21 +166,11 @@ fn test_binary_file_error_message() {
     let mut binary_data = b"SQLite format 3\0".to_vec();
     // Add some non-UTF8 bytes
     binary_data.extend_from_slice(&[0xFF, 0xFE, 0xFD, 0xFC, 0x00, 0x01, 0x02]);
-    fs::write(test_db, binary_data)
-        .expect("Failed to create test file");
+    fs::write(test_db, binary_data).expect("Failed to create test file");
 
     // Try to open it with vibesql
     let output = Command::new("cargo")
-        .args([
-            "run",
-            "--bin",
-            "vibesql",
-            "--",
-            "--database",
-            test_db,
-            "-c",
-            "SELECT 1",
-        ])
+        .args(["run", "--bin", "vibesql", "--", "--database", test_db, "-c", "SELECT 1"])
         .output()
         .expect("Failed to execute command");
 
@@ -229,16 +209,10 @@ fn test_new_database_file_creation() {
         .output()
         .expect("Failed to execute command");
 
-    assert!(
-        output.status.success(),
-        "Should succeed creating new database file"
-    );
+    assert!(output.status.success(), "Should succeed creating new database file");
 
     // Verify the file was created
-    assert!(
-        std::path::Path::new(test_db).exists(),
-        "Database file should be created"
-    );
+    assert!(std::path::Path::new(test_db).exists(), "Database file should be created");
 
     // Verify it contains the table (note: identifiers are uppercased)
     let content = fs::read_to_string(test_db).expect("Should be able to read database file");

@@ -5,9 +5,10 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::SelectExecutor;
     use vibesql_parser::Parser;
     use vibesql_storage::Database;
+
+    use crate::SelectExecutor;
 
     #[test]
     fn test_except_left_to_right_evaluation() {
@@ -104,13 +105,16 @@ mod tests {
             assert_eq!(rows.len(), 2, "Should have exactly 2 rows");
 
             // Extract values and sort them for comparison
-            let mut values: Vec<i64> = rows.iter().map(|row| {
-                if let vibesql_types::SqlValue::Integer(val) = row.values[0] {
-                    val
-                } else {
-                    panic!("Expected Integer value");
-                }
-            }).collect();
+            let mut values: Vec<i64> = rows
+                .iter()
+                .map(|row| {
+                    if let vibesql_types::SqlValue::Integer(val) = row.values[0] {
+                        val
+                    } else {
+                        panic!("Expected Integer value");
+                    }
+                })
+                .collect();
             values.sort();
 
             assert_eq!(values, vec![1, 2], "Result should be [1, 2]");

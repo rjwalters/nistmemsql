@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-use std::future::IntoFuture;
+use std::{collections::HashMap, future::IntoFuture};
 
-use futures::future::join_all;
-use futures::Future;
+use futures::{future::join_all, Future};
 
 use crate::{AsyncDB, Connection as ConnectionName, DBOutput};
 
@@ -42,10 +40,7 @@ pub(crate) struct Connections<D, M> {
 
 impl<D: AsyncDB, M: MakeConnection<Conn = D>> Connections<D, M> {
     pub fn new(make_conn: M) -> Self {
-        Connections {
-            make_conn,
-            conns: HashMap::new(),
-        }
+        Connections { make_conn, conns: HashMap::new() }
     }
 
     /// Get a connection by name. Make a new connection if it doesn't exist.

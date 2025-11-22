@@ -247,7 +247,8 @@ mod tests {
 
     #[test]
     fn test_parse_semicolon_in_string() {
-        // Issue #1804: Semicolons inside string literals should not be treated as statement delimiters
+        // Issue #1804: Semicolons inside string literals should not be treated as statement
+        // delimiters
         let script = "INSERT INTO test VALUES (1, 'Error at position 10; expected value');";
         let stmts = parse_statements(script);
         assert_eq!(stmts.len(), 1);

@@ -57,17 +57,9 @@ impl Histogram {
     /// * `values` - Sample values (should not include NULLs)
     /// * `num_buckets` - Number of buckets to create (default: 100)
     /// * `strategy` - Bucketing strategy to use
-    pub fn create(
-        values: &[SqlValue],
-        num_buckets: usize,
-        strategy: BucketStrategy,
-    ) -> Self {
+    pub fn create(values: &[SqlValue], num_buckets: usize, strategy: BucketStrategy) -> Self {
         if values.is_empty() {
-            return Self {
-                buckets: Vec::new(),
-                bucket_strategy: strategy,
-                total_rows: 0,
-            };
+            return Self { buckets: Vec::new(), bucket_strategy: strategy, total_rows: 0 };
         }
 
         let buckets = match strategy {
@@ -76,11 +68,7 @@ impl Histogram {
             BucketStrategy::Hybrid => Self::create_hybrid_buckets(values, num_buckets),
         };
 
-        Self {
-            buckets,
-            bucket_strategy: strategy,
-            total_rows: values.len(),
-        }
+        Self { buckets, bucket_strategy: strategy, total_rows: values.len() }
     }
 
     /// Create equal-width buckets
@@ -189,7 +177,8 @@ impl Histogram {
         0.0
     }
 
-    /// Estimate selectivity for range predicate: col > value, col >= value, col < value, col <= value
+    /// Estimate selectivity for range predicate: col > value, col >= value, col < value, col <=
+    /// value
     pub fn estimate_range_selectivity(&self, operator: &str, value: &SqlValue) -> f64 {
         if self.buckets.is_empty() {
             return 0.0;
@@ -285,8 +274,9 @@ impl Histogram {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_types::SqlValue;
+
+    use super::*;
 
     #[test]
     fn test_histogram_equal_depth() {
@@ -353,10 +343,8 @@ mod tests {
         let histogram = Histogram::create(&values, 10, BucketStrategy::EqualDepth);
 
         // Estimate selectivity for BETWEEN 25 AND 75
-        let sel = histogram.estimate_between_selectivity(
-            &SqlValue::Integer(25),
-            &SqlValue::Integer(75),
-        );
+        let sel =
+            histogram.estimate_between_selectivity(&SqlValue::Integer(25), &SqlValue::Integer(75));
 
         // Should be roughly 50% (50 values out of 100)
         assert!((sel - 0.5).abs() < 0.3);

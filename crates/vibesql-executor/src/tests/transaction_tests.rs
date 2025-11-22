@@ -1,10 +1,10 @@
 //! Tests for transaction functionality (BEGIN, COMMIT, ROLLBACK)
 
-use super::common::setup_users_table as setup_test_table;
 use vibesql_ast::{BeginStmt, CommitStmt, InsertStmt, RollbackStmt};
 use vibesql_storage::Database;
 use vibesql_types::SqlValue;
 
+use super::common::setup_users_table as setup_test_table;
 use crate::{BeginTransactionExecutor, CommitExecutor, InsertExecutor, RollbackExecutor};
 
 #[test]

@@ -2,17 +2,19 @@
 // Database - Coordinates between focused modules
 // ============================================================================
 
-use super::lifecycle::Lifecycle;
-use super::metadata::Metadata;
-use super::operations::{Operations, SpatialIndexMetadata};
-use super::transactions::TransactionChange;
-use super::DatabaseConfig;
-use crate::{QueryBufferPool, Row, StorageError, Table};
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
+
 use vibesql_ast::IndexColumn;
 
 pub use super::operations::SpatialIndexMetadata as ExportedSpatialIndexMetadata;
+use super::{
+    lifecycle::Lifecycle,
+    metadata::Metadata,
+    operations::{Operations, SpatialIndexMetadata},
+    transactions::TransactionChange,
+    DatabaseConfig,
+};
+use crate::{QueryBufferPool, Row, StorageError, Table};
 
 /// In-memory database - manages catalog and tables through focused modules
 #[derive(Debug, Clone)]
@@ -54,6 +56,7 @@ impl Database {
     /// # Example
     /// ```rust
     /// use std::path::PathBuf;
+    ///
     /// use vibesql_storage::Database;
     ///
     /// let db = Database::with_path(PathBuf::from("/var/lib/myapp/db"));
@@ -92,11 +95,12 @@ impl Database {
     /// # Example
     /// ```rust
     /// use std::path::PathBuf;
+    ///
     /// use vibesql_storage::{Database, DatabaseConfig};
     ///
     /// let db = Database::with_path_and_config(
     ///     PathBuf::from("/var/lib/myapp/db"),
-    ///     DatabaseConfig::server_default()
+    ///     DatabaseConfig::server_default(),
     /// );
     /// ```
     pub fn with_path_and_config(path: PathBuf, config: DatabaseConfig) -> Self {
@@ -119,8 +123,10 @@ impl Database {
     /// # async fn example() {
     /// let db = Database::with_path_and_config_async(
     ///     PathBuf::from("/vibesql-data"),
-    ///     DatabaseConfig::browser_default()
-    /// ).await.unwrap();
+    ///     DatabaseConfig::browser_default(),
+    /// )
+    /// .await
+    /// .unwrap();
     /// # }
     /// ```
     #[cfg(target_arch = "wasm32")]
@@ -167,9 +173,7 @@ impl Database {
     /// Begin a new transaction
     pub fn begin_transaction(&mut self) -> Result<(), StorageError> {
         let catalog = &self.catalog.clone();
-        self.lifecycle
-            .transaction_manager_mut()
-            .begin_transaction(catalog, &self.tables)
+        self.lifecycle.transaction_manager_mut().begin_transaction(catalog, &self.tables)
     }
 
     /// Commit the current transaction
@@ -199,7 +203,8 @@ impl Database {
 
     /// Rollback to a named savepoint
     pub fn rollback_to_savepoint(&mut self, name: String) -> Result<(), StorageError> {
-        let changes_to_undo = self.lifecycle.transaction_manager_mut().rollback_to_savepoint(name)?;
+        let changes_to_undo =
+            self.lifecycle.transaction_manager_mut().rollback_to_savepoint(name)?;
 
         for change in changes_to_undo.into_iter().rev() {
             self.undo_change(change)?;
@@ -250,8 +255,7 @@ impl Database {
     ) -> Result<(), StorageError> {
         let table_name = schema.name.clone();
 
-        self.operations
-            .create_table(&mut self.catalog, schema.clone())?;
+        self.operations.create_table(&mut self.catalog, schema.clone())?;
 
         // Normalize table name for storage (matches catalog normalization)
         let normalized_table_name = if self.catalog.is_case_sensitive_identifiers() {
@@ -344,17 +348,10 @@ impl Database {
 
     /// Insert a row into a table
     pub fn insert_row(&mut self, table_name: &str, row: Row) -> Result<(), StorageError> {
-        let _row_index = self.operations.insert_row(
-            &self.catalog,
-            &mut self.tables,
-            table_name,
-            row.clone(),
-        )?;
+        let _row_index =
+            self.operations.insert_row(&self.catalog, &mut self.tables, table_name, row.clone())?;
 
-        self.record_change(TransactionChange::Insert {
-            table_name: table_name.to_string(),
-            row,
-        });
+        self.record_change(TransactionChange::Insert { table_name: table_name.to_string(), row });
 
         Ok(())
     }
@@ -365,7 +362,11 @@ impl Database {
     /// - Updates indexes in batch
     ///
     /// Returns the number of rows inserted
-    pub fn insert_rows_batch(&mut self, table_name: &str, rows: Vec<Row>) -> Result<usize, StorageError> {
+    pub fn insert_rows_batch(
+        &mut self,
+        table_name: &str,
+        rows: Vec<Row>,
+    ) -> Result<usize, StorageError> {
         if rows.is_empty() {
             return Ok(0);
         }
@@ -459,10 +460,7 @@ impl Database {
 
     /// Get the current session role (defaults to "PUBLIC" if not set)
     pub fn get_current_role(&self) -> String {
-        self.lifecycle
-            .current_role()
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| "PUBLIC".to_string())
+        self.lifecycle.current_role().map(|s| s.to_string()).unwrap_or_else(|| "PUBLIC".to_string())
     }
 
     /// Check if security enforcement is enabled
@@ -573,14 +571,12 @@ impl Database {
 
     /// Update user-defined indexes for delete operation
     pub fn update_indexes_for_delete(&mut self, table_name: &str, row: &Row, row_index: usize) {
-        self.operations
-            .update_indexes_for_delete(&self.catalog, table_name, row, row_index);
+        self.operations.update_indexes_for_delete(&self.catalog, table_name, row, row_index);
     }
 
     /// Rebuild user-defined indexes after bulk operations that change row indices
     pub fn rebuild_indexes(&mut self, table_name: &str) {
-        self.operations
-            .rebuild_indexes(&self.catalog, &self.tables, table_name);
+        self.operations.rebuild_indexes(&self.catalog, &self.tables, table_name);
     }
 
     /// Drop an index
@@ -627,7 +623,10 @@ impl Database {
     }
 
     /// Get spatial index (mutable)
-    pub fn get_spatial_index_mut(&mut self, index_name: &str) -> Option<&mut crate::index::SpatialIndex> {
+    pub fn get_spatial_index_mut(
+        &mut self,
+        index_name: &str,
+    ) -> Option<&mut crate::index::SpatialIndex> {
         self.operations.get_spatial_index_mut(index_name)
     }
 

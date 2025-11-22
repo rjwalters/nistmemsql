@@ -1,16 +1,21 @@
 //! Core parsing functions for sqllogictest.
 
 use std::path::Path;
+
 use itertools::Itertools;
 
+use super::{
+    directive_parser::{Condition, Connection, Control, ControlItem, ResultMode, SortMode},
+    error_parser::ExpectedError,
+    location::Location,
+    record_parser::{
+        parse_lines, parse_multiline_error, parse_multiple_result, QueryExpect, StatementExpect,
+    },
+    records::{Injected, Record},
+    retry_parser::parse_retry_config,
+    ParseError, ParseErrorKind,
+};
 use crate::ColumnType;
-use super::location::Location;
-use super::error_parser::ExpectedError;
-use super::retry_parser::parse_retry_config;
-use super::directive_parser::{Control, Condition, Connection, SortMode, ResultMode, ControlItem};
-use super::record_parser::{StatementExpect, QueryExpect, parse_lines, parse_multiple_result, parse_multiline_error};
-use super::records::{Record, Injected};
-use super::{ParseError, ParseErrorKind};
 
 const RESULTS_DELIMITER: &str = "----";
 
@@ -74,18 +79,14 @@ fn parse_inner<T: ColumnType>(loc: &Location, script: &str) -> Result<Vec<Record
         let tokens: Vec<&str> = line_without_comment.split_whitespace().collect();
         match tokens.as_slice() {
             [] => continue,
-            ["include", included] => records.push(Record::Include {
-                loc,
-                filename: included.to_string(),
-            }),
+            ["include", included] => {
+                records.push(Record::Include { loc, filename: included.to_string() })
+            }
             ["halt"] => {
                 records.push(Record::Halt { loc });
             }
             ["subtest", name] => {
-                records.push(Record::Subtest {
-                    loc,
-                    name: name.to_string(),
-                });
+                records.push(Record::Subtest { loc, name: name.to_string() });
             }
             ["sleep", dur] => {
                 records.push(Record::Sleep {
@@ -96,16 +97,12 @@ fn parse_inner<T: ColumnType>(loc: &Location, script: &str) -> Result<Vec<Record
                 });
             }
             ["skipif", label] => {
-                let cond = Condition::SkipIf {
-                    label: label.to_string(),
-                };
+                let cond = Condition::SkipIf { label: label.to_string() };
                 conditions.push(cond.clone());
                 records.push(Record::Condition(cond));
             }
             ["onlyif", label] => {
-                let cond = Condition::OnlyIf {
-                    label: label.to_string(),
-                };
+                let cond = Condition::OnlyIf { label: label.to_string() };
                 conditions.push(cond.clone());
                 records.push(Record::Condition(cond));
             }
@@ -120,7 +117,8 @@ fn parse_inner<T: ColumnType>(loc: &Location, script: &str) -> Result<Vec<Record
                     ["error", res @ ..] => {
                         if res.len() == 4 && res[0] == "retry" && res[2] == "backoff" {
                             // `statement error retry <num> backoff <duration>`
-                            // To keep syntax simple, let's assume the error message must be multiline.
+                            // To keep syntax simple, let's assume the error message must be
+                            // multiline.
                             (StatementExpect::Error(ExpectedError::Empty), res)
                         } else {
                             let error = ExpectedError::parse_inline_tokens(res)
@@ -168,7 +166,8 @@ fn parse_inner<T: ColumnType>(loc: &Location, script: &str) -> Result<Vec<Record
                     ["error", res @ ..] => {
                         if res.len() == 4 && res[0] == "retry" && res[2] == "backoff" {
                             // `query error retry <num> backoff <duration>`
-                            // To keep syntax simple, let's assume the error message must be multiline.
+                            // To keep syntax simple, let's assume the error message must be
+                            // multiline.
                             (QueryExpect::Error(ExpectedError::Empty), res)
                         } else {
                             let error = ExpectedError::parse_inline_tokens(res)
@@ -177,7 +176,8 @@ fn parse_inner<T: ColumnType>(loc: &Location, script: &str) -> Result<Vec<Record
                         }
                     }
                     [type_str, res @ ..] => {
-                        // query <type-string> [<sort-mode>] [<label>] [retry <attempts> backoff <backoff>]
+                        // query <type-string> [<sort-mode>] [<label>] [retry <attempts> backoff
+                        // <backoff>]
                         let types = type_str
                             .chars()
                             .map(|ch| {
@@ -257,11 +257,8 @@ fn parse_inner<T: ColumnType>(loc: &Location, script: &str) -> Result<Vec<Record
                 // The command is found on second and subsequent lines of the record
                 // up to first line of the form "----" or until the end of the record.
                 let (command, has_result) = parse_lines(&mut lines, &loc, Some(RESULTS_DELIMITER))?;
-                let stdout = if has_result {
-                    Some(parse_multiple_result(&mut lines))
-                } else {
-                    None
-                };
+                let stdout =
+                    if has_result { Some(parse_multiple_result(&mut lines)) } else { None };
                 records.push(Record::System {
                     loc,
                     conditions: std::mem::take(&mut conditions),
@@ -337,9 +334,7 @@ fn parse_file_inner<T: ColumnType>(loc: Location) -> Result<Vec<Record<T>>, Pars
                 })?;
                 let included_file = included_file.as_os_str().to_string_lossy().to_string();
 
-                records.push(Record::Injected(Injected::BeginInclude(
-                    included_file.clone(),
-                )));
+                records.push(Record::Injected(Injected::BeginInclude(included_file.clone())));
                 records.extend(parse_file_inner(loc.include(&included_file))?);
                 records.push(Record::Injected(Injected::EndInclude(included_file)));
             }

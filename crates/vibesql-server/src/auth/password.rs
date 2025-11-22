@@ -1,12 +1,11 @@
+use std::{collections::HashMap, fs, path::Path};
+
 use anyhow::{Context, Result};
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
 use md5::{Digest, Md5};
-use std::collections::HashMap;
-use std::fs;
-use std::path::Path;
 use tracing::warn;
 
 /// Password store for managing user authentication
@@ -19,9 +18,7 @@ pub struct PasswordStore {
 impl PasswordStore {
     /// Create a new empty password store
     pub fn new() -> Self {
-        Self {
-            passwords: HashMap::new(),
-        }
+        Self { passwords: HashMap::new() }
     }
 
     /// Load passwords from a file
@@ -30,7 +27,8 @@ impl PasswordStore {
     /// Password formats supported:
     /// - Argon2 PHC format: `username:$argon2id$v=19$m=...` (recommended, secure storage)
     /// - Cleartext: `username:mysecret` (will be hashed with Argon2 on load)
-    /// - MD5 for wire protocol: `username:{MD5}hash` (for PostgreSQL MD5 wire protocol compatibility)
+    /// - MD5 for wire protocol: `username:{MD5}hash` (for PostgreSQL MD5 wire protocol
+    ///   compatibility)
     ///
     /// Comments start with # and empty lines are ignored.
     ///
@@ -236,12 +234,8 @@ mod tests {
         let parsed1 = PasswordHash::new(&hash1).unwrap();
         let parsed2 = PasswordHash::new(&hash2).unwrap();
 
-        assert!(Argon2::default()
-            .verify_password(b"secret", &parsed1)
-            .is_ok());
-        assert!(Argon2::default()
-            .verify_password(b"secret", &parsed2)
-            .is_ok());
+        assert!(Argon2::default().verify_password(b"secret", &parsed1).is_ok());
+        assert!(Argon2::default().verify_password(b"secret", &parsed2).is_ok());
     }
 
     #[test]
@@ -289,6 +283,7 @@ mod tests {
     #[test]
     fn test_load_from_file_argon2() {
         use std::io::Write;
+
         use tempfile::NamedTempFile;
 
         let mut file = NamedTempFile::new().unwrap();
@@ -306,6 +301,7 @@ mod tests {
     #[test]
     fn test_load_from_file_md5_format() {
         use std::io::Write;
+
         use tempfile::NamedTempFile;
 
         let mut file = NamedTempFile::new().unwrap();
@@ -314,10 +310,7 @@ mod tests {
 
         let store = PasswordStore::load_from_file(file.path()).unwrap();
         assert_eq!(store.passwords.len(), 1);
-        assert_eq!(
-            store.get_password("postgres"),
-            Some(&"{MD5}secret".to_string())
-        );
+        assert_eq!(store.get_password("postgres"), Some(&"{MD5}secret".to_string()));
 
         // Should work with MD5 wire protocol
         let salt: [u8; 4] = [1, 2, 3, 4];
@@ -328,6 +321,7 @@ mod tests {
     #[test]
     fn test_load_from_file_cleartext_gets_hashed() {
         use std::io::Write;
+
         use tempfile::NamedTempFile;
 
         let mut file = NamedTempFile::new().unwrap();
@@ -348,6 +342,7 @@ mod tests {
     #[test]
     fn test_load_from_file_invalid_format() {
         use std::io::Write;
+
         use tempfile::NamedTempFile;
 
         let mut file = NamedTempFile::new().unwrap();

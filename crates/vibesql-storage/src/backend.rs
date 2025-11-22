@@ -113,15 +113,16 @@ pub trait StorageBackend: Send + Sync {
 /// It works on all platforms that support std::fs (Linux, macOS, Windows).
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native {
-    use std::fs::{File, OpenOptions};
-    use std::io::{Read, Seek, SeekFrom, Write};
-    use std::path::{Path, PathBuf};
+    #[cfg(target_arch = "wasm32")]
+    use std::sync::Mutex;
+    use std::{
+        fs::{File, OpenOptions},
+        io::{Read, Seek, SeekFrom, Write},
+        path::{Path, PathBuf},
+    };
 
     #[cfg(not(target_arch = "wasm32"))]
     use parking_lot::Mutex;
-
-    #[cfg(target_arch = "wasm32")]
-    use std::sync::Mutex;
 
     use super::*;
 
@@ -134,8 +135,7 @@ pub mod native {
         fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize, StorageError> {
             let mut file = self.file.lock();
 
-            file.seek(SeekFrom::Start(offset))
-                .map_err(|e| StorageError::IoError(e.to_string()))?;
+            file.seek(SeekFrom::Start(offset)).map_err(|e| StorageError::IoError(e.to_string()))?;
 
             match file.read_exact(buf) {
                 Ok(()) => Ok(buf.len()),
@@ -152,8 +152,7 @@ pub mod native {
         fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<usize, StorageError> {
             let mut file = self.file.lock();
 
-            file.seek(SeekFrom::Start(offset))
-                .map_err(|e| StorageError::IoError(e.to_string()))?;
+            file.seek(SeekFrom::Start(offset)).map_err(|e| StorageError::IoError(e.to_string()))?;
 
             file.write_all(buf).map_err(|e| StorageError::IoError(e.to_string()))?;
             Ok(buf.len())
@@ -190,8 +189,7 @@ pub mod native {
 
             // Create root directory if it doesn't exist
             if !root.exists() {
-                std::fs::create_dir_all(&root)
-                    .map_err(|e| StorageError::IoError(e.to_string()))?;
+                std::fs::create_dir_all(&root).map_err(|e| StorageError::IoError(e.to_string()))?;
             }
 
             Ok(NativeStorage { root })
@@ -369,4 +367,4 @@ pub mod opfs;
 
 /// Re-export OPFS storage for convenience
 #[cfg(target_arch = "wasm32")]
-pub use opfs::{OpfsFile, OpfsStorage, MemoryStorage, MemoryFile};
+pub use opfs::{MemoryFile, MemoryStorage, OpfsFile, OpfsStorage};

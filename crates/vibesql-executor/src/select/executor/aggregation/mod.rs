@@ -34,7 +34,9 @@ impl SelectExecutor<'_> {
             // If table doesn't exist, fall through to normal path which will produce proper error
             if let Some(table) = self.database.get_table(&table_name) {
                 let count = table.row_count();
-                return Ok(vec![vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(count as i64)])]);
+                return Ok(vec![vibesql_storage::Row::new(vec![
+                    vibesql_types::SqlValue::Integer(count as i64),
+                ])]);
             }
         }
 
@@ -42,9 +44,12 @@ impl SelectExecutor<'_> {
         // Pass WHERE clause for predicate pushdown optimization
         // Note: ORDER BY is applied after aggregation, so we pass None here
         let from_result = match &stmt.from {
-            Some(from_clause) => {
-                self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref(), None)?
-            }
+            Some(from_clause) => self.execute_from_with_where(
+                from_clause,
+                cte_results,
+                stmt.where_clause.as_ref(),
+                None,
+            )?,
             None => {
                 // SELECT without FROM with aggregates - operate over ONE implicit row
                 // SQL standard behavior: SELECT without FROM operates over single implicit row
@@ -106,7 +111,12 @@ impl SelectExecutor<'_> {
             }
             crate::optimizer::WhereOptimization::Optimized(ref expr) => {
                 // Apply optimized WHERE clause (uses parallel if enabled)
-                apply_where_filter_combined_auto(from_result.into_rows(), Some(expr), &evaluator, self)?
+                apply_where_filter_combined_auto(
+                    from_result.into_rows(),
+                    Some(expr),
+                    &evaluator,
+                    self,
+                )?
             }
             crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
                 // Apply original WHERE clause (uses parallel if enabled)
@@ -129,16 +139,14 @@ impl SelectExecutor<'_> {
 
         // Expand wildcards in SELECT list to explicit column references
         // This allows SELECT * and SELECT table.* to work with GROUP BY/aggregates
-        let expanded_select_list = self.expand_wildcards_for_aggregation(&stmt.select_list, &schema)?;
+        let expanded_select_list =
+            self.expand_wildcards_for_aggregation(&stmt.select_list, &schema)?;
 
         // Optimize HAVING clause: pre-evaluate non-correlated scalar subqueries
-        // This eliminates per-group overhead of correlation checks, hash computation, and cache lookups
+        // This eliminates per-group overhead of correlation checks, hash computation, and cache
+        // lookups
         let optimized_having = if let Some(having_expr) = &stmt.having {
-            Some(having_subquery::optimize_having_subqueries(
-                having_expr,
-                &schema,
-                self.database,
-            )?)
+            Some(having_subquery::optimize_having_subqueries(having_expr, &schema, self.database)?)
         } else {
             None
         };
@@ -175,7 +183,7 @@ impl SelectExecutor<'_> {
                         return Err(ExecutorError::UnsupportedFeature(
                             "SELECT * and qualified wildcards not supported with aggregates"
                                 .to_string(),
-                        ))
+                        ));
                     }
                 }
             }
@@ -190,7 +198,9 @@ impl SelectExecutor<'_> {
                 )?;
                 match having_result {
                     vibesql_types::SqlValue::Boolean(true) => true,
-                    vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
+                    vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => {
+                        false
+                    }
                     // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
                     vibesql_types::SqlValue::Integer(0) => false,
                     vibesql_types::SqlValue::Integer(_) => true,

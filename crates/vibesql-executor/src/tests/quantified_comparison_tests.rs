@@ -18,30 +18,32 @@ fn test_all_greater_than_basic() {
     // Create tables
     let schema1 = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "x".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema1).unwrap();
 
     let schema2 = vibesql_catalog::TableSchema::new(
         "t2".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "y".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema2).unwrap();
 
     // Insert data: t1 has [5, 10, 15, 20], t2 has [8, 12]
     for val in [5, 10, 15, 20] {
-        db.insert_row(
-            "t1",
-            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]),
-        )
-        .unwrap();
+        db.insert_row("t1", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]))
+            .unwrap();
     }
     for val in [8, 12] {
-        db.insert_row(
-            "t2",
-            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]),
-        )
-        .unwrap();
+        db.insert_row("t2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]))
+            .unwrap();
     }
 
     // Build query: SELECT x FROM t1 WHERE x > ALL (SELECT y FROM t2)
@@ -53,16 +55,10 @@ fn test_all_greater_than_basic() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "y".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "y".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t2".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t2".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -78,16 +74,10 @@ fn test_all_greater_than_basic() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "x".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "x".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t1".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
         where_clause: Some(vibesql_ast::Expression::QuantifiedComparison {
             expr: Box::new(vibesql_ast::Expression::ColumnRef {
                 table: None,
@@ -122,29 +112,31 @@ fn test_any_less_than_basic() {
     // Create tables
     let schema1 = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "x".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema1).unwrap();
 
     let schema2 = vibesql_catalog::TableSchema::new(
         "t2".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "y".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema2).unwrap();
 
     // Insert data: t1 has [5, 10, 15], t2 has [12]
     for val in [5, 10, 15] {
-        db.insert_row(
-            "t1",
-            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]),
-        )
-        .unwrap();
+        db.insert_row("t1", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]))
+            .unwrap();
     }
-    db.insert_row(
-        "t2",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(12)]),
-    )
-    .unwrap();
+    db.insert_row("t2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(12)]))
+        .unwrap();
 
     // Build query: SELECT x FROM t1 WHERE x < ANY (SELECT y FROM t2)
     // 5 and 10 are less than 12
@@ -155,16 +147,10 @@ fn test_any_less_than_basic() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "y".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "y".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t2".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t2".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -180,16 +166,10 @@ fn test_any_less_than_basic() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "x".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "x".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t1".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
         where_clause: Some(vibesql_ast::Expression::QuantifiedComparison {
             expr: Box::new(vibesql_ast::Expression::ColumnRef {
                 table: None,
@@ -224,30 +204,32 @@ fn test_some_equals_basic() {
     // Create tables
     let schema1 = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "x".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema1).unwrap();
 
     let schema2 = vibesql_catalog::TableSchema::new(
         "t2".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "y".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema2).unwrap();
 
     // Insert data: t1 has [1, 2, 3, 4], t2 has [2, 4]
     for val in [1, 2, 3, 4] {
-        db.insert_row(
-            "t1",
-            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]),
-        )
-        .unwrap();
+        db.insert_row("t1", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]))
+            .unwrap();
     }
     for val in [2, 4] {
-        db.insert_row(
-            "t2",
-            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]),
-        )
-        .unwrap();
+        db.insert_row("t2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]))
+            .unwrap();
     }
 
     // Build query: SELECT x FROM t1 WHERE x = SOME (SELECT y FROM t2)
@@ -258,16 +240,10 @@ fn test_some_equals_basic() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "y".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "y".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t2".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t2".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -283,16 +259,10 @@ fn test_some_equals_basic() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "x".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "x".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t1".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
         where_clause: Some(vibesql_ast::Expression::QuantifiedComparison {
             expr: Box::new(vibesql_ast::Expression::ColumnRef {
                 table: None,
@@ -326,23 +296,28 @@ fn test_all_with_empty_subquery() {
 
     let schema1 = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "x".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema1).unwrap();
 
     let schema2 = vibesql_catalog::TableSchema::new(
         "t2".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "y".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema2).unwrap();
 
     // Insert data: t1 has [5, 10], t2 is empty
     for val in [5, 10] {
-        db.insert_row(
-            "t1",
-            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]),
-        )
-        .unwrap();
+        db.insert_row("t1", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]))
+            .unwrap();
     }
 
     let subquery = Box::new(vibesql_ast::SelectStmt {
@@ -352,16 +327,10 @@ fn test_all_with_empty_subquery() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "y".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "y".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t2".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t2".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -377,16 +346,10 @@ fn test_all_with_empty_subquery() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "x".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "x".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t1".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
         where_clause: Some(vibesql_ast::Expression::QuantifiedComparison {
             expr: Box::new(vibesql_ast::Expression::ColumnRef {
                 table: None,
@@ -420,23 +383,28 @@ fn test_any_with_empty_subquery() {
 
     let schema1 = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "x".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema1).unwrap();
 
     let schema2 = vibesql_catalog::TableSchema::new(
         "t2".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "y".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema2).unwrap();
 
     // Insert data: t1 has [5, 10], t2 is empty
     for val in [5, 10] {
-        db.insert_row(
-            "t1",
-            vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]),
-        )
-        .unwrap();
+        db.insert_row("t1", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(val)]))
+            .unwrap();
     }
 
     let subquery = Box::new(vibesql_ast::SelectStmt {
@@ -446,16 +414,10 @@ fn test_any_with_empty_subquery() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "y".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "y".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t2".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t2".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -471,16 +433,10 @@ fn test_any_with_empty_subquery() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "x".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "x".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t1".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
         where_clause: Some(vibesql_ast::Expression::QuantifiedComparison {
             expr: Box::new(vibesql_ast::Expression::ColumnRef {
                 table: None,
@@ -512,22 +468,27 @@ fn test_all_with_null_in_subquery() {
 
     let schema1 = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "x".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema1).unwrap();
 
     let schema2 = vibesql_catalog::TableSchema::new(
         "t2".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, true)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "y".to_string(),
+            vibesql_types::DataType::Integer,
+            true,
+        )],
     );
     db.create_table(schema2).unwrap();
 
     // Insert data: t1 has [10], t2 has [5, NULL, 20]
-    db.insert_row(
-        "t1",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(10)]),
-    )
-    .unwrap();
+    db.insert_row("t1", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(10)]))
+        .unwrap();
 
     for val in vec![
         vibesql_types::SqlValue::Integer(5),
@@ -547,16 +508,10 @@ fn test_all_with_null_in_subquery() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "y".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "y".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t2".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t2".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -572,16 +527,10 @@ fn test_all_with_null_in_subquery() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "x".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "x".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t1".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
         where_clause: Some(vibesql_ast::Expression::QuantifiedComparison {
             expr: Box::new(vibesql_ast::Expression::ColumnRef {
                 table: None,
@@ -612,27 +561,28 @@ fn test_all_with_null_left_value() {
 
     let schema1 = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, true)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "x".to_string(),
+            vibesql_types::DataType::Integer,
+            true,
+        )],
     );
     db.create_table(schema1).unwrap();
 
     let schema2 = vibesql_catalog::TableSchema::new(
         "t2".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "y".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema2).unwrap();
 
     // Insert data: t1 has [NULL], t2 has [5]
-    db.insert_row(
-        "t1",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Null]),
-    )
-    .unwrap();
-    db.insert_row(
-        "t2",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(5)]),
-    )
-    .unwrap();
+    db.insert_row("t1", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Null])).unwrap();
+    db.insert_row("t2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(5)]))
+        .unwrap();
 
     let subquery = Box::new(vibesql_ast::SelectStmt {
         into_table: None,
@@ -641,16 +591,10 @@ fn test_all_with_null_left_value() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "y".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "y".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t2".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t2".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -666,16 +610,10 @@ fn test_all_with_null_left_value() {
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                table: None,
-                column: "x".to_string(),
-            },
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "x".to_string() },
             alias: None,
         }],
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "t1".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
         where_clause: Some(vibesql_ast::Expression::QuantifiedComparison {
             expr: Box::new(vibesql_ast::Expression::ColumnRef {
                 table: None,

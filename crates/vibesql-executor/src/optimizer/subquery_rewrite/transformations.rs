@@ -68,10 +68,7 @@ pub(super) fn rewrite_in_to_exists(
     }
 
     // Create EXISTS expression
-    Expression::Exists {
-        subquery: Box::new(exists_subquery),
-        negated,
-    }
+    Expression::Exists { subquery: Box::new(exists_subquery), negated }
 }
 
 /// Attempt to rewrite correlated EXISTS to uncorrelated IN
@@ -106,17 +103,16 @@ pub(super) fn rewrite_exists_to_in(
     let where_clause = subquery.where_clause.as_ref()?;
 
     // Try to find and extract correlation predicate: inner.col = outer.col
-    let (correlation, remaining_predicates) = extract_correlation_predicate(where_clause, &inner_table, outer_tables)?;
+    let (correlation, remaining_predicates) =
+        extract_correlation_predicate(where_clause, &inner_table, outer_tables)?;
 
     // Build the decorrelated subquery
     let mut decorrelated = subquery.clone();
     decorrelated.distinct = true;
 
     // SELECT the inner correlation column
-    decorrelated.select_list = vec![SelectItem::Expression {
-        expr: correlation.inner_expr.clone(),
-        alias: None,
-    }];
+    decorrelated.select_list =
+        vec![SelectItem::Expression { expr: correlation.inner_expr.clone(), alias: None }];
 
     // Remove correlation predicate from WHERE, keep only remaining predicates
     decorrelated.where_clause = remaining_predicates;
@@ -141,10 +137,14 @@ fn extract_correlation_predicate(
     match expr {
         // Direct equality: check if it's a correlation predicate
         Expression::BinaryOp { op: BinaryOperator::Equal, left, right } => {
-            if let Some(correlation) = try_extract_correlation(left, right, inner_table, outer_tables) {
+            if let Some(correlation) =
+                try_extract_correlation(left, right, inner_table, outer_tables)
+            {
                 return Some((correlation, None));
             }
-            if let Some(correlation) = try_extract_correlation(right, left, inner_table, outer_tables) {
+            if let Some(correlation) =
+                try_extract_correlation(right, left, inner_table, outer_tables)
+            {
                 return Some((correlation, None));
             }
             None
@@ -153,13 +153,17 @@ fn extract_correlation_predicate(
         // AND: correlation might be one branch, other predicates in the other
         Expression::BinaryOp { op: BinaryOperator::And, left, right } => {
             // Try left branch for correlation
-            if let Some((correlation, left_remaining)) = extract_correlation_predicate(left, inner_table, outer_tables) {
+            if let Some((correlation, left_remaining)) =
+                extract_correlation_predicate(left, inner_table, outer_tables)
+            {
                 let remaining = combine_predicates(left_remaining, Some((**right).clone()));
                 return Some((correlation, remaining));
             }
 
             // Try right branch for correlation
-            if let Some((correlation, right_remaining)) = extract_correlation_predicate(right, inner_table, outer_tables) {
+            if let Some((correlation, right_remaining)) =
+                extract_correlation_predicate(right, inner_table, outer_tables)
+            {
                 let remaining = combine_predicates(Some((**left).clone()), right_remaining);
                 return Some((correlation, remaining));
             }
@@ -180,17 +184,11 @@ fn try_extract_correlation(
 ) -> Option<CorrelationPredicate> {
     // Check if left is from inner table and right is from outer table
     if is_from_table(left, inner_table) && is_from_outer_tables(right, outer_tables, inner_table) {
-        return Some(CorrelationPredicate {
-            inner_expr: left.clone(),
-            outer_expr: right.clone(),
-        });
+        return Some(CorrelationPredicate { inner_expr: left.clone(), outer_expr: right.clone() });
     }
     // Check reverse: right is from inner, left is from outer
     if is_from_table(right, inner_table) && is_from_outer_tables(left, outer_tables, inner_table) {
-        return Some(CorrelationPredicate {
-            inner_expr: right.clone(),
-            outer_expr: left.clone(),
-        });
+        return Some(CorrelationPredicate { inner_expr: right.clone(), outer_expr: left.clone() });
     }
     None
 }
@@ -205,7 +203,8 @@ fn is_from_table(expr: &Expression, table: &str) -> bool {
 }
 
 /// Check if an expression references one of the outer tables
-/// Also handles unqualified column names that start with outer table prefix (e.g., o_orderkey for orders table)
+/// Also handles unqualified column names that start with outer table prefix (e.g., o_orderkey for
+/// orders table)
 fn is_from_outer_tables(expr: &Expression, outer_tables: &[String], inner_table: &str) -> bool {
     match expr {
         Expression::ColumnRef { table: Some(t), .. } => {

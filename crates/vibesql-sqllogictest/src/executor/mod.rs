@@ -6,6 +6,4 @@ mod record_processor;
 mod validator;
 
 // Re-export public types and traits
-pub use core::{
-    AsyncDB, DB, Partitioner, Runner, RunnerLocals, default_partitioner,
-};
+pub use core::{default_partitioner, AsyncDB, Partitioner, Runner, RunnerLocals, DB};

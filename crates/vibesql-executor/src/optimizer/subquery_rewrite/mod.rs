@@ -91,7 +91,11 @@ pub fn rewrite_subquery_optimizations(stmt: &SelectStmt) -> SelectStmt {
         .iter()
         .map(|item| match item {
             SelectItem::Expression { expr, alias } => SelectItem::Expression {
-                expr: rewrite_expression_with_context(expr, &rewrite_subquery_optimizations, &outer_tables),
+                expr: rewrite_expression_with_context(
+                    expr,
+                    &rewrite_subquery_optimizations,
+                    &outer_tables,
+                ),
                 alias: alias.clone(),
             },
             other => other.clone(),
@@ -115,8 +119,8 @@ pub fn rewrite_subquery_optimizations(stmt: &SelectStmt) -> SelectStmt {
     // but needs additional work to coexist with existing IN → EXISTS optimizations.
     // For now, users can manually write SEMI JOIN queries.
     //
-    // let (final_stmt, _was_transformed) = exists_to_semijoin::try_convert_exists_to_semijoin(&rewritten);
-    // final_stmt
+    // let (final_stmt, _was_transformed) =
+    // exists_to_semijoin::try_convert_exists_to_semijoin(&rewritten); final_stmt
 
     rewritten
 }
@@ -128,13 +132,16 @@ fn has_exists_subqueries(stmt: &SelectStmt) -> bool {
     fn expr_has_exists(expr: &Expression) -> bool {
         match expr {
             Expression::Exists { .. } => true,
-            Expression::BinaryOp { left, right, .. } => expr_has_exists(left) || expr_has_exists(right),
+            Expression::BinaryOp { left, right, .. } => {
+                expr_has_exists(left) || expr_has_exists(right)
+            }
             Expression::UnaryOp { expr, .. } => expr_has_exists(expr),
             Expression::IsNull { expr, .. } => expr_has_exists(expr),
             Expression::Case { operand, when_clauses, else_result } => {
                 operand.as_ref().is_some_and(|e| expr_has_exists(e))
                     || when_clauses.iter().any(|c| {
-                        c.conditions.iter().any(|e| expr_has_exists(e)) || expr_has_exists(&c.result)
+                        c.conditions.iter().any(|e| expr_has_exists(e))
+                            || expr_has_exists(&c.result)
                     })
                     || else_result.as_ref().is_some_and(|e| expr_has_exists(e))
             }
@@ -183,9 +190,10 @@ fn extract_table_names(from: &Option<vibesql_ast::FromClause>) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_ast::{BinaryOperator, Expression};
     use vibesql_types::SqlValue;
+
+    use super::*;
 
     /// Helper to create a simple SELECT statement for testing
     fn simple_select(table: &str, column: &str) -> SelectStmt {
@@ -193,18 +201,12 @@ mod tests {
             with_clause: None,
             distinct: false,
             select_list: vec![SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: column.to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: column.to_string() },
                 alias: None,
             }],
             into_table: None,
             into_variables: None,
-            from: Some(vibesql_ast::FromClause::Table {
-                name: table.to_string(),
-                alias: None,
-            }),
+            from: Some(vibesql_ast::FromClause::Table { name: table.to_string(), alias: None }),
             where_clause: None,
             group_by: None,
             having: None,
@@ -218,10 +220,7 @@ mod tests {
     #[test]
     fn test_add_distinct_to_uncorrelated_in_subquery() {
         let subquery = simple_select("customers", "region");
-        let in_expr = Expression::ColumnRef {
-            table: None,
-            column: "region".to_string(),
-        };
+        let in_expr = Expression::ColumnRef { table: None, column: "region".to_string() };
 
         let mut stmt = simple_select("orders", "order_id");
         stmt.where_clause = Some(Expression::In {
@@ -248,10 +247,7 @@ mod tests {
         let mut subquery = simple_select("customers", "region");
         subquery.distinct = true;
 
-        let in_expr = Expression::ColumnRef {
-            table: None,
-            column: "region".to_string(),
-        };
+        let in_expr = Expression::ColumnRef { table: None, column: "region".to_string() };
 
         let mut stmt = simple_select("orders", "order_id");
         stmt.where_clause = Some(Expression::In {
@@ -297,18 +293,12 @@ mod tests {
 
         let correlated = correlation::is_correlated(&subquery);
 
-        assert!(
-            correlated,
-            "Subquery with qualified external column ref should be correlated"
-        );
+        assert!(correlated, "Subquery with qualified external column ref should be correlated");
     }
 
     #[test]
     fn test_in_to_exists_rewrite() {
-        let in_expr = Expression::ColumnRef {
-            table: None,
-            column: "customer_id".to_string(),
-        };
+        let in_expr = Expression::ColumnRef { table: None, column: "customer_id".to_string() };
 
         let mut subquery = simple_select("customers", "customer_id");
         // Make it correlated
@@ -358,10 +348,7 @@ mod tests {
     #[test]
     fn test_complex_expression_skips_in_to_exists() {
         // Test that complex expressions in SELECT list skip IN → EXISTS transformation
-        let in_expr = Expression::ColumnRef {
-            table: None,
-            column: "customer_id".to_string(),
-        };
+        let in_expr = Expression::ColumnRef { table: None, column: "customer_id".to_string() };
 
         let mut subquery = simple_select("customers", "customer_id");
         // Add WHERE clause to make it correlated
@@ -417,18 +404,12 @@ mod tests {
     #[test]
     fn test_multi_column_in_skips_optimization() {
         // Test that multi-column IN subqueries are not optimized
-        let in_expr = Expression::ColumnRef {
-            table: None,
-            column: "customer_id".to_string(),
-        };
+        let in_expr = Expression::ColumnRef { table: None, column: "customer_id".to_string() };
 
         let mut subquery = simple_select("customers", "customer_id");
         // Add second column to SELECT list
         subquery.select_list.push(SelectItem::Expression {
-            expr: Expression::ColumnRef {
-                table: None,
-                column: "region".to_string(),
-            },
+            expr: Expression::ColumnRef { table: None, column: "region".to_string() },
             alias: None,
         });
 
@@ -462,10 +443,7 @@ mod tests {
     #[test]
     fn test_negated_in_preserved() {
         // Test that NOT IN negation is preserved
-        let in_expr = Expression::ColumnRef {
-            table: None,
-            column: "customer_id".to_string(),
-        };
+        let in_expr = Expression::ColumnRef { table: None, column: "customer_id".to_string() };
 
         let mut subquery = simple_select("customers", "customer_id");
         // Make it correlated
@@ -506,18 +484,12 @@ mod tests {
         // Add nested IN subquery in WHERE clause
         let inner_subquery = simple_select("regions", "region_id");
         outer_subquery.where_clause = Some(Expression::In {
-            expr: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "region_id".to_string(),
-            }),
+            expr: Box::new(Expression::ColumnRef { table: None, column: "region_id".to_string() }),
             subquery: Box::new(inner_subquery),
             negated: false,
         });
 
-        let in_expr = Expression::ColumnRef {
-            table: None,
-            column: "customer_id".to_string(),
-        };
+        let in_expr = Expression::ColumnRef { table: None, column: "customer_id".to_string() };
 
         let mut stmt = simple_select("orders", "order_id");
         stmt.where_clause = Some(Expression::In {
@@ -533,11 +505,10 @@ mod tests {
             assert!(outer_optimized.distinct, "Outer subquery should have DISTINCT");
 
             // Inner subquery should also be optimized
-            if let Some(Expression::In { subquery: inner_optimized, .. }) = &outer_optimized.where_clause {
-                assert!(
-                    inner_optimized.distinct,
-                    "Nested IN subquery should also have DISTINCT"
-                );
+            if let Some(Expression::In { subquery: inner_optimized, .. }) =
+                &outer_optimized.where_clause
+            {
+                assert!(inner_optimized.distinct, "Nested IN subquery should also have DISTINCT");
             } else {
                 panic!("Expected nested IN subquery in WHERE clause");
             }
@@ -563,10 +534,7 @@ mod tests {
     fn test_has_in_subqueries_detection() {
         // Test the early-exit detection function
         let stmt_without_in = simple_select("customers", "customer_id");
-        assert!(
-            !has_in_subqueries(&stmt_without_in),
-            "Should detect no IN subqueries"
-        );
+        assert!(!has_in_subqueries(&stmt_without_in), "Should detect no IN subqueries");
 
         let mut stmt_with_in = simple_select("orders", "order_id");
         stmt_with_in.where_clause = Some(Expression::In {

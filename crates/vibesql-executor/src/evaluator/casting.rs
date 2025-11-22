@@ -19,7 +19,9 @@ pub(crate) fn is_exact_numeric(value: &vibesql_types::SqlValue) -> bool {
 pub(crate) fn is_approximate_numeric(value: &vibesql_types::SqlValue) -> bool {
     matches!(
         value,
-        vibesql_types::SqlValue::Float(_) | vibesql_types::SqlValue::Real(_) | vibesql_types::SqlValue::Double(_)
+        vibesql_types::SqlValue::Float(_)
+            | vibesql_types::SqlValue::Real(_)
+            | vibesql_types::SqlValue::Double(_)
     )
 }
 
@@ -29,7 +31,8 @@ pub(crate) fn to_i64(value: &vibesql_types::SqlValue) -> Result<i64, ExecutorErr
         vibesql_types::SqlValue::Smallint(n) => Ok(*n as i64),
         vibesql_types::SqlValue::Integer(n) => Ok(*n),
         vibesql_types::SqlValue::Bigint(n) => Ok(*n),
-        vibesql_types::SqlValue::Unsigned(n) => Ok(*n as i64), /* Note: may overflow for large unsigned */
+        vibesql_types::SqlValue::Unsigned(n) => Ok(*n as i64), /* Note: may overflow for large
+                                                                 * unsigned */
         vibesql_types::SqlValue::Numeric(f) => Ok(*f as i64),
         vibesql_types::SqlValue::Float(f) => Ok(*f as i64),
         vibesql_types::SqlValue::Real(f) => Ok(*f as i64),
@@ -390,14 +393,12 @@ pub(crate) fn cast_value(
                 // SQL:1999: CAST(TIME AS TIMESTAMP) uses current date + time value
                 use chrono::Datelike;
                 let now = chrono::Local::now();
-                let current_date = vibesql_types::Date::new(
-                    now.year(),
-                    now.month() as u8,
-                    now.day() as u8,
-                ).map_err(|e| ExecutorError::CastError {
-                    from_type: format!("TIME '{}'", time),
-                    to_type: format!("TIMESTAMP (date construction failed: {})", e),
-                })?;
+                let current_date =
+                    vibesql_types::Date::new(now.year(), now.month() as u8, now.day() as u8)
+                        .map_err(|e| ExecutorError::CastError {
+                            from_type: format!("TIME '{}'", time),
+                            to_type: format!("TIMESTAMP (date construction failed: {})", e),
+                        })?;
                 Ok(SqlValue::Timestamp(vibesql_types::Timestamp::new(current_date, *time)))
             }
             SqlValue::Varchar(s) => {

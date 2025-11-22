@@ -5,9 +5,11 @@
 // Handles serialization of CASE WHEN expressions.
 
 use std::io::{Read, Write};
+
 use vibesql_ast::CaseWhen;
-use crate::StorageError;
+
 use super::super::io::*;
+use crate::StorageError;
 
 pub(super) fn write_case_when<W: Write>(
     writer: &mut W,

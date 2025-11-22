@@ -92,10 +92,20 @@ impl CombinedExpressionEvaluator<'_> {
                 &high_val,
                 sql_mode.clone(),
             )?;
-            ExpressionEvaluator::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high, sql_mode)
+            ExpressionEvaluator::eval_binary_op_static(
+                &lt_low,
+                &vibesql_ast::BinaryOperator::Or,
+                &gt_high,
+                sql_mode,
+            )
         } else {
             // BETWEEN: expr >= low AND expr <= high
-            ExpressionEvaluator::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high, sql_mode)
+            ExpressionEvaluator::eval_binary_op_static(
+                &ge_low,
+                &vibesql_ast::BinaryOperator::And,
+                &le_high,
+                sql_mode,
+            )
         }
     }
 
@@ -113,7 +123,9 @@ impl CombinedExpressionEvaluator<'_> {
 
         // Extract string values
         let text = match expr_val {
-            vibesql_types::SqlValue::Varchar(ref s) | vibesql_types::SqlValue::Character(ref s) => s.clone(),
+            vibesql_types::SqlValue::Varchar(ref s) | vibesql_types::SqlValue::Character(ref s) => {
+                s.clone()
+            }
             vibesql_types::SqlValue::Null => return Ok(vibesql_types::SqlValue::Null),
             _ => {
                 return Err(ExecutorError::TypeMismatch {
@@ -125,7 +137,9 @@ impl CombinedExpressionEvaluator<'_> {
         };
 
         let pattern_str = match pattern_val {
-            vibesql_types::SqlValue::Varchar(ref s) | vibesql_types::SqlValue::Character(ref s) => s.clone(),
+            vibesql_types::SqlValue::Varchar(ref s) | vibesql_types::SqlValue::Character(ref s) => {
+                s.clone()
+            }
             vibesql_types::SqlValue::Null => return Ok(vibesql_types::SqlValue::Null),
             _ => {
                 return Err(ExecutorError::TypeMismatch {
@@ -162,7 +176,9 @@ impl CombinedExpressionEvaluator<'_> {
 
         // Extract the string value
         let s = match &string_val {
-            vibesql_types::SqlValue::Varchar(s) | vibesql_types::SqlValue::Character(s) => s.as_str(),
+            vibesql_types::SqlValue::Varchar(s) | vibesql_types::SqlValue::Character(s) => {
+                s.as_str()
+            }
             _ => {
                 return Err(ExecutorError::TypeMismatch {
                     left: string_val.clone(),
@@ -323,10 +339,14 @@ impl CombinedExpressionEvaluator<'_> {
         let string_val = self.eval(string, row)?;
 
         match (&substring_val, &string_val) {
-            (vibesql_types::SqlValue::Null, _) | (_, vibesql_types::SqlValue::Null) => Ok(vibesql_types::SqlValue::Null),
+            (vibesql_types::SqlValue::Null, _) | (_, vibesql_types::SqlValue::Null) => {
+                Ok(vibesql_types::SqlValue::Null)
+            }
             (
-                vibesql_types::SqlValue::Varchar(needle) | vibesql_types::SqlValue::Character(needle),
-                vibesql_types::SqlValue::Varchar(haystack) | vibesql_types::SqlValue::Character(haystack),
+                vibesql_types::SqlValue::Varchar(needle)
+                | vibesql_types::SqlValue::Character(needle),
+                vibesql_types::SqlValue::Varchar(haystack)
+                | vibesql_types::SqlValue::Character(haystack),
             ) => match haystack.find(needle.as_str()) {
                 Some(pos) => Ok(vibesql_types::SqlValue::Integer((pos + 1) as i64)),
                 None => Ok(vibesql_types::SqlValue::Integer(0)),

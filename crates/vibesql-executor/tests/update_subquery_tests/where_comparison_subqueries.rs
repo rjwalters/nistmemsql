@@ -344,7 +344,10 @@ fn test_update_where_and_set_both_use_subqueries() {
         }],
         into_table: None,
         into_variables: None,
-        from: Some(vibesql_ast::FromClause::Table { name: "salary_targets".to_string(), alias: None }),
+        from: Some(vibesql_ast::FromClause::Table {
+            name: "salary_targets".to_string(),
+            alias: None,
+        }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -364,7 +367,10 @@ fn test_update_where_and_set_both_use_subqueries() {
         }],
         into_table: None,
         into_variables: None,
-        from: Some(vibesql_ast::FromClause::Table { name: "active_depts".to_string(), alias: None }),
+        from: Some(vibesql_ast::FromClause::Table {
+            name: "active_depts".to_string(),
+            alias: None,
+        }),
         where_clause: None,
         group_by: None,
         having: None,

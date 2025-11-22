@@ -1,9 +1,12 @@
 //! Subquery evaluation for combined expressions
 
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
+
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use crate::errors::ExecutorError;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 
 /// Compute a hash for a subquery to use as a cache key
 ///
@@ -161,10 +164,14 @@ fn extract_outer_column_value(
         // Simple equality: inner.col = outer.col
         Expression::BinaryOp { op: BinaryOperator::Equal, left, right } => {
             // Check if one side is from subquery tables and other is from outer
-            if let Some(value) = try_extract_correlation_value(left, right, row, schema, subquery_tables) {
+            if let Some(value) =
+                try_extract_correlation_value(left, right, row, schema, subquery_tables)
+            {
                 return Some(value);
             }
-            if let Some(value) = try_extract_correlation_value(right, left, row, schema, subquery_tables) {
+            if let Some(value) =
+                try_extract_correlation_value(right, left, row, schema, subquery_tables)
+            {
                 return Some(value);
             }
             None
@@ -271,7 +278,10 @@ impl CombinedExpressionEvaluator<'_> {
                     crate::select::SelectExecutor::new(database)
                 };
                 let rows = select_executor.execute(subquery)?;
-                let result = super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())?;
+                let result = super::super::subqueries_shared::eval_scalar_subquery_core(
+                    &rows,
+                    subquery.select_list.len(),
+                )?;
 
                 // Cache the result
                 self.correlated_scalar_cache.borrow_mut().put(cache_key, result.clone());
@@ -291,20 +301,28 @@ impl CombinedExpressionEvaluator<'_> {
             if let Some(cached_rows) = cached_result {
                 // Cache hit - use cached result
                 // Delegate to shared logic
-                return super::super::subqueries_shared::eval_scalar_subquery_core(&cached_rows, subquery.select_list.len());
+                return super::super::subqueries_shared::eval_scalar_subquery_core(
+                    &cached_rows,
+                    subquery.select_list.len(),
+                );
             }
 
             // Cache miss - execute and cache
-            let select_executor = crate::select::SelectExecutor::new_with_depth(database, self.depth);
+            let select_executor =
+                crate::select::SelectExecutor::new_with_depth(database, self.depth);
             let rows = select_executor.execute(subquery)?;
 
             // Cache the result
             self.subquery_cache.borrow_mut().put(cache_key, rows.clone());
 
             // Delegate to shared logic
-            super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())
+            super::super::subqueries_shared::eval_scalar_subquery_core(
+                &rows,
+                subquery.select_list.len(),
+            )
         } else {
-            // Correlated subquery that couldn't extract correlation key - execute with outer context
+            // Correlated subquery that couldn't extract correlation key - execute with outer
+            // context
             let select_executor = if !self.schema.table_schemas.is_empty() {
                 crate::select::SelectExecutor::new_with_outer_context_and_depth(
                     database,
@@ -318,7 +336,10 @@ impl CombinedExpressionEvaluator<'_> {
             let rows = select_executor.execute(subquery)?;
 
             // Delegate to shared logic
-            super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())
+            super::super::subqueries_shared::eval_scalar_subquery_core(
+                &rows,
+                subquery.select_list.len(),
+            )
         }
     }
 
@@ -409,7 +430,9 @@ impl CombinedExpressionEvaluator<'_> {
             &rows,
             op,
             quantifier,
-            |left, op, right| ExpressionEvaluator::eval_binary_op_static(left, op, right, sql_mode.clone()),
+            |left, op, right| {
+                ExpressionEvaluator::eval_binary_op_static(left, op, right, sql_mode.clone())
+            },
         )
     }
 
@@ -481,7 +504,8 @@ impl CombinedExpressionEvaluator<'_> {
                 cached
             } else {
                 // Cache miss - execute subquery and build value set
-                let select_executor = crate::select::SelectExecutor::new_with_depth(database, self.depth);
+                let select_executor =
+                    crate::select::SelectExecutor::new_with_depth(database, self.depth);
                 let rows = select_executor.execute(subquery)?;
 
                 // Validate single column
@@ -503,7 +527,9 @@ impl CombinedExpressionEvaluator<'_> {
                 let mut found_null = false;
 
                 for subquery_row in &rows {
-                    let val = subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+                    let val = subquery_row
+                        .get(0)
+                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
                     if matches!(val, vibesql_types::SqlValue::Null) {
                         found_null = true;
                     } else {
@@ -593,8 +619,9 @@ impl CombinedExpressionEvaluator<'_> {
                 }
 
                 for subquery_row in &rows {
-                    let subquery_val =
-                        subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+                    let subquery_val = subquery_row
+                        .get(0)
+                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
 
                     if matches!(subquery_val, vibesql_types::SqlValue::Null) {
                         return Ok(vibesql_types::SqlValue::Null);
@@ -608,8 +635,9 @@ impl CombinedExpressionEvaluator<'_> {
             let mut found_null = false;
 
             for subquery_row in &rows {
-                let subquery_val =
-                    subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+                let subquery_val = subquery_row
+                    .get(0)
+                    .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
 
                 if matches!(subquery_val, vibesql_types::SqlValue::Null) {
                     found_null = true;
@@ -714,12 +742,10 @@ fn try_index_optimized_in_subquery(
 
     #[allow(clippy::collapsible_match)]
     let column_name = match &subquery.select_list[0] {
-        vibesql_ast::SelectItem::Expression { expr, .. } => {
-            match expr {
-                vibesql_ast::Expression::ColumnRef { column, .. } => column,
-                _ => return Ok(None),
-            }
-        }
+        vibesql_ast::SelectItem::Expression { expr, .. } => match expr {
+            vibesql_ast::Expression::ColumnRef { column, .. } => column,
+            _ => return Ok(None),
+        },
         _ => return Ok(None),
     };
 
@@ -782,17 +808,20 @@ fn try_index_optimized_in_subquery(
 
             // Fetch actual column values from matched rows
             let all_rows = table.scan();
-            let column_index = table
-                .schema
-                .columns
-                .iter()
-                .position(|col| col.name == *column_name)
-                .ok_or_else(|| ExecutorError::ColumnNotFound {
-                    column_name: column_name.clone(),
-                    table_name: table_name.clone(),
-                    searched_tables: vec![table_name.clone()],
-                    available_columns: table.schema.columns.iter().map(|c| c.name.clone()).collect(),
-                })?;
+            let column_index =
+                table.schema.columns.iter().position(|col| col.name == *column_name).ok_or_else(
+                    || ExecutorError::ColumnNotFound {
+                        column_name: column_name.clone(),
+                        table_name: table_name.clone(),
+                        searched_tables: vec![table_name.clone()],
+                        available_columns: table
+                            .schema
+                            .columns
+                            .iter()
+                            .map(|c| c.name.clone())
+                            .collect(),
+                    },
+                )?;
 
             let mut values = std::collections::HashSet::new();
             for row_idx in row_indices {

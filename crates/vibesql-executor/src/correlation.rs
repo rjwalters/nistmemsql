@@ -3,8 +3,9 @@
 //! This module provides utilities to determine if a subquery is correlated
 //! (references columns from an outer query) or non-correlated (independent).
 
-use crate::schema::CombinedSchema;
 use vibesql_ast::{Expression, FromClause, SelectItem, SelectStmt};
+
+use crate::schema::CombinedSchema;
 
 /// Check if a subquery is correlated with the outer query
 ///
@@ -159,12 +160,7 @@ fn is_from_clause_correlated(
 ) -> bool {
     match from {
         FromClause::Table { .. } => false,
-        FromClause::Join {
-            left,
-            right,
-            condition,
-            ..
-        } => {
+        FromClause::Join { left, right, condition, .. } => {
             // Check left and right sides of join
             if is_from_clause_correlated(left, outer_schema, subquery_tables)
                 || is_from_clause_correlated(right, outer_schema, subquery_tables)
@@ -219,9 +215,7 @@ fn is_expression_correlated(
             }
 
             // Check if this column exists in outer schema
-            outer_schema
-                .get_column_index(table.as_deref(), column)
-                .is_some()
+            outer_schema.get_column_index(table.as_deref(), column).is_some()
         }
 
         Expression::BinaryOp { left, right, .. } => {
@@ -234,19 +228,14 @@ fn is_expression_correlated(
         }
 
         Expression::Function { args, .. } | Expression::AggregateFunction { args, .. } => {
-            args.iter()
-                .any(|arg| is_expression_correlated(arg, outer_schema, subquery_tables))
+            args.iter().any(|arg| is_expression_correlated(arg, outer_schema, subquery_tables))
         }
 
         Expression::IsNull { expr, .. } => {
             is_expression_correlated(expr, outer_schema, subquery_tables)
         }
 
-        Expression::Case {
-            operand,
-            when_clauses,
-            else_result,
-        } => {
+        Expression::Case { operand, when_clauses, else_result } => {
             // Check operand
             if let Some(op) = operand {
                 if is_expression_correlated(op, outer_schema, subquery_tables) {
@@ -293,9 +282,7 @@ fn is_expression_correlated(
                     .any(|val| is_expression_correlated(val, outer_schema, subquery_tables))
         }
 
-        Expression::Between {
-            expr, low, high, ..
-        } => {
+        Expression::Between { expr, low, high, .. } => {
             is_expression_correlated(expr, outer_schema, subquery_tables)
                 || is_expression_correlated(low, outer_schema, subquery_tables)
                 || is_expression_correlated(high, outer_schema, subquery_tables)
@@ -311,9 +298,7 @@ fn is_expression_correlated(
             is_select_stmt_correlated_impl(subquery, outer_schema, &nested_tables)
         }
 
-        Expression::QuantifiedComparison {
-            expr, subquery, ..
-        } => {
+        Expression::QuantifiedComparison { expr, subquery, .. } => {
             if is_expression_correlated(expr, outer_schema, subquery_tables) {
                 return true;
             }
@@ -325,18 +310,12 @@ fn is_expression_correlated(
             is_expression_correlated(expr, outer_schema, subquery_tables)
         }
 
-        Expression::Position {
-            substring, string, ..
-        } => {
+        Expression::Position { substring, string, .. } => {
             is_expression_correlated(substring, outer_schema, subquery_tables)
                 || is_expression_correlated(string, outer_schema, subquery_tables)
         }
 
-        Expression::Trim {
-            removal_char,
-            string,
-            ..
-        } => {
+        Expression::Trim { removal_char, string, .. } => {
             removal_char
                 .as_ref()
                 .map(|c| is_expression_correlated(c, outer_schema, subquery_tables))
@@ -359,9 +338,7 @@ fn is_expression_correlated(
                 .partition_by
                 .as_ref()
                 .map(|parts| {
-                    parts
-                        .iter()
-                        .any(|p| is_expression_correlated(p, outer_schema, subquery_tables))
+                    parts.iter().any(|p| is_expression_correlated(p, outer_schema, subquery_tables))
                 })
                 .unwrap_or(false);
 
@@ -370,9 +347,9 @@ fn is_expression_correlated(
                 .order_by
                 .as_ref()
                 .map(|orders| {
-                    orders.iter().any(|o| {
-                        is_expression_correlated(&o.expr, outer_schema, subquery_tables)
-                    })
+                    orders
+                        .iter()
+                        .any(|o| is_expression_correlated(&o.expr, outer_schema, subquery_tables))
                 })
                 .unwrap_or(false);
 
@@ -400,11 +377,13 @@ fn is_expression_correlated(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_ast::{BinaryOperator, Expression, SelectItem, SelectStmt};
 
+    use super::*;
+
     fn make_outer_schema() -> CombinedSchema {
-        // Create a simple schema with one table "tab0" with columns: pk, col0, col1, col2, col3, col4
+        // Create a simple schema with one table "tab0" with columns: pk, col0, col1, col2, col3,
+        // col4
         let columns = vec![
             vibesql_catalog::ColumnSchema {
                 name: "pk".to_string(),
@@ -446,24 +425,15 @@ mod tests {
             with_clause: None,
             distinct: false,
             select_list: vec![SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "col0".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "col0".to_string() },
                 alias: None,
             }],
             into_table: None,
             into_variables: None,
-            from: Some(FromClause::Table {
-                name: "tab0".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "tab0".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::Equal,
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "col4".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "col4".to_string() }),
                 right: Box::new(Expression::Literal(vibesql_types::SqlValue::Float(97.5))),
             }),
             group_by: None,
@@ -516,10 +486,8 @@ mod tests {
 
     #[test]
     fn test_empty_outer_schema() {
-        let outer_schema = CombinedSchema {
-            table_schemas: std::collections::HashMap::new(),
-            total_columns: 0,
-        };
+        let outer_schema =
+            CombinedSchema { table_schemas: std::collections::HashMap::new(), total_columns: 0 };
 
         let subquery = SelectStmt {
             with_clause: None,

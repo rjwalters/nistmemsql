@@ -3,20 +3,20 @@
 //! This module provides hand-optimized monomorphic execution plans for
 //! TPC-H benchmark queries.
 
+use std::{collections::HashMap, str::FromStr};
+
+use vibesql_ast::SelectStmt;
 use vibesql_storage::Row;
 use vibesql_types::{Date, SqlValue};
 
-use crate::{errors::ExecutorError, schema::CombinedSchema};
-
-use super::pattern::{
-    contains_column_multiply, has_aggregate_function, has_between_predicate, has_no_joins,
-    is_single_table, where_references_column, QueryPattern,
+use super::{
+    pattern::{
+        contains_column_multiply, has_aggregate_function, has_between_predicate, has_no_joins,
+        is_single_table, where_references_column, QueryPattern,
+    },
+    MonomorphicPlan,
 };
-use super::MonomorphicPlan;
-use vibesql_ast::SelectStmt;
-
-use std::collections::HashMap;
-use std::str::FromStr;
+use crate::{errors::ExecutorError, schema::CombinedSchema};
 
 /// Specialized plan for TPC-H Q6 (Forecasting Revenue Change)
 ///
@@ -188,9 +188,7 @@ impl MonomorphicPlan for TpchQ6Plan {
         let result = unsafe { self.execute_unsafe(rows) };
 
         // Return single-row result with revenue column
-        Ok(vec![Row {
-            values: vec![SqlValue::Double(result)],
-        }])
+        Ok(vec![Row { values: vec![SqlValue::Double(result)] }])
     }
 
     fn execute_stream(
@@ -201,9 +199,7 @@ impl MonomorphicPlan for TpchQ6Plan {
         let result = unsafe { self.execute_stream_unsafe(rows) };
 
         // Return single-row result with revenue column
-        Ok(vec![Row {
-            values: vec![SqlValue::Double(result)],
-        }])
+        Ok(vec![Row { values: vec![SqlValue::Double(result)] }])
     }
 
     fn description(&self) -> &str {
@@ -385,8 +381,14 @@ impl TpchQ1Plan {
                 // Extract first byte of single-char strings - zero allocations!
                 let returnflag_str = row.get_string_unchecked(self.l_returnflag_idx);
                 let linestatus_str = row.get_string_unchecked(self.l_linestatus_idx);
-                debug_assert!(!returnflag_str.is_empty(), "returnflag should be non-empty in TPC-H data");
-                debug_assert!(!linestatus_str.is_empty(), "linestatus should be non-empty in TPC-H data");
+                debug_assert!(
+                    !returnflag_str.is_empty(),
+                    "returnflag should be non-empty in TPC-H data"
+                );
+                debug_assert!(
+                    !linestatus_str.is_empty(),
+                    "linestatus should be non-empty in TPC-H data"
+                );
                 let returnflag = returnflag_str.as_bytes()[0];
                 let linestatus = linestatus_str.as_bytes()[0];
 
@@ -396,9 +398,7 @@ impl TpchQ1Plan {
                 let tax = row.get_f64_unchecked(self.l_tax_idx);
 
                 // Get or create group using compact byte keys
-                let agg = groups
-                    .entry((returnflag, linestatus))
-                    .or_insert_with(Q1Aggregates::new);
+                let agg = groups.entry((returnflag, linestatus)).or_insert_with(Q1Aggregates::new);
 
                 // Update aggregates
                 agg.add(qty, price, discount, tax);
@@ -450,8 +450,14 @@ impl TpchQ1Plan {
                 // Extract first byte of single-char strings - zero allocations!
                 let returnflag_str = row.get_string_unchecked(self.l_returnflag_idx);
                 let linestatus_str = row.get_string_unchecked(self.l_linestatus_idx);
-                debug_assert!(!returnflag_str.is_empty(), "returnflag should be non-empty in TPC-H data");
-                debug_assert!(!linestatus_str.is_empty(), "linestatus should be non-empty in TPC-H data");
+                debug_assert!(
+                    !returnflag_str.is_empty(),
+                    "returnflag should be non-empty in TPC-H data"
+                );
+                debug_assert!(
+                    !linestatus_str.is_empty(),
+                    "linestatus should be non-empty in TPC-H data"
+                );
                 let returnflag = returnflag_str.as_bytes()[0];
                 let linestatus = linestatus_str.as_bytes()[0];
 
@@ -461,9 +467,7 @@ impl TpchQ1Plan {
                 let tax = row.get_f64_unchecked(self.l_tax_idx);
 
                 // Get or create group using compact byte keys
-                let agg = groups
-                    .entry((returnflag, linestatus))
-                    .or_insert_with(Q1Aggregates::new);
+                let agg = groups.entry((returnflag, linestatus)).or_insert_with(Q1Aggregates::new);
 
                 // Update aggregates
                 agg.add(qty, price, discount, tax);
@@ -702,8 +706,9 @@ pub fn try_create_tpch_plan(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_parser::Parser;
+
+    use super::*;
 
     /// Helper function to parse a SELECT query string into a SelectStmt
     fn parse_select_query(query: &str) -> SelectStmt {
@@ -742,10 +747,7 @@ mod tests {
         let stmt = parse_select_query(q1_query);
         let plan = try_create_tpch_plan(&stmt, &schema);
         assert!(plan.is_some(), "Q1 pattern should be recognized");
-        assert_eq!(
-            plan.unwrap().description(),
-            "TPC-H Q1 (Pricing Summary Report) - Monomorphic"
-        );
+        assert_eq!(plan.unwrap().description(), "TPC-H Q1 (Pricing Summary Report) - Monomorphic");
     }
 
     #[test]
@@ -793,10 +795,7 @@ mod tests {
 
         let stmt = parse_select_query(q6_query_reordered);
         let plan = try_create_tpch_plan(&stmt, &schema);
-        assert!(
-            plan.is_some(),
-            "Q6 pattern should be recognized regardless of WHERE clause order"
-        );
+        assert!(plan.is_some(), "Q6 pattern should be recognized regardless of WHERE clause order");
     }
 
     #[test]

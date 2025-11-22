@@ -2,21 +2,16 @@
 // Index Metadata - Types and helpers for index definitions
 // ============================================================================
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
+#[cfg(target_arch = "wasm32")]
+use std::sync::Mutex;
+use std::{collections::BTreeMap, sync::Arc};
 
 #[cfg(not(target_arch = "wasm32"))]
 use parking_lot::Mutex;
-
-#[cfg(target_arch = "wasm32")]
-use std::sync::Mutex;
-
 use vibesql_ast::IndexColumn;
 use vibesql_types::SqlValue;
 
-use crate::btree::BTreeIndex;
-use crate::page::PageManager;
-use crate::StorageError;
+use crate::{btree::BTreeIndex, page::PageManager, StorageError};
 
 /// Normalize an index name to uppercase for case-insensitive comparison
 /// This follows SQL standard identifier rules
@@ -83,14 +78,9 @@ pub struct IndexMetadata {
 #[derive(Debug, Clone)]
 pub enum IndexData {
     /// In-memory BTreeMap (for small indexes or backward compatibility)
-    InMemory {
-        data: BTreeMap<Vec<SqlValue>, Vec<usize>>,
-    },
+    InMemory { data: BTreeMap<Vec<SqlValue>, Vec<usize>> },
     /// Disk-backed B+ tree (for large indexes or persistence)
     /// Note: The B+ tree stores (key, row_id) pairs. For non-unique indexes,
     /// we serialize Vec<usize> as the row_id value to support multiple rows per key.
-    DiskBacked {
-        btree: Arc<Mutex<BTreeIndex>>,
-        page_manager: Arc<PageManager>,
-    },
+    DiskBacked { btree: Arc<Mutex<BTreeIndex>>, page_manager: Arc<PageManager> },
 }

@@ -4,7 +4,9 @@ use super::super::*;
 
 impl Parser {
     /// Parse data type
-    pub(in crate::parser) fn parse_data_type(&mut self) -> Result<vibesql_types::DataType, ParseError> {
+    pub(in crate::parser) fn parse_data_type(
+        &mut self,
+    ) -> Result<vibesql_types::DataType, ParseError> {
         let type_upper = match self.peek() {
             Token::Identifier(type_name) => type_name.to_uppercase(),
             Token::Keyword(Keyword::Date) => "DATE".to_string(),
@@ -23,9 +25,11 @@ impl Parser {
 
         match type_upper.as_str() {
             "INTEGER" | "INT" => Ok(vibesql_types::DataType::Integer),
-            "SIGNED" => Ok(vibesql_types::DataType::Integer), /* MySQL-specific: SIGNED is equivalent to */
+            "SIGNED" => Ok(vibesql_types::DataType::Integer), /* MySQL-specific: SIGNED is
+                                                                * equivalent to */
             // INTEGER (signed 32-bit integer)
-            "UNSIGNED" => Ok(vibesql_types::DataType::Unsigned), /* MySQL-specific: UNSIGNED is 64-bit */
+            "UNSIGNED" => Ok(vibesql_types::DataType::Unsigned), /* MySQL-specific: UNSIGNED is
+                                                                   * 64-bit */
             // unsigned integer
             "SMALLINT" => Ok(vibesql_types::DataType::Smallint),
             "BIGINT" | "LONG" => Ok(vibesql_types::DataType::Bigint),
@@ -480,7 +484,7 @@ impl Parser {
                             Token::LParen => {
                                 paren_depth += 1;
                                 self.advance();
-                            },
+                            }
                             Token::RParen => {
                                 paren_depth -= 1;
                                 if paren_depth > 0 {
@@ -490,7 +494,7 @@ impl Parser {
                                     self.expect_token(Token::RParen)?;
                                     break;
                                 }
-                            },
+                            }
                             _ => {
                                 self.advance();
                             }
@@ -513,7 +517,8 @@ impl Parser {
                     Token::Keyword(Keyword::Character) => "CHARACTER".to_string(),
                     _ => {
                         return Err(ParseError {
-                            message: "Expected VARCHAR, CHARACTER, or CHAR after NATIONAL".to_string(),
+                            message: "Expected VARCHAR, CHARACTER, or CHAR after NATIONAL"
+                                .to_string(),
                         })
                     }
                 };
@@ -535,7 +540,8 @@ impl Parser {
                                 }
                                 _ => {
                                     return Err(ParseError {
-                                        message: "Expected number after NATIONAL VARCHAR(".to_string(),
+                                        message: "Expected number after NATIONAL VARCHAR("
+                                            .to_string(),
                                     })
                                 }
                             };
@@ -570,7 +576,8 @@ impl Parser {
                                 }
                                 _ => {
                                     return Err(ParseError {
-                                        message: "Expected number after NATIONAL CHARACTER(".to_string(),
+                                        message: "Expected number after NATIONAL CHARACTER("
+                                            .to_string(),
                                     })
                                 }
                             };
@@ -590,14 +597,12 @@ impl Parser {
 
                         Ok(vibesql_types::DataType::Character { length })
                     }
-                    _ => {
-                        Err(ParseError {
-                            message: format!(
-                                "Expected VARCHAR, CHARACTER, or CHAR after NATIONAL, got: {}",
-                                next
-                            ),
-                        })
-                    }
+                    _ => Err(ParseError {
+                        message: format!(
+                            "Expected VARCHAR, CHARACTER, or CHAR after NATIONAL, got: {}",
+                            next
+                        ),
+                    }),
                 }
             }
             _ => {

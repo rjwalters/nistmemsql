@@ -10,13 +10,21 @@ fn test_natural_join_single_common_column() {
     let t1_schema = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "name".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(20) },
                 false,
             ),
-            vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "x".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(t1_schema).unwrap();
@@ -25,52 +33,89 @@ fn test_natural_join_single_common_column() {
     let t2_schema = vibesql_catalog::TableSchema::new(
         "t2".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("value".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "value".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "y".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(t2_schema).unwrap();
 
     // Insert test data into t1
-    db.insert_row("t1", vibesql_storage::Row::new(vec![
-        vibesql_types::SqlValue::Integer(1),
-        vibesql_types::SqlValue::Varchar("a".to_string()),
-        vibesql_types::SqlValue::Integer(10),
-    ])).unwrap();
-    db.insert_row("t1", vibesql_storage::Row::new(vec![
-        vibesql_types::SqlValue::Integer(2),
-        vibesql_types::SqlValue::Varchar("b".to_string()),
-        vibesql_types::SqlValue::Integer(20),
-    ])).unwrap();
-    db.insert_row("t1", vibesql_storage::Row::new(vec![
-        vibesql_types::SqlValue::Integer(3),
-        vibesql_types::SqlValue::Varchar("c".to_string()),
-        vibesql_types::SqlValue::Integer(30),
-    ])).unwrap();
+    db.insert_row(
+        "t1",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Varchar("a".to_string()),
+            vibesql_types::SqlValue::Integer(10),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "t1",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(2),
+            vibesql_types::SqlValue::Varchar("b".to_string()),
+            vibesql_types::SqlValue::Integer(20),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "t1",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(3),
+            vibesql_types::SqlValue::Varchar("c".to_string()),
+            vibesql_types::SqlValue::Integer(30),
+        ]),
+    )
+    .unwrap();
 
     // Insert test data into t2
-    db.insert_row("t2", vibesql_storage::Row::new(vec![
-        vibesql_types::SqlValue::Integer(1),
-        vibesql_types::SqlValue::Integer(100),
-        vibesql_types::SqlValue::Integer(111),
-    ])).unwrap();
-    db.insert_row("t2", vibesql_storage::Row::new(vec![
-        vibesql_types::SqlValue::Integer(2),
-        vibesql_types::SqlValue::Integer(200),
-        vibesql_types::SqlValue::Integer(222),
-    ])).unwrap();
-    db.insert_row("t2", vibesql_storage::Row::new(vec![
-        vibesql_types::SqlValue::Integer(4),
-        vibesql_types::SqlValue::Integer(400),
-        vibesql_types::SqlValue::Integer(444),
-    ])).unwrap();
+    db.insert_row(
+        "t2",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(100),
+            vibesql_types::SqlValue::Integer(111),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "t2",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(2),
+            vibesql_types::SqlValue::Integer(200),
+            vibesql_types::SqlValue::Integer(222),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "t2",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(4),
+            vibesql_types::SqlValue::Integer(400),
+            vibesql_types::SqlValue::Integer(444),
+        ]),
+    )
+    .unwrap();
 
     // Execute NATURAL JOIN query
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -79,7 +124,7 @@ fn test_natural_join_single_common_column() {
             right: Box::new(vibesql_ast::FromClause::Table { name: "t2".to_string(), alias: None }),
             join_type: vibesql_ast::JoinType::Inner,
             condition: None,
-            natural: true,  // NATURAL JOIN
+            natural: true, // NATURAL JOIN
         }),
         where_clause: None,
         group_by: None,
@@ -122,7 +167,8 @@ fn test_natural_cross_join_error() {
 #[test]
 fn test_natural_join_with_on_clause_error() {
     // NATURAL JOIN...ON is not valid SQL (NATURAL implies the join condition)
-    let result = vibesql_parser::Parser::parse_sql("SELECT * FROM t1 NATURAL JOIN t2 ON t1.id = t2.id");
+    let result =
+        vibesql_parser::Parser::parse_sql("SELECT * FROM t1 NATURAL JOIN t2 ON t1.id = t2.id");
 
     assert!(result.is_err());
     let err = result.unwrap_err();

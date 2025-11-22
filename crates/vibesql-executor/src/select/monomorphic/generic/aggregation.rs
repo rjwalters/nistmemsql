@@ -7,24 +7,22 @@ use vibesql_ast::{BinaryOperator, Expression, SelectStmt};
 use vibesql_storage::Row;
 use vibesql_types::SqlValue;
 
+use super::{
+    super::{
+        pattern::{has_aggregate_function, has_no_joins, QueryPattern},
+        MonomorphicPlan,
+    },
+    filter::{extract_filters, optimize_date_ranges, FilterPredicate},
+};
 use crate::{errors::ExecutorError, schema::CombinedSchema};
-
-use super::super::pattern::{has_aggregate_function, has_no_joins, QueryPattern};
-use super::super::MonomorphicPlan;
-use super::filter::{extract_filters, optimize_date_ranges, FilterPredicate};
 
 /// Specification for an aggregation operation
 #[derive(Debug, Clone)]
 pub enum AggregationSpec {
     /// SUM(col1 * col2) - multiply two columns and sum
-    SumProduct {
-        col1_idx: usize,
-        col2_idx: usize,
-    },
+    SumProduct { col1_idx: usize, col2_idx: usize },
     /// SUM(col) - simple sum
-    Sum {
-        col_idx: usize,
-    },
+    Sum { col_idx: usize },
     /// COUNT(*) or COUNT(col)
     Count,
 }
@@ -151,11 +149,8 @@ impl GenericFilteredAggregationPlan {
             Expression::AggregateFunction { name, args, .. } => {
                 if name.eq_ignore_ascii_case("SUM") && args.len() == 1 {
                     // Check for SUM(col1 * col2)
-                    if let Expression::BinaryOp {
-                        op: BinaryOperator::Multiply,
-                        left,
-                        right,
-                    } = &args[0]
+                    if let Expression::BinaryOp { op: BinaryOperator::Multiply, left, right } =
+                        &args[0]
                     {
                         let col1 = match left.as_ref() {
                             Expression::ColumnRef { column, .. } => column,
@@ -256,9 +251,7 @@ impl MonomorphicPlan for GenericFilteredAggregationPlan {
         let result = unsafe { self.execute_unsafe(rows) };
 
         // Return single-row result
-        Ok(vec![Row {
-            values: vec![SqlValue::Double(result)],
-        }])
+        Ok(vec![Row { values: vec![SqlValue::Double(result)] }])
     }
 
     fn execute_stream(
@@ -269,9 +262,7 @@ impl MonomorphicPlan for GenericFilteredAggregationPlan {
         let result = unsafe { self.execute_stream_unsafe(rows) };
 
         // Return single-row result
-        Ok(vec![Row {
-            values: vec![SqlValue::Double(result)],
-        }])
+        Ok(vec![Row { values: vec![SqlValue::Double(result)] }])
     }
 
     fn description(&self) -> &str {
@@ -296,10 +287,11 @@ impl QueryPattern for GenericFilteredAggregationMatcher {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_catalog::{ColumnSchema, TableSchema};
     use vibesql_parser::Parser;
     use vibesql_types::DataType;
+
+    use super::*;
 
     fn parse_select_query(query: &str) -> SelectStmt {
         let stmt = Parser::parse_sql(query).expect("Failed to parse SQL");
@@ -324,8 +316,16 @@ mod tests {
                 ColumnSchema::new("l_extendedprice".to_string(), DataType::DoublePrecision, true),
                 ColumnSchema::new("l_discount".to_string(), DataType::DoublePrecision, true),
                 ColumnSchema::new("l_tax".to_string(), DataType::DoublePrecision, true),
-                ColumnSchema::new("l_returnflag".to_string(), DataType::Varchar { max_length: None }, true),
-                ColumnSchema::new("l_linestatus".to_string(), DataType::Varchar { max_length: None }, true),
+                ColumnSchema::new(
+                    "l_returnflag".to_string(),
+                    DataType::Varchar { max_length: None },
+                    true,
+                ),
+                ColumnSchema::new(
+                    "l_linestatus".to_string(),
+                    DataType::Varchar { max_length: None },
+                    true,
+                ),
                 ColumnSchema::new("l_shipdate".to_string(), DataType::Date, true),
             ],
         );
@@ -381,10 +381,7 @@ mod tests {
 
         let stmt = parse_select_query(query);
         let plan = GenericFilteredAggregationPlan::try_create(&stmt, &schema);
-        assert!(
-            plan.is_some(),
-            "Should create generic plan for different table"
-        );
+        assert!(plan.is_some(), "Should create generic plan for different table");
 
         let plan = plan.unwrap();
         assert!(

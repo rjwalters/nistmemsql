@@ -1,17 +1,17 @@
-use super::config::ObservabilityConfig;
-use super::metrics::ServerMetrics;
-use anyhow::{Context, Result};
-use opentelemetry::global;
-use opentelemetry::trace::TracerProvider as _;
-use opentelemetry::KeyValue;
-use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::metrics::SdkMeterProvider;
-use opentelemetry_sdk::runtime;
-use opentelemetry_sdk::trace::{Sampler, TracerProvider};
-use opentelemetry_sdk::Resource;
 use std::time::Duration;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
+
+use anyhow::{Context, Result};
+use opentelemetry::{global, trace::TracerProvider as _, KeyValue};
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::{
+    metrics::SdkMeterProvider,
+    runtime,
+    trace::{Sampler, TracerProvider},
+    Resource,
+};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+use super::{config::ObservabilityConfig, metrics::ServerMetrics};
 
 /// OpenTelemetry observability provider
 pub struct ObservabilityProvider {
@@ -26,11 +26,7 @@ impl ObservabilityProvider {
     /// Initialize observability with the given configuration
     pub fn init(config: &ObservabilityConfig) -> Result<Self> {
         if !config.enabled {
-            return Ok(Self {
-                meter_provider: None,
-                tracer_provider: None,
-                metrics: None,
-            });
+            return Ok(Self { meter_provider: None, tracer_provider: None, metrics: None });
         }
 
         let resource = Resource::new(vec![
@@ -47,12 +43,10 @@ impl ObservabilityProvider {
                 .build()
                 .context("Failed to create OTLP metrics exporter")?;
 
-            let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(
-                exporter,
-                runtime::Tokio,
-            )
-            .with_interval(Duration::from_secs(config.metrics.export_interval_seconds))
-            .build();
+            let reader =
+                opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, runtime::Tokio)
+                    .with_interval(Duration::from_secs(config.metrics.export_interval_seconds))
+                    .build();
 
             let provider = SdkMeterProvider::builder()
                 .with_reader(reader)
@@ -126,11 +120,7 @@ impl ObservabilityProvider {
             None
         };
 
-        Ok(Self {
-            meter_provider,
-            tracer_provider,
-            metrics,
-        })
+        Ok(Self { meter_provider, tracer_provider, metrics })
     }
 
     /// Get server metrics (if enabled)
@@ -145,15 +135,11 @@ impl ObservabilityProvider {
     #[allow(dead_code)]
     pub fn shutdown(mut self) -> Result<()> {
         if let Some(provider) = self.meter_provider.take() {
-            provider
-                .shutdown()
-                .context("Failed to shutdown meter provider")?;
+            provider.shutdown().context("Failed to shutdown meter provider")?;
         }
 
         if let Some(provider) = self.tracer_provider.take() {
-            provider
-                .shutdown()
-                .context("Failed to shutdown tracer provider")?;
+            provider.shutdown().context("Failed to shutdown tracer provider")?;
         }
 
         Ok(())

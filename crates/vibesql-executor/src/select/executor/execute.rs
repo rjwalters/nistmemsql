@@ -16,7 +16,10 @@ use crate::{
 
 impl SelectExecutor<'_> {
     /// Execute a SELECT statement
-    pub fn execute(&self, stmt: &vibesql_ast::SelectStmt) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+    pub fn execute(
+        &self,
+        stmt: &vibesql_ast::SelectStmt,
+    ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
         #[cfg(feature = "profile-q6")]
         let execute_start = std::time::Instant::now();
 
@@ -173,15 +176,20 @@ impl SelectExecutor<'_> {
             // from the FROM result. When predicate pushdown filtered rows early, the indices no
             // longer matched the original table, causing incorrect results.
             //
-            // Now that all index optimization has been moved to the scan level (execute_index_scan),
-            // it happens BEFORE predicate pushdown, avoiding the row-index mismatch problem.
-            // This allows predicate pushdown to work correctly for all queries, improving performance.
+            // Now that all index optimization has been moved to the scan level
+            // (execute_index_scan), it happens BEFORE predicate pushdown, avoiding the
+            // row-index mismatch problem. This allows predicate pushdown to work
+            // correctly for all queries, improving performance.
             //
             // Fixes issues #1807, #1895, #1896, and #1902.
 
             // Pass WHERE and ORDER BY to execute_from for optimization
-            let from_result =
-                self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref(), stmt.order_by.as_deref())?;
+            let from_result = self.execute_from_with_where(
+                from_clause,
+                cte_results,
+                stmt.where_clause.as_ref(),
+                stmt.order_by.as_deref(),
+            )?;
             self.execute_without_aggregation(stmt, from_result)?
         } else {
             // SELECT without FROM - evaluate expressions as a single row
@@ -217,14 +225,19 @@ impl SelectExecutor<'_> {
         // Execute the immediate right query WITHOUT its set operations
         // This prevents right-recursive evaluation
         let right_stmt = &set_op.right;
-        let has_aggregates = self.has_aggregates(&right_stmt.select_list) || right_stmt.having.is_some();
+        let has_aggregates =
+            self.has_aggregates(&right_stmt.select_list) || right_stmt.having.is_some();
         let has_group_by = right_stmt.group_by.is_some();
 
         let right_results = if has_aggregates || has_group_by {
             self.execute_with_aggregation(right_stmt, cte_results)?
         } else if let Some(from_clause) = &right_stmt.from {
-            let from_result =
-                self.execute_from_with_where(from_clause, cte_results, right_stmt.where_clause.as_ref(), right_stmt.order_by.as_deref())?;
+            let from_result = self.execute_from_with_where(
+                from_clause,
+                cte_results,
+                right_stmt.where_clause.as_ref(),
+                right_stmt.order_by.as_deref(),
+            )?;
             self.execute_without_aggregation(right_stmt, from_result)?
         } else {
             self.execute_select_without_from(right_stmt)?
@@ -249,7 +262,9 @@ impl SelectExecutor<'_> {
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause;
-        execute_from_clause(from, cte_results, self.database, None, None, |query| self.execute_with_columns(query))
+        execute_from_clause(from, cte_results, self.database, None, None, |query| {
+            self.execute_with_columns(query)
+        })
     }
 
     /// Execute a FROM clause with WHERE and ORDER BY for optimization
@@ -309,8 +324,12 @@ impl SelectExecutor<'_> {
         #[cfg(feature = "profile-q6")]
         {
             let load_time = load_start.elapsed();
-            eprintln!("[Q6 PROFILE] Row loading: {:?} ({} rows, {:?}/row)",
-                load_time, from_result.rows().len(), load_time / from_result.rows().len() as u32);
+            eprintln!(
+                "[Q6 PROFILE] Row loading: {:?} ({} rows, {:?}/row)",
+                load_time,
+                from_result.rows().len(),
+                load_time / from_result.rows().len() as u32
+            );
         }
 
         // Try to create a monomorphic plan using AST-based pattern matching

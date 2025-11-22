@@ -1,12 +1,11 @@
 //! Tests for stored procedure and function functionality
 
-use super::common::setup_users_table as setup_test_table;
 use vibesql_ast::*;
 use vibesql_storage::{Database, Row};
 use vibesql_types::{DataType, SqlValue};
 
-use crate::advanced_objects;
-use crate::errors::ExecutorError;
+use super::common::setup_users_table as setup_test_table;
+use crate::{advanced_objects, errors::ExecutorError};
 
 // Test fixtures and helpers to reduce duplication
 
@@ -78,9 +77,9 @@ pub(crate) fn create_empty_function(name: &str, return_type: DataType) -> Create
     create_simple_function(name, vec![], return_type, vec![])
 }
 
-mod stored_procedures;
+mod control_flow;
+mod edge_cases;
+mod error_messages;
 mod functions;
 mod parameters;
-mod control_flow;
-mod error_messages;
-mod edge_cases;
+mod stored_procedures;

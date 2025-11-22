@@ -200,7 +200,7 @@ fn test_date_add_large_day_interval() {
     let result =
         eval_function("DATE_ADD", vec![date_lit("2024-01-01"), int_lit(365), varchar_lit("DAY")]);
     assert_eq!(result, vibesql_types::SqlValue::Date("2024-12-31".parse().unwrap())); // 2024 is leap year with
-                                                                         // 366 days
+                                                                                      // 366 days
 }
 
 #[test]
@@ -273,7 +273,10 @@ fn test_age_null_second_date() {
 
 #[test]
 fn test_datediff_invalid_date_format() {
-    eval_function_expect_error("DATEDIFF", vec![varchar_lit("invalid-date"), date_lit("2024-01-05")]);
+    eval_function_expect_error(
+        "DATEDIFF",
+        vec![varchar_lit("invalid-date"), date_lit("2024-01-05")],
+    );
 }
 
 #[test]

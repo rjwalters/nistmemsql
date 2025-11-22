@@ -11,13 +11,19 @@ fn test_count_star_in_multiplication() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "tab2".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("col1".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "col1".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
 
     // Insert 2 rows
-    db.insert_row("tab2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1)])).unwrap();
-    db.insert_row("tab2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(2)])).unwrap();
+    db.insert_row("tab2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1)]))
+        .unwrap();
+    db.insert_row("tab2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(2)]))
+        .unwrap();
 
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
@@ -28,7 +34,9 @@ fn test_count_star_in_multiplication() {
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
             expr: vibesql_ast::Expression::BinaryOp {
-                left: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(-18))),
+                left: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(
+                    -18,
+                ))),
                 op: vibesql_ast::BinaryOperator::Multiply,
                 right: Box::new(vibesql_ast::Expression::AggregateFunction {
                     name: "COUNT".to_string(),
@@ -59,13 +67,18 @@ fn test_count_star_in_addition() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "tab2".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("col1".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "col1".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
 
     // Insert 3 rows
     for i in 0..3 {
-        db.insert_row("tab2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)])).unwrap();
+        db.insert_row("tab2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)]))
+            .unwrap();
     }
 
     let executor = SelectExecutor::new(&db);
@@ -112,13 +125,18 @@ fn test_count_star_complex_expression() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "tab2".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("col1".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "col1".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
 
     // Insert 4 rows
     for i in 0..4 {
-        db.insert_row("tab2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)])).unwrap();
+        db.insert_row("tab2", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)]))
+            .unwrap();
     }
 
     let executor = SelectExecutor::new(&db);
@@ -178,13 +196,18 @@ fn test_count_star_with_unary_operators() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "tab1".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("col0".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "col0".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
 
     // Insert 5 rows
     for i in 0..5 {
-        db.insert_row("tab1", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)])).unwrap();
+        db.insert_row("tab1", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)]))
+            .unwrap();
     }
 
     let executor = SelectExecutor::new(&db);
@@ -200,8 +223,10 @@ fn test_count_star_with_unary_operators() {
     };
 
     // Build: + + COUNT(*)
-    let double_unary_count =
-        vibesql_ast::Expression::UnaryOp { op: vibesql_ast::UnaryOperator::Plus, expr: Box::new(unary_count) };
+    let double_unary_count = vibesql_ast::Expression::UnaryOp {
+        op: vibesql_ast::UnaryOperator::Plus,
+        expr: Box::new(unary_count),
+    };
 
     // Build: ( + + COUNT(*) )
     // The parentheses don't create a separate AST node, they just affect parsing
@@ -247,13 +272,18 @@ fn test_count_star_with_negative_unary() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "tab1".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("col0".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "col0".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
 
     // Insert 3 rows
     for i in 0..3 {
-        db.insert_row("tab1", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)])).unwrap();
+        db.insert_row("tab1", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i)]))
+            .unwrap();
     }
 
     let executor = SelectExecutor::new(&db);

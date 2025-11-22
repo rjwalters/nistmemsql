@@ -1,10 +1,9 @@
 //! Division operators (/, //) implementation
 
-use vibesql_types::{TypeBehavior, ValueType, SqlValue};
-
-use crate::errors::ExecutorError;
+use vibesql_types::{SqlValue, TypeBehavior, ValueType};
 
 use super::coerce_numeric_values;
+use crate::errors::ExecutorError;
 
 pub struct Division;
 
@@ -85,14 +84,10 @@ impl Division {
                 Ok(Float((a / b) as f32))
             }
             // Numeric division - always returns Numeric
-            (super::CoercedValues::Numeric(a, b), ValueType::Numeric) => {
-                Ok(Numeric(a / b))
-            }
+            (super::CoercedValues::Numeric(a, b), ValueType::Numeric) => Ok(Numeric(a / b)),
             // Handle edge case: if TypeBehavior returns Float for approximate operands
             // but coercion produced Numeric, convert to Numeric
-            (super::CoercedValues::Numeric(a, b), ValueType::Float) => {
-                Ok(Numeric(a / b))
-            }
+            (super::CoercedValues::Numeric(a, b), ValueType::Float) => Ok(Numeric(a / b)),
             // All other combinations should be unreachable due to type coercion rules
             _ => unreachable!("Unexpected combination of coerced type and result type"),
         }

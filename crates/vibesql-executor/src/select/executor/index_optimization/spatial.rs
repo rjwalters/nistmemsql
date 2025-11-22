@@ -9,9 +9,11 @@ use vibesql_ast::Expression;
 use vibesql_storage::{Database, Row};
 use vibesql_types::SqlValue;
 
-use crate::errors::ExecutorError;
-use crate::evaluator::functions::spatial::{constructors::parse_wkt, Geometry};
-use crate::schema::CombinedSchema;
+use crate::{
+    errors::ExecutorError,
+    evaluator::functions::spatial::{constructors::parse_wkt, Geometry},
+    schema::CombinedSchema,
+};
 
 /// Spatial index usage information
 #[derive(Debug)]
@@ -26,10 +28,10 @@ pub struct SpatialIndexUsage {
 /// Supported spatial predicates for index optimization
 #[derive(Debug, Clone)]
 pub enum SpatialPredicate {
-    Contains,      // ST_Contains(indexed_col, literal_geom)
-    Intersects,    // ST_Intersects(indexed_col, literal_geom)
-    Within,        // ST_Within(indexed_col, literal_geom)
-    DWithin { distance: f64 },  // ST_DWithin(indexed_col, literal_geom, distance)
+    Contains,                  // ST_Contains(indexed_col, literal_geom)
+    Intersects,                // ST_Intersects(indexed_col, literal_geom)
+    Within,                    // ST_Within(indexed_col, literal_geom)
+    DWithin { distance: f64 }, // ST_DWithin(indexed_col, literal_geom, distance)
 }
 
 /// Try to use spatial index for WHERE clause optimization
@@ -142,9 +144,8 @@ fn try_detect_spatial_predicate(
 
     // Check if there's a spatial index on this table and column
     let spatial_indexes = database.get_spatial_indexes_for_table(&table_name);
-    let matching_index = spatial_indexes
-        .iter()
-        .find(|(metadata, _)| metadata.column_name == column_name);
+    let matching_index =
+        spatial_indexes.iter().find(|(metadata, _)| metadata.column_name == column_name);
 
     if matching_index.is_none() {
         return Ok(None); // No spatial index on this column
@@ -190,7 +191,8 @@ fn extract_geometry_from_expr(expr: &Expression) -> Result<Option<Geometry>, Exe
         Expression::Function { name, args, .. }
             if name.eq_ignore_ascii_case("ST_GeomFromText") && !args.is_empty() =>
         {
-            if let Expression::Literal(SqlValue::Varchar(wkt) | SqlValue::Character(wkt)) = &args[0] {
+            if let Expression::Literal(SqlValue::Varchar(wkt) | SqlValue::Character(wkt)) = &args[0]
+            {
                 return Ok(Some(parse_wkt(wkt)?));
             }
         }
@@ -292,21 +294,19 @@ fn apply_two_phase_filtering(
     // Convert row IDs to actual rows
     let candidate_rows: Vec<Row> = candidate_row_ids
         .iter()
-        .filter_map(|&row_id| {
-            if row_id < all_rows.len() {
-                Some(all_rows[row_id].clone())
-            } else {
-                None
-            }
-        })
+        .filter_map(
+            |&row_id| {
+                if row_id < all_rows.len() {
+                    Some(all_rows[row_id].clone())
+                } else {
+                    None
+                }
+            },
+        )
         .collect();
 
     // Phase 2: Full spatial predicate evaluation (exact)
-    let filtered_rows = apply_full_spatial_predicate(
-        candidate_rows,
-        spatial_usage,
-        schema,
-    )?;
+    let filtered_rows = apply_full_spatial_predicate(candidate_rows, spatial_usage, schema)?;
 
     Ok(Some(filtered_rows))
 }
@@ -329,7 +329,7 @@ fn apply_full_spatial_predicate(
 
     // Import spatial predicate functions
     use crate::evaluator::functions::spatial::predicates::{
-        st_contains, st_intersects, st_within, st_dwithin,
+        st_contains, st_dwithin, st_intersects, st_within,
     };
 
     // Filter candidates by applying full predicate
@@ -355,16 +355,12 @@ fn apply_full_spatial_predicate(
             SpatialPredicate::Intersects => {
                 st_intersects(&[row_geometry_value.clone(), query_geom_wkt])?
             }
-            SpatialPredicate::Within => {
-                st_within(&[row_geometry_value.clone(), query_geom_wkt])?
-            }
-            SpatialPredicate::DWithin { distance } => {
-                st_dwithin(&[
-                    row_geometry_value.clone(),
-                    query_geom_wkt,
-                    SqlValue::Float(*distance as f32),
-                ])?
-            }
+            SpatialPredicate::Within => st_within(&[row_geometry_value.clone(), query_geom_wkt])?,
+            SpatialPredicate::DWithin { distance } => st_dwithin(&[
+                row_geometry_value.clone(),
+                query_geom_wkt,
+                SqlValue::Float(*distance as f32),
+            ])?,
         };
 
         // Include row if predicate is true
@@ -404,13 +400,7 @@ mod tests {
     #[test]
     fn test_compute_mbr_polygon() {
         let geom = Geometry::Polygon {
-            rings: vec![vec![
-                (0.0, 0.0),
-                (10.0, 0.0),
-                (10.0, 10.0),
-                (0.0, 10.0),
-                (0.0, 0.0),
-            ]],
+            rings: vec![vec![(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0), (0.0, 0.0)]],
         };
         let mbr = compute_mbr(&geom, &SpatialPredicate::Contains).unwrap();
         assert_eq!(mbr.lower(), [0.0, 0.0]);

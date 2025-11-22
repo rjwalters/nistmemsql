@@ -9,11 +9,14 @@ use std::{
 };
 
 use async_trait::async_trait;
-use vibesql_executor::{cache::{QueryResultCache, QuerySignature}, SelectExecutor};
-use vibesql_parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType};
-use vibesql_storage::Database;
 use tokio::time::timeout;
+use vibesql_executor::{
+    cache::{QueryResultCache, QuerySignature},
+    SelectExecutor,
+};
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
 use vibesql_types::SqlValue;
 
 use super::{execution::TestError, formatting::format_sql_value};
@@ -124,10 +127,8 @@ impl VibeSqlDB {
             .map(|v| v != "0" && v.to_lowercase() != "false")
             .unwrap_or(true); // Enabled by default
 
-        let cache_size = env::var("SQLLOGICTEST_CACHE_SIZE")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(10000); // Default: 10,000 entries
+        let cache_size =
+            env::var("SQLLOGICTEST_CACHE_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(10000); // Default: 10,000 entries
 
         // Statement timing: enabled by default, configurable
         let timing_enabled = env::var("SQLLOGICTEST_TIMING")
@@ -256,15 +257,19 @@ impl VibeSqlDB {
 
                 // Log profiling info if enabled
                 if let (Some(parse_elapsed), Some(exec_elapsed), Some(total_elapsed)) =
-                   (parse_time, exec_time, total_start.map(|s| s.elapsed())) {
-                    if exec_elapsed.as_millis() > 10 {  // Only log queries >10ms
+                    (parse_time, exec_time, total_start.map(|s| s.elapsed()))
+                {
+                    if exec_elapsed.as_millis() > 10 {
+                        // Only log queries >10ms
                         let sql_preview = truncate_sql(sql, 80);
-                        eprintln!("🔍 Query #{}: parse={:.2}ms, exec={:.2}ms, total={:.2}ms | {}",
+                        eprintln!(
+                            "🔍 Query #{}: parse={:.2}ms, exec={:.2}ms, total={:.2}ms | {}",
                             self.query_count,
                             parse_elapsed.as_secs_f64() * 1000.0,
                             exec_elapsed.as_secs_f64() * 1000.0,
                             total_elapsed.as_secs_f64() * 1000.0,
-                            sql_preview);
+                            sql_preview
+                        );
                     }
                 }
 
@@ -277,14 +282,17 @@ impl VibeSqlDB {
 
                     // Create a simple schema from the result rows
                     let schema = if let Some(first_row) = rows.first() {
-                        let columns: Vec<ColumnSchema> = first_row.values.iter().enumerate().map(|(i, val)| {
-                            ColumnSchema {
+                        let columns: Vec<ColumnSchema> = first_row
+                            .values
+                            .iter()
+                            .enumerate()
+                            .map(|(i, val)| ColumnSchema {
                                 name: format!("col{}", i),
                                 data_type: val.get_type(),
                                 nullable: val.is_null(),
                                 default_value: None,
-                            }
-                        }).collect();
+                            })
+                            .collect();
                         let table_schema = TableSchema::new("result".to_string(), columns);
                         CombinedSchema::from_table("result".to_string(), table_schema)
                     } else {
@@ -355,18 +363,27 @@ impl VibeSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateSchema(create_schema_stmt) => {
-                vibesql_executor::SchemaExecutor::execute_create_schema(&create_schema_stmt, &mut self.db)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                vibesql_executor::SchemaExecutor::execute_create_schema(
+                    &create_schema_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropSchema(drop_schema_stmt) => {
-                vibesql_executor::SchemaExecutor::execute_drop_schema(&drop_schema_stmt, &mut self.db)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                vibesql_executor::SchemaExecutor::execute_drop_schema(
+                    &drop_schema_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::SetSchema(set_schema_stmt) => {
-                vibesql_executor::SchemaExecutor::execute_set_schema(&set_schema_stmt, &mut self.db)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                vibesql_executor::SchemaExecutor::execute_set_schema(
+                    &set_schema_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::SetCatalog(set_stmt) => {
@@ -400,8 +417,11 @@ impl VibeSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateRole(create_role_stmt) => {
-                vibesql_executor::RoleExecutor::execute_create_role(&create_role_stmt, &mut self.db)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                vibesql_executor::RoleExecutor::execute_create_role(
+                    &create_role_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropRole(drop_role_stmt) => {
@@ -410,18 +430,27 @@ impl VibeSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateDomain(create_domain_stmt) => {
-                vibesql_executor::DomainExecutor::execute_create_domain(&create_domain_stmt, &mut self.db)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                vibesql_executor::DomainExecutor::execute_create_domain(
+                    &create_domain_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropDomain(drop_domain_stmt) => {
-                vibesql_executor::DomainExecutor::execute_drop_domain(&drop_domain_stmt, &mut self.db)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                vibesql_executor::DomainExecutor::execute_drop_domain(
+                    &drop_domain_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateType(create_type_stmt) => {
-                vibesql_executor::TypeExecutor::execute_create_type(&create_type_stmt, &mut self.db)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                vibesql_executor::TypeExecutor::execute_create_type(
+                    &create_type_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropType(drop_type_stmt) => {
@@ -446,13 +475,19 @@ impl VibeSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateView(create_view_stmt) => {
-                vibesql_executor::advanced_objects::execute_create_view(&create_view_stmt, &mut self.db)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                vibesql_executor::advanced_objects::execute_create_view(
+                    &create_view_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropView(drop_view_stmt) => {
-                vibesql_executor::advanced_objects::execute_drop_view(&drop_view_stmt, &mut self.db)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                vibesql_executor::advanced_objects::execute_drop_view(
+                    &drop_view_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateIndex(create_index_stmt) => {
@@ -476,8 +511,11 @@ impl VibeSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateTrigger(create_trigger_stmt) => {
-                vibesql_executor::TriggerExecutor::create_trigger(&mut self.db, &create_trigger_stmt)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                vibesql_executor::TriggerExecutor::create_trigger(
+                    &mut self.db,
+                    &create_trigger_stmt,
+                )
+                .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropTrigger(drop_trigger_stmt) => {
@@ -561,7 +599,9 @@ impl VibeSqlDB {
         let sql_upper = sql.trim().to_uppercase();
         if sql_upper.starts_with("INSERT") {
             "INSERT"
-        } else if sql_upper.starts_with("CREATE INDEX") || sql_upper.starts_with("CREATE UNIQUE INDEX") {
+        } else if sql_upper.starts_with("CREATE INDEX")
+            || sql_upper.starts_with("CREATE UNIQUE INDEX")
+        {
             "CREATE_INDEX"
         } else if sql_upper.starts_with("SELECT") {
             "SELECT"
@@ -590,11 +630,8 @@ impl VibeSqlDB {
         match from {
             vibesql_ast::FromClause::Table { name, .. } => {
                 // Handle schema.table format
-                let table_name = if let Some(pos) = name.rfind('.') {
-                    &name[pos + 1..]
-                } else {
-                    name
-                };
+                let table_name =
+                    if let Some(pos) = name.rfind('.') { &name[pos + 1..] } else { name };
                 tables.insert(table_name.to_string());
             }
             vibesql_ast::FromClause::Join { left, right, .. } => {
@@ -632,7 +669,11 @@ impl AsyncDB for VibeSqlDB {
 
         // Start timing if enabled
         let stmt_start = if self.timing_enabled { Some(Instant::now()) } else { None };
-        let stmt_type = if self.timing_enabled { Some(self.detect_statement_type(sql).to_string()) } else { None };
+        let stmt_type = if self.timing_enabled {
+            Some(self.detect_statement_type(sql).to_string())
+        } else {
+            None
+        };
 
         // Execute query with per-query timeout
         let timeout_duration = Duration::from_millis(self.query_timeout_ms);
@@ -642,7 +683,9 @@ impl AsyncDB for VibeSqlDB {
                 self.timed_out_queries += 1;
                 eprintln!(
                     "⏱️  Query timeout ({}ms): Query {}: {}",
-                    self.query_timeout_ms, self.query_count, truncate_sql(sql, 80)
+                    self.query_timeout_ms,
+                    self.query_count,
+                    truncate_sql(sql, 80)
                 );
 
                 // Log timeout stats if verbose
@@ -705,9 +748,15 @@ impl AsyncDB for VibeSqlDB {
                     let avg_ms = self.insert_timings.total_duration.as_millis() as f64
                         / self.insert_timings.count as f64;
                     eprintln!("\n  INSERT statements: {}", self.insert_timings.count);
-                    eprintln!("    Total time: {:.2}s", self.insert_timings.total_duration.as_secs_f64());
+                    eprintln!(
+                        "    Total time: {:.2}s",
+                        self.insert_timings.total_duration.as_secs_f64()
+                    );
                     eprintln!("    Average: {:.2}ms", avg_ms);
-                    eprintln!("    Slowest: {:.2}s", self.insert_timings.max_duration.as_secs_f64());
+                    eprintln!(
+                        "    Slowest: {:.2}s",
+                        self.insert_timings.max_duration.as_secs_f64()
+                    );
                     if let Some(ref sql) = self.insert_timings.max_sql {
                         eprintln!("      SQL: {}", sql);
                     }
@@ -718,9 +767,15 @@ impl AsyncDB for VibeSqlDB {
                     let avg_ms = self.create_index_timings.total_duration.as_millis() as f64
                         / self.create_index_timings.count as f64;
                     eprintln!("\n  CREATE INDEX statements: {}", self.create_index_timings.count);
-                    eprintln!("    Total time: {:.2}s", self.create_index_timings.total_duration.as_secs_f64());
+                    eprintln!(
+                        "    Total time: {:.2}s",
+                        self.create_index_timings.total_duration.as_secs_f64()
+                    );
                     eprintln!("    Average: {:.2}ms", avg_ms);
-                    eprintln!("    Slowest: {:.2}s", self.create_index_timings.max_duration.as_secs_f64());
+                    eprintln!(
+                        "    Slowest: {:.2}s",
+                        self.create_index_timings.max_duration.as_secs_f64()
+                    );
                     if let Some(ref sql) = self.create_index_timings.max_sql {
                         eprintln!("      SQL: {}", sql);
                     }
@@ -731,9 +786,15 @@ impl AsyncDB for VibeSqlDB {
                     let avg_ms = self.select_timings.total_duration.as_millis() as f64
                         / self.select_timings.count as f64;
                     eprintln!("\n  SELECT queries: {}", self.select_timings.count);
-                    eprintln!("    Total time: {:.2}s", self.select_timings.total_duration.as_secs_f64());
+                    eprintln!(
+                        "    Total time: {:.2}s",
+                        self.select_timings.total_duration.as_secs_f64()
+                    );
                     eprintln!("    Average: {:.2}ms", avg_ms);
-                    eprintln!("    Slowest: {:.2}s", self.select_timings.max_duration.as_secs_f64());
+                    eprintln!(
+                        "    Slowest: {:.2}s",
+                        self.select_timings.max_duration.as_secs_f64()
+                    );
                     if let Some(ref sql) = self.select_timings.max_sql {
                         eprintln!("      SQL: {}", sql);
                     }
@@ -744,7 +805,10 @@ impl AsyncDB for VibeSqlDB {
                     let avg_ms = self.other_timings.total_duration.as_millis() as f64
                         / self.other_timings.count as f64;
                     eprintln!("\n  Other statements: {}", self.other_timings.count);
-                    eprintln!("    Total time: {:.2}s", self.other_timings.total_duration.as_secs_f64());
+                    eprintln!(
+                        "    Total time: {:.2}s",
+                        self.other_timings.total_duration.as_secs_f64()
+                    );
                     eprintln!("    Average: {:.2}ms", avg_ms);
                     eprintln!("    Slowest: {:.2}s", self.other_timings.max_duration.as_secs_f64());
                     if let Some(ref sql) = self.other_timings.max_sql {
@@ -773,9 +837,11 @@ impl AsyncDB for VibeSqlDB {
                 eprintln!("  Cache hits: {}", self.cache_hits);
                 eprintln!("  Cache misses: {}", self.cache_misses);
                 eprintln!("  Hit rate: {:.2}%", hit_rate);
-                eprintln!("  Cache size: {} / {} entries",
+                eprintln!(
+                    "  Cache size: {} / {} entries",
                     self.result_cache.stats().size,
-                    self.result_cache.max_size());
+                    self.result_cache.max_size()
+                );
             }
         }
     }

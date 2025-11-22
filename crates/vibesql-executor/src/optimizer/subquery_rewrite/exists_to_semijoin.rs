@@ -64,7 +64,8 @@ pub fn try_convert_exists_to_semijoin(stmt: &SelectStmt) -> (SelectStmt, bool) {
     }
 
     // Try to convert the EXISTS subquery to a semi-join
-    let Some((semi_join_table, semi_join_condition)) = try_convert_subquery_to_join(&exists_subquery)
+    let Some((semi_join_table, semi_join_condition)) =
+        try_convert_subquery_to_join(&exists_subquery)
     else {
         return (stmt.clone(), false);
     };
@@ -94,16 +95,10 @@ fn extract_exists_from_where(
 ) -> Option<(SelectStmt, bool, Option<Expression>)> {
     match where_expr {
         // Direct EXISTS at top level
-        Expression::Exists { subquery, negated } => {
-            Some((*subquery.clone(), *negated, None))
-        }
+        Expression::Exists { subquery, negated } => Some((*subquery.clone(), *negated, None)),
 
         // EXISTS combined with AND
-        Expression::BinaryOp {
-            op: vibesql_ast::BinaryOperator::And,
-            left,
-            right,
-        } => {
+        Expression::BinaryOp { op: vibesql_ast::BinaryOperator::And, left, right } => {
             // Try left side
             if let Expression::Exists { subquery, negated } = left.as_ref() {
                 return Some((*subquery.clone(), *negated, Some(right.as_ref().clone())));
@@ -169,10 +164,7 @@ fn try_convert_subquery_to_join(subquery: &SelectStmt) -> Option<(FromClause, Ex
     let join_condition = subquery.where_clause.as_ref()?;
 
     // Create the table FromClause for the right side of the join
-    let semi_join_table = FromClause::Table {
-        name: table_name,
-        alias: table_alias,
-    };
+    let semi_join_table = FromClause::Table { name: table_name, alias: table_alias };
 
     Some((semi_join_table, join_condition.clone()))
 }

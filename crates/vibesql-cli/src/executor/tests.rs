@@ -66,7 +66,11 @@ fn test_describe_table_with_indexes() {
 #[test]
 fn test_describe_table_with_multiple_columns() {
     let mut executor = SqlExecutor::new(None).unwrap();
-    executor.execute("CREATE TABLE products (id INT PRIMARY KEY, name VARCHAR(100), price DECIMAL(10, 2))").unwrap();
+    executor
+        .execute(
+            "CREATE TABLE products (id INT PRIMARY KEY, name VARCHAR(100), price DECIMAL(10, 2))",
+        )
+        .unwrap();
     // Should print table with multiple columns of different types
     assert!(executor.describe_table("products").is_ok());
 }
@@ -85,9 +89,9 @@ fn test_insert_row_count_multiple() {
     let mut executor = SqlExecutor::new(None).unwrap();
     executor.execute("CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50))").unwrap();
 
-    let result = executor.execute(
-        "INSERT INTO users (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')"
-    ).unwrap();
+    let result = executor
+        .execute("INSERT INTO users (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')")
+        .unwrap();
     assert_eq!(result.row_count, 3, "Multiple value INSERT should return row count of 3");
 }
 
@@ -95,7 +99,9 @@ fn test_insert_row_count_multiple() {
 fn test_update_row_count() {
     let mut executor = SqlExecutor::new(None).unwrap();
     executor.execute("CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50))").unwrap();
-    executor.execute("INSERT INTO users (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')").unwrap();
+    executor
+        .execute("INSERT INTO users (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')")
+        .unwrap();
 
     let result = executor.execute("UPDATE users SET name = 'Updated' WHERE id > 1").unwrap();
     assert_eq!(result.row_count, 2, "UPDATE should return row count of 2");
@@ -105,7 +111,9 @@ fn test_update_row_count() {
 fn test_delete_row_count() {
     let mut executor = SqlExecutor::new(None).unwrap();
     executor.execute("CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50))").unwrap();
-    executor.execute("INSERT INTO users (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')").unwrap();
+    executor
+        .execute("INSERT INTO users (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')")
+        .unwrap();
 
     let result = executor.execute("DELETE FROM users WHERE id IN (1, 3)").unwrap();
     assert_eq!(result.row_count, 2, "DELETE should return row count of 2");

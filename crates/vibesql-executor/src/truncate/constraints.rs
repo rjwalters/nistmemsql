@@ -2,8 +2,7 @@
 
 use vibesql_storage::Database;
 
-use crate::errors::ExecutorError;
-use crate::truncate_validation::can_use_truncate;
+use crate::{errors::ExecutorError, truncate_validation::can_use_truncate};
 
 /// Get all tables that have foreign keys referencing the given table
 ///
@@ -17,7 +16,10 @@ use crate::truncate_validation::can_use_truncate;
 /// # Returns
 ///
 /// Vector of table names that reference the parent table
-pub fn get_fk_children(database: &Database, parent_table: &str) -> Result<Vec<String>, ExecutorError> {
+pub fn get_fk_children(
+    database: &Database,
+    parent_table: &str,
+) -> Result<Vec<String>, ExecutorError> {
     let mut children = Vec::new();
 
     // Scan all tables to find foreign keys that reference this table
@@ -51,7 +53,10 @@ pub fn get_fk_children(database: &Database, parent_table: &str) -> Result<Vec<St
 /// # Errors
 ///
 /// Returns error if table has DELETE triggers or is referenced by foreign keys
-pub fn validate_truncate_allowed(database: &Database, table_name: &str) -> Result<(), ExecutorError> {
+pub fn validate_truncate_allowed(
+    database: &Database,
+    table_name: &str,
+) -> Result<(), ExecutorError> {
     if !can_use_truncate(database, table_name)? {
         return Err(ExecutorError::Other(format!(
             "Cannot TRUNCATE table '{}': table has DELETE triggers or is referenced by foreign keys",

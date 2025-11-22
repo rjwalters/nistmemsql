@@ -114,7 +114,10 @@ impl SqlExecutor {
                 }
             }
             vibesql_ast::Statement::CreateView(view_stmt) => {
-                match vibesql_executor::advanced_objects::execute_create_view(&view_stmt, &mut self.db) {
+                match vibesql_executor::advanced_objects::execute_create_view(
+                    &view_stmt,
+                    &mut self.db,
+                ) {
                     Ok(_) => {
                         result.row_count = 0; // DDL doesn't return rows
                     }
@@ -122,7 +125,10 @@ impl SqlExecutor {
                 }
             }
             vibesql_ast::Statement::DropView(drop_stmt) => {
-                match vibesql_executor::advanced_objects::execute_drop_view(&drop_stmt, &mut self.db) {
+                match vibesql_executor::advanced_objects::execute_drop_view(
+                    &drop_stmt,
+                    &mut self.db,
+                ) {
                     Ok(_) => {
                         result.row_count = 0; // DDL doesn't return rows
                     }
@@ -172,7 +178,10 @@ impl SqlExecutor {
                 }
             }
             vibesql_ast::Statement::SetVariable(set_var_stmt) => {
-                match vibesql_executor::SchemaExecutor::execute_set_variable(&set_var_stmt, &mut self.db) {
+                match vibesql_executor::SchemaExecutor::execute_set_variable(
+                    &set_var_stmt,
+                    &mut self.db,
+                ) {
                     Ok(_) => {
                         result.row_count = 0;
                     }

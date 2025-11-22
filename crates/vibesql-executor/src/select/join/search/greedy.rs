@@ -14,9 +14,8 @@ impl JoinOrderContext {
     /// exhaustive search is impractical. It uses a greedy strategy:
     ///
     /// 1. Start with the smallest table (by row count)
-    /// 2. At each step, choose the next table that:
-    ///    a) Has a join condition with already-joined tables (if possible)
-    ///    b) Produces the smallest intermediate result
+    /// 2. At each step, choose the next table that: a) Has a join condition with already-joined
+    ///    tables (if possible) b) Produces the smallest intermediate result
     /// 3. If no joinable tables remain, pick the smallest unjoined table (Cartesian product)
     ///
     /// Time complexity: O(n²) where n = number of tables
@@ -60,7 +59,7 @@ impl JoinOrderContext {
                 // Prefer tables with join conditions (has_edge = true)
                 // Among those, pick the one with lowest cost
                 let is_better = match (has_edge, best_has_edge) {
-                    (true, false) => true, // Join condition is better than Cartesian product
+                    (true, false) => true,  // Join condition is better than Cartesian product
                     (false, true) => false, // Cartesian product is worse than join condition
                     _ => cost.total() < best_cost.total(), // Same join type, compare costs
                 };

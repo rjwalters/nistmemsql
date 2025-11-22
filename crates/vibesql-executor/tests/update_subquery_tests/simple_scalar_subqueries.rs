@@ -22,7 +22,11 @@ fn create_employees_table_numeric_salary(db: &mut Database) {
         "employees".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("salary".to_string(), DataType::Numeric { precision: 15, scale: 2 }, true),
+            ColumnSchema::new(
+                "salary".to_string(),
+                DataType::Numeric { precision: 15, scale: 2 },
+                true,
+            ),
         ],
     );
     db.create_table(schema).unwrap();

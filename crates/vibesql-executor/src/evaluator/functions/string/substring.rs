@@ -109,7 +109,9 @@ pub(in crate::evaluator::functions) fn left(
     }
 
     match (&args[0], &args[1]) {
-        (vibesql_types::SqlValue::Null, _) | (_, vibesql_types::SqlValue::Null) => Ok(vibesql_types::SqlValue::Null),
+        (vibesql_types::SqlValue::Null, _) | (_, vibesql_types::SqlValue::Null) => {
+            Ok(vibesql_types::SqlValue::Null)
+        }
         (
             vibesql_types::SqlValue::Varchar(s) | vibesql_types::SqlValue::Character(s),
             vibesql_types::SqlValue::Integer(n),
@@ -141,7 +143,9 @@ pub(in crate::evaluator::functions) fn right(
     }
 
     match (&args[0], &args[1]) {
-        (vibesql_types::SqlValue::Null, _) | (_, vibesql_types::SqlValue::Null) => Ok(vibesql_types::SqlValue::Null),
+        (vibesql_types::SqlValue::Null, _) | (_, vibesql_types::SqlValue::Null) => {
+            Ok(vibesql_types::SqlValue::Null)
+        }
         (
             vibesql_types::SqlValue::Varchar(s) | vibesql_types::SqlValue::Character(s),
             vibesql_types::SqlValue::Integer(n),

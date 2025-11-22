@@ -1,8 +1,9 @@
 //! Foreign key integrity checking and enforcement for DELETE operations
 
-use crate::errors::ExecutorError;
 use vibesql_catalog::ReferentialAction;
 use vibesql_types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// Handle referential integrity for a row being deleted.
 ///
@@ -52,8 +53,11 @@ pub fn check_no_child_references(
 
     // Collect all child tables that reference this parent row
     // We need to collect first to avoid borrowing issues when we mutate
-    let mut actions_to_perform: Vec<(String, vibesql_catalog::ForeignKeyConstraint, ReferentialAction)> =
-        Vec::new();
+    let mut actions_to_perform: Vec<(
+        String,
+        vibesql_catalog::ForeignKeyConstraint,
+        ReferentialAction,
+    )> = Vec::new();
 
     for table_name in db.catalog.list_tables() {
         let child_schema = db.catalog.get_table(&table_name).unwrap();

@@ -7,9 +7,11 @@
 //!
 //! The execution path includes optimizations like SIMD filtering and spatial indexes.
 
-use super::{builder::SelectExecutor, simd::try_simd_filter};
+use std::collections::HashMap;
+
 #[cfg(feature = "spatial")]
 use super::super::index_optimization::try_spatial_index_optimization;
+use super::{builder::SelectExecutor, simd::try_simd_filter};
 use crate::{
     errors::ExecutorError,
     evaluator::CombinedExpressionEvaluator,
@@ -27,7 +29,6 @@ use crate::{
         },
     },
 };
-use std::collections::HashMap;
 
 impl SelectExecutor<'_> {
     /// Execute SELECT without aggregation
@@ -114,17 +115,13 @@ impl SelectExecutor<'_> {
         };
 
         // Evaluate window functions if present
-        let mut window_mapping = self.evaluate_select_windows(
-            stmt,
-            &mut filtered_rows,
-            &evaluator,
-        )?;
+        let mut window_mapping =
+            self.evaluate_select_windows(stmt, &mut filtered_rows, &evaluator)?;
 
         // Evaluate ORDER BY window functions
         if let Some(order_by) = &stmt.order_by {
-            let has_order_by_windows = order_by
-                .iter()
-                .any(|item| expression_has_window_function(&item.expr));
+            let has_order_by_windows =
+                order_by.iter().any(|item| expression_has_window_function(&item.expr));
 
             if has_order_by_windows {
                 let order_by_window_functions = collect_order_by_window_functions(order_by);
@@ -156,13 +153,8 @@ impl SelectExecutor<'_> {
         self.apply_sorting(stmt, &mut result_rows, &sorted_by, &schema, &window_mapping)?;
 
         // Apply projection strategy
-        let final_rows = self.apply_projection(
-            stmt,
-            result_rows,
-            &schema,
-            &evaluator,
-            &window_mapping,
-        )?;
+        let final_rows =
+            self.apply_projection(stmt, result_rows, &schema, &evaluator, &window_mapping)?;
 
         Ok(final_rows)
     }
@@ -246,8 +238,11 @@ impl SelectExecutor<'_> {
         let has_select_windows = has_window_functions(&stmt.select_list);
 
         if has_select_windows {
-            let (rows_with_windows, mapping) =
-                evaluate_window_functions(std::mem::take(filtered_rows), &stmt.select_list, evaluator)?;
+            let (rows_with_windows, mapping) = evaluate_window_functions(
+                std::mem::take(filtered_rows),
+                &stmt.select_list,
+                evaluator,
+            )?;
             *filtered_rows = rows_with_windows;
             Ok(Some(mapping))
         } else {
@@ -270,14 +265,17 @@ impl SelectExecutor<'_> {
 
             if !already_sorted {
                 // Create evaluator for ORDER BY with procedural context support
-                // Priority: 1) window mapping 2) outer context 3) procedural context 4) database only
+                // Priority: 1) window mapping 2) outer context 3) procedural context 4) database
+                // only
                 let order_by_evaluator = if let Some(ref mapping) = window_mapping {
                     CombinedExpressionEvaluator::with_database_and_windows(
                         schema,
                         self.database,
                         mapping,
                     )
-                } else if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+                } else if let (Some(outer_row), Some(outer_schema)) =
+                    (self._outer_row, self._outer_schema)
+                {
                     CombinedExpressionEvaluator::with_database_and_outer_context(
                         schema,
                         self.database,
@@ -341,8 +339,9 @@ impl SelectExecutor<'_> {
 
         #[cfg(feature = "parallel")]
         {
-            use crate::select::parallel::ParallelConfig;
             use rayon::prelude::*;
+
+            use crate::select::parallel::ParallelConfig;
 
             // Use parallel sorting for larger datasets
             let should_parallel =
@@ -417,10 +416,8 @@ impl SelectExecutor<'_> {
         window_mapping: &Option<HashMap<WindowFunctionKey, usize>>,
     ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
         // Use pooled buffer to reduce allocation overhead
-        let mut projected_rows = self
-            .database
-            .query_buffer_pool()
-            .get_row_buffer(result_rows.len());
+        let mut projected_rows =
+            self.database.query_buffer_pool().get_row_buffer(result_rows.len());
 
         for (row, _) in result_rows {
             // Check timeout during projection
@@ -448,11 +445,8 @@ impl SelectExecutor<'_> {
         }
 
         // Apply DISTINCT if specified
-        let projected_rows = if stmt.distinct {
-            apply_distinct(projected_rows)
-        } else {
-            projected_rows
-        };
+        let projected_rows =
+            if stmt.distinct { apply_distinct(projected_rows) } else { projected_rows };
 
         // Don't apply LIMIT/OFFSET if we have a set operation - it will be applied later
         if stmt.set_operation.is_some() {
@@ -506,9 +500,7 @@ impl SelectExecutor<'_> {
 
         // Return buffer to pool and move data to result
         let result = std::mem::take(&mut final_rows);
-        self.database
-            .query_buffer_pool()
-            .return_row_buffer(final_rows);
+        self.database.query_buffer_pool().return_row_buffer(final_rows);
         Ok(result)
     }
 }

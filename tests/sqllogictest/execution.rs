@@ -6,8 +6,7 @@ use sqllogictest::Runner;
 use tokio::time::timeout;
 
 use super::{
-    db_adapter::VibeSqlDB, preprocessing::preprocess_for_mysql,
-    scheduler, stats::TestFailure,
+    db_adapter::VibeSqlDB, preprocessing::preprocess_for_mysql, scheduler, stats::TestFailure,
 };
 
 #[derive(Debug)]
@@ -123,9 +122,10 @@ pub fn run_test_file_with_details(
 #[cfg(test)]
 mod tests {
     #[allow(unused_imports)]
-    use super::*;
-    #[allow(unused_imports)]
     use std::env;
+
+    #[allow(unused_imports)]
+    use super::*;
     #[allow(unused_imports)]
     use crate::sqllogictest::scheduler::get_test_file_timeout;
 

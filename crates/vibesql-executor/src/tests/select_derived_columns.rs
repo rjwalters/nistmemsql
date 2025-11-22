@@ -16,21 +16,33 @@ fn test_select_star_with_derived_columns() {
     let schema = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("A".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("B".to_string(), vibesql_types::DataType::Integer, true),
+            vibesql_catalog::ColumnSchema::new(
+                "A".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "B".to_string(),
+                vibesql_types::DataType::Integer,
+                true,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
     db.insert_row(
         "t1",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(2)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(2),
+        ]),
     )
     .unwrap();
 
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard {
@@ -63,21 +75,33 @@ fn test_select_qualified_star_with_derived_columns() {
     let schema = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("A".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("B".to_string(), vibesql_types::DataType::Integer, true),
+            vibesql_catalog::ColumnSchema::new(
+                "A".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "B".to_string(),
+                vibesql_types::DataType::Integer,
+                true,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
     db.insert_row(
         "t1",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(2)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(2),
+        ]),
     )
     .unwrap();
 
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::QualifiedWildcard {
@@ -111,14 +135,25 @@ fn test_derived_columns_count_mismatch() {
     let schema = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("A".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("B".to_string(), vibesql_types::DataType::Integer, true),
+            vibesql_catalog::ColumnSchema::new(
+                "A".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "B".to_string(),
+                vibesql_types::DataType::Integer,
+                true,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
     db.insert_row(
         "t1",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(2)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(2),
+        ]),
     )
     .unwrap();
 
@@ -127,7 +162,8 @@ fn test_derived_columns_count_mismatch() {
     // 2 columns but 3 aliases - should error
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard {
@@ -159,26 +195,41 @@ fn test_select_distinct_star_with_derived_columns() {
     let schema = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("A".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("B".to_string(), vibesql_types::DataType::Integer, true),
+            vibesql_catalog::ColumnSchema::new(
+                "A".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "B".to_string(),
+                vibesql_types::DataType::Integer,
+                true,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
     db.insert_row(
         "t1",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(2)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(2),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "t1",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(2)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Integer(2),
+        ]),
     )
     .unwrap();
 
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: true, // DISTINCT
         select_list: vec![vibesql_ast::SelectItem::Wildcard {
@@ -211,21 +262,33 @@ fn test_select_star_alias_with_table_alias() {
     let schema = vibesql_catalog::TableSchema::new(
         "t1".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("A".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("B".to_string(), vibesql_types::DataType::Integer, true),
+            vibesql_catalog::ColumnSchema::new(
+                "A".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "B".to_string(),
+                vibesql_types::DataType::Integer,
+                true,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
     db.insert_row(
         "t1",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(10), vibesql_types::SqlValue::Integer(20)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(10),
+            vibesql_types::SqlValue::Integer(20),
+        ]),
     )
     .unwrap();
 
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::QualifiedWildcard {
@@ -266,14 +329,25 @@ fn test_select_wildcard_with_derived_column_list() {
     let schema = vibesql_catalog::TableSchema::new(
         "T".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("a".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("b".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "a".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "b".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
     db.insert_row(
         "T",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(10), vibesql_types::SqlValue::Integer(20)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(10),
+            vibesql_types::SqlValue::Integer(20),
+        ]),
     )
     .unwrap();
 
@@ -302,14 +376,25 @@ fn test_select_all_wildcard_with_derived_column_list() {
     let schema = vibesql_catalog::TableSchema::new(
         "T".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("a".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("b".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "a".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "b".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
     db.insert_row(
         "T",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(10), vibesql_types::SqlValue::Integer(20)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(10),
+            vibesql_types::SqlValue::Integer(20),
+        ]),
     )
     .unwrap();
 
@@ -338,19 +423,33 @@ fn test_select_distinct_wildcard_with_derived_column_list() {
     let schema = vibesql_catalog::TableSchema::new(
         "T".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("a".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("b".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "a".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "b".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
     db.insert_row(
         "T",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(10), vibesql_types::SqlValue::Integer(20)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(10),
+            vibesql_types::SqlValue::Integer(20),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "T",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(10), vibesql_types::SqlValue::Integer(20)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(10),
+            vibesql_types::SqlValue::Integer(20),
+        ]),
     )
     .unwrap();
 
@@ -379,14 +478,25 @@ fn test_select_qualified_wildcard_with_derived_column_list() {
     let schema = vibesql_catalog::TableSchema::new(
         "T".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("a".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("b".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "a".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "b".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
     db.insert_row(
         "T",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(10), vibesql_types::SqlValue::Integer(20)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(10),
+            vibesql_types::SqlValue::Integer(20),
+        ]),
     )
     .unwrap();
 
@@ -415,19 +525,31 @@ fn test_select_alias_wildcard_with_derived_column_list() {
     let schema = vibesql_catalog::TableSchema::new(
         "MYTABLE".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("a".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("b".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "a".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "b".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
     db.insert_row(
         "MYTABLE",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(10), vibesql_types::SqlValue::Integer(20)]),
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(10),
+            vibesql_types::SqlValue::Integer(20),
+        ]),
     )
     .unwrap();
 
     let stmt =
-        vibesql_parser::Parser::parse_sql("SELECT myalias.* AS (c, d) FROM mytable AS myalias;").unwrap();
+        vibesql_parser::Parser::parse_sql("SELECT myalias.* AS (c, d) FROM mytable AS myalias;")
+            .unwrap();
     let select_stmt = match stmt {
         vibesql_ast::Statement::Select(s) => s,
         _ => panic!("Expected SELECT statement"),
@@ -452,8 +574,16 @@ fn test_select_derived_column_list_count_mismatch_error() {
     let schema = vibesql_catalog::TableSchema::new(
         "T".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("a".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("b".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "a".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "b".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -486,7 +616,8 @@ fn test_select_without_from() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -516,14 +647,19 @@ fn test_select_expression_without_from() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
             expr: vibesql_ast::Expression::BinaryOp {
-                left: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1))),
+                left: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(
+                    1,
+                ))),
                 op: vibesql_ast::BinaryOperator::Plus,
-                right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1))),
+                right: Box::new(vibesql_ast::Expression::Literal(
+                    vibesql_types::SqlValue::Integer(1),
+                )),
             },
             alias: None,
         }],

@@ -80,7 +80,12 @@ pub fn optimize_expression(
             if let (Expression::Literal(left_val), Expression::Literal(right_val)) =
                 (&left_opt, &right_opt)
             {
-                match ExpressionEvaluator::eval_binary_op_static(left_val, op, right_val, vibesql_types::SqlMode::default()) {
+                match ExpressionEvaluator::eval_binary_op_static(
+                    left_val,
+                    op,
+                    right_val,
+                    vibesql_types::SqlMode::default(),
+                ) {
                     Ok(result) => Ok(Expression::Literal(result)),
                     Err(_) => Ok(Expression::BinaryOp {
                         left: Box::new(left_opt),
@@ -179,8 +184,11 @@ pub fn optimize_expression(
             let high_opt = optimize_expression(high, evaluator)?;
 
             // If all operands are literals, evaluate at compile time
-            if let (Expression::Literal(expr_val), Expression::Literal(low_val), Expression::Literal(high_val)) =
-                (&expr_opt, &low_opt, &high_opt)
+            if let (
+                Expression::Literal(expr_val),
+                Expression::Literal(low_val),
+                Expression::Literal(high_val),
+            ) = (&expr_opt, &low_opt, &high_opt)
             {
                 match ExpressionEvaluator::eval_between_static(
                     expr_val,
@@ -192,7 +200,8 @@ pub fn optimize_expression(
                 ) {
                     Ok(result) => return Ok(Expression::Literal(result)),
                     Err(_) => {
-                        // If evaluation fails, keep the BETWEEN expression to fail at runtime with proper error
+                        // If evaluation fails, keep the BETWEEN expression to fail at runtime with
+                        // proper error
                     }
                 }
             }
@@ -215,8 +224,12 @@ pub fn optimize_expression(
                 match cast_value(val, data_type) {
                     Ok(result) => Ok(Expression::Literal(result)),
                     Err(_) => {
-                        // If cast fails, keep the CAST expression to fail at runtime with proper error
-                        Ok(Expression::Cast { expr: Box::new(expr_opt), data_type: data_type.clone() })
+                        // If cast fails, keep the CAST expression to fail at runtime with proper
+                        // error
+                        Ok(Expression::Cast {
+                            expr: Box::new(expr_opt),
+                            data_type: data_type.clone(),
+                        })
                     }
                 }
             } else {
@@ -242,12 +255,7 @@ pub fn optimize_expression(
         | Expression::CurrentTimestamp { .. } => Ok(expr.clone()),
 
         // INTERVAL - optimize the value expression
-        Expression::Interval {
-            value,
-            unit,
-            leading_precision,
-            fractional_precision,
-        } => {
+        Expression::Interval { value, unit, leading_precision, fractional_precision } => {
             let optimized_value = optimize_expression(value, evaluator)?;
             Ok(Expression::Interval {
                 value: Box::new(optimized_value),
@@ -279,10 +287,11 @@ pub fn optimize_expression(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_ast::Expression;
     use vibesql_catalog::TableSchema;
     use vibesql_types::{DataType, SqlValue};
+
+    use super::*;
 
     #[test]
     fn test_cast_folding_integer_to_varchar() {

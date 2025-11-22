@@ -58,8 +58,12 @@ pub fn execute_query(db: &Database, sql: &str) -> Result<JsValue, JsValue> {
                         .unwrap_or(serde_json::Value::Null),
                     vibesql_types::SqlValue::Date(d) => serde_json::Value::String(d.to_string()),
                     vibesql_types::SqlValue::Time(t) => serde_json::Value::String(t.to_string()),
-                    vibesql_types::SqlValue::Timestamp(ts) => serde_json::Value::String(ts.to_string()),
-                    vibesql_types::SqlValue::Interval(i) => serde_json::Value::String(i.to_string()),
+                    vibesql_types::SqlValue::Timestamp(ts) => {
+                        serde_json::Value::String(ts.to_string())
+                    }
+                    vibesql_types::SqlValue::Interval(i) => {
+                        serde_json::Value::String(i.to_string())
+                    }
                     vibesql_types::SqlValue::Null => serde_json::Value::Null,
                 })
                 .collect();

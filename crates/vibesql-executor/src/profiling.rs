@@ -1,7 +1,8 @@
 //! Performance profiling utilities for understanding bottlenecks
 
-use instant::Instant;
 use std::sync::atomic::{AtomicBool, Ordering};
+
+use instant::Instant;
 
 /// Global flag to enable/disable profiling (disabled by default)
 /// Set VIBESQL_PROFILE=1 environment variable to enable

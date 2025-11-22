@@ -150,8 +150,9 @@ pub fn decompose_where_clause(
 
     // Extract implied single-table filters from OR predicates
     // This is critical for queries like TPC-H Q7 where:
-    //   (n1.n_name = 'FRANCE' AND n2.n_name = 'GERMANY') OR (n1.n_name = 'GERMANY' AND n2.n_name = 'FRANCE')
-    // implies: n1.n_name IN ('FRANCE', 'GERMANY') AND n2.n_name IN ('FRANCE', 'GERMANY')
+    //   (n1.n_name = 'FRANCE' AND n2.n_name = 'GERMANY') OR (n1.n_name = 'GERMANY' AND n2.n_name =
+    // 'FRANCE') implies: n1.n_name IN ('FRANCE', 'GERMANY') AND n2.n_name IN ('FRANCE',
+    // 'GERMANY')
     extract_implied_filters_from_or_predicates(&mut decomposition, from_schema);
 
     Ok(decomposition)
@@ -233,7 +234,8 @@ fn flatten_conjuncts(expr: &vibesql_ast::Expression) -> Vec<vibesql_ast::Express
 }
 
 /// Extract all table names referenced in a predicate (branch version with schema)
-/// Returns None if the expression references tables not in the schema (should be treated as complex)
+/// Returns None if the expression references tables not in the schema (should be treated as
+/// complex)
 fn extract_referenced_tables_branch(
     expr: &vibesql_ast::Expression,
     schema: &CombinedSchema,
@@ -279,7 +281,7 @@ fn extract_tables_recursive_branch(
                     found = true;
                 }
             }
-            found  // Return true if column found in at least one table
+            found // Return true if column found in at least one table
         }
         vibesql_ast::Expression::BinaryOp { left, op: _, right } => {
             extract_tables_recursive_branch(left, schema, tables)
@@ -301,12 +303,19 @@ fn extract_tables_recursive_branch(
                 && values.iter().all(|val| extract_tables_recursive_branch(val, schema, tables))
         }
         vibesql_ast::Expression::Case { operand, when_clauses, else_result } => {
-            let op_ok = operand.as_ref().is_none_or(|op| extract_tables_recursive_branch(op, schema, tables));
+            let op_ok = operand
+                .as_ref()
+                .is_none_or(|op| extract_tables_recursive_branch(op, schema, tables));
             let when_ok = when_clauses.iter().all(|when_clause| {
-                when_clause.conditions.iter().all(|condition| extract_tables_recursive_branch(condition, schema, tables))
+                when_clause
+                    .conditions
+                    .iter()
+                    .all(|condition| extract_tables_recursive_branch(condition, schema, tables))
                     && extract_tables_recursive_branch(&when_clause.result, schema, tables)
             });
-            let else_ok = else_result.as_ref().is_none_or(|else_res| extract_tables_recursive_branch(else_res, schema, tables));
+            let else_ok = else_result
+                .as_ref()
+                .is_none_or(|else_res| extract_tables_recursive_branch(else_res, schema, tables));
             op_ok && when_ok && else_ok
         }
         vibesql_ast::Expression::In { expr, .. } => {
@@ -329,7 +338,12 @@ fn try_extract_equijoin_branch(
     expr: &vibesql_ast::Expression,
     schema: &CombinedSchema,
 ) -> Option<(String, String, String, String)> {
-    if let vibesql_ast::Expression::BinaryOp { left, op: vibesql_ast::BinaryOperator::Equal, right } = expr {
+    if let vibesql_ast::Expression::BinaryOp {
+        left,
+        op: vibesql_ast::BinaryOperator::Equal,
+        right,
+    } = expr
+    {
         // Try to extract column references from both sides
         let (left_table, left_col) = extract_column_reference_branch(left, schema)?;
         let (right_table, right_col) = extract_column_reference_branch(right, schema)?;
@@ -362,7 +376,9 @@ fn extract_column_reference_branch(
 }
 
 /// Combine a list of predicates into a single expression using AND
-fn combine_predicates_with_and(mut predicates: Vec<vibesql_ast::Expression>) -> vibesql_ast::Expression {
+fn combine_predicates_with_and(
+    mut predicates: Vec<vibesql_ast::Expression>,
+) -> vibesql_ast::Expression {
     if predicates.is_empty() {
         // This shouldn't happen, but default to TRUE
         vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Boolean(true))
@@ -402,7 +418,8 @@ pub fn combine_with_and(expressions: Vec<Expression>) -> Option<Expression> {
 /// Extract implied single-table filters from complex OR predicates
 ///
 /// For predicates like:
-///   (n1.n_name = 'FRANCE' AND n2.n_name = 'GERMANY') OR (n1.n_name = 'GERMANY' AND n2.n_name = 'FRANCE')
+///   (n1.n_name = 'FRANCE' AND n2.n_name = 'GERMANY') OR (n1.n_name = 'GERMANY' AND n2.n_name =
+/// 'FRANCE')
 ///
 /// We can extract implied filters:
 ///   n1.n_name IN ('FRANCE', 'GERMANY')
@@ -441,11 +458,9 @@ fn extract_table_filters_from_or(
 ) -> Option<Vec<(String, Expression)>> {
     // Check if this is an OR expression
     let (left_branch, right_branch) = match expr {
-        Expression::BinaryOp {
-            op: vibesql_ast::BinaryOperator::Or,
-            left,
-            right,
-        } => (left.as_ref(), right.as_ref()),
+        Expression::BinaryOp { op: vibesql_ast::BinaryOperator::Or, left, right } => {
+            (left.as_ref(), right.as_ref())
+        }
         _ => return None,
     };
 
@@ -571,17 +586,25 @@ mod tests {
     #[test]
     fn test_or_filter_extraction() {
         use vibesql_ast::{BinaryOperator, Expression};
-        use vibesql_types::SqlValue;
         use vibesql_catalog::{ColumnSchema, TableSchema};
+        use vibesql_types::SqlValue;
 
         // Create schema with two nation tables (n1, n2)
         let n1_schema = TableSchema::new(
             "n1".to_string(),
-            vec![ColumnSchema::new("n_name".to_string(), vibesql_types::DataType::Varchar { max_length: Some(25) }, false)],
+            vec![ColumnSchema::new(
+                "n_name".to_string(),
+                vibesql_types::DataType::Varchar { max_length: Some(25) },
+                false,
+            )],
         );
         let n2_schema = TableSchema::new(
             "n2".to_string(),
-            vec![ColumnSchema::new("n_name".to_string(), vibesql_types::DataType::Varchar { max_length: Some(25) }, false)],
+            vec![ColumnSchema::new(
+                "n_name".to_string(),
+                vibesql_types::DataType::Varchar { max_length: Some(25) },
+                false,
+            )],
         );
         // Build CombinedSchema properly
         let schema = CombinedSchema::combine(
@@ -591,25 +614,38 @@ mod tests {
         );
 
         // Build Q7-style OR predicate:
-        // (n1.n_name = 'FRANCE' AND n2.n_name = 'GERMANY') OR (n1.n_name = 'GERMANY' AND n2.n_name = 'FRANCE')
+        // (n1.n_name = 'FRANCE' AND n2.n_name = 'GERMANY') OR (n1.n_name = 'GERMANY' AND n2.n_name
+        // = 'FRANCE')
         let n1_france = Expression::BinaryOp {
             op: BinaryOperator::Equal,
-            left: Box::new(Expression::ColumnRef { table: Some("n1".to_string()), column: "n_name".to_string() }),
+            left: Box::new(Expression::ColumnRef {
+                table: Some("n1".to_string()),
+                column: "n_name".to_string(),
+            }),
             right: Box::new(Expression::Literal(SqlValue::Varchar("FRANCE".to_string()))),
         };
         let n2_germany = Expression::BinaryOp {
             op: BinaryOperator::Equal,
-            left: Box::new(Expression::ColumnRef { table: Some("n2".to_string()), column: "n_name".to_string() }),
+            left: Box::new(Expression::ColumnRef {
+                table: Some("n2".to_string()),
+                column: "n_name".to_string(),
+            }),
             right: Box::new(Expression::Literal(SqlValue::Varchar("GERMANY".to_string()))),
         };
         let n1_germany = Expression::BinaryOp {
             op: BinaryOperator::Equal,
-            left: Box::new(Expression::ColumnRef { table: Some("n1".to_string()), column: "n_name".to_string() }),
+            left: Box::new(Expression::ColumnRef {
+                table: Some("n1".to_string()),
+                column: "n_name".to_string(),
+            }),
             right: Box::new(Expression::Literal(SqlValue::Varchar("GERMANY".to_string()))),
         };
         let n2_france = Expression::BinaryOp {
             op: BinaryOperator::Equal,
-            left: Box::new(Expression::ColumnRef { table: Some("n2".to_string()), column: "n_name".to_string() }),
+            left: Box::new(Expression::ColumnRef {
+                table: Some("n2".to_string()),
+                column: "n_name".to_string(),
+            }),
             right: Box::new(Expression::Literal(SqlValue::Varchar("FRANCE".to_string()))),
         };
 

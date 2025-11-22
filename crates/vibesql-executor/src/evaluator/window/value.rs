@@ -1,14 +1,12 @@
 //! Value window functions
 //!
-//! Implements LAG, LEAD, FIRST_VALUE, and LAST_VALUE for accessing values from other rows in the partition.
+//! Implements LAG, LEAD, FIRST_VALUE, and LAST_VALUE for accessing values from other rows in the
+//! partition.
 
 use vibesql_ast::Expression;
 use vibesql_types::SqlValue;
 
-use super::{
-    partitioning::Partition,
-    utils::evaluate_default_value,
-};
+use super::{partitioning::Partition, utils::evaluate_default_value};
 
 /// Evaluate LAG() value window function
 ///

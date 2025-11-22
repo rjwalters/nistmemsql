@@ -6,6 +6,7 @@
 mod tpch;
 
 use std::time::Instant;
+
 use tpch::schema::load_vibesql;
 use vibesql_executor::SelectExecutor;
 use vibesql_parser::Parser;

@@ -16,7 +16,9 @@ pub(super) fn evaluate(
 ) -> Result<vibesql_types::SqlValue, ExecutorError> {
     // Extract name, distinct, and args from AggregateFunction
     let (name, distinct, args) = match expr {
-        vibesql_ast::Expression::AggregateFunction { name, distinct, args } => (name, *distinct, args),
+        vibesql_ast::Expression::AggregateFunction { name, distinct, args } => {
+            (name, *distinct, args)
+        }
         _ => unreachable!("evaluate called with non-aggregate expression"),
     };
 

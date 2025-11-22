@@ -15,10 +15,12 @@
 //! All allocations are tied to the arena's lifetime via Rust's borrow checker.
 //! References returned cannot outlive the arena.
 
-use std::cell::Cell;
-use std::marker::PhantomData;
-use std::mem::{self, MaybeUninit};
-use std::ptr;
+use std::{
+    cell::Cell,
+    marker::PhantomData,
+    mem::{self, MaybeUninit},
+    ptr,
+};
 
 /// Arena allocator for query-scoped allocations
 ///
@@ -76,11 +78,7 @@ impl QueryArena {
     /// let arena = QueryArena::with_capacity(1024 * 1024);
     /// ```
     pub fn with_capacity(bytes: usize) -> Self {
-        Self {
-            buffer: vec![0u8; bytes],
-            offset: Cell::new(0),
-            _marker: PhantomData,
-        }
+        Self { buffer: vec![0u8; bytes], offset: Cell::new(0), _marker: PhantomData }
     }
 
     /// Create a new arena with the default capacity (10MB)
@@ -130,9 +128,7 @@ impl QueryArena {
         let aligned_offset = (offset + align - 1) & !(align - 1);
 
         // Check capacity
-        let end_offset = aligned_offset
-            .checked_add(size)
-            .expect("arena offset overflow");
+        let end_offset = aligned_offset.checked_add(size).expect("arena offset overflow");
         assert!(
             end_offset <= self.buffer.len(),
             "arena overflow: need {} bytes, have {} remaining",
@@ -174,8 +170,9 @@ impl QueryArena {
     /// # Example
     ///
     /// ```rust
-    /// use vibesql_executor::memory::QueryArena;
     /// use std::mem::MaybeUninit;
+    ///
+    /// use vibesql_executor::memory::QueryArena;
     ///
     /// let arena = QueryArena::new();
     /// let slice = arena.alloc_slice::<i32>(100);
@@ -186,12 +183,8 @@ impl QueryArena {
     /// }
     ///
     /// // SAFETY: All elements have been initialized above
-    /// let initialized_slice = unsafe {
-    ///     std::slice::from_raw_parts(
-    ///         slice.as_ptr() as *const i32,
-    ///         slice.len()
-    ///     )
-    /// };
+    /// let initialized_slice =
+    ///     unsafe { std::slice::from_raw_parts(slice.as_ptr() as *const i32, slice.len()) };
     /// assert_eq!(initialized_slice[50], 50);
     /// ```
     #[inline(always)]
@@ -202,18 +195,14 @@ impl QueryArena {
         }
 
         let offset = self.offset.get();
-        let size = mem::size_of::<T>()
-            .checked_mul(len)
-            .expect("slice size overflow");
+        let size = mem::size_of::<T>().checked_mul(len).expect("slice size overflow");
         let align = mem::align_of::<T>();
 
         // Align pointer to T's alignment requirement
         let aligned_offset = (offset + align - 1) & !(align - 1);
 
         // Check capacity
-        let end_offset = aligned_offset
-            .checked_add(size)
-            .expect("arena offset overflow");
+        let end_offset = aligned_offset.checked_add(size).expect("arena offset overflow");
         assert!(
             end_offset <= self.buffer.len(),
             "arena overflow: need {} bytes, have {} remaining",
@@ -393,12 +382,8 @@ mod tests {
         }
 
         // SAFETY: All elements have been initialized above
-        let initialized_slice = unsafe {
-            std::slice::from_raw_parts(
-                slice.as_ptr() as *const i32,
-                slice.len()
-            )
-        };
+        let initialized_slice =
+            unsafe { std::slice::from_raw_parts(slice.as_ptr() as *const i32, slice.len()) };
 
         assert_eq!(initialized_slice[50], 50);
         assert_eq!(slice.len(), 100);

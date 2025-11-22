@@ -15,16 +15,16 @@
 // - index_maintenance: CRUD operations (create, drop, rebuild, update)
 // - index_manager: Core IndexManager coordination and queries
 
-mod index_metadata;
-mod value_normalization;
-mod range_bounds;
-mod point_lookup;
-mod range_scan;
-mod prefix_match;
-mod index_operations;
 mod index_maintenance;
 mod index_manager;
+mod index_metadata;
+mod index_operations;
+mod point_lookup;
+mod prefix_match;
+mod range_bounds;
+mod range_scan;
+mod value_normalization;
 
 // Re-export public API
-pub use index_metadata::{IndexData, IndexMetadata};
 pub use index_manager::IndexManager;
+pub use index_metadata::{IndexData, IndexMetadata};

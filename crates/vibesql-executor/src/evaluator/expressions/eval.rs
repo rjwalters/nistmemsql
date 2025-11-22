@@ -22,7 +22,9 @@ impl ExpressionEvaluator<'_> {
         }
 
         // CSE: Check cache if enabled and expression is deterministic
-        if self.enable_cse && super::super::expression_hash::ExpressionHasher::is_deterministic(expr) {
+        if self.enable_cse
+            && super::super::expression_hash::ExpressionHasher::is_deterministic(expr)
+        {
             let hash = super::super::expression_hash::ExpressionHasher::hash(expr);
 
             // Check cache (get requires mut borrow to update LRU order)
@@ -366,7 +368,8 @@ impl ExpressionEvaluator<'_> {
         row: &vibesql_storage::Row,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
         // Check procedural context first (variables/parameters take precedence over table columns)
-        // This is only checked when there's no table qualifier, as variables don't have table prefixes
+        // This is only checked when there's no table qualifier, as variables don't have table
+        // prefixes
         if table_qualifier.is_none() {
             if let Some(proc_ctx) = self.procedural_context {
                 // Try to get value from procedural context (checks variables then parameters)

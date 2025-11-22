@@ -1,11 +1,11 @@
 //! Test to reproduce issue #2194: Memory explosion on multi-table joins
 
+use vibesql_ast;
 use vibesql_catalog::{ColumnSchema, TableSchema};
 use vibesql_executor::SelectExecutor;
 use vibesql_parser::Parser;
 use vibesql_storage::{Database, Row};
 use vibesql_types::{DataType, SqlValue};
-use vibesql_ast;
 
 /// Helper function to parse SELECT statements
 fn parse_select(sql: &str) -> vibesql_ast::SelectStmt {
@@ -24,7 +24,11 @@ fn setup_test_db() -> Database {
         "CUSTOMER".to_string(),
         vec![
             ColumnSchema::new("c_custkey".to_string(), DataType::Integer, false),
-            ColumnSchema::new("c_mktsegment".to_string(), DataType::Varchar { max_length: Some(10) }, true),
+            ColumnSchema::new(
+                "c_mktsegment".to_string(),
+                DataType::Varchar { max_length: Some(10) },
+                true,
+            ),
         ],
     );
     db.create_table(customer_schema).unwrap();
@@ -32,10 +36,7 @@ fn setup_test_db() -> Database {
     // Insert data into customer (500 rows)
     for i in 1..=500 {
         let segment = if i % 2 == 0 { "BUILDING" } else { "FURNITURE" };
-        let row = Row::new(vec![
-            SqlValue::Integer(i),
-            SqlValue::Varchar(segment.to_string()),
-        ]);
+        let row = Row::new(vec![SqlValue::Integer(i), SqlValue::Varchar(segment.to_string())]);
         db.insert_row("CUSTOMER", row).unwrap();
     }
 
@@ -45,7 +46,11 @@ fn setup_test_db() -> Database {
         vec![
             ColumnSchema::new("o_orderkey".to_string(), DataType::Integer, false),
             ColumnSchema::new("o_custkey".to_string(), DataType::Integer, false),
-            ColumnSchema::new("o_orderdate".to_string(), DataType::Varchar { max_length: Some(10) }, true),
+            ColumnSchema::new(
+                "o_orderdate".to_string(),
+                DataType::Varchar { max_length: Some(10) },
+                true,
+            ),
             ColumnSchema::new("o_shippriority".to_string(), DataType::Integer, true),
         ],
     );
@@ -71,7 +76,11 @@ fn setup_test_db() -> Database {
             ColumnSchema::new("l_orderkey".to_string(), DataType::Integer, false),
             ColumnSchema::new("l_extendedprice".to_string(), DataType::Integer, true),
             ColumnSchema::new("l_discount".to_string(), DataType::Integer, true),
-            ColumnSchema::new("l_shipdate".to_string(), DataType::Varchar { max_length: Some(10) }, true),
+            ColumnSchema::new(
+                "l_shipdate".to_string(),
+                DataType::Varchar { max_length: Some(10) },
+                true,
+            ),
         ],
     );
     db.create_table(lineitem_schema).unwrap();

@@ -10,10 +10,15 @@ fn test_nested_comparisons() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "test".to_string(),
-        vec![vibesql_catalog::ColumnSchema::new("val".to_string(), vibesql_types::DataType::Integer, false)],
+        vec![vibesql_catalog::ColumnSchema::new(
+            "val".to_string(),
+            vibesql_types::DataType::Integer,
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(15)])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(15)]))
+        .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -31,7 +36,9 @@ fn test_nested_comparisons() {
                     column: "val".to_string(),
                 }),
                 op: vibesql_ast::BinaryOperator::GreaterThan,
-                right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(10))),
+                right: Box::new(vibesql_ast::Expression::Literal(
+                    vibesql_types::SqlValue::Integer(10),
+                )),
             }),
             op: vibesql_ast::BinaryOperator::And,
             right: Box::new(vibesql_ast::Expression::BinaryOp {
@@ -40,7 +47,9 @@ fn test_nested_comparisons() {
                     column: "val".to_string(),
                 }),
                 op: vibesql_ast::BinaryOperator::LessThan,
-                right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(20))),
+                right: Box::new(vibesql_ast::Expression::Literal(
+                    vibesql_types::SqlValue::Integer(20),
+                )),
             }),
         }),
         group_by: None,
@@ -49,7 +58,8 @@ fn test_nested_comparisons() {
         limit: None,
         offset: None,
         into_table: None,
-        into_variables: None,    };
+        into_variables: None,
+    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);

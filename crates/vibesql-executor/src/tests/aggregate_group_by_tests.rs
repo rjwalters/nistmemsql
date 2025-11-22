@@ -10,9 +10,21 @@ fn test_group_by_with_count() {
     let schema = vibesql_catalog::TableSchema::new(
         "sales".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("dept".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new("amount".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "dept".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
+            vibesql_catalog::ColumnSchema::new(
+                "amount".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -47,12 +59,16 @@ fn test_group_by_with_count() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
             vibesql_ast::SelectItem::Expression {
-                expr: vibesql_ast::Expression::ColumnRef { table: None, column: "dept".to_string() },
+                expr: vibesql_ast::Expression::ColumnRef {
+                    table: None,
+                    column: "dept".to_string(),
+                },
                 alias: None,
             },
             vibesql_ast::SelectItem::Expression {
@@ -86,6 +102,12 @@ fn test_group_by_with_count() {
         (vibesql_types::SqlValue::Integer(a), vibesql_types::SqlValue::Integer(b)) => a.cmp(b),
         _ => std::cmp::Ordering::Equal,
     });
-    assert_eq!(results[0], (vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(2)));
-    assert_eq!(results[1], (vibesql_types::SqlValue::Integer(2), vibesql_types::SqlValue::Integer(1)));
+    assert_eq!(
+        results[0],
+        (vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(2))
+    );
+    assert_eq!(
+        results[1],
+        (vibesql_types::SqlValue::Integer(2), vibesql_types::SqlValue::Integer(1))
+    );
 }

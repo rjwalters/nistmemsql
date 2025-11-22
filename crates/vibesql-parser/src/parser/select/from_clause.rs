@@ -94,7 +94,7 @@ impl Parser {
                                     "Expected alias after AS keyword".to_string()
                                 } else {
                                     "Derived table must have an alias".to_string()
-                                }
+                                },
                             })
                         }
                     };
@@ -230,18 +230,12 @@ impl Parser {
                 self.expect_keyword(Keyword::Join)?;
                 vibesql_ast::JoinType::FullOuter
             }
-            _ => {
-                return Err(ParseError {
-                    message: "Expected JOIN keyword".to_string(),
-                })
-            }
+            _ => return Err(ParseError { message: "Expected JOIN keyword".to_string() }),
         };
 
         // NATURAL CROSS JOIN is not valid in SQL
         if is_natural && join_type == vibesql_ast::JoinType::Cross {
-            return Err(ParseError {
-                message: "NATURAL CROSS JOIN is not valid SQL".to_string(),
-            });
+            return Err(ParseError { message: "NATURAL CROSS JOIN is not valid SQL".to_string() });
         }
 
         Ok((join_type, is_natural))

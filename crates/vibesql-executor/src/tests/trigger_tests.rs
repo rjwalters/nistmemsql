@@ -1,7 +1,9 @@
 //! Tests for TRIGGER execution
 
-use vibesql_ast::{TriggerAction, TriggerEvent, TriggerGranularity, TriggerTiming};
-use vibesql_ast::{CreateTriggerStmt, DropTriggerStmt};
+use vibesql_ast::{
+    CreateTriggerStmt, DropTriggerStmt, TriggerAction, TriggerEvent, TriggerGranularity,
+    TriggerTiming,
+};
 use vibesql_storage::Database;
 
 #[test]
@@ -105,10 +107,7 @@ fn test_drop_trigger() {
     assert!(db.catalog.get_trigger("my_trigger").is_some());
 
     // Drop the trigger
-    let drop_stmt = DropTriggerStmt {
-        trigger_name: "my_trigger".to_string(),
-        cascade: false,
-    };
+    let drop_stmt = DropTriggerStmt { trigger_name: "my_trigger".to_string(), cascade: false };
 
     let result = crate::advanced_objects::execute_drop_trigger(&drop_stmt, &mut db);
     assert!(result.is_ok(), "Failed to drop trigger: {:?}", result.err());
@@ -121,10 +120,8 @@ fn test_drop_trigger() {
 fn test_drop_trigger_not_found() {
     let mut db = Database::new();
 
-    let drop_stmt = DropTriggerStmt {
-        trigger_name: "nonexistent_trigger".to_string(),
-        cascade: false,
-    };
+    let drop_stmt =
+        DropTriggerStmt { trigger_name: "nonexistent_trigger".to_string(), cascade: false };
 
     let result = crate::advanced_objects::execute_drop_trigger(&drop_stmt, &mut db);
     assert!(result.is_err(), "Should fail when dropping non-existent trigger");
@@ -174,7 +171,7 @@ fn test_create_trigger_all_variations() {
 // Integration tests for trigger firing during DML operations
 // ============================================================================
 
-use crate::{InsertExecutor, SelectExecutor, UpdateExecutor, DeleteExecutor, CreateTableExecutor};
+use crate::{CreateTableExecutor, DeleteExecutor, InsertExecutor, SelectExecutor, UpdateExecutor};
 
 /// Helper to create audit log table
 fn create_audit_table(db: &mut Database) {
@@ -229,10 +226,8 @@ fn count_audit_rows(db: &Database) -> usize {
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
         into_table: None,
-        into_variables: None,        from: Some(vibesql_ast::FromClause::Table {
-            name: "AUDIT_LOG".to_string(),
-            alias: None,
-        }),
+        into_variables: None,
+        from: Some(vibesql_ast::FromClause::Table { name: "AUDIT_LOG".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -312,15 +307,21 @@ fn test_after_insert_trigger_fires_for_each_row() {
         source: vibesql_ast::InsertSource::Values(vec![
             vec![
                 vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
-                vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("alice".to_string())),
+                vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar(
+                    "alice".to_string(),
+                )),
             ],
             vec![
                 vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(2)),
-                vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("bob".to_string())),
+                vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar(
+                    "bob".to_string(),
+                )),
             ],
             vec![
                 vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(3)),
-                vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("charlie".to_string())),
+                vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar(
+                    "charlie".to_string(),
+                )),
             ],
         ]),
         conflict_clause: None,
@@ -409,16 +410,22 @@ fn test_after_update_trigger_fires() {
         table_name: "USERS".to_string(),
         assignments: vec![vibesql_ast::Assignment {
             column: "username".to_string(),
-            value: vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("alice_updated".to_string())),
+            value: vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar(
+                "alice_updated".to_string(),
+            )),
         }],
-        where_clause: Some(vibesql_ast::WhereClause::Condition(vibesql_ast::Expression::BinaryOp {
-            op: vibesql_ast::BinaryOperator::Equal,
-            left: Box::new(vibesql_ast::Expression::ColumnRef {
-                column: "id".to_string(),
-                table: None,
-            }),
-            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1))),
-        })),
+        where_clause: Some(vibesql_ast::WhereClause::Condition(
+            vibesql_ast::Expression::BinaryOp {
+                op: vibesql_ast::BinaryOperator::Equal,
+                left: Box::new(vibesql_ast::Expression::ColumnRef {
+                    column: "id".to_string(),
+                    table: None,
+                }),
+                right: Box::new(vibesql_ast::Expression::Literal(
+                    vibesql_types::SqlValue::Integer(1),
+                )),
+            },
+        )),
     };
     UpdateExecutor::execute(&update, &mut db).expect("Failed to update");
 
@@ -465,16 +472,22 @@ fn test_before_update_trigger_fires() {
         table_name: "USERS".to_string(),
         assignments: vec![vibesql_ast::Assignment {
             column: "username".to_string(),
-            value: vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("alice_updated".to_string())),
+            value: vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar(
+                "alice_updated".to_string(),
+            )),
         }],
-        where_clause: Some(vibesql_ast::WhereClause::Condition(vibesql_ast::Expression::BinaryOp {
-            op: vibesql_ast::BinaryOperator::Equal,
-            left: Box::new(vibesql_ast::Expression::ColumnRef {
-                column: "id".to_string(),
-                table: None,
-            }),
-            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1))),
-        })),
+        where_clause: Some(vibesql_ast::WhereClause::Condition(
+            vibesql_ast::Expression::BinaryOp {
+                op: vibesql_ast::BinaryOperator::Equal,
+                left: Box::new(vibesql_ast::Expression::ColumnRef {
+                    column: "id".to_string(),
+                    table: None,
+                }),
+                right: Box::new(vibesql_ast::Expression::Literal(
+                    vibesql_types::SqlValue::Integer(1),
+                )),
+            },
+        )),
     };
     UpdateExecutor::execute(&update, &mut db).expect("Failed to update");
 
@@ -520,14 +533,18 @@ fn test_after_delete_trigger_fires() {
     let delete = vibesql_ast::DeleteStmt {
         only: false,
         table_name: "USERS".to_string(),
-        where_clause: Some(vibesql_ast::WhereClause::Condition(vibesql_ast::Expression::BinaryOp {
-            op: vibesql_ast::BinaryOperator::Equal,
-            left: Box::new(vibesql_ast::Expression::ColumnRef {
-                column: "id".to_string(),
-                table: None,
-            }),
-            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1))),
-        })),
+        where_clause: Some(vibesql_ast::WhereClause::Condition(
+            vibesql_ast::Expression::BinaryOp {
+                op: vibesql_ast::BinaryOperator::Equal,
+                left: Box::new(vibesql_ast::Expression::ColumnRef {
+                    column: "id".to_string(),
+                    table: None,
+                }),
+                right: Box::new(vibesql_ast::Expression::Literal(
+                    vibesql_types::SqlValue::Integer(1),
+                )),
+            },
+        )),
     };
     DeleteExecutor::execute(&delete, &mut db).expect("Failed to delete");
 
@@ -573,14 +590,18 @@ fn test_before_delete_trigger_fires() {
     let delete = vibesql_ast::DeleteStmt {
         only: false,
         table_name: "USERS".to_string(),
-        where_clause: Some(vibesql_ast::WhereClause::Condition(vibesql_ast::Expression::BinaryOp {
-            op: vibesql_ast::BinaryOperator::Equal,
-            left: Box::new(vibesql_ast::Expression::ColumnRef {
-                column: "id".to_string(),
-                table: None,
-            }),
-            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1))),
-        })),
+        where_clause: Some(vibesql_ast::WhereClause::Condition(
+            vibesql_ast::Expression::BinaryOp {
+                op: vibesql_ast::BinaryOperator::Equal,
+                left: Box::new(vibesql_ast::Expression::ColumnRef {
+                    column: "id".to_string(),
+                    table: None,
+                }),
+                right: Box::new(vibesql_ast::Expression::Literal(
+                    vibesql_types::SqlValue::Integer(1),
+                )),
+            },
+        )),
     };
     DeleteExecutor::execute(&delete, &mut db).expect("Failed to delete");
 
@@ -712,7 +733,8 @@ fn test_when_clause_filters_firing() {
         table_constraints: vec![],
         table_options: vec![],
     };
-    CreateTableExecutor::execute(&table_stmt, &mut db).expect("Failed to create transactions table");
+    CreateTableExecutor::execute(&table_stmt, &mut db)
+        .expect("Failed to create transactions table");
     create_audit_table(&mut db);
 
     // Create trigger with WHEN (amount > 100) condition
@@ -728,7 +750,9 @@ fn test_when_clause_filters_firing() {
                 column: "amount".to_string(),
                 table: None,
             }),
-            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(100))),
+            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(
+                100,
+            ))),
         })),
         triggered_action: TriggerAction::RawSql(
             "INSERT INTO audit_log (event) VALUES ('High amount')".to_string(),
@@ -813,10 +837,7 @@ fn test_trigger_failure_causes_rollback() {
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
         into_table: None,
         into_variables: None,
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "USERS".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "USERS".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -869,8 +890,11 @@ fn test_recursion_prevention() {
     assert!(result.is_err(), "Insert should have failed due to recursion limit");
     let err = result.unwrap_err();
     let err_msg = format!("{:?}", err);
-    assert!(err_msg.contains("recursion") || err_msg.contains("depth"),
-            "Error should mention recursion or depth: {}", err_msg);
+    assert!(
+        err_msg.contains("recursion") || err_msg.contains("depth"),
+        "Error should mention recursion or depth: {}",
+        err_msg
+    );
 }
 
 #[test]
@@ -898,9 +922,9 @@ fn test_before_trigger_executes_first() {
     let init_insert = vibesql_ast::InsertStmt {
         table_name: "COUNTER".to_string(),
         columns: vec!["value".to_string()],
-        source: vibesql_ast::InsertSource::Values(vec![vec![
-            vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(0)),
-        ]]),
+        source: vibesql_ast::InsertSource::Values(vec![vec![vibesql_ast::Expression::Literal(
+            vibesql_types::SqlValue::Integer(0),
+        )]]),
         conflict_clause: None,
         on_duplicate_key_update: None,
     };
@@ -914,9 +938,7 @@ fn test_before_trigger_executes_first() {
         table_name: "USERS".to_string(),
         granularity: TriggerGranularity::Row,
         when_condition: None,
-        triggered_action: TriggerAction::RawSql(
-            "UPDATE counter SET value = value + 1".to_string(),
-        ),
+        triggered_action: TriggerAction::RawSql("UPDATE counter SET value = value + 1".to_string()),
     };
     crate::advanced_objects::execute_create_trigger(&before_trigger, &mut db)
         .expect("Failed to create before trigger");
@@ -939,18 +961,12 @@ fn test_before_trigger_executes_first() {
         with_clause: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
-            expr: vibesql_ast::Expression::ColumnRef {
-                column: "value".to_string(),
-                table: None,
-            },
+            expr: vibesql_ast::Expression::ColumnRef { column: "value".to_string(), table: None },
             alias: None,
         }],
         into_table: None,
         into_variables: None,
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "COUNTER".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "COUNTER".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -971,10 +987,7 @@ fn test_before_trigger_executes_first() {
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
         into_table: None,
         into_variables: None,
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "USERS".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "USERS".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -1023,7 +1036,7 @@ fn test_new_in_insert_trigger() {
         granularity: TriggerGranularity::Row,
         when_condition: None,
         triggered_action: TriggerAction::RawSql(
-            "INSERT INTO audit (msg) VALUES (NEW.name);".to_string()
+            "INSERT INTO audit (msg) VALUES (NEW.name);".to_string(),
         ),
     };
     crate::advanced_objects::execute_create_trigger(&trigger_stmt, &mut db).unwrap();
@@ -1096,7 +1109,8 @@ fn test_old_and_new_in_update_trigger() {
         granularity: TriggerGranularity::Row,
         when_condition: None,
         triggered_action: TriggerAction::RawSql(
-            "INSERT INTO audit (old_salary, new_salary) VALUES (OLD.salary, NEW.salary);".to_string()
+            "INSERT INTO audit (old_salary, new_salary) VALUES (OLD.salary, NEW.salary);"
+                .to_string(),
         ),
     };
     crate::advanced_objects::execute_create_trigger(&trigger_stmt, &mut db).unwrap();
@@ -1170,7 +1184,7 @@ fn test_old_in_delete_trigger() {
         granularity: TriggerGranularity::Row,
         when_condition: None,
         triggered_action: TriggerAction::RawSql(
-            "INSERT INTO audit (deleted_name) VALUES (OLD.name);".to_string()
+            "INSERT INTO audit (deleted_name) VALUES (OLD.name);".to_string(),
         ),
     };
     crate::advanced_objects::execute_create_trigger(&trigger_stmt, &mut db).unwrap();

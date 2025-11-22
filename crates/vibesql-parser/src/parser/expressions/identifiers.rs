@@ -12,7 +12,9 @@ impl Parser {
 
                 // Check for hex/binary literal (x'...' or b'...')
                 let first_upper = first.to_uppercase();
-                if (first_upper == "X" || first_upper == "B") && matches!(self.peek(), Token::String(_)) {
+                if (first_upper == "X" || first_upper == "B")
+                    && matches!(self.peek(), Token::String(_))
+                {
                     if let Token::String(s) = self.peek() {
                         let string_val = s.clone();
                         self.advance();
@@ -22,7 +24,10 @@ impl Parser {
                             // Validate and decode hex string
                             if string_val.len() % 2 != 0 {
                                 return Err(ParseError {
-                                    message: format!("Hex literal must have even number of digits: x'{}'", string_val),
+                                    message: format!(
+                                        "Hex literal must have even number of digits: x'{}'",
+                                        string_val
+                                    ),
                                 });
                             }
 
@@ -33,7 +38,10 @@ impl Parser {
                                     Ok(byte) => bytes.push(byte),
                                     Err(_) => {
                                         return Err(ParseError {
-                                            message: format!("Invalid hex digit in literal: x'{}'", string_val),
+                                            message: format!(
+                                                "Invalid hex digit in literal: x'{}'",
+                                                string_val
+                                            ),
                                         });
                                     }
                                 }
@@ -48,13 +56,19 @@ impl Parser {
                             // Parse binary literal: b'01010101' -> "U"
                             if !string_val.chars().all(|c| c == '0' || c == '1') {
                                 return Err(ParseError {
-                                    message: format!("Binary literal must contain only 0 and 1: b'{}'", string_val),
+                                    message: format!(
+                                        "Binary literal must contain only 0 and 1: b'{}'",
+                                        string_val
+                                    ),
                                 });
                             }
 
                             if string_val.len() % 8 != 0 {
                                 return Err(ParseError {
-                                    message: format!("Binary literal must have length divisible by 8: b'{}'", string_val),
+                                    message: format!(
+                                        "Binary literal must have length divisible by 8: b'{}'",
+                                        string_val
+                                    ),
                                 });
                             }
 
@@ -65,7 +79,10 @@ impl Parser {
                                     Ok(byte) => bytes.push(byte),
                                     Err(_) => {
                                         return Err(ParseError {
-                                            message: format!("Invalid binary literal: b'{}'", string_val),
+                                            message: format!(
+                                                "Invalid binary literal: b'{}'",
+                                                string_val
+                                            ),
                                         });
                                     }
                                 }
@@ -108,7 +125,10 @@ impl Parser {
                                     column,
                                 }))
                             } else {
-                                Ok(Some(vibesql_ast::Expression::ColumnRef { table: Some(first), column }))
+                                Ok(Some(vibesql_ast::Expression::ColumnRef {
+                                    table: Some(first),
+                                    column,
+                                }))
                             }
                         }
                         _ => Err(ParseError {

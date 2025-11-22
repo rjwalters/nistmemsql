@@ -3,10 +3,11 @@
 //! This module handles key deletion with support for both bulk delete (all row IDs)
 //! and specific row ID delete operations, with automatic tree rebalancing.
 
+use super::{
+    super::structure::{Key, RowId},
+    BTreeIndex,
+};
 use crate::StorageError;
-
-use super::super::structure::{Key, RowId};
-use super::BTreeIndex;
 
 impl BTreeIndex {
     /// Delete all row IDs for a key from the B+ tree
@@ -71,7 +72,7 @@ impl BTreeIndex {
 
         // Delete all row_ids for the key from leaf
         if !leaf.delete_all(key) {
-            return Ok(false);  // Key not found
+            return Ok(false); // Key not found
         }
 
         // Write leaf back
@@ -134,7 +135,7 @@ impl BTreeIndex {
 
         // Delete specific row_id from leaf
         if !leaf.delete(key, row_id) {
-            return Ok(false);  // Key or row_id not found
+            return Ok(false); // Key or row_id not found
         }
 
         // Write leaf back

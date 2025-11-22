@@ -74,7 +74,9 @@ fn count_tables(from: &vibesql_ast::FromClause) -> usize {
     match from {
         vibesql_ast::FromClause::Table { .. } => 1,
         vibesql_ast::FromClause::Subquery { .. } => 1,
-        vibesql_ast::FromClause::Join { left, right, .. } => count_tables(left) + count_tables(right),
+        vibesql_ast::FromClause::Join { left, right, .. } => {
+            count_tables(left) + count_tables(right)
+        }
     }
 }
 

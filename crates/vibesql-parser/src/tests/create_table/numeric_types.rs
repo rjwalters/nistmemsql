@@ -47,12 +47,16 @@ fn test_parse_create_table_long_type() {
 
             match create.columns[0].data_type {
                 vibesql_types::DataType::Bigint => {} // LONG maps to Bigint
-                _ => panic!("Expected LONG to map to Bigint, got {:?}", create.columns[0].data_type),
+                _ => {
+                    panic!("Expected LONG to map to Bigint, got {:?}", create.columns[0].data_type)
+                }
             }
 
             match create.columns[1].data_type {
                 vibesql_types::DataType::Bigint => {} // LONG maps to Bigint
-                _ => panic!("Expected LONG to map to Bigint, got {:?}", create.columns[1].data_type),
+                _ => {
+                    panic!("Expected LONG to map to Bigint, got {:?}", create.columns[1].data_type)
+                }
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -139,7 +143,7 @@ fn test_parse_create_table_numeric_with_precision_only() {
     match stmt {
         vibesql_ast::Statement::CreateTable(create) => {
             match create.columns[0].data_type {
-                vibesql_types::DataType::Numeric { precision: 10, scale: 0 } => {} // Scale defaults to 0
+                vibesql_types::DataType::Numeric { precision: 10, scale: 0 } => {} /* Scale defaults to 0 */
                 _ => panic!("Expected NUMERIC(10, 0), got {:?}", create.columns[0].data_type),
             }
         }

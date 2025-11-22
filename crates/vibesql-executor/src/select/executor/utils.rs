@@ -6,9 +6,11 @@ use super::builder::SelectExecutor;
 fn expression_references_column(expr: &vibesql_ast::Expression) -> bool {
     match expr {
         vibesql_ast::Expression::ColumnRef { .. } => true,
-        vibesql_ast::Expression::PseudoVariable { .. } => true, // Pseudo-variables reference columns (OLD.x, NEW.x)
+        vibesql_ast::Expression::PseudoVariable { .. } => true, /* Pseudo-variables reference
+                                                                  * columns (OLD.x, NEW.x) */
         vibesql_ast::Expression::Default => false, // DEFAULT doesn't reference columns
-        vibesql_ast::Expression::DuplicateKeyValue { .. } => false, // DuplicateKeyValue doesn't reference columns
+        vibesql_ast::Expression::DuplicateKeyValue { .. } => false, /* DuplicateKeyValue doesn't
+                                                                      * reference columns */
 
         vibesql_ast::Expression::BinaryOp { left, right, .. } => {
             expression_references_column(left) || expression_references_column(right)
@@ -16,7 +18,9 @@ fn expression_references_column(expr: &vibesql_ast::Expression) -> bool {
 
         vibesql_ast::Expression::UnaryOp { expr, .. } => expression_references_column(expr),
 
-        vibesql_ast::Expression::Function { args, .. } => args.iter().any(expression_references_column),
+        vibesql_ast::Expression::Function { args, .. } => {
+            args.iter().any(expression_references_column)
+        }
 
         vibesql_ast::Expression::AggregateFunction { args, .. } => {
             args.iter().any(expression_references_column)
@@ -56,7 +60,9 @@ fn expression_references_column(expr: &vibesql_ast::Expression) -> bool {
             expression_references_column(expr)
         }
 
-        vibesql_ast::Expression::QuantifiedComparison { expr, .. } => expression_references_column(expr),
+        vibesql_ast::Expression::QuantifiedComparison { expr, .. } => {
+            expression_references_column(expr)
+        }
 
         vibesql_ast::Expression::Case { operand, when_clauses, else_result } => {
             operand.as_ref().is_some_and(|e| expression_references_column(e))

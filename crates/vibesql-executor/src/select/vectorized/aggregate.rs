@@ -6,12 +6,15 @@
 // Experimental SIMD optimizations - allow dead code warnings for future use
 #![allow(dead_code)]
 
-use crate::errors::ExecutorError;
-use arrow::array::{Array, ArrayRef, Float64Array, Int64Array, Date32Array, TimestampMicrosecondArray};
-use arrow::compute::kernels::aggregate::{sum, min, max};
-use arrow::record_batch::RecordBatch;
-use arrow::datatypes::TimeUnit;
+use arrow::{
+    array::{Array, ArrayRef, Date32Array, Float64Array, Int64Array, TimestampMicrosecondArray},
+    compute::kernels::aggregate::{max, min, sum},
+    datatypes::TimeUnit,
+    record_batch::RecordBatch,
+};
 use vibesql_types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// Aggregate function types supported by SIMD execution
 #[derive(Debug, Clone, PartialEq)]
@@ -58,20 +61,25 @@ pub fn aggregate_column_simd(
 fn aggregate_sum_simd(column: &ArrayRef) -> Result<SqlValue, ExecutorError> {
     match column.data_type() {
         arrow::datatypes::DataType::Int64 => {
-            let array = column.as_any().downcast_ref::<Int64Array>()
+            let array = column
+                .as_any()
+                .downcast_ref::<Int64Array>()
                 .ok_or_else(|| ExecutorError::Other("Failed to downcast Int64Array".to_string()))?;
 
-            let result = sum(array)
-                .ok_or_else(|| ExecutorError::Other("SUM returned None (all nulls?)".to_string()))?;
+            let result = sum(array).ok_or_else(|| {
+                ExecutorError::Other("SUM returned None (all nulls?)".to_string())
+            })?;
 
             Ok(SqlValue::Integer(result))
         }
         arrow::datatypes::DataType::Float64 => {
-            let array = column.as_any().downcast_ref::<Float64Array>()
-                .ok_or_else(|| ExecutorError::Other("Failed to downcast Float64Array".to_string()))?;
+            let array = column.as_any().downcast_ref::<Float64Array>().ok_or_else(|| {
+                ExecutorError::Other("Failed to downcast Float64Array".to_string())
+            })?;
 
-            let result = sum(array)
-                .ok_or_else(|| ExecutorError::Other("SUM returned None (all nulls?)".to_string()))?;
+            let result = sum(array).ok_or_else(|| {
+                ExecutorError::Other("SUM returned None (all nulls?)".to_string())
+            })?;
 
             Ok(SqlValue::Double(result))
         }
@@ -86,7 +94,9 @@ fn aggregate_sum_simd(column: &ArrayRef) -> Result<SqlValue, ExecutorError> {
 fn aggregate_avg_simd(column: &ArrayRef) -> Result<SqlValue, ExecutorError> {
     match column.data_type() {
         arrow::datatypes::DataType::Int64 => {
-            let array = column.as_any().downcast_ref::<Int64Array>()
+            let array = column
+                .as_any()
+                .downcast_ref::<Int64Array>()
                 .ok_or_else(|| ExecutorError::Other("Failed to downcast Int64Array".to_string()))?;
 
             let sum_val = sum(array)
@@ -100,8 +110,9 @@ fn aggregate_avg_simd(column: &ArrayRef) -> Result<SqlValue, ExecutorError> {
             Ok(SqlValue::Double(sum_val as f64 / count))
         }
         arrow::datatypes::DataType::Float64 => {
-            let array = column.as_any().downcast_ref::<Float64Array>()
-                .ok_or_else(|| ExecutorError::Other("Failed to downcast Float64Array".to_string()))?;
+            let array = column.as_any().downcast_ref::<Float64Array>().ok_or_else(|| {
+                ExecutorError::Other("Failed to downcast Float64Array".to_string())
+            })?;
 
             let sum_val = sum(array)
                 .ok_or_else(|| ExecutorError::Other("AVG: SUM returned None".to_string()))?;
@@ -124,42 +135,52 @@ fn aggregate_avg_simd(column: &ArrayRef) -> Result<SqlValue, ExecutorError> {
 fn aggregate_min_simd(column: &ArrayRef) -> Result<SqlValue, ExecutorError> {
     match column.data_type() {
         arrow::datatypes::DataType::Int64 => {
-            let array = column.as_any().downcast_ref::<Int64Array>()
+            let array = column
+                .as_any()
+                .downcast_ref::<Int64Array>()
                 .ok_or_else(|| ExecutorError::Other("Failed to downcast Int64Array".to_string()))?;
 
-            let result = min(array)
-                .ok_or_else(|| ExecutorError::Other("MIN returned None (all nulls?)".to_string()))?;
+            let result = min(array).ok_or_else(|| {
+                ExecutorError::Other("MIN returned None (all nulls?)".to_string())
+            })?;
 
             Ok(SqlValue::Integer(result))
         }
         arrow::datatypes::DataType::Float64 => {
-            let array = column.as_any().downcast_ref::<Float64Array>()
-                .ok_or_else(|| ExecutorError::Other("Failed to downcast Float64Array".to_string()))?;
+            let array = column.as_any().downcast_ref::<Float64Array>().ok_or_else(|| {
+                ExecutorError::Other("Failed to downcast Float64Array".to_string())
+            })?;
 
-            let result = min(array)
-                .ok_or_else(|| ExecutorError::Other("MIN returned None (all nulls?)".to_string()))?;
+            let result = min(array).ok_or_else(|| {
+                ExecutorError::Other("MIN returned None (all nulls?)".to_string())
+            })?;
 
             Ok(SqlValue::Double(result))
         }
         arrow::datatypes::DataType::Date32 => {
             use super::batch::days_since_epoch_to_date;
 
-            let array = column.as_any().downcast_ref::<Date32Array>()
-                .ok_or_else(|| ExecutorError::Other("Failed to downcast Date32Array".to_string()))?;
+            let array = column.as_any().downcast_ref::<Date32Array>().ok_or_else(|| {
+                ExecutorError::Other("Failed to downcast Date32Array".to_string())
+            })?;
 
-            let result = min(array)
-                .ok_or_else(|| ExecutorError::Other("MIN returned None (all nulls?)".to_string()))?;
+            let result = min(array).ok_or_else(|| {
+                ExecutorError::Other("MIN returned None (all nulls?)".to_string())
+            })?;
 
             Ok(SqlValue::Date(days_since_epoch_to_date(result)))
         }
         arrow::datatypes::DataType::Timestamp(TimeUnit::Microsecond, None) => {
             use super::batch::microseconds_to_timestamp;
 
-            let array = column.as_any().downcast_ref::<TimestampMicrosecondArray>()
-                .ok_or_else(|| ExecutorError::Other("Failed to downcast TimestampMicrosecondArray".to_string()))?;
+            let array =
+                column.as_any().downcast_ref::<TimestampMicrosecondArray>().ok_or_else(|| {
+                    ExecutorError::Other("Failed to downcast TimestampMicrosecondArray".to_string())
+                })?;
 
-            let result = min(array)
-                .ok_or_else(|| ExecutorError::Other("MIN returned None (all nulls?)".to_string()))?;
+            let result = min(array).ok_or_else(|| {
+                ExecutorError::Other("MIN returned None (all nulls?)".to_string())
+            })?;
 
             Ok(SqlValue::Timestamp(microseconds_to_timestamp(result)))
         }
@@ -174,42 +195,52 @@ fn aggregate_min_simd(column: &ArrayRef) -> Result<SqlValue, ExecutorError> {
 fn aggregate_max_simd(column: &ArrayRef) -> Result<SqlValue, ExecutorError> {
     match column.data_type() {
         arrow::datatypes::DataType::Int64 => {
-            let array = column.as_any().downcast_ref::<Int64Array>()
+            let array = column
+                .as_any()
+                .downcast_ref::<Int64Array>()
                 .ok_or_else(|| ExecutorError::Other("Failed to downcast Int64Array".to_string()))?;
 
-            let result = max(array)
-                .ok_or_else(|| ExecutorError::Other("MAX returned None (all nulls?)".to_string()))?;
+            let result = max(array).ok_or_else(|| {
+                ExecutorError::Other("MAX returned None (all nulls?)".to_string())
+            })?;
 
             Ok(SqlValue::Integer(result))
         }
         arrow::datatypes::DataType::Float64 => {
-            let array = column.as_any().downcast_ref::<Float64Array>()
-                .ok_or_else(|| ExecutorError::Other("Failed to downcast Float64Array".to_string()))?;
+            let array = column.as_any().downcast_ref::<Float64Array>().ok_or_else(|| {
+                ExecutorError::Other("Failed to downcast Float64Array".to_string())
+            })?;
 
-            let result = max(array)
-                .ok_or_else(|| ExecutorError::Other("MAX returned None (all nulls?)".to_string()))?;
+            let result = max(array).ok_or_else(|| {
+                ExecutorError::Other("MAX returned None (all nulls?)".to_string())
+            })?;
 
             Ok(SqlValue::Double(result))
         }
         arrow::datatypes::DataType::Date32 => {
             use super::batch::days_since_epoch_to_date;
 
-            let array = column.as_any().downcast_ref::<Date32Array>()
-                .ok_or_else(|| ExecutorError::Other("Failed to downcast Date32Array".to_string()))?;
+            let array = column.as_any().downcast_ref::<Date32Array>().ok_or_else(|| {
+                ExecutorError::Other("Failed to downcast Date32Array".to_string())
+            })?;
 
-            let result = max(array)
-                .ok_or_else(|| ExecutorError::Other("MAX returned None (all nulls?)".to_string()))?;
+            let result = max(array).ok_or_else(|| {
+                ExecutorError::Other("MAX returned None (all nulls?)".to_string())
+            })?;
 
             Ok(SqlValue::Date(days_since_epoch_to_date(result)))
         }
         arrow::datatypes::DataType::Timestamp(TimeUnit::Microsecond, None) => {
             use super::batch::microseconds_to_timestamp;
 
-            let array = column.as_any().downcast_ref::<TimestampMicrosecondArray>()
-                .ok_or_else(|| ExecutorError::Other("Failed to downcast TimestampMicrosecondArray".to_string()))?;
+            let array =
+                column.as_any().downcast_ref::<TimestampMicrosecondArray>().ok_or_else(|| {
+                    ExecutorError::Other("Failed to downcast TimestampMicrosecondArray".to_string())
+                })?;
 
-            let result = max(array)
-                .ok_or_else(|| ExecutorError::Other("MAX returned None (all nulls?)".to_string()))?;
+            let result = max(array).ok_or_else(|| {
+                ExecutorError::Other("MAX returned None (all nulls?)".to_string())
+            })?;
 
             Ok(SqlValue::Timestamp(microseconds_to_timestamp(result)))
         }
@@ -237,9 +268,11 @@ pub fn aggregate_batch_simd(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use arrow::datatypes::{DataType, Field, Schema};
     use std::sync::Arc;
+
+    use arrow::datatypes::{DataType, Field, Schema};
+
+    use super::*;
 
     #[test]
     fn test_simd_sum_int64() {

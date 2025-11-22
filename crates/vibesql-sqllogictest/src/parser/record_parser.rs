@@ -1,14 +1,15 @@
 //! Parsing of individual SQL record types (statement, query, system).
 
-use std::fmt;
-use std::iter::Peekable;
+use std::{fmt, iter::Peekable};
 
 use itertools::Itertools;
 
-use crate::{ColumnType, Location, ParseError, ParseErrorKind};
-use crate::error_parser::ExpectedError;
-use crate::retry_parser::RetryConfig;
-use crate::directive_parser::{SortMode, ResultMode, ControlItem};
+use crate::{
+    directive_parser::{ControlItem, ResultMode, SortMode},
+    error_parser::ExpectedError,
+    retry_parser::RetryConfig,
+    ColumnType, Location, ParseError, ParseErrorKind,
+};
 
 const RESULTS_DELIMITER: &str = "----";
 
@@ -182,12 +183,7 @@ pub(crate) fn fmt_query<T: ColumnType>(
 ) -> fmt::Result {
     write!(f, "query ")?;
     match expected {
-        QueryExpect::Results {
-            types,
-            sort_mode,
-            label,
-            ..
-        } => {
+        QueryExpect::Results { types, sort_mode, label, .. } => {
             write!(f, "{}", types.iter().map(|c| c.to_char()).join(""))?;
             if let Some(sort_mode) = sort_mode {
                 write!(f, " {}", sort_mode.as_str())?;

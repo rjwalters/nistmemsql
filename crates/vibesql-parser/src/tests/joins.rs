@@ -21,7 +21,7 @@ fn test_parse_simple_join() {
 
                     // Left should be users table
                     match **left {
-                        vibesql_ast::FromClause::Table { ref name, .. } if name == "USERS" => {} // Success
+                        vibesql_ast::FromClause::Table { ref name, .. } if name == "USERS" => {} /* Success */
                         _ => panic!("Expected left table to be 'users'"),
                     }
 
@@ -76,7 +76,8 @@ fn test_parse_comma_separated_from() {
 
                     // Left should be tab0 table
                     match **left {
-                        vibesql_ast::FromClause::Table { ref name, alias: None } if name == "TAB0" => {} /* Success */
+                        vibesql_ast::FromClause::Table { ref name, alias: None }
+                            if name == "TAB0" => {} /* Success */
                         _ => panic!("Expected left table to be 'tab0'"),
                     }
 

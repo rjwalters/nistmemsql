@@ -2,8 +2,7 @@
 
 use itertools::Itertools;
 
-use crate::error_handling::AnyError;
-use crate::ColumnType;
+use crate::{error_handling::AnyError, ColumnType};
 
 /// Output of a record.
 #[derive(Debug, Clone)]
@@ -13,19 +12,12 @@ pub enum RecordOutput<T: ColumnType> {
     /// command.
     Nothing,
     /// The output of a `query`.
-    Query {
-        types: Vec<T>,
-        rows: Vec<Vec<String>>,
-        error: Option<AnyError>,
-    },
+    Query { types: Vec<T>, rows: Vec<Vec<String>>, error: Option<AnyError> },
     /// The output of a `statement`.
     Statement { count: u64, error: Option<AnyError> },
     /// The output of a `system` command.
     #[non_exhaustive]
-    System {
-        stdout: Option<String>,
-        error: Option<AnyError>,
-    },
+    System { stdout: Option<String>, error: Option<AnyError> },
 }
 
 #[non_exhaustive]
@@ -76,13 +68,12 @@ pub fn default_validator(
     // If ignore marker present, perform fragment-based matching on the full snapshot.
     if contains_ignore_marker {
         // If ignore marker present, perform fragment-based matching on the full snapshot.
-        // The actual results might contain \n, and may not be a normal "row", which is not suitable to normalize.
+        // The actual results might contain \n, and may not be a normal "row", which is not suitable
+        // to normalize.
         let expected_results = expected;
         // Flatten the rows so each column value becomes its own line
-        let actual_rows: Vec<String> = actual
-            .iter()
-            .flat_map(|strs| strs.iter().map(|s| s.to_string()))
-            .collect_vec();
+        let actual_rows: Vec<String> =
+            actual.iter().flat_map(|strs| strs.iter().map(|s| s.to_string())).collect_vec();
 
         let expected_snapshot = expected_results.join("\n");
         let actual_snapshot = actual_rows.join("\n");
@@ -118,10 +109,7 @@ pub fn default_validator(
 
     let normalized_rows: Vec<String> = if is_flattened {
         // Expected format is flattened: each column value on its own line
-        actual
-            .iter()
-            .flat_map(|strs| strs.iter().map(normalizer))
-            .collect_vec()
+        actual.iter().flat_map(|strs| strs.iter().map(normalizer)).collect_vec()
     } else {
         // Expected format is joined: each row with space-separated columns
         actual

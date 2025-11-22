@@ -379,12 +379,16 @@ impl LiteralExtractor {
 
                 // Extract from frame bounds
                 if let Some(ref frame) = over.frame {
-                    if let vibesql_ast::FrameBound::Preceding(expr) | vibesql_ast::FrameBound::Following(expr) =
-                        &frame.start
+                    if let vibesql_ast::FrameBound::Preceding(expr)
+                    | vibesql_ast::FrameBound::Following(expr) = &frame.start
                     {
                         Self::extract_from_expression(expr, literals);
                     }
-                    if let Some(vibesql_ast::FrameBound::Preceding(expr) | vibesql_ast::FrameBound::Following(expr)) = &frame.end {
+                    if let Some(
+                        vibesql_ast::FrameBound::Preceding(expr)
+                        | vibesql_ast::FrameBound::Following(expr),
+                    ) = &frame.end
+                    {
                         Self::extract_from_expression(expr, literals);
                     }
                 }
@@ -426,7 +430,9 @@ mod tests {
 
     #[test]
     fn test_literal_extraction_simple() {
-        use vibesql_ast::{BinaryOperator, Expression, FromClause, SelectItem, SelectStmt, Statement};
+        use vibesql_ast::{
+            BinaryOperator, Expression, FromClause, SelectItem, SelectStmt, Statement,
+        };
 
         // SELECT col0 FROM tab WHERE col1 > 25 AND col2 = 'John'
         let stmt = Statement::Select(Box::new(SelectStmt {
@@ -437,7 +443,8 @@ mod tests {
                 alias: None,
             }],
             into_table: None,
-            into_variables: None,            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            into_variables: None,
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::And,
                 left: Box::new(Expression::BinaryOp {
@@ -482,7 +489,8 @@ mod tests {
             distinct: false,
             select_list: vec![SelectItem::Wildcard { alias: None }],
             into_table: None,
-            into_variables: None,            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            into_variables: None,
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::InList {
                 expr: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
                 values: vec![

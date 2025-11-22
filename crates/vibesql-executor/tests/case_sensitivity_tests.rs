@@ -28,7 +28,11 @@ fn test_table_lookup_case_insensitive_default() {
         "users".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -50,7 +54,11 @@ fn test_table_lookup_created_uppercase() {
         "PRODUCTS".to_string(),
         vec![
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new("NAME".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "NAME".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -69,9 +77,7 @@ fn test_table_lookup_mixed_case() {
     // Create table with mixed case name
     let schema = TableSchema::new(
         "MyTable".to_string(),
-        vec![
-            ColumnSchema::new("MyColumn".to_string(), DataType::Integer, false),
-        ],
+        vec![ColumnSchema::new("MyColumn".to_string(), DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
@@ -194,8 +200,8 @@ fn test_toggle_case_sensitivity() {
 /// Test view lookups with case insensitivity
 #[test]
 fn test_view_lookup_case_insensitive() {
-    use vibesql_catalog::ViewDefinition;
     use vibesql_ast;
+    use vibesql_catalog::ViewDefinition;
 
     let mut db = Database::new();
 
@@ -204,7 +210,11 @@ fn test_view_lookup_case_insensitive() {
         "users".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -214,10 +224,7 @@ fn test_view_lookup_case_insensitive() {
         distinct: false,
         select_list: vec![
             vibesql_ast::SelectItem::Expression {
-                expr: vibesql_ast::Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                },
+                expr: vibesql_ast::Expression::ColumnRef { table: None, column: "id".to_string() },
                 alias: None,
             },
             vibesql_ast::SelectItem::Expression {
@@ -230,10 +237,7 @@ fn test_view_lookup_case_insensitive() {
         ],
         into_table: None,
         into_variables: None,
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "users".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -244,12 +248,7 @@ fn test_view_lookup_case_insensitive() {
         with_clause: None,
     };
 
-    let view = ViewDefinition::new(
-        "active_users".to_string(),
-        None,
-        select_stmt,
-        false,
-    );
+    let view = ViewDefinition::new("active_users".to_string(), None, select_stmt, false);
     db.catalog.create_view(view).unwrap();
 
     // Should find view with different cases (case-insensitive by default)
@@ -261,8 +260,8 @@ fn test_view_lookup_case_insensitive() {
 /// Test DROP VIEW with case insensitivity
 #[test]
 fn test_drop_view_case_insensitive() {
-    use vibesql_catalog::ViewDefinition;
     use vibesql_ast;
+    use vibesql_catalog::ViewDefinition;
 
     let mut db = Database::new();
 
@@ -276,21 +275,13 @@ fn test_drop_view_case_insensitive() {
     // Create view
     let select_stmt = vibesql_ast::SelectStmt {
         distinct: false,
-        select_list: vec![
-            vibesql_ast::SelectItem::Expression {
-                expr: vibesql_ast::Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                },
-                alias: None,
-            },
-        ],
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "id".to_string() },
+            alias: None,
+        }],
         into_table: None,
         into_variables: None,
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "products".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "products".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -301,12 +292,7 @@ fn test_drop_view_case_insensitive() {
         with_clause: None,
     };
 
-    let view = ViewDefinition::new(
-        "product_view".to_string(),
-        None,
-        select_stmt,
-        false,
-    );
+    let view = ViewDefinition::new("product_view".to_string(), None, select_stmt, false);
     db.catalog.create_view(view).unwrap();
 
     // Drop with uppercase
@@ -320,8 +306,8 @@ fn test_drop_view_case_insensitive() {
 /// Test view in case-sensitive mode
 #[test]
 fn test_view_case_sensitive_mode() {
-    use vibesql_catalog::ViewDefinition;
     use vibesql_ast;
+    use vibesql_catalog::ViewDefinition;
 
     let mut db = Database::new();
 
@@ -338,21 +324,13 @@ fn test_view_case_sensitive_mode() {
     // Create view with lowercase
     let select_stmt = vibesql_ast::SelectStmt {
         distinct: false,
-        select_list: vec![
-            vibesql_ast::SelectItem::Expression {
-                expr: vibesql_ast::Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                },
-                alias: None,
-            },
-        ],
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "id".to_string() },
+            alias: None,
+        }],
         into_table: None,
         into_variables: None,
-        from: Some(vibesql_ast::FromClause::Table {
-            name: "users".to_string(),
-            alias: None,
-        }),
+        from: Some(vibesql_ast::FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -363,12 +341,7 @@ fn test_view_case_sensitive_mode() {
         with_clause: None,
     };
 
-    let view = ViewDefinition::new(
-        "user_view".to_string(),
-        None,
-        select_stmt,
-        false,
-    );
+    let view = ViewDefinition::new("user_view".to_string(), None, select_stmt, false);
     db.catalog.create_view(view).unwrap();
 
     // Should only find with exact case

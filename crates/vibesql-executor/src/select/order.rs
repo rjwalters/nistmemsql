@@ -5,9 +5,9 @@ use std::cmp::Ordering;
 #[cfg(feature = "parallel")]
 use rayon::slice::ParallelSliceMut;
 
+use super::grouping::compare_sql_values;
 #[cfg(feature = "parallel")]
 use super::parallel::ParallelConfig;
-use super::grouping::compare_sql_values;
 use crate::{errors::ExecutorError, evaluator::CombinedExpressionEvaluator};
 
 /// Row with optional sort keys for ORDER BY
@@ -46,7 +46,8 @@ pub(super) fn apply_order_by(
         *sort_keys = Some(keys);
     }
 
-    // Sort by the evaluated keys (with automatic parallelism based on row count when feature enabled)
+    // Sort by the evaluated keys (with automatic parallelism based on row count when feature
+    // enabled)
     let comparison_fn = |(_, keys_a): &RowWithSortKeys, (_, keys_b): &RowWithSortKeys| {
         let keys_a = keys_a.as_ref().unwrap();
         let keys_b = keys_b.as_ref().unwrap();
@@ -61,7 +62,9 @@ pub(super) fn apply_order_by(
                     // Compare non-NULL values, respecting direction
                     match dir {
                         vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
-                        vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                        vibesql_ast::OrderDirection::Desc => {
+                            compare_sql_values(val_a, val_b).reverse()
+                        }
                     }
                 }
             };
@@ -97,7 +100,8 @@ pub(super) fn apply_order_by(
 /// Resolve ORDER BY expression that might be a SELECT list alias or column position
 ///
 /// Handles three cases:
-/// 1. Numeric literal (e.g., ORDER BY 1, 2, 3) - returns the expression from that position in SELECT list
+/// 1. Numeric literal (e.g., ORDER BY 1, 2, 3) - returns the expression from that position in
+///    SELECT list
 /// 2. Simple column reference that matches a SELECT list alias - returns the SELECT list expression
 /// 3. Otherwise - returns the original ORDER BY expression
 fn resolve_order_by_alias<'a>(
@@ -134,10 +138,12 @@ fn resolve_order_by_alias<'a>(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::cmp::Ordering;
+
     use vibesql_storage::Row;
     use vibesql_types::SqlValue;
+
+    use super::*;
 
     /// Test the comparison function logic with pre-evaluated sort keys
     /// This tests the parallel/sequential sorting logic without needing full evaluator setup
@@ -146,21 +152,15 @@ mod tests {
         // Small dataset with pre-populated sort keys
         let mut rows: Vec<RowWithSortKeys> = vec![
             (
-                Row {
-                    values: vec![SqlValue::Integer(3)],
-                },
+                Row { values: vec![SqlValue::Integer(3)] },
                 Some(vec![(SqlValue::Integer(3), vibesql_ast::OrderDirection::Asc)]),
             ),
             (
-                Row {
-                    values: vec![SqlValue::Integer(1)],
-                },
+                Row { values: vec![SqlValue::Integer(1)] },
                 Some(vec![(SqlValue::Integer(1), vibesql_ast::OrderDirection::Asc)]),
             ),
             (
-                Row {
-                    values: vec![SqlValue::Integer(2)],
-                },
+                Row { values: vec![SqlValue::Integer(2)] },
                 Some(vec![(SqlValue::Integer(2), vibesql_ast::OrderDirection::Asc)]),
             ),
         ];
@@ -177,7 +177,9 @@ mod tests {
                     (false, true) => return Ordering::Less,
                     (false, false) => match dir {
                         vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
-                        vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                        vibesql_ast::OrderDirection::Desc => {
+                            compare_sql_values(val_a, val_b).reverse()
+                        }
                     },
                 };
 
@@ -215,9 +217,7 @@ mod tests {
         let mut rows: Vec<RowWithSortKeys> = Vec::new();
         for i in (0..15000).rev() {
             rows.push((
-                Row {
-                    values: vec![SqlValue::Integer(i)],
-                },
+                Row { values: vec![SqlValue::Integer(i)] },
                 Some(vec![(SqlValue::Integer(i), vibesql_ast::OrderDirection::Asc)]),
             ));
         }
@@ -233,7 +233,9 @@ mod tests {
                     (false, true) => return Ordering::Less,
                     (false, false) => match dir {
                         vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
-                        vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                        vibesql_ast::OrderDirection::Desc => {
+                            compare_sql_values(val_a, val_b).reverse()
+                        }
                     },
                 };
 
@@ -272,21 +274,15 @@ mod tests {
     fn test_sort_descending_with_keys() {
         let mut rows: Vec<RowWithSortKeys> = vec![
             (
-                Row {
-                    values: vec![SqlValue::Integer(1)],
-                },
+                Row { values: vec![SqlValue::Integer(1)] },
                 Some(vec![(SqlValue::Integer(1), vibesql_ast::OrderDirection::Desc)]),
             ),
             (
-                Row {
-                    values: vec![SqlValue::Integer(3)],
-                },
+                Row { values: vec![SqlValue::Integer(3)] },
                 Some(vec![(SqlValue::Integer(3), vibesql_ast::OrderDirection::Desc)]),
             ),
             (
-                Row {
-                    values: vec![SqlValue::Integer(2)],
-                },
+                Row { values: vec![SqlValue::Integer(2)] },
                 Some(vec![(SqlValue::Integer(2), vibesql_ast::OrderDirection::Desc)]),
             ),
         ];
@@ -302,7 +298,9 @@ mod tests {
                     (false, true) => return Ordering::Less,
                     (false, false) => match dir {
                         vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
-                        vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                        vibesql_ast::OrderDirection::Desc => {
+                            compare_sql_values(val_a, val_b).reverse()
+                        }
                     },
                 };
 
@@ -338,21 +336,15 @@ mod tests {
         // NULLs should always sort last regardless of ASC/DESC
         let mut rows_asc: Vec<RowWithSortKeys> = vec![
             (
-                Row {
-                    values: vec![SqlValue::Integer(2)],
-                },
+                Row { values: vec![SqlValue::Integer(2)] },
                 Some(vec![(SqlValue::Integer(2), vibesql_ast::OrderDirection::Asc)]),
             ),
             (
-                Row {
-                    values: vec![SqlValue::Null],
-                },
+                Row { values: vec![SqlValue::Null] },
                 Some(vec![(SqlValue::Null, vibesql_ast::OrderDirection::Asc)]),
             ),
             (
-                Row {
-                    values: vec![SqlValue::Integer(1)],
-                },
+                Row { values: vec![SqlValue::Integer(1)] },
                 Some(vec![(SqlValue::Integer(1), vibesql_ast::OrderDirection::Asc)]),
             ),
         ];
@@ -368,7 +360,9 @@ mod tests {
                     (false, true) => return Ordering::Less,
                     (false, false) => match dir {
                         vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
-                        vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                        vibesql_ast::OrderDirection::Desc => {
+                            compare_sql_values(val_a, val_b).reverse()
+                        }
                     },
                 };
 

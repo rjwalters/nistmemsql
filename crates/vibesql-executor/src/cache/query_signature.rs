@@ -363,12 +363,7 @@ impl QuerySignature {
                 precision.hash(hasher);
             }
 
-            Expression::Interval {
-                value,
-                unit,
-                leading_precision,
-                fractional_precision,
-            } => {
+            Expression::Interval { value, unit, leading_precision, fractional_precision } => {
                 "INTERVAL".hash(hasher);
                 Self::hash_expression(value, hasher);
                 format!("{:?}", unit).hash(hasher);
@@ -496,7 +491,9 @@ mod tests {
 
     #[test]
     fn test_ast_based_same_structure_different_literals() {
-        use vibesql_ast::{BinaryOperator, Expression, FromClause, SelectItem, SelectStmt, Statement};
+        use vibesql_ast::{
+            BinaryOperator, Expression, FromClause, SelectItem, SelectStmt, Statement,
+        };
         use vibesql_types::SqlValue;
 
         // SELECT col0 FROM tab WHERE col1 > 5
@@ -508,7 +505,8 @@ mod tests {
                 alias: None,
             }],
             into_table: None,
-            into_variables: None,            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            into_variables: None,
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::GreaterThan,
                 left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),
@@ -531,7 +529,8 @@ mod tests {
                 alias: None,
             }],
             into_table: None,
-            into_variables: None,            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            into_variables: None,
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::GreaterThan,
                 left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),
@@ -554,7 +553,9 @@ mod tests {
 
     #[test]
     fn test_ast_based_different_structure() {
-        use vibesql_ast::{BinaryOperator, Expression, FromClause, SelectItem, SelectStmt, Statement};
+        use vibesql_ast::{
+            BinaryOperator, Expression, FromClause, SelectItem, SelectStmt, Statement,
+        };
         use vibesql_types::SqlValue;
 
         // SELECT col0 FROM tab WHERE col1 > 5
@@ -566,7 +567,8 @@ mod tests {
                 alias: None,
             }],
             into_table: None,
-            into_variables: None,            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            into_variables: None,
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::GreaterThan,
                 left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),
@@ -589,7 +591,8 @@ mod tests {
                 alias: None,
             }],
             into_table: None,
-            into_variables: None,            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            into_variables: None,
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::LessThan, // Different operator!
                 left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),

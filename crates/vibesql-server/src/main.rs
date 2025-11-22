@@ -1,6 +1,6 @@
+use std::{net::SocketAddr, sync::Arc};
+
 use anyhow::Result;
-use std::net::SocketAddr;
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{error, info};
 
@@ -31,12 +31,9 @@ async fn main() -> Result<()> {
     // Initialize basic tracing if observability didn't set it up
     if !config.observability.enabled || !config.observability.logs.bridge_tracing {
         tracing_subscriber::fmt()
-            .with_env_filter(
-                tracing_subscriber::EnvFilter::try_from_default_env()
-                    .unwrap_or_else(|_| {
-                        tracing_subscriber::EnvFilter::new(config.logging.level.to_lowercase())
-                    }),
-            )
+            .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(
+                |_| tracing_subscriber::EnvFilter::new(config.logging.level.to_lowercase()),
+            ))
             .try_init()
             .ok(); // Ignore error if already initialized
     }
@@ -106,8 +103,13 @@ async fn main() -> Result<()> {
 
                 // Spawn a new task for each connection
                 tokio::spawn(async move {
-                    let mut handler =
-                        ConnectionHandler::new(stream, peer_addr, config, observability, password_store);
+                    let mut handler = ConnectionHandler::new(
+                        stream,
+                        peer_addr,
+                        config,
+                        observability,
+                        password_store,
+                    );
                     if let Err(e) = handler.handle().await {
                         error!("Connection error from {}: {}", peer_addr, e);
                     }

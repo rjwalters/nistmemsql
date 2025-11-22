@@ -20,7 +20,9 @@ fn test_cast_integer_to_varchar() {
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
             expr: vibesql_ast::Expression::Cast {
-                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(123))),
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(
+                    123,
+                ))),
                 data_type: vibesql_types::DataType::Varchar { max_length: Some(10) },
             },
             alias: Some("result".to_string()),
@@ -33,7 +35,8 @@ fn test_cast_integer_to_varchar() {
         limit: None,
         offset: None,
         into_table: None,
-        into_variables: None,    };
+        into_variables: None,
+    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -67,7 +70,8 @@ fn test_cast_varchar_to_integer() {
         limit: None,
         offset: None,
         into_table: None,
-        into_variables: None,    };
+        into_variables: None,
+    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -99,7 +103,8 @@ fn test_cast_null() {
         limit: None,
         offset: None,
         into_table: None,
-        into_variables: None,    };
+        into_variables: None,
+    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -118,7 +123,9 @@ fn test_cast_integer_to_unsigned() {
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
             expr: vibesql_ast::Expression::Cast {
-                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(42))),
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(
+                    42,
+                ))),
                 data_type: vibesql_types::DataType::Unsigned,
             },
             alias: Some("result".to_string()),
@@ -131,7 +138,8 @@ fn test_cast_integer_to_unsigned() {
         limit: None,
         offset: None,
         into_table: None,
-        into_variables: None,    };
+        into_variables: None,
+    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -150,7 +158,9 @@ fn test_cast_negative_integer_to_unsigned() {
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
             expr: vibesql_ast::Expression::Cast {
-                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(-1))),
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(
+                    -1,
+                ))),
                 data_type: vibesql_types::DataType::Unsigned,
             },
             alias: Some("result".to_string()),
@@ -163,7 +173,8 @@ fn test_cast_negative_integer_to_unsigned() {
         limit: None,
         offset: None,
         into_table: None,
-        into_variables: None,    };
+        into_variables: None,
+    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -198,7 +209,8 @@ fn test_cast_varchar_to_unsigned() {
         limit: None,
         offset: None,
         into_table: None,
-        into_variables: None,    };
+        into_variables: None,
+    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -217,7 +229,9 @@ fn test_cast_float_to_unsigned() {
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
             expr: vibesql_ast::Expression::Cast {
-                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Float(5.7))),
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Float(
+                    5.7,
+                ))),
                 data_type: vibesql_types::DataType::Unsigned,
             },
             alias: Some("result".to_string()),
@@ -230,7 +244,8 @@ fn test_cast_float_to_unsigned() {
         limit: None,
         offset: None,
         into_table: None,
-        into_variables: None,    };
+        into_variables: None,
+    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -249,7 +264,9 @@ fn test_cast_as_signed_positive() {
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
             expr: vibesql_ast::Expression::Cast {
-                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(42))),
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(
+                    42,
+                ))),
                 data_type: vibesql_types::DataType::Bigint,
             },
             alias: Some("result".to_string()),
@@ -285,7 +302,9 @@ fn test_cast_as_signed_negative() {
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
             expr: vibesql_ast::Expression::Cast {
-                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(-4))),
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(
+                    -4,
+                ))),
                 data_type: vibesql_types::DataType::Bigint,
             },
             alias: Some("result".to_string()),
@@ -321,7 +340,9 @@ fn test_cast_as_signed_from_float() {
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
             expr: vibesql_ast::Expression::Cast {
-                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Float(5.7))),
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Float(
+                    5.7,
+                ))),
                 data_type: vibesql_types::DataType::Bigint,
             },
             alias: Some("result".to_string()),

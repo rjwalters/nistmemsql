@@ -78,12 +78,9 @@ impl Database {
     /// db.save("mydata.sql")
     /// ```
     fn save(&self, path: &str) -> PyResult<()> {
-        self.db
-            .lock()
-            .save_sql_dump(path)
-            .map_err(|e| {
-                pyo3::exceptions::PyIOError::new_err(format!("Failed to save database: {}", e))
-            })
+        self.db.lock().save_sql_dump(path).map_err(|e| {
+            pyo3::exceptions::PyIOError::new_err(format!("Failed to save database: {}", e))
+        })
     }
 
     /// Load database from SQL dump file
@@ -115,8 +112,6 @@ impl Database {
         let db = vibesql_executor::load_sql_dump(path).map_err(|e| {
             pyo3::exceptions::PyIOError::new_err(format!("Failed to load database: {}", e))
         })?;
-        Ok(Database {
-            db: Arc::new(Mutex::new(db)),
-        })
+        Ok(Database { db: Arc::new(Mutex::new(db)) })
     }
 }

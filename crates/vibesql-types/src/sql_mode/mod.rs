@@ -1,15 +1,13 @@
 mod config;
-pub mod types;
-mod strings;
 mod operators;
+mod strings;
+pub mod types;
 
 pub use config::MySqlModeFlags;
-
-// Re-export string types and traits
-pub use strings::{Collation, StringBehavior};
-
 // Re-export operator types and traits
 pub use operators::{ConcatOperator, DivisionBehavior, OperatorBehavior};
+// Re-export string types and traits
+pub use strings::{Collation, StringBehavior};
 
 /// SQL compatibility mode
 ///
@@ -53,9 +51,7 @@ pub enum SqlMode {
 impl Default for SqlMode {
     fn default() -> Self {
         // Default to MySQL mode for SQLLogicTest compatibility
-        SqlMode::MySQL {
-            flags: MySqlModeFlags::default(),
-        }
+        SqlMode::MySQL { flags: MySqlModeFlags::default() }
     }
 }
 
@@ -83,18 +79,12 @@ impl SqlMode {
 
 // Supported collations for each SQL mode
 #[allow(dead_code)]
-const MYSQL_SUPPORTED_COLLATIONS: &[Collation] = &[
-    Collation::Binary,
-    Collation::Utf8Binary,
-    Collation::Utf8GeneralCi,
-];
+const MYSQL_SUPPORTED_COLLATIONS: &[Collation] =
+    &[Collation::Binary, Collation::Utf8Binary, Collation::Utf8GeneralCi];
 
 #[allow(dead_code)]
-const SQLITE_SUPPORTED_COLLATIONS: &[Collation] = &[
-    Collation::Binary,
-    Collation::NoCase,
-    Collation::Rtrim,
-];
+const SQLITE_SUPPORTED_COLLATIONS: &[Collation] =
+    &[Collation::Binary, Collation::NoCase, Collation::Rtrim];
 
 impl StringBehavior for SqlMode {
     fn default_string_comparison_case_sensitive(&self) -> bool {
@@ -171,12 +161,12 @@ mod tests {
 
     #[test]
     fn test_division_behavior() {
-        use crate::sql_mode::types::{TypeBehavior, ValueType};
-        use crate::SqlValue;
-
-        let mysql_mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::default(),
+        use crate::{
+            sql_mode::types::{TypeBehavior, ValueType},
+            SqlValue,
         };
+
+        let mysql_mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
         // MySQL returns Numeric for division
         assert_eq!(
             mysql_mode.division_result_type(&SqlValue::Integer(5), &SqlValue::Integer(2)),
@@ -193,9 +183,7 @@ mod tests {
 
     #[test]
     fn test_mysql_flags_accessor() {
-        let mysql_mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::with_pipes_as_concat(),
-        };
+        let mysql_mode = SqlMode::MySQL { flags: MySqlModeFlags::with_pipes_as_concat() };
         assert!(mysql_mode.mysql_flags().is_some());
         assert!(mysql_mode.mysql_flags().unwrap().pipes_as_concat);
 
@@ -206,10 +194,7 @@ mod tests {
     #[test]
     fn test_sqlmode_with_flags() {
         let mode = SqlMode::MySQL {
-            flags: MySqlModeFlags {
-                pipes_as_concat: true,
-                ..Default::default()
-            },
+            flags: MySqlModeFlags { pipes_as_concat: true, ..Default::default() },
         };
 
         match mode {
@@ -224,9 +209,7 @@ mod tests {
 
     #[test]
     fn test_sqlmode_with_custom_flags() {
-        let mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::ansi(),
-        };
+        let mode = SqlMode::MySQL { flags: MySqlModeFlags::ansi() };
 
         match mode {
             SqlMode::MySQL { flags } => {
@@ -240,9 +223,7 @@ mod tests {
 
     #[test]
     fn test_mysql_string_comparison() {
-        let mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::default(),
-        };
+        let mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
         assert!(!mode.default_string_comparison_case_sensitive());
         assert_eq!(mode.default_collation(), Collation::Utf8GeneralCi);
     }
@@ -256,9 +237,7 @@ mod tests {
 
     #[test]
     fn test_mysql_supported_collations() {
-        let mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::default(),
-        };
+        let mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
         let collations = mode.supported_collations();
         assert_eq!(collations.len(), 3);
         assert!(collations.contains(&Collation::Binary));
@@ -279,9 +258,7 @@ mod tests {
     #[test]
     fn test_collation_case_sensitivity_consistency() {
         // MySQL default collation should be case-insensitive
-        let mysql_mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::default(),
-        };
+        let mysql_mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
         assert!(!mysql_mode.default_string_comparison_case_sensitive());
         assert_eq!(mysql_mode.default_collation(), Collation::Utf8GeneralCi);
 
@@ -295,26 +272,16 @@ mod tests {
 
     #[test]
     fn test_integer_division_behavior() {
-        let mysql_mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::default(),
-        };
-        assert_eq!(
-            mysql_mode.integer_division_behavior(),
-            DivisionBehavior::Decimal
-        );
+        let mysql_mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
+        assert_eq!(mysql_mode.integer_division_behavior(), DivisionBehavior::Decimal);
 
         let sqlite_mode = SqlMode::SQLite;
-        assert_eq!(
-            sqlite_mode.integer_division_behavior(),
-            DivisionBehavior::Integer
-        );
+        assert_eq!(sqlite_mode.integer_division_behavior(), DivisionBehavior::Integer);
     }
 
     #[test]
     fn test_xor_support() {
-        let mysql_mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::default(),
-        };
+        let mysql_mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
         assert!(mysql_mode.supports_xor());
 
         let sqlite_mode = SqlMode::SQLite;
@@ -323,9 +290,7 @@ mod tests {
 
     #[test]
     fn test_integer_div_operator_support() {
-        let mysql_mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::default(),
-        };
+        let mysql_mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
         assert!(mysql_mode.supports_integer_div_operator());
 
         let sqlite_mode = SqlMode::SQLite;
@@ -334,18 +299,10 @@ mod tests {
 
     #[test]
     fn test_string_concat_operator() {
-        let mysql_mode = SqlMode::MySQL {
-            flags: MySqlModeFlags::default(),
-        };
-        assert_eq!(
-            mysql_mode.string_concat_operator(),
-            ConcatOperator::Function
-        );
+        let mysql_mode = SqlMode::MySQL { flags: MySqlModeFlags::default() };
+        assert_eq!(mysql_mode.string_concat_operator(), ConcatOperator::Function);
 
         let sqlite_mode = SqlMode::SQLite;
-        assert_eq!(
-            sqlite_mode.string_concat_operator(),
-            ConcatOperator::PipePipe
-        );
+        assert_eq!(sqlite_mode.string_concat_operator(), ConcatOperator::PipePipe);
     }
 }

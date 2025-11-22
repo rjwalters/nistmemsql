@@ -75,9 +75,9 @@ mod node;
 mod serialize;
 
 pub use node::{BTreeIndex, Key, RowId};
+use vibesql_types::DataType;
 
 use crate::page::{PageId, PAGE_SIZE};
-use vibesql_types::DataType;
 
 // Page type identifiers
 #[allow(dead_code)] // Reserved for future use when implementing BTreeIndex::load()
@@ -107,7 +107,8 @@ fn calculate_degree(key_schema: &[DataType]) -> usize {
     let key_size = estimate_max_key_size(key_schema);
 
     // Internal node format: [header: 3 bytes][keys: N * key_size][children: (N+1) * 8 bytes]
-    // Leaf node format: [header: 3 bytes][entries: N * (key_size + num_row_ids_varint + row_ids)][next_leaf: 8 bytes]
+    // Leaf node format: [header: 3 bytes][entries: N * (key_size + num_row_ids_varint +
+    // row_ids)][next_leaf: 8 bytes]
 
     // Use leaf node calculation as it's more restrictive
     let header_size = 3; // page_type(1) + num_entries(2)
@@ -136,12 +137,14 @@ fn estimate_max_key_size(key_schema: &[DataType]) -> usize {
 
     for data_type in key_schema {
         let size = match data_type {
-            DataType::Smallint => 1 + 2,  // tag + i16
-            DataType::Integer | DataType::Bigint => 1 + 8,  // tag + i64
-            DataType::Unsigned => 1 + 8,  // tag + u64
-            DataType::Float { .. } | DataType::Real => 1 + 4,  // tag + f32
-            DataType::Numeric { .. } | DataType::Decimal { .. } | DataType::DoublePrecision => 1 + 8,  // tag + f64
-            DataType::Boolean => 1 + 1,  // tag + bool
+            DataType::Smallint => 1 + 2,                      // tag + i16
+            DataType::Integer | DataType::Bigint => 1 + 8,    // tag + i64
+            DataType::Unsigned => 1 + 8,                      // tag + u64
+            DataType::Float { .. } | DataType::Real => 1 + 4, // tag + f32
+            DataType::Numeric { .. } | DataType::Decimal { .. } | DataType::DoublePrecision => {
+                1 + 8
+            } // tag + f64
+            DataType::Boolean => 1 + 1,                       // tag + bool
             DataType::Character { length } => {
                 // tag + length(8) + max_chars
                 // Conservative estimate: assume 4 bytes per UTF-8 char
@@ -178,7 +181,7 @@ fn estimate_max_key_size(key_schema: &[DataType]) -> usize {
                 // BIT type: tag + length + bits (rounded up to bytes)
                 // MySQL BIT can be 1-64 bits
                 let bit_length = length.unwrap_or(1);
-                let byte_length = bit_length.div_ceil(8);  // Round up to nearest byte
+                let byte_length = bit_length.div_ceil(8); // Round up to nearest byte
                 1 + 8 + byte_length
             }
             DataType::UserDefined { .. } => {
@@ -226,10 +229,7 @@ mod tests {
 
     #[test]
     fn test_calculate_degree_multi_column() {
-        let key_schema = vec![
-            DataType::Integer,
-            DataType::Varchar { max_length: Some(20) },
-        ];
+        let key_schema = vec![DataType::Integer, DataType::Varchar { max_length: Some(20) }];
         let degree = calculate_degree(&key_schema);
 
         // Multi-column keys should have lower degree
@@ -251,8 +251,9 @@ mod tests {
     /// to verify that bulk loading produces correct results
     #[test]
     fn test_bulk_load_produces_searchable_index() {
-        use node::BTreeIndex;
         use std::sync::Arc;
+
+        use node::BTreeIndex;
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();

@@ -2,16 +2,21 @@
 // Index Maintenance - CRUD operations for indexes
 // ============================================================================
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use vibesql_types::{DataType, SqlValue};
 
-use super::index_metadata::{acquire_btree_lock, normalize_index_name, IndexData, IndexMetadata, DISK_BACKED_THRESHOLD};
-use super::index_manager::IndexManager;
-use crate::btree::{BTreeIndex, Key};
-use crate::page::PageManager;
-use crate::{Row, StorageError};
+use super::{
+    index_manager::IndexManager,
+    index_metadata::{
+        acquire_btree_lock, normalize_index_name, IndexData, IndexMetadata, DISK_BACKED_THRESHOLD,
+    },
+};
+use crate::{
+    btree::{BTreeIndex, Key},
+    page::PageManager,
+    Row, StorageError,
+};
 
 /// Apply prefix truncation to a SqlValue if prefix_length is specified
 ///
@@ -80,8 +85,12 @@ impl IndexManager {
         }
 
         // Store index metadata (use normalized name as key)
-        let metadata =
-            IndexMetadata { index_name: index_name.clone(), table_name: table_name.clone(), unique, columns: columns.clone() };
+        let metadata = IndexMetadata {
+            index_name: index_name.clone(),
+            table_name: table_name.clone(),
+            unique,
+            columns: columns.clone(),
+        };
 
         self.indexes.insert(normalized_name.clone(), metadata);
 
@@ -91,11 +100,14 @@ impl IndexManager {
         let (index_data, memory_bytes, disk_bytes, backend) = if use_disk_backed {
             // Create disk-backed B+ tree index using proper database path
             let index_file = self.get_index_file_path(&table_name, &index_name)?;
-            let index_file_str = index_file.to_str()
+            let index_file_str = index_file
+                .to_str()
                 .ok_or_else(|| StorageError::IoError("Invalid index file path".to_string()))?;
 
-            let page_manager = Arc::new(PageManager::new(index_file_str, self.storage.clone())
-                .map_err(|e| StorageError::IoError(format!("Failed to create index file: {}", e)))?);
+            let page_manager =
+                Arc::new(PageManager::new(index_file_str, self.storage.clone()).map_err(|e| {
+                    StorageError::IoError(format!("Failed to create index file: {}", e))
+                })?);
 
             // Build key schema from indexed columns
             let key_schema: Vec<DataType> = column_indices
@@ -128,8 +140,11 @@ impl IndexManager {
             let btree_key_schema = key_schema;
 
             // Use bulk_load for efficient index creation
-            let btree = BTreeIndex::bulk_load(sorted_entries, btree_key_schema, page_manager.clone())
-                .map_err(|e| StorageError::IoError(format!("Failed to bulk load index: {}", e)))?;
+            let btree =
+                BTreeIndex::bulk_load(sorted_entries, btree_key_schema, page_manager.clone())
+                    .map_err(|e| {
+                        StorageError::IoError(format!("Failed to bulk load index: {}", e))
+                    })?;
 
             // Calculate disk size
             let disk_bytes = if let Ok(file_meta) = std::fs::metadata(&index_file) {
@@ -217,7 +232,9 @@ impl IndexManager {
                             let value = &row.values[col_idx];
                             let truncated = apply_prefix_truncation(value, col.prefix_length);
                             // Normalize numeric types for consistent ordering/comparison
-                            crate::database::indexes::index_operations::normalize_for_comparison(&truncated)
+                            crate::database::indexes::index_operations::normalize_for_comparison(
+                                &truncated,
+                            )
                         })
                         .collect();
 
@@ -233,7 +250,11 @@ impl IndexManager {
                                 Ok(mut guard) => {
                                     if let Err(e) = guard.insert(key_values, row_index) {
                                         // Log error if insert fails for other reasons
-                                        log::warn!("Failed to insert into disk-backed index '{}': {:?}", index_name, e);
+                                        log::warn!(
+                                            "Failed to insert into disk-backed index '{}': {:?}",
+                                            index_name,
+                                            e
+                                        );
                                     }
                                 }
                                 Err(e) => {
@@ -270,7 +291,9 @@ impl IndexManager {
                                 .expect("Index column should exist");
                             let value = &old_row.values[col_idx];
                             let truncated = apply_prefix_truncation(value, col.prefix_length);
-                            crate::database::indexes::index_operations::normalize_for_comparison(&truncated)
+                            crate::database::indexes::index_operations::normalize_for_comparison(
+                                &truncated,
+                            )
                         })
                         .collect();
 
@@ -283,7 +306,9 @@ impl IndexManager {
                                 .expect("Index column should exist");
                             let value = &new_row.values[col_idx];
                             let truncated = apply_prefix_truncation(value, col.prefix_length);
-                            crate::database::indexes::index_operations::normalize_for_comparison(&truncated)
+                            crate::database::indexes::index_operations::normalize_for_comparison(
+                                &truncated,
+                            )
                         })
                         .collect();
 
@@ -301,18 +326,20 @@ impl IndexManager {
                                 }
 
                                 // Add new key
-                                data
-                                    .entry(new_key_values)
-                                    .or_insert_with(Vec::new)
-                                    .push(row_index);
+                                data.entry(new_key_values).or_insert_with(Vec::new).push(row_index);
                             }
                             IndexData::DiskBacked { btree, .. } => {
-                                // Safely acquire lock and update B+tree: delete old key, insert new key
+                                // Safely acquire lock and update B+tree: delete old key, insert new
+                                // key
                                 match acquire_btree_lock(btree) {
                                     Ok(mut guard) => {
                                         let _ = guard.delete(&old_key_values);
                                         if let Err(e) = guard.insert(new_key_values, row_index) {
-                                            log::warn!("Failed to update disk-backed index '{}': {:?}", index_name, e);
+                                            log::warn!(
+                                                "Failed to update disk-backed index '{}': {:?}",
+                                                index_name,
+                                                e
+                                            );
                                         }
                                     }
                                     Err(e) => {
@@ -350,7 +377,9 @@ impl IndexManager {
                             let value = &row.values[col_idx];
                             let truncated = apply_prefix_truncation(value, col.prefix_length);
                             // Normalize numeric types for consistent ordering/comparison
-                            crate::database::indexes::index_operations::normalize_for_comparison(&truncated)
+                            crate::database::indexes::index_operations::normalize_for_comparison(
+                                &truncated,
+                            )
                         })
                         .collect();
 

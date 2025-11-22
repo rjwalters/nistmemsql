@@ -9,11 +9,11 @@ use vibesql_ast::{BinaryOperator, Expression, SelectStmt};
 use vibesql_storage::Row;
 use vibesql_types::{DataType, SqlValue};
 
+use super::{
+    super::{pattern::has_no_joins, MonomorphicPlan},
+    filter::{extract_filters, get_column_type, optimize_date_ranges, FilterPredicate},
+};
 use crate::{errors::ExecutorError, schema::CombinedSchema};
-
-use super::super::pattern::has_no_joins;
-use super::super::MonomorphicPlan;
-use super::filter::{extract_filters, get_column_type, optimize_date_ranges, FilterPredicate};
 
 /// Specification for an aggregation column in GROUP BY queries
 #[derive(Debug, Clone)]
@@ -23,16 +23,9 @@ pub enum GroupAggregateSpec {
     /// SUM(col1 * col2)
     SumProduct { col1_idx: usize, col2_idx: usize },
     /// SUM(col1 * (1 - col2))
-    SumProductOneMinusCol {
-        col1_idx: usize,
-        col2_idx: usize,
-    },
+    SumProductOneMinusCol { col1_idx: usize, col2_idx: usize },
     /// SUM(col1 * (1 - col2) * (1 + col3))
-    SumProductComplex {
-        col1_idx: usize,
-        col2_idx: usize,
-        col3_idx: usize,
-    },
+    SumProductComplex { col1_idx: usize, col2_idx: usize, col3_idx: usize },
     /// AVG(col) - stored as sum/count
     Avg { col_idx: usize },
     /// COUNT(*)
@@ -63,11 +56,7 @@ impl GroupAggregateSpec {
                 let val2 = row.get_numeric_as_f64_unchecked(*col2_idx);
                 acc + (val1 * (1.0 - val2))
             }
-            GroupAggregateSpec::SumProductComplex {
-                col1_idx,
-                col2_idx,
-                col3_idx,
-            } => {
+            GroupAggregateSpec::SumProductComplex { col1_idx, col2_idx, col3_idx } => {
                 let val1 = row.get_numeric_as_f64_unchecked(*col1_idx);
                 let val2 = row.get_numeric_as_f64_unchecked(*col2_idx);
                 let val3 = row.get_numeric_as_f64_unchecked(*col3_idx);
@@ -235,7 +224,10 @@ impl GenericGroupedAggregationPlan {
     }
 
     /// Extract SUM pattern (handles various expressions)
-    fn extract_sum_pattern(expr: &Expression, schema: &CombinedSchema) -> Option<GroupAggregateSpec> {
+    fn extract_sum_pattern(
+        expr: &Expression,
+        schema: &CombinedSchema,
+    ) -> Option<GroupAggregateSpec> {
         match expr {
             // SUM(col)
             Expression::ColumnRef { column, .. } => {
@@ -243,11 +235,7 @@ impl GenericGroupedAggregationPlan {
                 Some(GroupAggregateSpec::Sum { col_idx })
             }
             // SUM(col1 * col2) or complex patterns
-            Expression::BinaryOp {
-                op: BinaryOperator::Multiply,
-                left,
-                right,
-            } => {
+            Expression::BinaryOp { op: BinaryOperator::Multiply, left, right } => {
                 // Check for SUM(col1 * col2)
                 if let (
                     Expression::ColumnRef { column: col1, .. },
@@ -267,8 +255,10 @@ impl GenericGroupedAggregationPlan {
                         right: sub_right,
                     } = right.as_ref()
                     {
-                        if let (Expression::Literal(SqlValue::Integer(1)), Expression::ColumnRef { column: col2, .. }) =
-                            (sub_left.as_ref(), sub_right.as_ref())
+                        if let (
+                            Expression::Literal(SqlValue::Integer(1)),
+                            Expression::ColumnRef { column: col2, .. },
+                        ) = (sub_left.as_ref(), sub_right.as_ref())
                         {
                             let col1_idx = schema.get_column_index(None, col1)?;
                             let col2_idx = schema.get_column_index(None, col2)?;
@@ -371,16 +361,16 @@ impl GenericGroupedAggregationPlan {
                         SqlValue::Double(row.get_f64_unchecked(group_col.col_idx))
                     }
                     DataType::Date => SqlValue::Date(row.get_date_unchecked(group_col.col_idx)),
-                    DataType::Boolean => SqlValue::Boolean(row.get_bool_unchecked(group_col.col_idx)),
+                    DataType::Boolean => {
+                        SqlValue::Boolean(row.get_bool_unchecked(group_col.col_idx))
+                    }
                     _ => continue,
                 };
                 key.push(value);
             }
 
             // Get or create group aggregates
-            let agg_values = groups
-                .entry(key)
-                .or_insert_with(|| vec![0.0; self.aggregates.len()]);
+            let agg_values = groups.entry(key).or_insert_with(|| vec![0.0; self.aggregates.len()]);
 
             // Accumulate each aggregate
             for (i, spec) in self.aggregates.iter().enumerate() {
@@ -437,16 +427,16 @@ impl GenericGroupedAggregationPlan {
                         SqlValue::Double(row.get_f64_unchecked(group_col.col_idx))
                     }
                     DataType::Date => SqlValue::Date(row.get_date_unchecked(group_col.col_idx)),
-                    DataType::Boolean => SqlValue::Boolean(row.get_bool_unchecked(group_col.col_idx)),
+                    DataType::Boolean => {
+                        SqlValue::Boolean(row.get_bool_unchecked(group_col.col_idx))
+                    }
                     _ => continue,
                 };
                 key.push(value);
             }
 
             // Get or create group aggregates
-            let agg_values = groups
-                .entry(key)
-                .or_insert_with(|| vec![0.0; self.aggregates.len()]);
+            let agg_values = groups.entry(key).or_insert_with(|| vec![0.0; self.aggregates.len()]);
 
             // Accumulate each aggregate
             for (i, spec) in self.aggregates.iter().enumerate() {
@@ -474,14 +464,13 @@ impl MonomorphicPlan for GenericGroupedAggregationPlan {
                     let val = match spec {
                         GroupAggregateSpec::Avg { .. } => {
                             // Get count from the last aggregate (should be COUNT)
-                            let count = if let Some(GroupAggregateSpec::Count) =
-                                self.aggregates.last()
-                            {
-                                agg_values[self.aggregates.len() - 1]
-                            } else {
-                                // If no COUNT, we can't compute AVG correctly
-                                1.0
-                            };
+                            let count =
+                                if let Some(GroupAggregateSpec::Count) = self.aggregates.last() {
+                                    agg_values[self.aggregates.len() - 1]
+                                } else {
+                                    // If no COUNT, we can't compute AVG correctly
+                                    1.0
+                                };
                             SqlValue::Double(agg_values[i] / count)
                         }
                         GroupAggregateSpec::Count => SqlValue::Integer(agg_values[i] as i64),
@@ -535,14 +524,13 @@ impl MonomorphicPlan for GenericGroupedAggregationPlan {
                     let val = match spec {
                         GroupAggregateSpec::Avg { .. } => {
                             // Get count from the last aggregate (should be COUNT)
-                            let count = if let Some(GroupAggregateSpec::Count) =
-                                self.aggregates.last()
-                            {
-                                agg_values[self.aggregates.len() - 1]
-                            } else {
-                                // If no COUNT, we can't compute AVG correctly
-                                1.0
-                            };
+                            let count =
+                                if let Some(GroupAggregateSpec::Count) = self.aggregates.last() {
+                                    agg_values[self.aggregates.len() - 1]
+                                } else {
+                                    // If no COUNT, we can't compute AVG correctly
+                                    1.0
+                                };
                             SqlValue::Double(agg_values[i] / count)
                         }
                         GroupAggregateSpec::Count => SqlValue::Integer(agg_values[i] as i64),
@@ -585,9 +573,10 @@ impl MonomorphicPlan for GenericGroupedAggregationPlan {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_catalog::{ColumnSchema, TableSchema};
     use vibesql_parser::Parser;
+
+    use super::*;
 
     fn parse_select_query(query: &str) -> SelectStmt {
         let stmt = Parser::parse_sql(query).expect("Failed to parse SQL");
@@ -611,8 +600,16 @@ mod tests {
                 ColumnSchema::new("l_extendedprice".to_string(), DataType::DoublePrecision, true),
                 ColumnSchema::new("l_discount".to_string(), DataType::DoublePrecision, true),
                 ColumnSchema::new("l_tax".to_string(), DataType::DoublePrecision, true),
-                ColumnSchema::new("l_returnflag".to_string(), DataType::Varchar { max_length: None }, true),
-                ColumnSchema::new("l_linestatus".to_string(), DataType::Varchar { max_length: None }, true),
+                ColumnSchema::new(
+                    "l_returnflag".to_string(),
+                    DataType::Varchar { max_length: None },
+                    true,
+                ),
+                ColumnSchema::new(
+                    "l_linestatus".to_string(),
+                    DataType::Varchar { max_length: None },
+                    true,
+                ),
                 ColumnSchema::new("l_shipdate".to_string(), DataType::Date, true),
             ],
         );

@@ -4,8 +4,10 @@
 
 use vibesql_types::SqlValue;
 
-use super::index_metadata::{acquire_btree_lock, IndexData};
-use super::value_normalization::normalize_for_comparison;
+use super::{
+    index_metadata::{acquire_btree_lock, IndexData},
+    value_normalization::normalize_for_comparison,
+};
 
 impl IndexData {
     /// Lookup exact key in the index
@@ -64,15 +66,13 @@ impl IndexData {
                 // Convert slice to Vec for btree.lookup() which expects &Vec<SqlValue>
                 let key_vec = key.to_vec();
                 match acquire_btree_lock(btree) {
-                    Ok(guard) => {
-                        match guard.lookup(&key_vec) {
-                            Ok(row_ids) => !row_ids.is_empty(),
-                            Err(e) => {
-                                log::warn!("BTreeIndex lookup failed in contains_key: {}", e);
-                                false
-                            }
+                    Ok(guard) => match guard.lookup(&key_vec) {
+                        Ok(row_ids) => !row_ids.is_empty(),
+                        Err(e) => {
+                            log::warn!("BTreeIndex lookup failed in contains_key: {}", e);
+                            false
                         }
-                    }
+                    },
                     Err(e) => {
                         log::warn!("BTreeIndex lock acquisition failed in contains_key: {}", e);
                         false
@@ -123,10 +123,8 @@ impl IndexData {
 
                 // Normalize values for consistent lookup (matches insertion-time normalization)
                 // Convert SqlValue values to Key (Vec<SqlValue>) format
-                let keys: Vec<Vec<SqlValue>> = unique_values
-                    .iter()
-                    .map(|v| vec![normalize_for_comparison(v)])
-                    .collect();
+                let keys: Vec<Vec<SqlValue>> =
+                    unique_values.iter().map(|v| vec![normalize_for_comparison(v)]).collect();
 
                 // Safely acquire lock and call BTreeIndex::multi_lookup
                 match acquire_btree_lock(btree) {
@@ -160,10 +158,11 @@ impl IndexData {
                 Box::new(data.iter().map(|(k, v)| (k.clone(), v.clone())))
             }
             IndexData::DiskBacked { .. } => {
-                // BTreeIndex doesn't currently expose an API for iterating over (key, row_ids) pairs
-                // This would require adding a scan API that preserves key groupings
-                // For now, return empty iterator since this method is rarely used
-                // Callers should use values() for full scans or lookup()/multi_lookup() for point queries
+                // BTreeIndex doesn't currently expose an API for iterating over (key, row_ids)
+                // pairs This would require adding a scan API that preserves key
+                // groupings For now, return empty iterator since this method is
+                // rarely used Callers should use values() for full scans or
+                // lookup()/multi_lookup() for point queries
                 log::warn!("DiskBacked iter() is not yet implemented - use values() instead");
                 Box::new(std::iter::empty())
             }
@@ -189,8 +188,9 @@ impl IndexData {
                     Ok(guard) => {
                         match guard.range_scan(None, None, true, true) {
                             Ok(all_row_ids) => {
-                                // Group row_ids by their appearance (BTree returns them in key order)
-                                // For full scan, we just need all row IDs, so wrap in a single Vec
+                                // Group row_ids by their appearance (BTree returns them in key
+                                // order) For full scan, we just
+                                // need all row IDs, so wrap in a single Vec
                                 Box::new(std::iter::once(all_row_ids))
                             }
                             Err(e) => {

@@ -64,7 +64,11 @@ impl std::fmt::Display for StorageError {
             StorageError::InvalidPageId(page_id) => write!(f, "Invalid page ID: {}", page_id),
             StorageError::LockError(msg) => write!(f, "Lock error: {}", msg),
             StorageError::MemoryBudgetExceeded { used, budget } => {
-                write!(f, "Memory budget exceeded: using {} bytes, budget is {} bytes", used, budget)
+                write!(
+                    f,
+                    "Memory budget exceeded: using {} bytes, budget is {} bytes",
+                    used, budget
+                )
             }
             StorageError::NoIndexToEvict => {
                 write!(f, "No index available to evict (all indexes are already disk-backed)")

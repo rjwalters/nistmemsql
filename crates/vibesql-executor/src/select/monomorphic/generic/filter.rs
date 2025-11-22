@@ -15,24 +15,11 @@ use crate::schema::CombinedSchema;
 #[derive(Debug, Clone)]
 pub enum FilterPredicate {
     /// Date range filter: column >= min AND column < max
-    DateRange {
-        column_idx: usize,
-        min: Date,
-        max: Date,
-    },
+    DateRange { column_idx: usize, min: Date, max: Date },
     /// Numeric BETWEEN filter: column >= min AND column <= max
-    Between {
-        column_idx: usize,
-        min: f64,
-        max: f64,
-    },
+    Between { column_idx: usize, min: f64, max: f64 },
     /// Comparison with constant: column OP value
-    Comparison {
-        column_idx: usize,
-        op: ComparisonOp,
-        value: SqlValue,
-        value_type: DataType,
-    },
+    Comparison { column_idx: usize, op: ComparisonOp, value: SqlValue, value_type: DataType },
 }
 
 /// Comparison operators supported in filter predicates
@@ -56,28 +43,17 @@ impl FilterPredicate {
     #[inline(always)]
     pub unsafe fn evaluate(&self, row: &Row) -> bool {
         match self {
-            FilterPredicate::DateRange {
-                column_idx,
-                min,
-                max,
-            } => {
+            FilterPredicate::DateRange { column_idx, min, max } => {
                 let value = row.get_date_unchecked(*column_idx);
                 value >= *min && value < *max
             }
-            FilterPredicate::Between {
-                column_idx,
-                min,
-                max,
-            } => {
+            FilterPredicate::Between { column_idx, min, max } => {
                 let value = row.get_numeric_as_f64_unchecked(*column_idx);
                 value >= *min && value <= *max
             }
-            FilterPredicate::Comparison {
-                column_idx,
-                op,
-                value,
-                value_type,
-            } => Self::evaluate_comparison(row, *column_idx, *op, value, value_type),
+            FilterPredicate::Comparison { column_idx, op, value, value_type } => {
+                Self::evaluate_comparison(row, *column_idx, *op, value, value_type)
+            }
         }
     }
 
@@ -213,11 +189,7 @@ fn extract_filters_from_expr(
 ) -> Option<Vec<FilterPredicate>> {
     match expr {
         // AND: combine filters from both sides
-        Expression::BinaryOp {
-            op: BinaryOperator::And,
-            left,
-            right,
-        } => {
+        Expression::BinaryOp { op: BinaryOperator::And, left, right } => {
             let mut left_filters = extract_filters_from_expr(left, schema)?;
             let right_filters = extract_filters_from_expr(right, schema)?;
             left_filters.extend(right_filters);
@@ -225,13 +197,7 @@ fn extract_filters_from_expr(
         }
 
         // BETWEEN: extract as Between predicate
-        Expression::Between {
-            expr: inner_expr,
-            low,
-            high,
-            negated: false,
-            ..
-        } => {
+        Expression::Between { expr: inner_expr, low, high, negated: false, .. } => {
             // Must be column BETWEEN literal AND literal
             let column_name = match inner_expr.as_ref() {
                 Expression::ColumnRef { column, .. } => column,
@@ -284,8 +250,9 @@ fn extract_filters_from_expr(
                     // Special case: detect date range patterns (col >= date1 AND col < date2)
                     if column_type == DataType::Date {
                         if let SqlValue::Date(_date) = value {
-                            // This might be part of a date range, but we'll just add it as a comparison
-                            // Date range optimization will happen if we find matching predicates
+                            // This might be part of a date range, but we'll just add it as a
+                            // comparison Date range optimization will
+                            // happen if we find matching predicates
                             return Some(vec![FilterPredicate::Comparison {
                                 column_idx,
                                 op: comparison_op,
@@ -415,10 +382,11 @@ pub fn optimize_date_ranges(filters: Vec<FilterPredicate>) -> Vec<FilterPredicat
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use vibesql_ast::SelectStmt;
     use vibesql_catalog::{ColumnSchema, TableSchema};
     use vibesql_parser::Parser;
-    use vibesql_ast::SelectStmt;
+
+    use super::*;
 
     fn parse_select_query(query: &str) -> SelectStmt {
         let stmt = Parser::parse_sql(query).expect("Failed to parse SQL");
@@ -452,12 +420,7 @@ mod tests {
         assert_eq!(filters.len(), 1);
 
         match &filters[0] {
-            FilterPredicate::Comparison {
-                column_idx,
-                op,
-                value,
-                ..
-            } => {
+            FilterPredicate::Comparison { column_idx, op, value, .. } => {
                 assert_eq!(*column_idx, 1); // quantity is column 1
                 assert_eq!(*op, ComparisonOp::LessThan);
                 assert_eq!(*value, SqlValue::Integer(100));

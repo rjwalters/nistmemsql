@@ -19,19 +19,17 @@
 
 mod tpch;
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use vibesql_executor::SelectExecutor;
-use vibesql_parser::Parser;
-use vibesql_storage::Database as VibeDB;
+use std::time::Duration;
 
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 #[cfg(feature = "benchmark-comparison")]
 use duckdb::Connection as DuckDBConn;
 #[cfg(feature = "benchmark-comparison")]
 use rusqlite::Connection as SqliteConn;
-
-use std::time::Duration;
-use tpch::queries::*;
-use tpch::schema::*;
+use tpch::{queries::*, schema::*};
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::Database as VibeDB;
 
 // =============================================================================
 // Benchmark Helper Functions
@@ -62,20 +60,16 @@ fn benchmark_vibesql_query_grouped(c: &mut Criterion, group_name: &str, sql: &st
     for &sf in &[0.01] {
         let db = load_vibesql(sf);
 
-        group.bench_with_input(
-            BenchmarkId::new("vibesql", format!("SF{}", sf)),
-            &sf,
-            |b, _| {
-                b.iter(|| {
-                    let stmt = Parser::parse_sql(sql).unwrap();
-                    if let vibesql_ast::Statement::Select(select) = stmt {
-                        let executor = SelectExecutor::new(&db);
-                        let result = executor.execute(&select).unwrap();
-                        black_box(result.len());
-                    }
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("vibesql", format!("SF{}", sf)), &sf, |b, _| {
+            b.iter(|| {
+                let stmt = Parser::parse_sql(sql).unwrap();
+                if let vibesql_ast::Statement::Select(select) = stmt {
+                    let executor = SelectExecutor::new(&db);
+                    let result = executor.execute(&select).unwrap();
+                    black_box(result.len());
+                }
+            });
+        });
     }
 
     group.finish();
@@ -108,30 +102,26 @@ fn benchmark_sqlite_query_grouped(c: &mut Criterion, group_name: &str, sql: &str
     for &sf in &[0.01] {
         let conn = load_sqlite(sf);
 
-        group.bench_with_input(
-            BenchmarkId::new("sqlite", format!("SF{}", sf)),
-            &sf,
-            |b, _| {
-                b.iter(|| {
-                    let mut stmt = conn.prepare(sql).unwrap();
-                    let rows = stmt
-                        .query_map([], |row| {
-                            Ok((
-                                row.get::<_, String>(0)?,
-                                row.get::<_, String>(1)?,
-                                row.get::<_, f64>(2)?,
-                            ))
-                        })
-                        .unwrap();
+        group.bench_with_input(BenchmarkId::new("sqlite", format!("SF{}", sf)), &sf, |b, _| {
+            b.iter(|| {
+                let mut stmt = conn.prepare(sql).unwrap();
+                let rows = stmt
+                    .query_map([], |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, f64>(2)?,
+                        ))
+                    })
+                    .unwrap();
 
-                    let mut count = 0;
-                    for _ in rows {
-                        count += 1;
-                    }
-                    black_box(count);
-                });
-            },
-        );
+                let mut count = 0;
+                for _ in rows {
+                    count += 1;
+                }
+                black_box(count);
+            });
+        });
     }
 
     group.finish();
@@ -164,30 +154,26 @@ fn benchmark_duckdb_query_grouped(c: &mut Criterion, group_name: &str, sql: &str
     for &sf in &[0.01] {
         let conn = load_duckdb(sf);
 
-        group.bench_with_input(
-            BenchmarkId::new("duckdb", format!("SF{}", sf)),
-            &sf,
-            |b, _| {
-                b.iter(|| {
-                    let mut stmt = conn.prepare(sql).unwrap();
-                    let rows = stmt
-                        .query_map([], |row| {
-                            Ok((
-                                row.get::<_, String>(0)?,
-                                row.get::<_, String>(1)?,
-                                row.get::<_, f64>(2)?,
-                            ))
-                        })
-                        .unwrap();
+        group.bench_with_input(BenchmarkId::new("duckdb", format!("SF{}", sf)), &sf, |b, _| {
+            b.iter(|| {
+                let mut stmt = conn.prepare(sql).unwrap();
+                let rows = stmt
+                    .query_map([], |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, f64>(2)?,
+                        ))
+                    })
+                    .unwrap();
 
-                    let mut count = 0;
-                    for _ in rows {
-                        count += 1;
-                    }
-                    black_box(count);
-                });
-            },
-        );
+                let mut count = 0;
+                for _ in rows {
+                    count += 1;
+                }
+                black_box(count);
+            });
+        });
     }
 
     group.finish();

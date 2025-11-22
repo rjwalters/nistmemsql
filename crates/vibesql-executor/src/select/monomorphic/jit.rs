@@ -31,18 +31,17 @@
 //! This is **experimental research code** for Phase 5 of the optimization roadmap.
 
 #[cfg(feature = "jit")]
+use std::time::Instant;
+
+#[cfg(feature = "jit")]
 use cranelift::prelude::*;
 #[cfg(feature = "jit")]
 use cranelift_jit::{JITBuilder, JITModule};
 #[cfg(feature = "jit")]
 use cranelift_module::{FuncId, Linkage, Module};
-
-use crate::errors::ExecutorError;
 use vibesql_storage::Row;
 
-
-#[cfg(feature = "jit")]
-use std::time::Instant;
+use crate::errors::ExecutorError;
 
 // ============================================================================
 // C-Callable Helper Functions for JIT Code
@@ -231,20 +230,22 @@ impl TpchQ6JitPlan {
 
         // Declare helper functions (link to our Rust C-callable helpers)
         let get_date_fn = module
-            .declare_function(
-                "vibesql_jit_get_date",
-                Linkage::Import,
-                &get_date_sig,
-            )
-            .map_err(|e| ExecutorError::UnsupportedFeature(format!("Helper function declaration error: {}", e)))?;
+            .declare_function("vibesql_jit_get_date", Linkage::Import, &get_date_sig)
+            .map_err(|e| {
+                ExecutorError::UnsupportedFeature(format!(
+                    "Helper function declaration error: {}",
+                    e
+                ))
+            })?;
 
         let get_f64_fn = module
-            .declare_function(
-                "vibesql_jit_get_f64",
-                Linkage::Import,
-                &get_f64_sig,
-            )
-            .map_err(|e| ExecutorError::UnsupportedFeature(format!("Helper function declaration error: {}", e)))?;
+            .declare_function("vibesql_jit_get_f64", Linkage::Import, &get_f64_sig)
+            .map_err(|e| {
+                ExecutorError::UnsupportedFeature(format!(
+                    "Helper function declaration error: {}",
+                    e
+                ))
+            })?;
 
         // Define the main function signature
         // fn q6_execute(rows_ptr: *const Row, rows_len: usize) -> f64
@@ -254,9 +255,10 @@ impl TpchQ6JitPlan {
         sig.returns.push(AbiParam::new(types::F64)); // return sum
 
         // Declare the function
-        let func_id = module
-            .declare_function("q6_execute", Linkage::Export, &sig)
-            .map_err(|e| ExecutorError::UnsupportedFeature(format!("Function declaration error: {}", e)))?;
+        let func_id =
+            module.declare_function("q6_execute", Linkage::Export, &sig).map_err(|e| {
+                ExecutorError::UnsupportedFeature(format!("Function declaration error: {}", e))
+            })?;
 
         // Create the function context
         let mut ctx = module.make_context();
@@ -353,9 +355,9 @@ impl TpchQ6JitPlan {
         }
 
         // Define the function
-        module
-            .define_function(func_id, &mut ctx)
-            .map_err(|e| ExecutorError::UnsupportedFeature(format!("Function definition error: {}", e)))?;
+        module.define_function(func_id, &mut ctx).map_err(|e| {
+            ExecutorError::UnsupportedFeature(format!("Function definition error: {}", e))
+        })?;
 
         // Clear the context to free resources
         module.clear_context(&mut ctx);
@@ -377,8 +379,7 @@ impl TpchQ6JitPlan {
     unsafe fn execute_jit(&self, rows: &[Row]) -> f64 {
         // Cast the stored usize back to a function pointer
         let func_ptr = self.compiled_fn as *const u8;
-        let func: unsafe extern "C" fn(*const Row, usize) -> f64 =
-            mem::transmute(func_ptr);
+        let func: unsafe extern "C" fn(*const Row, usize) -> f64 = mem::transmute(func_ptr);
 
         // Call the compiled function
         func(rows.as_ptr(), rows.len())
@@ -456,9 +457,7 @@ impl MonomorphicPlan for TpchQ6JitPlan {
         // let result = unsafe { self.execute_jit(rows) };
 
         // Return single-row result with revenue column
-        Ok(vec![Row {
-            values: vec![SqlValue::Double(result)],
-        }])
+        Ok(vec![Row { values: vec![SqlValue::Double(result)] }])
     }
 
     fn description(&self) -> &str {
@@ -513,11 +512,7 @@ mod tests {
         let result = plan.execute(&[]).expect("Execution failed");
 
         assert_eq!(result.len(), 1, "Should return single row");
-        assert_eq!(
-            result[0].values.len(),
-            1,
-            "Row should have single column"
-        );
+        assert_eq!(result[0].values.len(), 1, "Row should have single column");
 
         match &result[0].values[0] {
             SqlValue::Double(d) => {

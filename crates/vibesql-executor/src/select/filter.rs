@@ -3,22 +3,20 @@
 mod pattern;
 mod specialized;
 
+#[cfg(feature = "parallel")]
+use std::sync::Arc;
+
+use pattern::PredicatePattern;
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
+use specialized::create_evaluator;
+
+#[cfg(feature = "parallel")]
+use super::parallel::ParallelConfig;
 use crate::{
     errors::ExecutorError,
     evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
 };
-
-use pattern::PredicatePattern;
-use specialized::create_evaluator;
-
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
-
-#[cfg(feature = "parallel")]
-use std::sync::Arc;
-
-#[cfg(feature = "parallel")]
-use super::parallel::ParallelConfig;
 
 /// Fast truthy evaluation optimized for hot path (Combined evaluator version)
 ///
@@ -225,7 +223,7 @@ pub(super) fn apply_where_filter_basic<'a>(
         let include_row = is_truthy_basic(&value)?;
 
         if include_row {
-            filtered_rows.push(row);  // Move row, no clone needed
+            filtered_rows.push(row); // Move row, no clone needed
         }
         // Row is dropped if filtered out
     }
@@ -241,7 +239,6 @@ pub(super) fn apply_where_filter_basic<'a>(
     executor.query_buffer_pool().return_row_buffer(filtered_rows);
     Ok(result)
 }
-
 
 /// Parallel version of apply_where_filter_combined
 /// Uses rayon to evaluate WHERE predicates across multiple threads

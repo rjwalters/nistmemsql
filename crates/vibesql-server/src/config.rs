@@ -1,7 +1,7 @@
+use std::{fs, path::PathBuf};
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
 
 use crate::observability::ObservabilityConfig;
 
@@ -58,14 +58,8 @@ impl Default for Config {
                 ssl_cert: None,
                 ssl_key: None,
             },
-            auth: AuthConfig {
-                method: "trust".to_string(),
-                password_file: None,
-            },
-            logging: LoggingConfig {
-                level: "info".to_string(),
-                file: None,
-            },
+            auth: AuthConfig { method: "trust".to_string(), password_file: None },
+            logging: LoggingConfig { level: "info".to_string(), file: None },
             observability: ObservabilityConfig::default(),
         }
     }

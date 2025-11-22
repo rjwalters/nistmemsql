@@ -4,14 +4,20 @@
 //! sorted data, which is approximately 10x faster than incremental inserts.
 
 use std::sync::Arc;
+
 use vibesql_types::DataType;
 
-use crate::page::{PageId, PageManager};
-use crate::StorageError;
-
-use super::super::super::calculate_degree;
-use super::super::structure::{InternalNode, Key, LeafNode};
-use super::BTreeIndex;
+use super::{
+    super::{
+        super::calculate_degree,
+        structure::{InternalNode, Key, LeafNode},
+    },
+    BTreeIndex,
+};
+use crate::{
+    page::{PageId, PageManager},
+    StorageError,
+};
 
 impl BTreeIndex {
     /// Build B+ tree from pre-sorted data using bottom-up construction
@@ -20,8 +26,8 @@ impl BTreeIndex {
     /// because it avoids node splitting and builds optimally packed nodes.
     ///
     /// # Arguments
-    /// * `sorted_entries` - Pre-sorted key-value pairs (must be sorted by key)
-    ///   Duplicate keys are automatically grouped together.
+    /// * `sorted_entries` - Pre-sorted key-value pairs (must be sorted by key) Duplicate keys are
+    ///   automatically grouped together.
     /// * `key_schema` - Data types of key columns
     /// * `page_manager` - Page manager for disk I/O
     ///
@@ -93,7 +99,8 @@ impl BTreeIndex {
             if let Some(prev_id) = prev_leaf_page_id {
                 // We need to update the previous leaf's next_leaf pointer
                 // Read previous leaf, update it, and write it back
-                let mut prev_leaf = super::super::super::serialize::read_leaf_node(&page_manager, prev_id)?;
+                let mut prev_leaf =
+                    super::super::super::serialize::read_leaf_node(&page_manager, prev_id)?;
                 prev_leaf.next_leaf = page_id;
                 super::super::super::serialize::write_leaf_node(&page_manager, &prev_leaf, degree)?;
             }
@@ -142,7 +149,11 @@ impl BTreeIndex {
                 }
 
                 // Write internal node to disk
-                super::super::super::serialize::write_internal_node(&page_manager, &internal, degree)?;
+                super::super::super::serialize::write_internal_node(
+                    &page_manager,
+                    &internal,
+                    degree,
+                )?;
 
                 next_level.push(page_id);
             }
@@ -153,14 +164,8 @@ impl BTreeIndex {
         // 3. Root is the single remaining node
         let root_page_id = current_level[0];
 
-        let index = BTreeIndex {
-            root_page_id,
-            key_schema,
-            degree,
-            height,
-            page_manager,
-            metadata_page_id,
-        };
+        let index =
+            BTreeIndex { root_page_id, key_schema, degree, height, page_manager, metadata_page_id };
 
         // Save metadata
         index.save_metadata()?;
@@ -190,7 +195,9 @@ pub(super) fn read_first_key_from_page(
         if internal.keys.is_empty() {
             // Internal node with only one child - need to recurse
             if internal.children.is_empty() {
-                return Err(StorageError::IoError("Internal node has no keys or children".to_string()));
+                return Err(StorageError::IoError(
+                    "Internal node has no keys or children".to_string(),
+                ));
             }
             return read_first_key_from_page(page_manager, internal.children[0]);
         }

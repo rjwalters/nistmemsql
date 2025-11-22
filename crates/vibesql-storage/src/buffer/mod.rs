@@ -3,6 +3,8 @@
 //! This module provides an LRU (Least Recently Used) buffer pool that caches
 //! hot pages in memory, improving disk-backed B+ tree performance.
 
+#[cfg(target_arch = "wasm32")]
+use std::sync::Mutex;
 use std::{
     num::NonZeroUsize,
     sync::{
@@ -11,13 +13,9 @@ use std::{
     },
 };
 
+use lru::LruCache;
 #[cfg(not(target_arch = "wasm32"))]
 use parking_lot::Mutex;
-
-#[cfg(target_arch = "wasm32")]
-use std::sync::Mutex;
-
-use lru::LruCache;
 
 use crate::{
     page::{Page, PageId, PageManager},
@@ -247,8 +245,8 @@ impl BufferPool {
 mod tests {
     use tempfile::TempDir;
 
-    use crate::NativeStorage;
     use super::*;
+    use crate::NativeStorage;
 
     #[test]
     fn test_buffer_pool_creation() {

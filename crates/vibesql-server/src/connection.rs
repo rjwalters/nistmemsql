@@ -1,17 +1,20 @@
-use crate::auth::PasswordStore;
-use crate::config::Config;
-use crate::observability::ObservabilityProvider;
-use crate::protocol::{BackendMessage, FieldDescription, FrontendMessage, TransactionStatus};
-use crate::session::{ExecutionResult, Session};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Instant};
+
 use anyhow::Result;
 use bytes::BytesMut;
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::time::Instant;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
+};
 use tracing::{debug, error, info, warn};
+
+use crate::{
+    auth::PasswordStore,
+    config::Config,
+    observability::ObservabilityProvider,
+    protocol::{BackendMessage, FieldDescription, FrontendMessage, TransactionStatus},
+    session::{ExecutionResult, Session},
+};
 
 /// Connection handler for a single client
 pub struct ConnectionHandler {
@@ -98,10 +101,7 @@ impl ConnectionHandler {
     /// Handle startup message and authentication
     async fn handle_startup(&mut self, msg: Option<FrontendMessage>) -> Result<()> {
         match msg {
-            Some(FrontendMessage::Startup {
-                protocol_version,
-                params,
-            }) => {
+            Some(FrontendMessage::Startup { protocol_version, params }) => {
                 debug!("Startup: version={}, params={:?}", protocol_version, params);
 
                 let user = params.get("user").cloned().unwrap_or_else(|| "postgres".to_string());
@@ -323,7 +323,7 @@ impl ConnectionHandler {
                         name: col.name.clone(),
                         table_oid: 0,
                         column_attr_number: i as i16,
-                        data_type_oid: 25, // TEXT type
+                        data_type_oid: 25,  // TEXT type
                         data_type_size: -1, // Variable length
                         type_modifier: -1,
                         format_code: 0, // Text format
@@ -368,9 +368,7 @@ impl ConnectionHandler {
                 self.send_command_complete("CREATE TABLE").await?;
             }
 
-            ExecutionResult::DropTable
-            | ExecutionResult::DropIndex
-            | ExecutionResult::DropView => {
+            ExecutionResult::DropTable | ExecutionResult::DropIndex | ExecutionResult::DropView => {
                 self.send_command_complete("DROP TABLE").await?;
             }
 
@@ -400,11 +398,8 @@ impl ConnectionHandler {
     }
 
     async fn send_parameter_status(&mut self, name: &str, value: &str) -> Result<()> {
-        BackendMessage::ParameterStatus {
-            name: name.to_string(),
-            value: value.to_string(),
-        }
-        .encode(&mut self.write_buf);
+        BackendMessage::ParameterStatus { name: name.to_string(), value: value.to_string() }
+            .encode(&mut self.write_buf);
         self.flush_write_buffer().await
     }
 

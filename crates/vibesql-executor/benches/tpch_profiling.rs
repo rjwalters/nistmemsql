@@ -1,28 +1,45 @@
 //! Comprehensive profiling for all TPC-H queries
 //!
 //! Run with:
-//!   cargo bench --package vibesql-executor --bench tpch_profiling --features benchmark-comparison --no-run && ./target/release/deps/tpch_profiling-*
+//!   cargo bench --package vibesql-executor --bench tpch_profiling --features benchmark-comparison
+//! --no-run && ./target/release/deps/tpch_profiling-*
 //!
 //! Set QUERY_TIMEOUT_SECS env var to limit per-query time (default: 30s)
 
 mod tpch;
 
 use std::time::{Duration, Instant};
-use tpch::queries::*;
-use tpch::schema::load_vibesql;
+
+use tpch::{queries::*, schema::load_vibesql};
 use vibesql_executor::SelectExecutor;
 use vibesql_parser::Parser;
 
 fn run_query_detailed(db: &vibesql_storage::Database, name: &str, sql: &str, timeout: Duration) {
     eprintln!("\n=== {} ===", name);
-    eprintln!("SQL: {}", sql.trim().lines().take(3).collect::<Vec<_>>().join(" ").chars().take(80).collect::<String>());
+    eprintln!(
+        "SQL: {}",
+        sql.trim()
+            .lines()
+            .take(3)
+            .collect::<Vec<_>>()
+            .join(" ")
+            .chars()
+            .take(80)
+            .collect::<String>()
+    );
 
     // Parse
     let parse_start = Instant::now();
     let stmt = match Parser::parse_sql(sql) {
         Ok(vibesql_ast::Statement::Select(s)) => s,
-        Ok(_) => { eprintln!("ERROR: Not a SELECT"); return; }
-        Err(e) => { eprintln!("ERROR: Parse error: {}", e); return; }
+        Ok(_) => {
+            eprintln!("ERROR: Not a SELECT");
+            return;
+        }
+        Err(e) => {
+            eprintln!("ERROR: Parse error: {}", e);
+            return;
+        }
     };
     let parse_time = parse_start.elapsed();
     eprintln!("  Parse:    {:>10.2?}", parse_time);
@@ -37,8 +54,7 @@ fn run_query_detailed(db: &vibesql_storage::Database, name: &str, sql: &str, tim
     let execute_start = Instant::now();
 
     // Use a thread with timeout to prevent hanging
-    use std::sync::mpsc;
-    use std::thread;
+    use std::{sync::mpsc, thread};
 
     let (tx, rx) = mpsc::channel();
     let sql_owned = sql.to_string();
@@ -77,10 +93,8 @@ fn main() {
     eprintln!("=== TPC-H Query Profiling ===");
 
     // Get timeout from env (default 30s)
-    let timeout_secs: u64 = std::env::var("QUERY_TIMEOUT_SECS")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(30);
+    let timeout_secs: u64 =
+        std::env::var("QUERY_TIMEOUT_SECS").ok().and_then(|s| s.parse().ok()).unwrap_or(30);
     let timeout = Duration::from_secs(timeout_secs);
     eprintln!("Per-query timeout: {}s (set QUERY_TIMEOUT_SECS to change)", timeout_secs);
 

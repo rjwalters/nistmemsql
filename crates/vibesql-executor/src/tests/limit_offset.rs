@@ -6,7 +6,8 @@ use super::super::*;
 fn make_pagination_stmt(limit: Option<usize>, offset: Option<usize>) -> vibesql_ast::SelectStmt {
     vibesql_ast::SelectStmt {
         into_table: None,
-        into_variables: None,        with_clause: None,
+        into_variables: None,
+        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -25,7 +26,11 @@ fn make_users_table() -> vibesql_storage::Database {
     let schema = vibesql_catalog::TableSchema::new(
         "users".to_string(),
         vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new(
+                "id".to_string(),
+                vibesql_types::DataType::Integer,
+                false,
+            ),
             vibesql_catalog::ColumnSchema::new(
                 "name".to_string(),
                 vibesql_types::DataType::Varchar { max_length: Some(100) },

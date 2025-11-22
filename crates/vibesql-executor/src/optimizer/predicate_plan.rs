@@ -13,10 +13,13 @@
 //! the beginning of query execution, then threaded through the execution context.
 
 use std::collections::HashMap;
+
 use vibesql_ast::Expression;
 
-use super::selectivity::order_predicates_by_selectivity;
-use super::where_pushdown::{decompose_where_clause, PredicateDecomposition};
+use super::{
+    selectivity::order_predicates_by_selectivity,
+    where_pushdown::{decompose_where_clause, PredicateDecomposition},
+};
 use crate::schema::CombinedSchema;
 
 /// Structured plan for predicate application during query execution
@@ -33,9 +36,7 @@ pub struct PredicatePlan {
 impl PredicatePlan {
     /// Create an empty predicate plan (for queries without WHERE clause)
     pub fn empty() -> Self {
-        Self {
-            decomposition: PredicateDecomposition::empty(),
-        }
+        Self { decomposition: PredicateDecomposition::empty() }
     }
 
     /// Create a predicate plan from a WHERE clause expression
@@ -105,9 +106,7 @@ impl PredicatePlan {
     /// Get all equijoin conditions
     ///
     /// Returns (left_table, left_column, right_table, right_column, expression) tuples.
-    pub fn get_equijoin_conditions(
-        &self,
-    ) -> &[(String, String, String, String, Expression)] {
+    pub fn get_equijoin_conditions(&self) -> &[(String, String, String, String, Expression)] {
         &self.decomposition.equijoin_conditions
     }
 

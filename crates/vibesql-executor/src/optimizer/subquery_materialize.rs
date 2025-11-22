@@ -24,9 +24,10 @@ use vibesql_ast::{CaseWhen, Expression};
 use vibesql_storage::Database;
 use vibesql_types::SqlValue;
 
-use crate::errors::ExecutorError;
-use crate::optimizer::subquery_rewrite::correlation::is_correlated;
-use crate::select::SelectExecutor;
+use crate::{
+    errors::ExecutorError, optimizer::subquery_rewrite::correlation::is_correlated,
+    select::SelectExecutor,
+};
 
 /// Materialize uncorrelated IN subqueries in a WHERE clause
 ///
@@ -44,11 +45,7 @@ pub fn materialize_uncorrelated_in_subqueries(
 fn materialize_expr(expr: &Expression, database: &Database) -> Result<Expression, ExecutorError> {
     match expr {
         // Handle IN (subquery)
-        Expression::In {
-            expr: in_expr,
-            subquery,
-            negated,
-        } => {
+        Expression::In { expr: in_expr, subquery, negated } => {
             // Check if subquery is uncorrelated
             if !is_correlated(subquery) {
                 // Execute subquery once
@@ -72,10 +69,8 @@ fn materialize_expr(expr: &Expression, database: &Database) -> Result<Expression
                 }
 
                 // Convert to InList expression
-                let values: Vec<Expression> = values_set
-                    .into_iter()
-                    .map(Expression::Literal)
-                    .collect();
+                let values: Vec<Expression> =
+                    values_set.into_iter().map(Expression::Literal).collect();
 
                 // If empty, return appropriate constant
                 if values.is_empty() {
@@ -116,10 +111,7 @@ fn materialize_expr(expr: &Expression, database: &Database) -> Result<Expression
         // Recursively process unary operations
         Expression::UnaryOp { op, expr: inner } => {
             let new_inner = materialize_expr(inner, database)?;
-            Ok(Expression::UnaryOp {
-                op: op.clone(),
-                expr: Box::new(new_inner),
-            })
+            Ok(Expression::UnaryOp { op: op.clone(), expr: Box::new(new_inner) })
         }
 
         // Handle EXISTS (though typically not uncorrelated)
@@ -137,16 +129,10 @@ fn materialize_expr(expr: &Expression, database: &Database) -> Result<Expression
         }
 
         // Handle InList (recursively process expressions in the list)
-        Expression::InList {
-            expr: in_expr,
-            values,
-            negated,
-        } => {
+        Expression::InList { expr: in_expr, values, negated } => {
             let new_expr = materialize_expr(in_expr, database)?;
-            let new_values: Result<Vec<_>, _> = values
-                .iter()
-                .map(|v| materialize_expr(v, database))
-                .collect();
+            let new_values: Result<Vec<_>, _> =
+                values.iter().map(|v| materialize_expr(v, database)).collect();
             Ok(Expression::InList {
                 expr: Box::new(new_expr),
                 values: new_values?,
@@ -155,33 +141,22 @@ fn materialize_expr(expr: &Expression, database: &Database) -> Result<Expression
         }
 
         // Handle CASE expressions
-        Expression::Case {
-            operand,
-            when_clauses,
-            else_result,
-        } => {
-            let new_operand = operand
-                .as_ref()
-                .map(|e| materialize_expr(e, database))
-                .transpose()?;
+        Expression::Case { operand, when_clauses, else_result } => {
+            let new_operand =
+                operand.as_ref().map(|e| materialize_expr(e, database)).transpose()?;
             let new_clauses: Result<Vec<CaseWhen>, ExecutorError> = when_clauses
                 .iter()
                 .map(|clause| {
-                    let new_conditions: Result<Vec<_>, ExecutorError> = clause
-                        .conditions
-                        .iter()
-                        .map(|c| materialize_expr(c, database))
-                        .collect();
+                    let new_conditions: Result<Vec<_>, ExecutorError> =
+                        clause.conditions.iter().map(|c| materialize_expr(c, database)).collect();
                     Ok(CaseWhen {
                         conditions: new_conditions?,
                         result: materialize_expr(&clause.result, database)?,
                     })
                 })
                 .collect();
-            let new_else = else_result
-                .as_ref()
-                .map(|e| materialize_expr(e, database))
-                .transpose()?;
+            let new_else =
+                else_result.as_ref().map(|e| materialize_expr(e, database)).transpose()?;
             Ok(Expression::Case {
                 operand: new_operand.map(Box::new),
                 when_clauses: new_clauses?,
@@ -225,20 +200,11 @@ fn materialize_expr(expr: &Expression, database: &Database) -> Result<Expression
         // Handle IsNull
         Expression::IsNull { expr: inner, negated } => {
             let new_inner = materialize_expr(inner, database)?;
-            Ok(Expression::IsNull {
-                expr: Box::new(new_inner),
-                negated: *negated,
-            })
+            Ok(Expression::IsNull { expr: Box::new(new_inner), negated: *negated })
         }
 
         // Handle Between
-        Expression::Between {
-            expr: inner,
-            low,
-            high,
-            negated,
-            symmetric,
-        } => {
+        Expression::Between { expr: inner, low, high, negated, symmetric } => {
             let new_inner = materialize_expr(inner, database)?;
             let new_low = materialize_expr(low, database)?;
             let new_high = materialize_expr(high, database)?;
@@ -253,10 +219,8 @@ fn materialize_expr(expr: &Expression, database: &Database) -> Result<Expression
 
         // Handle functions
         Expression::Function { name, args, character_unit } => {
-            let new_args: Result<Vec<_>, _> = args
-                .iter()
-                .map(|a| materialize_expr(a, database))
-                .collect();
+            let new_args: Result<Vec<_>, _> =
+                args.iter().map(|a| materialize_expr(a, database)).collect();
             Ok(Expression::Function {
                 name: name.clone(),
                 args: new_args?,
@@ -265,10 +229,8 @@ fn materialize_expr(expr: &Expression, database: &Database) -> Result<Expression
         }
 
         Expression::AggregateFunction { name, args, distinct } => {
-            let new_args: Result<Vec<_>, _> = args
-                .iter()
-                .map(|a| materialize_expr(a, database))
-                .collect();
+            let new_args: Result<Vec<_>, _> =
+                args.iter().map(|a| materialize_expr(a, database)).collect();
             Ok(Expression::AggregateFunction {
                 name: name.clone(),
                 args: new_args?,
@@ -279,18 +241,11 @@ fn materialize_expr(expr: &Expression, database: &Database) -> Result<Expression
         // Handle Cast
         Expression::Cast { expr: inner, data_type } => {
             let new_inner = materialize_expr(inner, database)?;
-            Ok(Expression::Cast {
-                expr: Box::new(new_inner),
-                data_type: data_type.clone(),
-            })
+            Ok(Expression::Cast { expr: Box::new(new_inner), data_type: data_type.clone() })
         }
 
         // Handle Like
-        Expression::Like {
-            expr: inner,
-            pattern,
-            negated,
-        } => {
+        Expression::Like { expr: inner, pattern, negated } => {
             let new_inner = materialize_expr(inner, database)?;
             let new_pattern = materialize_expr(pattern, database)?;
             Ok(Expression::Like {

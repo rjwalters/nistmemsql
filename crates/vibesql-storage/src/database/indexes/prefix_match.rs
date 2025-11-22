@@ -40,10 +40,10 @@ impl IndexData {
             // The range_scan() implementation automatically handles multi-column indexes
             // by iterating through all keys where the first column matches 'value'
             let range_indices = self.range_scan(
-                Some(value),  // start
-                Some(value),  // end (same as start for equality/prefix matching)
-                true,         // inclusive_start
-                true,         // inclusive_end
+                Some(value), // start
+                Some(value), // end (same as start for equality/prefix matching)
+                true,        // inclusive_start
+                true,        // inclusive_end
             );
 
             matching_row_indices.extend(range_indices);
