@@ -2,14 +2,14 @@
 
 **Issue**: #2414 - Run TPC-H benchmarks and validate columnar execution performance targets
 **Date**: 2025-11-22
-**Status**: Partial - Q6 Ready, Q1 Blocked, Q3 Ready
+**Status**: All Queries Ready - Q6, Q1, Q3 ready to benchmark
 
 ## Summary
 
 Investigated the current state of TPC-H benchmarking for columnar execution. Key findings:
 
 - **Q6**: ✅ Ready to benchmark (issue #2412 closed)
-- **Q1**: ❌ Blocked (issue #2413 still in progress)
+- **Q1**: ✅ Ready to benchmark (issue #2413 closed)
 - **Q3**: ✅ Ready to benchmark (TpchQ3Plan implemented)
 
 ## Investigation Details
@@ -21,10 +21,10 @@ Investigated the current state of TPC-H benchmarking for columnar execution. Key
 - **Benchmark**: Compilation in progress
 
 ### Q1 Status
-- **Blocker**: Issue #2413 (Add GROUP BY support) - **OPEN** ⚠️
-- **Current State**: Issue has `loom:building` label - another agent is working on it
-- **Impact**: Cannot benchmark Q1 until GROUP BY is implemented
-- **Expected**: 6-10x speedup once GROUP BY support is complete
+- **Blocker**: Issue #2413 (Add GROUP BY support) - **CLOSED** ✅
+- **Current State**: GROUP BY support has been implemented and merged
+- **Impact**: Q1 is now ready to benchmark with columnar GROUP BY aggregations
+- **Expected**: 6-10x speedup with columnar execution
 
 ### Q3 Status
 - **Dependencies**: Phase 4 SIMD joins (PR #2408) - **MERGED** ✅
@@ -63,7 +63,7 @@ Per issue #2414 and `IMPLEMENTATION_STATUS.md`:
 | Query | Baseline | Target | Expected Speedup | Status |
 |-------|----------|--------|------------------|---------|
 | Q6 | ~600ms | <100ms | 6-10x | Ready to test |
-| Q1 | ~600ms | <100ms | 6-10x | Blocked by #2413 |
+| Q1 | ~600ms | <100ms | 6-10x | Ready to test |
 | Q3 | 724ms | <180ms | 4x | Ready to test |
 
 ## Next Steps
@@ -71,8 +71,8 @@ Per issue #2414 and `IMPLEMENTATION_STATUS.md`:
 1. ✅ **Complete**: Investigation of query readiness
 2. ⏳ **In Progress**: Q6 benchmark compilation
 3. **Pending**: Run Q6 benchmark and capture results
-4. **Pending**: Run Q3 benchmark if Q6 succeeds
-5. **Blocked**: Q1 benchmarking (wait for #2413)
+4. **Pending**: Run Q1 benchmark and validate GROUP BY performance
+5. **Pending**: Run Q3 benchmark and validate SIMD join performance
 6. **Pending**: Update `IMPLEMENTATION_STATUS.md` with actual results
 7. **Pending**: Document performance characteristics in module docs
 
@@ -81,12 +81,13 @@ Per issue #2414 and `IMPLEMENTATION_STATUS.md`:
 ### Immediate Actions
 1. Wait for Q6 benchmark to complete compilation
 2. Run Q6 and validate 6-10x speedup target
-3. Run Q3 benchmark to validate Phase 4 SIMD joins
-4. Document actual vs expected performance
+3. Run Q1 benchmark to validate GROUP BY columnar execution and 6-10x speedup
+4. Run Q3 benchmark to validate Phase 4 SIMD joins and 4x speedup
+5. Document actual vs expected performance
 
 ### Follow-up Actions
-1. Monitor issue #2413 for GROUP BY completion
-2. Once #2413 closes, add Q1 to benchmark suite
+1. Compare performance across all three queries
+2. Analyze any queries not meeting performance targets
 3. Consider optimizing benchmark compilation time (optional feature for comparisons?)
 4. Add performance regression tests to CI
 
@@ -102,6 +103,6 @@ Per issue #2414 and `IMPLEMENTATION_STATUS.md`:
 
 - #2395 - Parent issue (Phase 5 of columnar execution)
 - #2412 - Aggregate expressions (CLOSED) ✅
-- #2413 - GROUP BY support (OPEN) ⚠️
+- #2413 - GROUP BY support (CLOSED) ✅
 - #2408 - SIMD joins (MERGED) ✅
 - #2411 - Related PR
