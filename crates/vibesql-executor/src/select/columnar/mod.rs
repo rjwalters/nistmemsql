@@ -34,15 +34,23 @@
 // Experimental module - allow dead code warnings for future optimization work
 #![allow(dead_code)]
 
+mod batch;
 mod scan;
 mod filter;
 mod aggregate;
 
+#[cfg(feature = "simd")]
+mod simd_filter;
+
+pub use batch::{ColumnarBatch, ColumnArray};
 pub use scan::ColumnarScan;
 pub use filter::{
     apply_columnar_filter, create_filter_bitmap, extract_column_predicates, ColumnPredicate,
 };
 pub use aggregate::{compute_multiple_aggregates, extract_aggregates, AggregateOp};
+
+#[cfg(feature = "simd")]
+pub use simd_filter::simd_filter_batch;
 
 use crate::errors::ExecutorError;
 use crate::schema::CombinedSchema;
