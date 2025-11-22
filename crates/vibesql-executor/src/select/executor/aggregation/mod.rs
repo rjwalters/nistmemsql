@@ -62,22 +62,50 @@ impl SelectExecutor<'_> {
         // Extract schema for evaluator before moving from_result
         let schema = from_result.schema.clone();
 
-        // Create evaluator with procedural context support
+        // Create evaluator with procedural context and CTE context support
         // Priority: 1) outer context (for subqueries) 2) procedural context 3) just database
+        // Also pass CTE context if available (from outer query or from current query's CTEs)
+        let cte_ctx = if !cte_results.is_empty() {
+            Some(cte_results)
+        } else {
+            self.cte_context
+        };
+
         let evaluator =
-            if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
-                CombinedExpressionEvaluator::with_database_and_outer_context(
-                    &schema,
-                    self.database,
-                    outer_row,
-                    outer_schema,
-                )
+            if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+                if let Some(cte_ctx) = cte_ctx {
+                    CombinedExpressionEvaluator::with_database_and_outer_context_and_cte(
+                        &schema,
+                        self.database,
+                        outer_row,
+                        outer_schema,
+                        cte_ctx,
+                    )
+                } else {
+                    CombinedExpressionEvaluator::with_database_and_outer_context(
+                        &schema,
+                        self.database,
+                        outer_row,
+                        outer_schema,
+                    )
+                }
             } else if let Some(proc_ctx) = self.procedural_context {
-                CombinedExpressionEvaluator::with_database_and_procedural_context(
-                    &schema,
-                    self.database,
-                    proc_ctx,
-                )
+                if let Some(cte_ctx) = cte_ctx {
+                    CombinedExpressionEvaluator::with_database_and_procedural_context_and_cte(
+                        &schema,
+                        self.database,
+                        proc_ctx,
+                        cte_ctx,
+                    )
+                } else {
+                    CombinedExpressionEvaluator::with_database_and_procedural_context(
+                        &schema,
+                        self.database,
+                        proc_ctx,
+                    )
+                }
+            } else if let Some(cte_ctx) = cte_ctx {
+                CombinedExpressionEvaluator::with_database_and_cte(&schema, self.database, cte_ctx)
             } else {
                 CombinedExpressionEvaluator::with_database(&schema, self.database)
             };

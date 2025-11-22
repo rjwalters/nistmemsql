@@ -31,6 +31,15 @@ pub fn analyze_equi_join(
     schema: &CombinedSchema,
     left_column_count: usize,
 ) -> Option<EquiJoinInfo> {
+    analyze_single_equi_join(condition, schema, left_column_count)
+}
+
+/// Analyze a single equality expression for equi-join
+fn analyze_single_equi_join(
+    condition: &Expression,
+    schema: &CombinedSchema,
+    left_column_count: usize,
+) -> Option<EquiJoinInfo> {
     match condition {
         Expression::BinaryOp { op: BinaryOperator::Equal, left, right } => {
             // Try to extract column references from both sides
@@ -54,9 +63,79 @@ pub fn analyze_equi_join(
             }
             None
         }
-        // For complex conditions (AND, OR, etc.), we could potentially optimize
-        // multiple equi-join conditions, but for now we fall back to nested loop
         _ => None,
+    }
+}
+
+/// Result of analyzing a compound condition for equi-join opportunities
+#[derive(Debug)]
+pub struct CompoundEquiJoinResult {
+    /// The equi-join info for the hash join
+    pub equi_join: EquiJoinInfo,
+    /// Remaining conditions to apply as post-join filter
+    pub remaining_conditions: Vec<Expression>,
+}
+
+/// Analyze a potentially compound (AND) condition to extract equi-join opportunities
+///
+/// For compound conditions like `a.x = b.x AND a.y > 5 AND b.z = 10`, this will:
+/// 1. Extract the first equi-join condition (`a.x = b.x`) for hash join
+/// 2. Return remaining conditions (`a.y > 5 AND b.z = 10`) as post-join filters
+///
+/// This enables hash join optimization for complex WHERE clauses in queries like TPC-H Q3.
+pub fn analyze_compound_equi_join(
+    condition: &Expression,
+    schema: &CombinedSchema,
+    left_column_count: usize,
+) -> Option<CompoundEquiJoinResult> {
+    // First try as a simple equi-join
+    if let Some(equi_join) = analyze_single_equi_join(condition, schema, left_column_count) {
+        return Some(CompoundEquiJoinResult {
+            equi_join,
+            remaining_conditions: vec![],
+        });
+    }
+
+    // Try to extract from AND conditions
+    match condition {
+        Expression::BinaryOp { op: BinaryOperator::And, left: _, right: _ } => {
+            // Flatten all AND conditions
+            let mut conditions = Vec::new();
+            flatten_and_conditions(condition, &mut conditions);
+
+            // Find the first equi-join condition
+            for (i, cond) in conditions.iter().enumerate() {
+                if let Some(equi_join) = analyze_single_equi_join(cond, schema, left_column_count) {
+                    // Build remaining conditions
+                    let remaining: Vec<Expression> = conditions
+                        .iter()
+                        .enumerate()
+                        .filter(|(j, _)| *j != i)
+                        .map(|(_, c)| (*c).clone())
+                        .collect();
+
+                    return Some(CompoundEquiJoinResult {
+                        equi_join,
+                        remaining_conditions: remaining,
+                    });
+                }
+            }
+
+            // No equi-join found in AND conditions
+            None
+        }
+        _ => None,
+    }
+}
+
+/// Flatten nested AND conditions into a vector
+fn flatten_and_conditions<'a>(expr: &'a Expression, out: &mut Vec<&'a Expression>) {
+    match expr {
+        Expression::BinaryOp { op: BinaryOperator::And, left, right } => {
+            flatten_and_conditions(left, out);
+            flatten_and_conditions(right, out);
+        }
+        _ => out.push(expr),
     }
 }
 

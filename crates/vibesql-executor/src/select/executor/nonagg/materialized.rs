@@ -25,6 +25,7 @@ use crate::{
             evaluate_window_functions, expression_has_window_function, has_window_functions,
             WindowFunctionKey,
         },
+        CteResult,
     },
 };
 use std::collections::HashMap;
@@ -39,16 +40,17 @@ impl SelectExecutor<'_> {
         &self,
         stmt: &vibesql_ast::SelectStmt,
         from_result: FromResult,
+        cte_results: &HashMap<String, CteResult>,
     ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
         // Phase D: Use iterator-based execution for simple queries
         // This provides memory efficiency and early termination for LIMIT queries
         if Self::can_use_iterator_execution(stmt) {
-            return self.execute_with_iterators(stmt, from_result);
+            return self.execute_with_iterators(stmt, from_result, cte_results);
         }
 
         // Fall back to materialized execution for complex queries
         // (ORDER BY, DISTINCT, window functions require full materialization)
-        self.execute_materialized(stmt, from_result)
+        self.execute_materialized(stmt, from_result, cte_results)
     }
 
     /// Execute query with full materialization
@@ -61,6 +63,7 @@ impl SelectExecutor<'_> {
         &self,
         stmt: &vibesql_ast::SelectStmt,
         from_result: FromResult,
+        cte_results: &HashMap<String, CteResult>,
     ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
         let schema = from_result.schema.clone();
         let sorted_by = from_result.sorted_by.clone();
@@ -72,22 +75,50 @@ impl SelectExecutor<'_> {
             + rows.iter().map(|r| std::mem::size_of_val(r.values.as_slice())).sum::<usize>();
         self.track_memory_allocation(from_memory_bytes)?;
 
-        // Create evaluator with procedural context support
+        // Create evaluator with procedural context and CTE context support
         // Priority: 1) outer context (for subqueries) 2) procedural context 3) just database
+        // Also pass CTE context if available (from outer query or from current query's CTEs)
+        let cte_ctx = if !cte_results.is_empty() {
+            Some(cte_results)
+        } else {
+            self.cte_context
+        };
+
         let evaluator =
-            if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
-                CombinedExpressionEvaluator::with_database_and_outer_context(
-                    &schema,
-                    self.database,
-                    outer_row,
-                    outer_schema,
-                )
+            if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+                if let Some(cte_ctx) = cte_ctx {
+                    CombinedExpressionEvaluator::with_database_and_outer_context_and_cte(
+                        &schema,
+                        self.database,
+                        outer_row,
+                        outer_schema,
+                        cte_ctx,
+                    )
+                } else {
+                    CombinedExpressionEvaluator::with_database_and_outer_context(
+                        &schema,
+                        self.database,
+                        outer_row,
+                        outer_schema,
+                    )
+                }
             } else if let Some(proc_ctx) = self.procedural_context {
-                CombinedExpressionEvaluator::with_database_and_procedural_context(
-                    &schema,
-                    self.database,
-                    proc_ctx,
-                )
+                if let Some(cte_ctx) = cte_ctx {
+                    CombinedExpressionEvaluator::with_database_and_procedural_context_and_cte(
+                        &schema,
+                        self.database,
+                        proc_ctx,
+                        cte_ctx,
+                    )
+                } else {
+                    CombinedExpressionEvaluator::with_database_and_procedural_context(
+                        &schema,
+                        self.database,
+                        proc_ctx,
+                    )
+                }
+            } else if let Some(cte_ctx) = cte_ctx {
+                CombinedExpressionEvaluator::with_database_and_cte(&schema, self.database, cte_ctx)
             } else {
                 CombinedExpressionEvaluator::with_database(&schema, self.database)
             };
@@ -153,7 +184,7 @@ impl SelectExecutor<'_> {
             filtered_rows.into_iter().map(|row| (row, None)).collect();
 
         // Apply sorting (explicit ORDER BY or implicit for determinism)
-        self.apply_sorting(stmt, &mut result_rows, &sorted_by, &schema, &window_mapping)?;
+        self.apply_sorting(stmt, &mut result_rows, &sorted_by, &schema, &window_mapping, cte_ctx)?;
 
         // Apply projection strategy
         let final_rows = self.apply_projection(
@@ -263,33 +294,65 @@ impl SelectExecutor<'_> {
         sorted_by: &Option<Vec<(String, vibesql_ast::OrderDirection)>>,
         schema: &crate::schema::CombinedSchema,
         window_mapping: &Option<HashMap<WindowFunctionKey, usize>>,
+        cte_ctx: Option<&HashMap<String, CteResult>>,
     ) -> Result<(), ExecutorError> {
         if let Some(order_by) = &stmt.order_by {
             // Check if results are already sorted by the index scan
             let already_sorted = self.check_if_already_sorted(sorted_by, order_by);
 
             if !already_sorted {
-                // Create evaluator for ORDER BY with procedural context support
+                // Create evaluator for ORDER BY with procedural context and CTE context support
                 // Priority: 1) window mapping 2) outer context 3) procedural context 4) database only
+                // Also pass CTE context if available (from outer query or from current query's CTEs)
                 let order_by_evaluator = if let Some(ref mapping) = window_mapping {
-                    CombinedExpressionEvaluator::with_database_and_windows(
-                        schema,
-                        self.database,
-                        mapping,
-                    )
-                } else if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
-                    CombinedExpressionEvaluator::with_database_and_outer_context(
-                        schema,
-                        self.database,
-                        outer_row,
-                        outer_schema,
-                    )
+                    if let Some(cte_ctx) = cte_ctx {
+                        CombinedExpressionEvaluator::with_database_and_windows_and_cte(
+                            schema,
+                            self.database,
+                            mapping,
+                            cte_ctx,
+                        )
+                    } else {
+                        CombinedExpressionEvaluator::with_database_and_windows(
+                            schema,
+                            self.database,
+                            mapping,
+                        )
+                    }
+                } else if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+                    if let Some(cte_ctx) = cte_ctx {
+                        CombinedExpressionEvaluator::with_database_and_outer_context_and_cte(
+                            schema,
+                            self.database,
+                            outer_row,
+                            outer_schema,
+                            cte_ctx,
+                        )
+                    } else {
+                        CombinedExpressionEvaluator::with_database_and_outer_context(
+                            schema,
+                            self.database,
+                            outer_row,
+                            outer_schema,
+                        )
+                    }
                 } else if let Some(proc_ctx) = self.procedural_context {
-                    CombinedExpressionEvaluator::with_database_and_procedural_context(
-                        schema,
-                        self.database,
-                        proc_ctx,
-                    )
+                    if let Some(cte_ctx) = cte_ctx {
+                        CombinedExpressionEvaluator::with_database_and_procedural_context_and_cte(
+                            schema,
+                            self.database,
+                            proc_ctx,
+                            cte_ctx,
+                        )
+                    } else {
+                        CombinedExpressionEvaluator::with_database_and_procedural_context(
+                            schema,
+                            self.database,
+                            proc_ctx,
+                        )
+                    }
+                } else if let Some(cte_ctx) = cte_ctx {
+                    CombinedExpressionEvaluator::with_database_and_cte(schema, self.database, cte_ctx)
                 } else {
                     CombinedExpressionEvaluator::with_database(schema, self.database)
                 };

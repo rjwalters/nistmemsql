@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::errors::ExecutorError;
 
 /// CTE result: (schema, rows)
-pub(super) type CteResult = (vibesql_catalog::TableSchema, Vec<vibesql_storage::Row>);
+pub type CteResult = (vibesql_catalog::TableSchema, Vec<vibesql_storage::Row>);
 
 /// Execute all CTEs and return their results
 ///

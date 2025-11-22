@@ -97,16 +97,21 @@ pub(super) fn rewrite_exists_to_in(
     outer_tables: &[String],
 ) -> Option<(Expression, SelectStmt, bool)> {
     // Only handle simple single-table subqueries for now
-    let inner_table = match &subquery.from {
-        Some(vibesql_ast::FromClause::Table { name, .. }) => name.clone(),
+    // Capture both table name and alias for proper column matching
+    let (inner_table, inner_alias) = match &subquery.from {
+        Some(vibesql_ast::FromClause::Table { name, alias }) => {
+            (name.clone(), alias.clone())
+        }
         _ => return None,
     };
+    // Use alias if present, otherwise use table name for matching columns
+    let inner_table_ref = inner_alias.as_ref().unwrap_or(&inner_table);
 
     // Extract correlation predicate from WHERE clause
     let where_clause = subquery.where_clause.as_ref()?;
 
     // Try to find and extract correlation predicate: inner.col = outer.col
-    let (correlation, remaining_predicates) = extract_correlation_predicate(where_clause, &inner_table, outer_tables)?;
+    let (correlation, remaining_predicates) = extract_correlation_predicate(where_clause, inner_table_ref, outer_tables)?;
 
     // Build the decorrelated subquery
     let mut decorrelated = subquery.clone();

@@ -50,25 +50,20 @@ impl JoinOrderContext {
         while !remaining_tables.is_empty() {
             let mut best_table: Option<String> = None;
             let mut best_cost = JoinCost::new(usize::MAX, u64::MAX);
-            let mut best_has_edge = false;
 
-            // Try each remaining table and pick the one with lowest cost
+            // Try each remaining table that has a join edge to already-joined tables
+            // This enforces connected subgraph enumeration (no CROSS JOINs)
             for candidate in &remaining_tables {
-                let has_edge = self.has_join_edge(&joined_tables, candidate);
+                // Only consider tables with join edges to already-joined tables
+                if !self.has_join_edge(&joined_tables, candidate) {
+                    continue;
+                }
+
                 let cost = self.estimate_join_cost(current_cardinality, &joined_tables, candidate);
 
-                // Prefer tables with join conditions (has_edge = true)
-                // Among those, pick the one with lowest cost
-                let is_better = match (has_edge, best_has_edge) {
-                    (true, false) => true, // Join condition is better than Cartesian product
-                    (false, true) => false, // Cartesian product is worse than join condition
-                    _ => cost.total() < best_cost.total(), // Same join type, compare costs
-                };
-
-                if best_table.is_none() || is_better {
+                if best_table.is_none() || cost.total() < best_cost.total() {
                     best_table = Some(candidate.clone());
                     best_cost = cost;
-                    best_has_edge = has_edge;
                 }
             }
 
@@ -80,8 +75,22 @@ impl JoinOrderContext {
                 // Update current cardinality to the result of this join
                 current_cardinality = best_cost.cardinality;
             } else {
-                // Shouldn't happen, but handle gracefully
-                break;
+                // No connected tables remain - this indicates a disconnected join graph
+                // In well-formed SQL queries, this shouldn't happen
+                // Fall back to adding smallest remaining table to handle edge cases
+                if let Some(table) = remaining_tables
+                    .iter()
+                    .min_by_key(|t| self.table_cardinalities.get(*t).copied().unwrap_or(10000))
+                    .cloned()
+                {
+                    let cost = self.estimate_join_cost(current_cardinality, &joined_tables, &table);
+                    joined_tables.insert(table.clone());
+                    remaining_tables.remove(&table);
+                    join_order.push(table);
+                    current_cardinality = cost.cardinality;
+                } else {
+                    break;
+                }
             }
         }
 
