@@ -149,8 +149,6 @@ impl SelectExecutor<'_> {
         // Expand wildcards in SELECT list to explicit column references
         // This allows SELECT * and SELECT table.* to work with GROUP BY/aggregates
         let expanded_select_list = self.expand_wildcards_for_aggregation(&stmt.select_list, &schema)?;
-        eprintln!("[DEBUG] Original select_list length: {}", stmt.select_list.len());
-        eprintln!("[DEBUG] Expanded select_list length: {}", expanded_select_list.len());
 
         // Compute aggregates for each group and apply HAVING
         let mut result_rows = Vec::new();
@@ -166,18 +164,15 @@ impl SelectExecutor<'_> {
 
             // Compute aggregates for this group
             let mut aggregate_results = Vec::new();
-            eprintln!("[DEBUG] Processing {} select items", expanded_select_list.len());
-            for (idx, item) in expanded_select_list.iter().enumerate() {
+            for item in &expanded_select_list {
                 match item {
                     vibesql_ast::SelectItem::Expression { expr, .. } => {
-                        eprintln!("[DEBUG] Evaluating select item {}: {:?}", idx, expr);
                         let value = self.evaluate_with_aggregates(
                             expr,
                             &group_rows,
                             &group_key,
                             &evaluator,
                         )?;
-                        eprintln!("[DEBUG] Result for item {}: {:?}", idx, value);
                         aggregate_results.push(value);
                     }
                     vibesql_ast::SelectItem::Wildcard { .. }
