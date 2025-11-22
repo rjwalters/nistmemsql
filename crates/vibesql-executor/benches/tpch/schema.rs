@@ -657,6 +657,20 @@ fn create_tpch_indexes_vibesql(db: &mut VibeDB) {
     )
     .unwrap();
 
+    // Lineitem table: Index on L_RETURNFLAG for TPC-H Q10 (Returned Item Reporting)
+    // Q10 filters on l_returnflag = 'R' to find returned items in a 4-way join
+    db.create_index(
+        "idx_lineitem_returnflag".to_string(),
+        "LINEITEM".to_string(),
+        false, // not unique
+        vec![IndexColumn {
+            column_name: "L_RETURNFLAG".to_string(),
+            direction: OrderDirection::Asc,
+            prefix_length: None,
+        }],
+    )
+    .unwrap();
+
     // Part table: PRIMARY KEY (p_partkey)
     db.create_index(
         "idx_part_pk".to_string(),
