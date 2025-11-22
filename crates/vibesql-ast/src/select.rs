@@ -107,10 +107,10 @@ pub enum JoinType {
     FullOuter,
     Cross,
     /// Semi-join: returns rows from left where a match exists in right
-    /// Used for IN subquery optimization
+    /// Used for IN and EXISTS subquery optimization
     Semi,
     /// Anti-join: returns rows from left where NO match exists in right
-    /// Used for NOT IN subquery optimization
+    /// Used for NOT IN and NOT EXISTS subquery optimization
     Anti,
 }
 

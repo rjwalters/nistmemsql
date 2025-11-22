@@ -346,12 +346,9 @@ impl<'schema, I: RowIterator> Iterator for LazyNestedLoopJoin<'schema, I> {
                 // At least as many as right side
                 (right_count, None)
             }
-            vibesql_ast::JoinType::Semi => {
-                // At most as many as left side (one per matching left row)
-                (0, left_upper)
-            }
-            vibesql_ast::JoinType::Anti => {
-                // At most as many as left side (non-matching rows)
+            vibesql_ast::JoinType::Semi | vibesql_ast::JoinType::Anti => {
+                // Semi/Anti join returns subset of left rows
+                // At minimum 0, at most left side size
                 (0, left_upper)
             }
         }

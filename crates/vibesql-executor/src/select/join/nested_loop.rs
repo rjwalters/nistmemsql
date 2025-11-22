@@ -566,6 +566,14 @@ pub(super) fn nested_loop_cross_join(
 ///
 /// Semi-join returns left rows where at least one matching right row exists.
 /// Result contains only left columns. Each left row appears at most once.
+/// This is used for IN and EXISTS subquery optimization.
+///
+/// Algorithm:
+/// - For each left row, check if ANY right row matches the condition
+/// - On first match, add left row and skip remaining right rows (early termination)
+/// - Return only left schema (no row combination)
+///
+/// Performance: O(n * m) worst case, but with early termination on first match
 pub(super) fn nested_loop_semi_join(
     mut left: FromResult,
     mut right: FromResult,
@@ -583,6 +591,7 @@ pub(super) fn nested_loop_semi_join(
         .next()
         .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
         .clone();
+
     let right_schema = right
         .schema
         .table_schemas
@@ -590,6 +599,7 @@ pub(super) fn nested_loop_semi_join(
         .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
         .1
         .clone();
+
     let combined_schema = CombinedSchema::combine(
         left.schema.clone(),
         right_table_name,
@@ -706,4 +716,8 @@ pub(super) fn nested_loop_anti_join(
     }
 
     Ok(FromResult::from_rows(result_schema, result_rows))
+=======
+    // Return only left schema and matching rows
+    Ok(FromResult::from_rows(left.schema, result_rows))
+>>>>>>> b878c5f1 (perf: Optimize EXISTS subqueries with semi-join transformation)
 }

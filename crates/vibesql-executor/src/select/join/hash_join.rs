@@ -93,6 +93,65 @@ fn build_hash_table_parallel(
 // which we cannot accurately predict. Since hash join is already the optimal
 // algorithm for equijoins, we trust it to handle the join efficiently.
 
+/// Hash join SEMI JOIN implementation (optimized for EXISTS subqueries)
+///
+/// Semi-join returns rows from the left table where matching rows exist in the right table.
+/// This is perfect for optimizing EXISTS subqueries.
+///
+/// Algorithm:
+/// 1. Build phase: Create a HashSet of join keys from right table (O(n))
+/// 2. Probe phase: For each left row, check if key exists in set (O(m))
+/// Total: O(n + m) with minimal memory overhead
+///
+/// Key optimizations vs INNER JOIN:
+/// - Only stores keys (not full rows) in hash set
+/// - Returns left rows as-is (no row combination)
+/// - Early termination per key (first match is enough)
+/// - Much lower memory usage
+///
+/// Performance characteristics:
+/// - Time: O(n + m) vs O(n*m) for nested loop
+/// - Space: O(distinct keys) instead of O(n rows)
+/// - Expected speedup: 100-10,000x for large EXISTS queries
+pub(super) fn hash_join_semi(
+    mut left: FromResult,
+    mut right: FromResult,
+    left_col_idx: usize,
+    right_col_idx: usize,
+) -> Result<FromResult, ExecutorError> {
+    use std::collections::HashSet;
+
+    // Build phase: Create HashSet of right table join keys
+    // We only need to know if a key EXISTS, not store the rows
+    let mut key_set: HashSet<vibesql_types::SqlValue> = HashSet::new();
+    for row in right.rows() {
+        let key = row.values[right_col_idx].clone();
+        // Skip NULL values - they never match in equi-joins
+        if key != vibesql_types::SqlValue::Null {
+            key_set.insert(key);
+        }
+    }
+
+    // Probe phase: Filter left rows to only those with matching keys
+    let mut result_rows = Vec::new();
+    for row in left.rows() {
+        let key = &row.values[left_col_idx];
+
+        // Skip NULL values
+        if key == &vibesql_types::SqlValue::Null {
+            continue;
+        }
+
+        // If key exists in right table, include this left row
+        if key_set.contains(key) {
+            result_rows.push(row.clone());
+        }
+    }
+
+    // Return only left schema and rows (no combination with right)
+    Ok(FromResult::from_rows(left.schema, result_rows))
+}
+
 /// Hash join INNER JOIN implementation (optimized for equi-joins)
 ///
 /// This implementation uses a hash join algorithm for better performance
