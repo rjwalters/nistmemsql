@@ -48,6 +48,8 @@ use crate::errors::ExecutorError;
 use crate::schema::CombinedSchema;
 use vibesql_storage::Row;
 use vibesql_types::SqlValue;
+#[cfg(test)]
+use vibesql_types::Date;
 
 /// Execute a columnar aggregate query with filtering
 ///

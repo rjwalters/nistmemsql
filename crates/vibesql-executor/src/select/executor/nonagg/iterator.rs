@@ -15,7 +15,6 @@ use crate::{
         join::FromResult,
         projection::project_row_combined,
         window::{expression_has_window_function, has_window_functions},
-        CteResult,
     },
 };
 
