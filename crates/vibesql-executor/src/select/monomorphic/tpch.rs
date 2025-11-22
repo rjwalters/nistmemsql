@@ -385,6 +385,8 @@ impl TpchQ1Plan {
                 // Extract first byte of single-char strings - zero allocations!
                 let returnflag_str = row.get_string_unchecked(self.l_returnflag_idx);
                 let linestatus_str = row.get_string_unchecked(self.l_linestatus_idx);
+                debug_assert!(!returnflag_str.is_empty(), "returnflag should be non-empty in TPC-H data");
+                debug_assert!(!linestatus_str.is_empty(), "linestatus should be non-empty in TPC-H data");
                 let returnflag = returnflag_str.as_bytes()[0];
                 let linestatus = linestatus_str.as_bytes()[0];
 
@@ -407,8 +409,8 @@ impl TpchQ1Plan {
         groups
             .into_iter()
             .map(|((flag_byte, status_byte), agg)| {
-                let flag = String::from_utf8(vec![flag_byte]).unwrap();
-                let status = String::from_utf8(vec![status_byte]).unwrap();
+                let flag = char::from(flag_byte).to_string();
+                let status = char::from(status_byte).to_string();
                 ((flag, status), agg)
             })
             .collect()
@@ -448,6 +450,8 @@ impl TpchQ1Plan {
                 // Extract first byte of single-char strings - zero allocations!
                 let returnflag_str = row.get_string_unchecked(self.l_returnflag_idx);
                 let linestatus_str = row.get_string_unchecked(self.l_linestatus_idx);
+                debug_assert!(!returnflag_str.is_empty(), "returnflag should be non-empty in TPC-H data");
+                debug_assert!(!linestatus_str.is_empty(), "linestatus should be non-empty in TPC-H data");
                 let returnflag = returnflag_str.as_bytes()[0];
                 let linestatus = linestatus_str.as_bytes()[0];
 
@@ -470,8 +474,8 @@ impl TpchQ1Plan {
         groups
             .into_iter()
             .map(|((flag_byte, status_byte), agg)| {
-                let flag = String::from_utf8(vec![flag_byte]).unwrap();
-                let status = String::from_utf8(vec![status_byte]).unwrap();
+                let flag = char::from(flag_byte).to_string();
+                let status = char::from(status_byte).to_string();
                 ((flag, status), agg)
             })
             .collect()
