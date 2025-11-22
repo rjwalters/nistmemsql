@@ -66,8 +66,10 @@ impl SelectExecutor<'_> {
         // Priority: 1) outer context (for subqueries) 2) procedural context 3) just database
         // Also pass CTE context if available (from outer query or from current query's CTEs)
         let cte_ctx = if !cte_results.is_empty() {
+            eprintln!("[DEBUG aggregation] cte_results not empty: {} CTEs: {:?}", cte_results.len(), cte_results.keys().collect::<Vec<_>>());
             Some(cte_results)
         } else {
+            eprintln!("[DEBUG aggregation] cte_results empty, using self.cte_context: {}", self.cte_context.is_some());
             self.cte_context
         };
 

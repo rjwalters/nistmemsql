@@ -54,6 +54,7 @@ pub(crate) fn execute_table_scan(
                 &predicate_plan,
                 table_name,
                 database,
+                if !cte_results.is_empty() { Some(cte_results) } else { None },
             )?;
         }
 
@@ -129,6 +130,7 @@ pub(crate) fn execute_table_scan(
                 &predicate_plan,
                 table_name,
                 database,
+                if !cte_results.is_empty() { Some(cte_results) } else { None },
             )?;
         }
 
@@ -178,6 +180,7 @@ pub(crate) fn execute_table_scan(
                 &predicate_plan,
                 table_name,
                 database,
+                if !cte_results.is_empty() { Some(cte_results) } else { None },
             )?;
             return Ok(super::FromResult::from_rows(schema, filtered_rows));
         }

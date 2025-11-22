@@ -202,3 +202,42 @@ LIMIT 1
         assert_eq!(*suppkey, 1, "Top supplier should be Supplier#1 (suppkey=1)");
     }
 }
+
+#[test]
+fn test_cte_in_scalar_subquery() {
+    let mut db = Database::new();
+    setup_q15_tables(&mut db);
+
+    // Test CTE accessed from scalar subquery (needed for Q15 MAX pattern)
+    let query = r#"
+WITH revenue AS (
+    SELECT
+        l_suppkey as supplier_no,
+        SUM(l_extendedprice * (1 - l_discount)) as total_revenue
+    FROM lineitem_q15
+    GROUP BY l_suppkey
+)
+SELECT
+    s_suppkey,
+    s_name,
+    total_revenue
+FROM supplier_q15, revenue
+WHERE s_suppkey = supplier_no
+    AND total_revenue = (SELECT MAX(total_revenue) FROM revenue)
+ORDER BY s_suppkey
+"#;
+
+    let result = execute_sql(&mut db, query);
+    assert!(
+        result.is_ok(),
+        "CTE in scalar subquery should work: {:?}",
+        result
+    );
+    let rows = result.unwrap();
+    assert_eq!(rows.len(), 1, "Should return 1 supplier with max revenue");
+
+    // Should be supplier 1 with revenue 280.0
+    if let SqlValue::Integer(suppkey) = &rows[0].values[0] {
+        assert_eq!(*suppkey, 1, "Should be Supplier#1");
+    }
+}

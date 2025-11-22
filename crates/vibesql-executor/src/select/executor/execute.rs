@@ -175,6 +175,7 @@ impl SelectExecutor<'_> {
         let mut results = if has_aggregates || has_group_by {
             self.execute_with_aggregation(stmt, cte_results)?
         } else if let Some(from_clause) = &stmt.from {
+
             // Re-enabled predicate pushdown for all queries (issue #1902)
             //
             // Previously, predicate pushdown was selectively disabled for multi-column IN clauses

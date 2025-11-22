@@ -34,6 +34,7 @@ pub(crate) fn apply_table_local_predicates_ref(
     predicate_plan: &PredicatePlan,
     table_name: &str,
     database: &vibesql_storage::Database,
+    cte_context: Option<&std::collections::HashMap<String, crate::select::CteResult>>,
 ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
     // Get table statistics for selectivity-based ordering
     let table_stats = database
@@ -48,8 +49,12 @@ pub(crate) fn apply_table_local_predicates_ref(
         // Combine ordered predicates with AND
         let combined_where = combine_predicates_with_and(ordered_preds);
 
-        // Create evaluator for filtering
-        let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
+        // Create evaluator for filtering - with CTE context if available
+        let evaluator = if let Some(cte_ctx) = cte_context {
+            CombinedExpressionEvaluator::with_database_and_cte(&schema, database, cte_ctx)
+        } else {
+            CombinedExpressionEvaluator::with_database(&schema, database)
+        };
 
         // Filter rows, only cloning those that pass
         let mut filtered_rows = Vec::new();
@@ -109,6 +114,7 @@ pub(crate) fn apply_table_local_predicates(
     predicate_plan: &PredicatePlan,
     table_name: &str,
     database: &vibesql_storage::Database,
+    cte_context: Option<&std::collections::HashMap<String, crate::select::CteResult>>,
 ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
     // Get table statistics for selectivity-based ordering
     let table_stats = database
@@ -124,8 +130,12 @@ pub(crate) fn apply_table_local_predicates(
         // Combine ordered predicates with AND
         let combined_where = combine_predicates_with_and(ordered_preds);
 
-        // Create evaluator for filtering
-        let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
+        // Create evaluator for filtering - with CTE context if available
+        let evaluator = if let Some(cte_ctx) = cte_context {
+            CombinedExpressionEvaluator::with_database_and_cte(&schema, database, cte_ctx)
+        } else {
+            CombinedExpressionEvaluator::with_database(&schema, database)
+        };
 
         // Check if we should use parallel filtering
         #[cfg(feature = "parallel")]
