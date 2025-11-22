@@ -4,6 +4,7 @@
 mod detection;
 
 mod evaluation;
+mod having_subquery;
 
 use std::collections::HashMap;
 
@@ -122,8 +123,21 @@ impl SelectExecutor<'_> {
         // This allows SELECT * and SELECT table.* to work with GROUP BY/aggregates
         let expanded_select_list = self.expand_wildcards_for_aggregation(&stmt.select_list, &schema)?;
 
+        // Optimize HAVING clause: pre-evaluate non-correlated scalar subqueries
+        // This eliminates per-group overhead of correlation checks, hash computation, and cache lookups
+        let optimized_having = if let Some(having_expr) = &stmt.having {
+            Some(having_subquery::optimize_having_subqueries(
+                having_expr,
+                &schema,
+                self.database,
+            )?)
+        } else {
+            None
+        };
+
         // Compute aggregates for each group and apply HAVING
         let mut result_rows = Vec::new();
+        let mut group_keys_for_order_by = Vec::new(); // Store group keys for ORDER BY
         for (group_key, group_rows) in groups {
             // Clear aggregate cache for new group
             self.clear_aggregate_cache();
@@ -158,8 +172,8 @@ impl SelectExecutor<'_> {
                 }
             }
 
-            // Apply HAVING filter
-            let include_group = if let Some(having_expr) = &stmt.having {
+            // Apply HAVING filter (using optimized expression with pre-evaluated subqueries)
+            let include_group = if let Some(having_expr) = &optimized_having {
                 let having_result = self.evaluate_with_aggregates(
                     having_expr,
                     &group_rows,
@@ -202,12 +216,20 @@ impl SelectExecutor<'_> {
                 self.track_memory_allocation(row_memory)?;
 
                 result_rows.push(row);
+                // Store the group key for this row (for ORDER BY to access GROUP BY columns)
+                group_keys_for_order_by.push(group_key);
             }
         }
 
         // Apply ORDER BY if present
         let result_rows = if let Some(order_by) = &stmt.order_by {
-            self.apply_order_by_to_aggregates(result_rows, stmt, order_by, &expanded_select_list)?
+            self.apply_order_by_to_aggregates(
+                result_rows,
+                group_keys_for_order_by,
+                stmt,
+                order_by,
+                &expanded_select_list,
+            )?
         } else {
             result_rows
         };

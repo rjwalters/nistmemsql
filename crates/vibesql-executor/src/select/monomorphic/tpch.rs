@@ -359,7 +359,10 @@ impl TpchQ1Plan {
         }
     }
 
-    /// Execute using type-specialized fast path
+    /// Execute using type-specialized fast path with compact byte keys
+    ///
+    /// Uses (u8, u8) keys instead of (String, String) to eliminate allocations.
+    /// For TPC-H Q1, returnflag and linestatus are single-character fields.
     ///
     /// # Safety
     ///
@@ -369,7 +372,9 @@ impl TpchQ1Plan {
     /// 3. Debug assertions catch type mismatches
     #[inline(never)] // Don't inline to make profiling easier
     unsafe fn execute_unsafe(&self, rows: &[Row]) -> HashMap<(String, String), Q1Aggregates> {
-        let mut groups: HashMap<(String, String), Q1Aggregates> = HashMap::new();
+        // Use compact byte keys - no allocations during aggregation!
+        // TPC-H Q1 has at most 6 groups (3 returnflags × 2 linestatuses)
+        let mut groups: HashMap<(u8, u8), Q1Aggregates> = HashMap::with_capacity(6);
 
         for row in rows {
             // Direct typed access - no enum matching!
@@ -377,14 +382,20 @@ impl TpchQ1Plan {
 
             // Date filter
             if shipdate <= self.date_cutoff {
-                let returnflag = row.get_string_unchecked(self.l_returnflag_idx).to_string();
-                let linestatus = row.get_string_unchecked(self.l_linestatus_idx).to_string();
+                // Extract first byte of single-char strings - zero allocations!
+                let returnflag_str = row.get_string_unchecked(self.l_returnflag_idx);
+                let linestatus_str = row.get_string_unchecked(self.l_linestatus_idx);
+                debug_assert!(!returnflag_str.is_empty(), "returnflag should be non-empty in TPC-H data");
+                debug_assert!(!linestatus_str.is_empty(), "linestatus should be non-empty in TPC-H data");
+                let returnflag = returnflag_str.as_bytes()[0];
+                let linestatus = linestatus_str.as_bytes()[0];
+
                 let qty = row.get_f64_unchecked(self.l_quantity_idx);
                 let price = row.get_f64_unchecked(self.l_extendedprice_idx);
                 let discount = row.get_f64_unchecked(self.l_discount_idx);
                 let tax = row.get_f64_unchecked(self.l_tax_idx);
 
-                // Get or create group
+                // Get or create group using compact byte keys
                 let agg = groups
                     .entry((returnflag, linestatus))
                     .or_insert_with(Q1Aggregates::new);
@@ -394,10 +405,21 @@ impl TpchQ1Plan {
             }
         }
 
+        // Convert byte keys to strings only once at the end
         groups
+            .into_iter()
+            .map(|((flag_byte, status_byte), agg)| {
+                let flag = char::from(flag_byte).to_string();
+                let status = char::from(status_byte).to_string();
+                ((flag, status), agg)
+            })
+            .collect()
     }
 
-    /// Execute using streaming fast path (lazy filtering)
+    /// Execute using streaming fast path with compact byte keys
+    ///
+    /// Uses (u8, u8) keys instead of (String, String) to eliminate allocations.
+    /// For TPC-H Q1, returnflag and linestatus are single-character fields.
     ///
     /// This method filters rows during iteration, only processing rows that match
     /// the date predicate. This eliminates the overhead of materializing rows that
@@ -414,7 +436,9 @@ impl TpchQ1Plan {
         &self,
         rows: Box<dyn Iterator<Item = Row>>,
     ) -> HashMap<(String, String), Q1Aggregates> {
-        let mut groups: HashMap<(String, String), Q1Aggregates> = HashMap::new();
+        // Use compact byte keys - no allocations during aggregation!
+        // TPC-H Q1 has at most 6 groups (3 returnflags × 2 linestatuses)
+        let mut groups: HashMap<(u8, u8), Q1Aggregates> = HashMap::with_capacity(6);
 
         // Stream through rows, filtering inline
         for row in rows {
@@ -423,14 +447,20 @@ impl TpchQ1Plan {
 
             // Date filter
             if shipdate <= self.date_cutoff {
-                let returnflag = row.get_string_unchecked(self.l_returnflag_idx).to_string();
-                let linestatus = row.get_string_unchecked(self.l_linestatus_idx).to_string();
+                // Extract first byte of single-char strings - zero allocations!
+                let returnflag_str = row.get_string_unchecked(self.l_returnflag_idx);
+                let linestatus_str = row.get_string_unchecked(self.l_linestatus_idx);
+                debug_assert!(!returnflag_str.is_empty(), "returnflag should be non-empty in TPC-H data");
+                debug_assert!(!linestatus_str.is_empty(), "linestatus should be non-empty in TPC-H data");
+                let returnflag = returnflag_str.as_bytes()[0];
+                let linestatus = linestatus_str.as_bytes()[0];
+
                 let qty = row.get_f64_unchecked(self.l_quantity_idx);
                 let price = row.get_f64_unchecked(self.l_extendedprice_idx);
                 let discount = row.get_f64_unchecked(self.l_discount_idx);
                 let tax = row.get_f64_unchecked(self.l_tax_idx);
 
-                // Get or create group
+                // Get or create group using compact byte keys
                 let agg = groups
                     .entry((returnflag, linestatus))
                     .or_insert_with(Q1Aggregates::new);
@@ -440,7 +470,15 @@ impl TpchQ1Plan {
             }
         }
 
+        // Convert byte keys to strings only once at the end
         groups
+            .into_iter()
+            .map(|((flag_byte, status_byte), agg)| {
+                let flag = char::from(flag_byte).to_string();
+                let status = char::from(status_byte).to_string();
+                ((flag, status), agg)
+            })
+            .collect()
     }
 }
 
