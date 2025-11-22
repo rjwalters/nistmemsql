@@ -460,11 +460,8 @@ mod tests {
             into_table: None,
             into_variables: None,
             from: Some(FromClause::Join {
-                join_type: JoinType::Inner,
                 left: Box::new(FromClause::Join {
-                    join_type: JoinType::Inner,
                     left: Box::new(FromClause::Join {
-                        join_type: JoinType::Inner,
                         left: Box::new(FromClause::Table {
                             name: "t1".to_string(),
                             alias: None,
