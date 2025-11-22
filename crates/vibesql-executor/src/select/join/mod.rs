@@ -250,9 +250,10 @@ pub(super) fn nested_loop_join(
             CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
 
         // Phase 3.1: Try ON condition first (preferred for hash join)
+        // Now supports compound AND conditions for queries like TPC-H Q3
         if let Some(cond) = condition {
-            if let Some(equi_join_info) =
-                join_analyzer::analyze_equi_join(cond, &temp_schema, left_col_count)
+            if let Some(compound_result) =
+                join_analyzer::analyze_compound_equi_join(cond, &temp_schema, left_col_count)
             {
                 // Save schemas for NATURAL JOIN processing before moving left/right
                 let (left_schema_for_natural, right_schema_for_natural) = if natural {
@@ -264,9 +265,16 @@ pub(super) fn nested_loop_join(
                 let mut result = hash_join_inner(
                     left,
                     right,
-                    equi_join_info.left_col_idx,
-                    equi_join_info.right_col_idx,
+                    compound_result.equi_join.left_col_idx,
+                    compound_result.equi_join.right_col_idx,
                 )?;
+
+                // Apply remaining conditions from compound AND as post-join filter
+                if !compound_result.remaining_conditions.is_empty() {
+                    if let Some(filter_expr) = combine_with_and(compound_result.remaining_conditions) {
+                        result = apply_post_join_filter(result, &filter_expr, database)?;
+                    }
+                }
 
                 // For NATURAL JOIN, remove duplicate columns from the result
                 if natural {
