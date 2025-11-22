@@ -655,7 +655,7 @@ pub fn try_create_tpch_plan(
     }
 
     // Future: Add more TPC-H query patterns here
-    // - Q3: Shipping Priority (join + aggregation)
+    // - Q3: Shipping Priority (join + aggregation) - complex, requires multi-table plan architecture
     // - Q5: Local Supplier Volume (multi-table join)
     // etc.
 
