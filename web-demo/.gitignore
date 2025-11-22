@@ -26,7 +26,8 @@ test-*.ts
 diagnose-*.ts
 find-*.ts
 perf-*.ts
-debug-screenshot-*.png
+debug-screenshot*.png
+test-*-screenshot.png
 
 # Compiled debug/test scripts (should not be committed)
 debug-*.js

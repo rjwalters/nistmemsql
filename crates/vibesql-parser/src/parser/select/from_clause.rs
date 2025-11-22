@@ -72,16 +72,16 @@ impl Parser {
                         }
                     }
 
-                    // SQL:1999 requires AS alias for derived tables
-                    if !self.peek_keyword(Keyword::As) {
-                        return Err(ParseError {
-                            message: "Derived table must have AS alias (SQL:1999 requirement)"
-                                .to_string(),
-                        });
-                    }
-                    self.consume_keyword(Keyword::As)?;
+                    // Support both SQL:1999 (AS required) and MySQL (AS optional) modes
+                    // Parse optional AS keyword
+                    let has_as = if self.peek_keyword(Keyword::As) {
+                        self.consume_keyword(Keyword::As)?;
+                        true
+                    } else {
+                        false
+                    };
 
-                    // Parse alias
+                    // Parse alias (required for derived tables)
                     let alias = match self.peek() {
                         Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
                             let alias = id.clone();
@@ -90,7 +90,11 @@ impl Parser {
                         }
                         _ => {
                             return Err(ParseError {
-                                message: "Expected alias after AS keyword".to_string(),
+                                message: if has_as {
+                                    "Expected alias after AS keyword".to_string()
+                                } else {
+                                    "Derived table must have an alias".to_string()
+                                }
                             })
                         }
                     };

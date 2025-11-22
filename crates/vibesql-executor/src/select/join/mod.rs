@@ -17,7 +17,7 @@ mod tests;
 
 // Re-export join reorder analyzer for public tests
 // Re-export hash_join functions for internal use
-use hash_join::{hash_join_anti, hash_join_inner, hash_join_semi};
+use hash_join::{hash_join_anti, hash_join_inner, hash_join_left_outer, hash_join_semi};
 // Re-export hash join iterator for public use
 pub use hash_join_iterator::HashJoinIterator;
 // Re-export nested loop join variants for internal use
@@ -315,10 +315,22 @@ pub(super) fn nested_loop_join(
 
         // Phase 3.1: If no ON condition hash join, try WHERE clause equijoins
         // Iterate through all additional equijoins to find one suitable for hash join
+        if std::env::var("JOIN_DEBUG").is_ok() {
+            eprintln!("[JOIN_DEBUG] Checking {} additional equijoins for hash join optimization", additional_equijoins.len());
+            eprintln!("[JOIN_DEBUG] left_col_count={}, temp_schema tables: {:?}",
+                left_col_count, temp_schema.table_schemas.keys().collect::<Vec<_>>());
+        }
         for (idx, equijoin) in additional_equijoins.iter().enumerate() {
+            if std::env::var("JOIN_DEBUG").is_ok() {
+                eprintln!("[JOIN_DEBUG] Trying equijoin[{}]: {:?}", idx, equijoin);
+            }
             if let Some(equi_join_info) =
                 join_analyzer::analyze_equi_join(equijoin, &temp_schema, left_col_count)
             {
+                if std::env::var("JOIN_DEBUG").is_ok() {
+                    eprintln!("[JOIN_DEBUG] Found suitable equijoin! left_col={}, right_col={}",
+                        equi_join_info.left_col_idx, equi_join_info.right_col_idx);
+                }
                 // Save schemas for NATURAL JOIN processing before moving left/right
                 let (left_schema_for_natural, right_schema_for_natural) = if natural {
                     (Some(left.schema.clone()), Some(right.schema.clone()))
@@ -390,7 +402,79 @@ pub(super) fn nested_loop_join(
         }
     }
 
+    // Try to use hash join for LEFT OUTER JOINs with simple equi-join conditions
+    if let vibesql_ast::JoinType::LeftOuter = join_type {
+        let left_col_count: usize =
+            left.schema.table_schemas.values().map(|(_, schema)| schema.columns.len()).sum();
+
+        let right_table_name = right
+            .schema
+            .table_schemas
+            .keys()
+            .next()
+            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+            .clone();
+
+        let right_schema = right
+            .schema
+            .table_schemas
+            .get(&right_table_name)
+            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+            .1
+            .clone();
+
+        let right_table_name_for_natural = right_table_name.clone();
+        let temp_schema =
+            CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
+
+        // Try ON condition for hash join
+        if let Some(cond) = condition {
+            if let Some(equi_join_info) =
+                join_analyzer::analyze_equi_join(cond, &temp_schema, left_col_count)
+            {
+                let (left_schema_for_natural, right_schema_for_natural) = if natural {
+                    (Some(left.schema.clone()), Some(right.schema.clone()))
+                } else {
+                    (None, None)
+                };
+
+                let mut result = hash_join_left_outer(
+                    left,
+                    right,
+                    equi_join_info.left_col_idx,
+                    equi_join_info.right_col_idx,
+                )?;
+
+                if natural {
+                    if let (Some(left_schema), Some(right_schema_orig)) =
+                        (left_schema_for_natural, right_schema_for_natural)
+                    {
+                        let right_schema_for_removal = CombinedSchema {
+                            table_schemas: vec![(
+                                right_table_name_for_natural.clone(),
+                                (0, right_schema_orig.table_schemas.values().next().unwrap().1.clone()),
+                            )]
+                            .into_iter()
+                            .collect(),
+                            total_columns: right_schema_orig.total_columns,
+                        };
+                        result = remove_duplicate_columns_for_natural_join(
+                            result,
+                            &left_schema,
+                            &right_schema_for_removal,
+                        )?;
+                    }
+                }
+
+                return Ok(result);
+            }
+        }
+    }
+
     // Prepare combined join condition including additional equijoins from WHERE clause
+    if std::env::var("JOIN_DEBUG").is_ok() {
+        eprintln!("[JOIN_DEBUG] No hash join optimization found - falling back to nested loop join!");
+    }
     let mut all_join_conditions = Vec::new();
     if let Some(cond) = condition {
         all_join_conditions.push(cond.clone());
