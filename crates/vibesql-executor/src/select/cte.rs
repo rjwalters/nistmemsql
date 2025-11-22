@@ -84,45 +84,45 @@ pub(super) fn derive_cte_schema(
         }
     } else {
         // No explicit column names - infer from query SELECT list
-        if let Some(first_row) = rows.first() {
-            let columns = cte
-                .query
-                .select_list
-                .iter()
-                .enumerate()
-                .map(|(i, item)| {
-                    let data_type = infer_type_from_value(&first_row.values[i]);
+        // Extract column names from SELECT items
+        let columns = cte
+            .query
+            .select_list
+            .iter()
+            .enumerate()
+            .map(|(i, item)| {
+                // Infer data type from first row if available, otherwise use default
+                let data_type = if let Some(first_row) = rows.first() {
+                    infer_type_from_value(&first_row.values[i])
+                } else {
+                    // No rows - use default type (VARCHAR)
+                    vibesql_types::DataType::Varchar { max_length: Some(255) }
+                };
 
-                    // Extract column name from SELECT item
-                    let col_name = match item {
-                        vibesql_ast::SelectItem::Wildcard { .. }
-                        | vibesql_ast::SelectItem::QualifiedWildcard { .. } => format!("col{}", i),
-                        vibesql_ast::SelectItem::Expression { expr, alias } => {
-                            if let Some(a) = alias {
-                                a.clone()
-                            } else {
-                                // Try to extract name from expression
-                                match expr {
-                                    vibesql_ast::Expression::ColumnRef { table: _, column } => {
-                                        column.clone()
-                                    }
-                                    _ => format!("col{}", i),
+                // Extract column name from SELECT item
+                let col_name = match item {
+                    vibesql_ast::SelectItem::Wildcard { .. }
+                    | vibesql_ast::SelectItem::QualifiedWildcard { .. } => format!("col{}", i),
+                    vibesql_ast::SelectItem::Expression { expr, alias } => {
+                        if let Some(a) = alias {
+                            a.clone()
+                        } else {
+                            // Try to extract name from expression
+                            match expr {
+                                vibesql_ast::Expression::ColumnRef { table: _, column } => {
+                                    column.clone()
                                 }
+                                _ => format!("col{}", i),
                             }
                         }
-                    };
+                    }
+                };
 
-                    vibesql_catalog::ColumnSchema::new(col_name, data_type, true) // nullable
-                })
-                .collect();
+                vibesql_catalog::ColumnSchema::new(col_name, data_type, true) // nullable
+            })
+            .collect();
 
-            Ok(vibesql_catalog::TableSchema::new(cte.name.clone(), columns))
-        } else {
-            // Empty CTE with no column specification
-            Err(ExecutorError::UnsupportedFeature(
-                "Cannot infer schema for empty CTE without column list".to_string(),
-            ))
-        }
+        Ok(vibesql_catalog::TableSchema::new(cte.name.clone(), columns))
     }
 }
 
