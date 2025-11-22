@@ -78,7 +78,6 @@ impl<'a> ExpressionEvaluator<'a> {
             database: None,
             trigger_context: None,
             procedural_context: None,
-            cte_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(cache_size).unwrap()
@@ -117,7 +116,6 @@ impl<'a> ExpressionEvaluator<'a> {
             database: None,
             trigger_context: None,
             procedural_context: None,
-            cte_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -138,7 +136,6 @@ impl<'a> ExpressionEvaluator<'a> {
             database: Some(database),
             trigger_context: None,
             procedural_context: None,
-            cte_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -160,7 +157,6 @@ impl<'a> ExpressionEvaluator<'a> {
             database: Some(database),
             trigger_context: Some(trigger_context),
             procedural_context: None,
-            cte_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -184,7 +180,6 @@ impl<'a> ExpressionEvaluator<'a> {
             database: Some(database),
             trigger_context: None,
             procedural_context: None,
-            cte_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
@@ -512,6 +507,33 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         }
     }
 
+    /// Create a new combined expression evaluator with database, window mapping, and CTE context
+    pub(crate) fn with_database_and_windows_and_cte(
+        schema: &'a CombinedSchema,
+        database: &'a vibesql_storage::Database,
+        window_mapping: &'a std::collections::HashMap<WindowFunctionKey, usize>,
+        cte_context: &'a std::collections::HashMap<String, crate::select::CteResult>,
+    ) -> Self {
+        CombinedExpressionEvaluator {
+            schema,
+            database: Some(database),
+            outer_row: None,
+            outer_schema: None,
+            window_mapping: Some(window_mapping),
+            procedural_context: None,
+            cte_context: Some(cte_context),
+            column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+            ))),
+            depth: 0,
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
+            enable_cse: Self::is_cse_enabled(),
+        }
+    }
+
     /// Create a new combined expression evaluator with database and procedural context
     pub(crate) fn with_database_and_procedural_context(
         schema: &'a CombinedSchema,
@@ -525,6 +547,88 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_schema: None,
             window_mapping: None,
             procedural_context: Some(procedural_context),
+            cte_context: None,
+            column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+            ))),
+            depth: 0,
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
+            enable_cse: Self::is_cse_enabled(),
+        }
+    }
+
+    /// Create a new combined expression evaluator with database and CTE context
+    pub(crate) fn with_database_and_cte(
+        schema: &'a CombinedSchema,
+        database: &'a vibesql_storage::Database,
+        cte_context: &'a std::collections::HashMap<String, crate::select::CteResult>,
+    ) -> Self {
+        CombinedExpressionEvaluator {
+            schema,
+            database: Some(database),
+            outer_row: None,
+            outer_schema: None,
+            window_mapping: None,
+            procedural_context: None,
+            cte_context: Some(cte_context),
+            column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+            ))),
+            depth: 0,
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
+            enable_cse: Self::is_cse_enabled(),
+        }
+    }
+
+    /// Create a new combined expression evaluator with database, outer context, and CTE context
+    pub(crate) fn with_database_and_outer_context_and_cte(
+        schema: &'a CombinedSchema,
+        database: &'a vibesql_storage::Database,
+        outer_row: &'a vibesql_storage::Row,
+        outer_schema: &'a CombinedSchema,
+        cte_context: &'a std::collections::HashMap<String, crate::select::CteResult>,
+    ) -> Self {
+        CombinedExpressionEvaluator {
+            schema,
+            database: Some(database),
+            outer_row: Some(outer_row),
+            outer_schema: Some(outer_schema),
+            window_mapping: None,
+            procedural_context: None,
+            cte_context: Some(cte_context),
+            column_cache: RefCell::new(HashMap::new()),
+            subquery_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
+            ))),
+            depth: 0,
+            cse_cache: Rc::new(RefCell::new(LruCache::new(
+                NonZeroUsize::new(Self::get_cse_cache_size()).unwrap()
+            ))),
+            enable_cse: Self::is_cse_enabled(),
+        }
+    }
+
+    /// Create a new combined expression evaluator with database, procedural context, and CTE context
+    pub(crate) fn with_database_and_procedural_context_and_cte(
+        schema: &'a CombinedSchema,
+        database: &'a vibesql_storage::Database,
+        procedural_context: &'a crate::procedural::ExecutionContext,
+        cte_context: &'a std::collections::HashMap<String, crate::select::CteResult>,
+    ) -> Self {
+        CombinedExpressionEvaluator {
+            schema,
+            database: Some(database),
+            outer_row: None,
+            outer_schema: None,
+            window_mapping: None,
+            procedural_context: Some(procedural_context),
+            cte_context: Some(cte_context),
             column_cache: RefCell::new(HashMap::new()),
             subquery_cache: Rc::new(RefCell::new(LruCache::new(
                 NonZeroUsize::new(Self::get_subquery_cache_size()).unwrap()
