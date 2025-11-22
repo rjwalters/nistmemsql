@@ -1,12 +1,40 @@
 //! Expression optimization logic for constant folding and dead code elimination
 
-use vibesql_ast::{CaseWhen, Expression};
+use vibesql_ast::{BinaryOperator, CaseWhen, Expression};
 use vibesql_types::SqlValue;
 
 use crate::{
     errors::ExecutorError,
     evaluator::{casting::cast_value, CombinedExpressionEvaluator, ExpressionEvaluator},
 };
+
+/// Reverse a comparison operator for predicate normalization
+///
+/// When we swap operands (e.g., `5 > x` -> `x < 5`), we need to reverse the operator.
+fn reverse_comparison_op(op: &BinaryOperator) -> Option<BinaryOperator> {
+    match op {
+        BinaryOperator::LessThan => Some(BinaryOperator::GreaterThan),
+        BinaryOperator::LessThanOrEqual => Some(BinaryOperator::GreaterThanOrEqual),
+        BinaryOperator::GreaterThan => Some(BinaryOperator::LessThan),
+        BinaryOperator::GreaterThanOrEqual => Some(BinaryOperator::LessThanOrEqual),
+        BinaryOperator::Equal => Some(BinaryOperator::Equal),
+        BinaryOperator::NotEqual => Some(BinaryOperator::NotEqual),
+        _ => None, // Not a comparison operator
+    }
+}
+
+/// Check if an expression is a constant (literal or evaluatable at plan time)
+///
+/// This includes literals, casts of literals, and simple arithmetic on literals.
+fn is_constant_expr(expr: &Expression) -> bool {
+    match expr {
+        Expression::Literal(_) => true,
+        Expression::UnaryOp { expr: inner, .. } => is_constant_expr(inner),
+        Expression::BinaryOp { left, right, .. } => is_constant_expr(left) && is_constant_expr(right),
+        Expression::Cast { expr: inner, .. } => is_constant_expr(inner),
+        _ => false,
+    }
+}
 
 /// Result of WHERE clause optimization
 #[derive(Debug, PartialEq)]
@@ -71,7 +99,7 @@ pub fn optimize_expression(
         | Expression::PseudoVariable { .. }
         | Expression::SessionVariable { .. } => Ok(expr.clone()),
 
-        // Binary operations - try to fold constants
+        // Binary operations - try to fold constants and normalize predicates
         Expression::BinaryOp { left, op, right } => {
             let left_opt = optimize_expression(left, evaluator)?;
             let right_opt = optimize_expression(right, evaluator)?;
@@ -81,20 +109,35 @@ pub fn optimize_expression(
                 (&left_opt, &right_opt)
             {
                 match ExpressionEvaluator::eval_binary_op_static(left_val, op, right_val, vibesql_types::SqlMode::default()) {
-                    Ok(result) => Ok(Expression::Literal(result)),
-                    Err(_) => Ok(Expression::BinaryOp {
-                        left: Box::new(left_opt),
-                        op: *op,
-                        right: Box::new(right_opt),
-                    }),
+                    Ok(result) => return Ok(Expression::Literal(result)),
+                    Err(_) => {
+                        // If evaluation fails, continue with normalization below
+                    }
                 }
-            } else {
-                Ok(Expression::BinaryOp {
-                    left: Box::new(left_opt),
-                    op: *op,
-                    right: Box::new(right_opt),
-                })
             }
+
+            // Predicate normalization: Ensure constants are on the right side
+            // Transform: `constant op column` -> `column reverse_op constant`
+            // This enables better plan caching and index selection
+            if let Some(reversed_op) = reverse_comparison_op(op) {
+                let left_is_const = is_constant_expr(&left_opt);
+                let right_is_const = is_constant_expr(&right_opt);
+
+                // If left is constant and right is not, swap them
+                if left_is_const && !right_is_const {
+                    return Ok(Expression::BinaryOp {
+                        left: Box::new(right_opt),
+                        op: reversed_op,
+                        right: Box::new(left_opt),
+                    });
+                }
+            }
+
+            Ok(Expression::BinaryOp {
+                left: Box::new(left_opt),
+                op: *op,
+                right: Box::new(right_opt),
+            })
         }
 
         // Unary operations - try to fold if operand is literal
@@ -512,6 +555,216 @@ mod tests {
         match optimized {
             Expression::Literal(SqlValue::Boolean(true)) => {} // Good, folded to TRUE
             _ => panic!("Expected folded TRUE literal, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_predicate_normalization_greater_than_or_equal() {
+        // 9933 >= col0 should normalize to col0 <= 9933
+        let expr = Expression::BinaryOp {
+            left: Box::new(Expression::Literal(SqlValue::Integer(9933))),
+            op: vibesql_ast::BinaryOperator::GreaterThanOrEqual,
+            right: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col0".to_string(),
+            }),
+        };
+
+        let db = vibesql_storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::BinaryOp { left, op, right } => {
+                // Should be: col0 <= 9933
+                assert!(matches!(left.as_ref(), Expression::ColumnRef { column, .. } if column == "col0"));
+                assert_eq!(op, vibesql_ast::BinaryOperator::LessThanOrEqual);
+                assert!(matches!(right.as_ref(), Expression::Literal(SqlValue::Integer(9933))));
+            }
+            _ => panic!("Expected normalized BinaryOp, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_predicate_normalization_less_than_or_equal() {
+        // 8524 <= col3 should normalize to col3 >= 8524
+        let expr = Expression::BinaryOp {
+            left: Box::new(Expression::Literal(SqlValue::Integer(8524))),
+            op: vibesql_ast::BinaryOperator::LessThanOrEqual,
+            right: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col3".to_string(),
+            }),
+        };
+
+        let db = vibesql_storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::BinaryOp { left, op, right } => {
+                // Should be: col3 >= 8524
+                assert!(matches!(left.as_ref(), Expression::ColumnRef { column, .. } if column == "col3"));
+                assert_eq!(op, vibesql_ast::BinaryOperator::GreaterThanOrEqual);
+                assert!(matches!(right.as_ref(), Expression::Literal(SqlValue::Integer(8524))));
+            }
+            _ => panic!("Expected normalized BinaryOp, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_predicate_normalization_already_normalized() {
+        // col0 <= 9933 should remain unchanged (already normalized)
+        let expr = Expression::BinaryOp {
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "col0".to_string(),
+            }),
+            op: vibesql_ast::BinaryOperator::LessThanOrEqual,
+            right: Box::new(Expression::Literal(SqlValue::Integer(9933))),
+        };
+
+        let db = vibesql_storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::BinaryOp { left, op, right } => {
+                // Should remain: col0 <= 9933
+                assert!(matches!(left.as_ref(), Expression::ColumnRef { column, .. } if column == "col0"));
+                assert_eq!(op, vibesql_ast::BinaryOperator::LessThanOrEqual);
+                assert!(matches!(right.as_ref(), Expression::Literal(SqlValue::Integer(9933))));
+            }
+            _ => panic!("Expected unchanged BinaryOp, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_predicate_normalization_equal() {
+        // 100 = x should normalize to x = 100
+        let expr = Expression::BinaryOp {
+            left: Box::new(Expression::Literal(SqlValue::Integer(100))),
+            op: vibesql_ast::BinaryOperator::Equal,
+            right: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "x".to_string(),
+            }),
+        };
+
+        let db = vibesql_storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::BinaryOp { left, op, right } => {
+                // Should be: x = 100
+                assert!(matches!(left.as_ref(), Expression::ColumnRef { column, .. } if column == "x"));
+                assert_eq!(op, vibesql_ast::BinaryOperator::Equal);
+                assert!(matches!(right.as_ref(), Expression::Literal(SqlValue::Integer(100))));
+            }
+            _ => panic!("Expected normalized BinaryOp, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_predicate_normalization_non_comparison_unchanged() {
+        // 5 + x should not be normalized (not a comparison operator)
+        let expr = Expression::BinaryOp {
+            left: Box::new(Expression::Literal(SqlValue::Integer(5))),
+            op: vibesql_ast::BinaryOperator::Plus,
+            right: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "x".to_string(),
+            }),
+        };
+
+        let db = vibesql_storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::BinaryOp { left, op, right } => {
+                // Should remain: 5 + x
+                assert!(matches!(left.as_ref(), Expression::Literal(SqlValue::Integer(5))));
+                assert_eq!(op, vibesql_ast::BinaryOperator::Plus);
+                assert!(matches!(right.as_ref(), Expression::ColumnRef { column, .. } if column == "x"));
+            }
+            _ => panic!("Expected unchanged BinaryOp, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_predicate_normalization_less_than() {
+        // 100 < x should normalize to x > 100
+        let expr = Expression::BinaryOp {
+            left: Box::new(Expression::Literal(SqlValue::Integer(100))),
+            op: vibesql_ast::BinaryOperator::LessThan,
+            right: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "x".to_string(),
+            }),
+        };
+
+        let db = vibesql_storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::BinaryOp { left, op, right } => {
+                // Should be: x > 100
+                assert!(matches!(left.as_ref(), Expression::ColumnRef { column, .. } if column == "x"));
+                assert_eq!(op, vibesql_ast::BinaryOperator::GreaterThan);
+                assert!(matches!(right.as_ref(), Expression::Literal(SqlValue::Integer(100))));
+            }
+            _ => panic!("Expected normalized BinaryOp, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_predicate_normalization_greater_than() {
+        // 200 > x should normalize to x < 200
+        let expr = Expression::BinaryOp {
+            left: Box::new(Expression::Literal(SqlValue::Integer(200))),
+            op: vibesql_ast::BinaryOperator::GreaterThan,
+            right: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "x".to_string(),
+            }),
+        };
+
+        let db = vibesql_storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::BinaryOp { left, op, right } => {
+                // Should be: x < 200
+                assert!(matches!(left.as_ref(), Expression::ColumnRef { column, .. } if column == "x"));
+                assert_eq!(op, vibesql_ast::BinaryOperator::LessThan);
+                assert!(matches!(right.as_ref(), Expression::Literal(SqlValue::Integer(200))));
+            }
+            _ => panic!("Expected normalized BinaryOp, got {:?}", optimized),
         }
     }
 }
