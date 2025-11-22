@@ -17,7 +17,7 @@ mod tests;
 
 // Re-export join reorder analyzer for public tests
 // Re-export hash_join functions for internal use
-use hash_join::hash_join_inner;
+use hash_join::{hash_join_inner, hash_join_left_outer};
 // Re-export hash join iterator for public use
 pub use hash_join_iterator::HashJoinIterator;
 // Re-export nested loop join variants for internal use
@@ -330,6 +330,75 @@ pub(super) fn nested_loop_join(
                 }
 
                 // For NATURAL JOIN, remove duplicate columns from the result
+                if natural {
+                    if let (Some(left_schema), Some(right_schema_orig)) =
+                        (left_schema_for_natural, right_schema_for_natural)
+                    {
+                        let right_schema_for_removal = CombinedSchema {
+                            table_schemas: vec![(
+                                right_table_name_for_natural.clone(),
+                                (0, right_schema_orig.table_schemas.values().next().unwrap().1.clone()),
+                            )]
+                            .into_iter()
+                            .collect(),
+                            total_columns: right_schema_orig.total_columns,
+                        };
+                        result = remove_duplicate_columns_for_natural_join(
+                            result,
+                            &left_schema,
+                            &right_schema_for_removal,
+                        )?;
+                    }
+                }
+
+                return Ok(result);
+            }
+        }
+    }
+
+    // Try to use hash join for LEFT OUTER JOINs with simple equi-join conditions
+    if let vibesql_ast::JoinType::LeftOuter = join_type {
+        let left_col_count: usize =
+            left.schema.table_schemas.values().map(|(_, schema)| schema.columns.len()).sum();
+
+        let right_table_name = right
+            .schema
+            .table_schemas
+            .keys()
+            .next()
+            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+            .clone();
+
+        let right_schema = right
+            .schema
+            .table_schemas
+            .get(&right_table_name)
+            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+            .1
+            .clone();
+
+        let right_table_name_for_natural = right_table_name.clone();
+        let temp_schema =
+            CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
+
+        // Try ON condition for hash join
+        if let Some(cond) = condition {
+            if let Some(equi_join_info) =
+                join_analyzer::analyze_equi_join(cond, &temp_schema, left_col_count)
+            {
+                let (left_schema_for_natural, right_schema_for_natural) = if natural {
+                    (Some(left.schema.clone()), Some(right.schema.clone()))
+                } else {
+                    (None, None)
+                };
+
+                let mut result = hash_join_left_outer(
+                    left,
+                    right,
+                    equi_join_info.left_col_idx,
+                    equi_join_info.right_col_idx,
+                )?;
+
                 if natural {
                     if let (Some(left_schema), Some(right_schema_orig)) =
                         (left_schema_for_natural, right_schema_for_natural)
