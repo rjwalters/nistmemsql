@@ -45,6 +45,9 @@ mod simd_aggregate;
 #[cfg(feature = "simd")]
 mod simd_filter;
 
+#[cfg(feature = "simd")]
+mod simd_join;
+
 pub use batch::{ColumnarBatch, ColumnArray};
 pub use scan::ColumnarScan;
 pub use filter::{
@@ -59,6 +62,9 @@ pub use simd_aggregate::{can_use_simd_for_column, simd_aggregate_f64, simd_aggre
 
 #[cfg(feature = "simd")]
 pub use simd_filter::simd_filter_batch;
+
+#[cfg(feature = "simd")]
+pub use simd_join::columnar_hash_join_inner;
 
 use crate::errors::ExecutorError;
 use crate::schema::CombinedSchema;
