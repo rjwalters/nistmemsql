@@ -271,24 +271,14 @@ impl SelectExecutor<'_> {
         order_by: Option<&[vibesql_ast::OrderByItem]>,
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause;
-        let mut from_result = execute_from_clause(from, cte_results, self.database, where_clause, order_by, self.outer_row, self.outer_schema, |query| {
+        let from_result = execute_from_clause(from, cte_results, self.database, where_clause, order_by, self.outer_row, self.outer_schema, |query| {
             self.execute_with_columns(query)
         })?;
 
-        // For correlated subqueries: merge outer schema with subquery's schema
-        // This allows the subquery to reference outer table columns
-        if let Some(outer_schema) = self.outer_schema {
-            // Build a new schema that includes both outer and inner tables
-            // Outer tables come first, then inner tables (subquery's FROM clause)
-            let mut schema_builder = crate::schema::SchemaBuilder::from_schema(outer_schema.clone());
-
-            // Add the subquery's own tables after the outer tables
-            for (table_name, (_start_idx, table_schema)) in &from_result.schema.table_schemas {
-                schema_builder.add_table(table_name.clone(), table_schema.clone());
-            }
-
-            from_result.schema = schema_builder.build();
-        }
+        // NOTE: We DON'T merge outer schema with from_result.schema here because:
+        // 1. from_result.rows only contain values from inner tables
+        // 2. Outer columns are resolved via the evaluator's outer_row/outer_schema
+        // 3. Merging would create schema/row mismatch (schema has outer cols, rows don't)
 
         Ok(from_result)
     }
