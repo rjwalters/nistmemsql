@@ -555,7 +555,8 @@ where
             ExecutorError::UnsupportedFeature(format!("Table not found in map: {}", table_name))
         })?;
 
-        // Execute this table
+        // Execute this table - predicate pushdown happens inside execute_table_scan
+        // when it extracts table-local predicates from the full WHERE clause
         let table_result = if table_ref.is_subquery {
             if let Some(subquery) = &table_ref.subquery {
                 execute_derived_table(subquery, table_name, execute_subquery)?

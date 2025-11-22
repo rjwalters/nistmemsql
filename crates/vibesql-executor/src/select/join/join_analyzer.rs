@@ -34,22 +34,43 @@ pub fn analyze_equi_join(
     match condition {
         Expression::BinaryOp { op: BinaryOperator::Equal, left, right } => {
             // Try to extract column references from both sides
-            if let (Some(left_idx), Some(right_idx)) =
-                (extract_column_index(left, schema), extract_column_index(right, schema))
-            {
+            let left_idx_opt = extract_column_index(left, schema);
+            let right_idx_opt = extract_column_index(right, schema);
+
+            if std::env::var("JOIN_DEBUG").is_ok() {
+                eprintln!("[JOIN_ANALYZER] Analyzing equijoin: {:?} = {:?}", left, right);
+                eprintln!("[JOIN_ANALYZER] left_idx={:?}, right_idx={:?}, left_col_count={}",
+                    left_idx_opt, right_idx_opt, left_column_count);
+            }
+
+            if let (Some(left_idx), Some(right_idx)) = (left_idx_opt, right_idx_opt) {
                 // Check if one is from left table and one is from right table
                 if left_idx < left_column_count && right_idx >= left_column_count {
                     // Left column from left table, right column from right table
+                    if std::env::var("JOIN_DEBUG").is_ok() {
+                        eprintln!("[JOIN_ANALYZER] SUCCESS: left_col={}, right_col={}", left_idx, right_idx - left_column_count);
+                    }
                     return Some(EquiJoinInfo {
                         left_col_idx: left_idx,
                         right_col_idx: right_idx - left_column_count,
                     });
                 } else if right_idx < left_column_count && left_idx >= left_column_count {
                     // Left column from right table, right column from left table (swapped)
+                    if std::env::var("JOIN_DEBUG").is_ok() {
+                        eprintln!("[JOIN_ANALYZER] SUCCESS (swapped): left_col={}, right_col={}", right_idx, left_idx - left_column_count);
+                    }
                     return Some(EquiJoinInfo {
                         left_col_idx: right_idx,
                         right_col_idx: left_idx - left_column_count,
                     });
+                } else {
+                    if std::env::var("JOIN_DEBUG").is_ok() {
+                        eprintln!("[JOIN_ANALYZER] FAIL: both columns on same side");
+                    }
+                }
+            } else {
+                if std::env::var("JOIN_DEBUG").is_ok() {
+                    eprintln!("[JOIN_ANALYZER] FAIL: couldn't resolve column indices");
                 }
             }
             None

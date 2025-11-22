@@ -251,7 +251,9 @@ fn extract_tables_recursive_branch(
     match expr {
         vibesql_ast::Expression::ColumnRef { table: Some(table_name), .. } => {
             let normalized = table_name.to_lowercase();
-            if schema.table_schemas.contains_key(&normalized) {
+            // Case-insensitive lookup: check if any schema key matches when lowercased
+            let found = schema.table_schemas.keys().any(|k| k.to_lowercase() == normalized);
+            if found {
                 tables.insert(normalized);
                 true
             } else {
@@ -266,7 +268,8 @@ fn extract_tables_recursive_branch(
             let mut found = false;
             for (table_name, (_start_idx, table_schema)) in &schema.table_schemas {
                 if table_schema.columns.iter().any(|col| col.name.to_lowercase() == column_lower) {
-                    tables.insert(table_name.clone());
+                    // Always store with lowercase for consistent lookup
+                    tables.insert(table_name.to_lowercase());
                     found = true;
                 }
             }

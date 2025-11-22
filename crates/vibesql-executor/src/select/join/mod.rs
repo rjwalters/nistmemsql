@@ -296,10 +296,22 @@ pub(super) fn nested_loop_join(
 
         // Phase 3.1: If no ON condition hash join, try WHERE clause equijoins
         // Iterate through all additional equijoins to find one suitable for hash join
+        if std::env::var("JOIN_DEBUG").is_ok() {
+            eprintln!("[JOIN_DEBUG] Checking {} additional equijoins for hash join optimization", additional_equijoins.len());
+            eprintln!("[JOIN_DEBUG] left_col_count={}, temp_schema tables: {:?}",
+                left_col_count, temp_schema.table_schemas.keys().collect::<Vec<_>>());
+        }
         for (idx, equijoin) in additional_equijoins.iter().enumerate() {
+            if std::env::var("JOIN_DEBUG").is_ok() {
+                eprintln!("[JOIN_DEBUG] Trying equijoin[{}]: {:?}", idx, equijoin);
+            }
             if let Some(equi_join_info) =
                 join_analyzer::analyze_equi_join(equijoin, &temp_schema, left_col_count)
             {
+                if std::env::var("JOIN_DEBUG").is_ok() {
+                    eprintln!("[JOIN_DEBUG] Found suitable equijoin! left_col={}, right_col={}",
+                        equi_join_info.left_col_idx, equi_join_info.right_col_idx);
+                }
                 // Save schemas for NATURAL JOIN processing before moving left/right
                 let (left_schema_for_natural, right_schema_for_natural) = if natural {
                     (Some(left.schema.clone()), Some(right.schema.clone()))
@@ -426,6 +438,9 @@ pub(super) fn nested_loop_join(
     }
 
     // Prepare combined join condition including additional equijoins from WHERE clause
+    if std::env::var("JOIN_DEBUG").is_ok() {
+        eprintln!("[JOIN_DEBUG] No hash join optimization found - falling back to nested loop join!");
+    }
     let mut all_join_conditions = Vec::new();
     if let Some(cond) = condition {
         all_join_conditions.push(cond.clone());
