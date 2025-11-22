@@ -193,6 +193,55 @@ impl ColumnarBatch {
         Ok(rows)
     }
 
+    /// Get a value at a specific (row, column) position
+    pub fn get_value(&self, row_idx: usize, col_idx: usize) -> Result<SqlValue, ExecutorError> {
+        let column = self.column(col_idx)
+            .ok_or_else(|| ExecutorError::Other(format!("Column index {} out of bounds", col_idx).to_string()))?;
+        column.get_value(row_idx)
+    }
+
+    /// Create an empty batch with the specified number of columns
+    pub fn empty(column_count: usize) -> Result<Self, ExecutorError> {
+        Ok(Self {
+            row_count: 0,
+            columns: vec![ColumnArray::Mixed(vec![]); column_count],
+            column_names: None,
+        })
+    }
+
+    /// Create a batch from a list of columns
+    pub fn from_columns(
+        columns: Vec<ColumnArray>,
+        column_names: Option<Vec<String>>,
+    ) -> Result<Self, ExecutorError> {
+        if columns.is_empty() {
+            return Ok(Self {
+                row_count: 0,
+                columns,
+                column_names,
+            });
+        }
+
+        // Verify all columns have the same length
+        let row_count = columns[0].len();
+        for (idx, column) in columns.iter().enumerate() {
+            if column.len() != row_count {
+                return Err(ExecutorError::Other(format!(
+                    "Column {} length mismatch: expected {}, got {}",
+                    idx,
+                    row_count,
+                    column.len()
+                )));
+            }
+        }
+
+        Ok(Self {
+            row_count,
+            columns,
+            column_names,
+        })
+    }
+
     /// Extract a single column from rows into a typed array
     fn extract_column(
         rows: &[Row],
