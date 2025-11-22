@@ -5,6 +5,7 @@
 [![Coverage](https://img.shields.io/badge/coverage-86%25-green)](https://github.com/rjwalters/vibesql)
 [![sqltest](https://img.shields.io/endpoint?url=https://rjwalters.github.io/vibesql/badges/sql1999-conformance.json)](https://rjwalters.github.io/vibesql/conformance.html)
 [![SQLLogicTest](https://img.shields.io/endpoint?url=https://rjwalters.github.io/vibesql/badges/sqllogictest.json)](https://rjwalters.github.io/vibesql/conformance.html#SQLlogicTest)
+[![TPC-H](https://img.shields.io/badge/TPC--H-12%2F22%20passing-yellow)](https://github.com/rjwalters/vibesql/issues/2407)
 
 > **VibeSQL - AI-powered, SQL:1999 database implementation in Rust**
 
