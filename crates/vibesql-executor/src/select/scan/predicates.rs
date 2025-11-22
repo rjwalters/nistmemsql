@@ -28,6 +28,7 @@ use std::sync::Arc;
 /// allocations for filtered-out rows.
 ///
 /// **Phase 1**: Optimized to work with row slices instead of owned vectors.
+/// **Phase 2**: Attempts columnar execution for complex predicates with OR logic.
 pub(crate) fn apply_table_local_predicates_ref(
     rows: &[vibesql_storage::Row],
     schema: CombinedSchema,
@@ -49,6 +50,37 @@ pub(crate) fn apply_table_local_predicates_ref(
     if !ordered_preds.is_empty() {
         // Combine ordered predicates with AND
         let combined_where = combine_predicates_with_and(ordered_preds);
+
+        // Fast path: Try columnar execution for non-correlated queries
+        // Columnar execution is beneficial for:
+        // - Medium to large row counts (>=100 rows)
+        // - Complex predicates with OR logic
+        // - No outer context (correlated subqueries need full evaluator)
+        // - No database functions (e.g., CURRENT_DATE)
+        //
+        // Threshold lowered from >1000 to >=100 rows for issue #2397:
+        // SQLLogicTest conformance tests create tables with ~1000 rows and run
+        // ~10,000 queries with complex predicates, benefiting from columnar filtering.
+        if outer_row.is_none() && outer_schema.is_none() && rows.len() >= 100 {
+            use crate::select::columnar::{create_filter_bitmap_tree, extract_predicate_tree};
+
+            if let Some(predicate_tree) = extract_predicate_tree(&combined_where, &schema) {
+                // Use columnar filtering
+                let bitmap = create_filter_bitmap_tree(rows.len(), &predicate_tree, |row_idx, col_idx| {
+                    rows.get(row_idx).and_then(|row| row.get(col_idx))
+                })?;
+
+                // Clone only rows that pass the filter
+                let filtered_rows: Vec<_> = rows
+                    .iter()
+                    .zip(&bitmap)
+                    .filter_map(|(row, &passes)| if passes { Some(row.clone()) } else { None })
+                    .collect();
+
+                return Ok(filtered_rows);
+            }
+            // If columnar extraction fails, fall through to row-by-row evaluation
+        }
 
         // Create evaluator for filtering with outer context for correlated subqueries
         let evaluator = if let (Some(outer_row), Some(outer_schema)) = (outer_row, outer_schema) {
@@ -105,6 +137,7 @@ pub(crate) fn apply_table_local_predicates_ref(
 /// Uses parallel filtering when beneficial based on row count and hardware.
 ///
 /// **Phase 1**: Now accepts `PredicatePlan` instead of decomposing WHERE clause internally.
+/// **Phase 2**: Attempts columnar execution for complex predicates with OR logic.
 /// **Phase 4**: Uses cost-based predicate ordering via selectivity estimation.
 ///
 /// **Note**: This version takes owned Vec<Row>. Consider using apply_table_local_predicates_ref
@@ -131,6 +164,28 @@ pub(crate) fn apply_table_local_predicates(
     if !ordered_preds.is_empty() {
         // Combine ordered predicates with AND
         let combined_where = combine_predicates_with_and(ordered_preds);
+
+        // Fast path: Try columnar execution for non-correlated queries
+        // Threshold lowered to >=100 rows for better performance on SQLLogicTest queries
+        if outer_row.is_none() && outer_schema.is_none() && rows.len() >= 100 {
+            use crate::select::columnar::{create_filter_bitmap_tree, extract_predicate_tree};
+
+            if let Some(predicate_tree) = extract_predicate_tree(&combined_where, &schema) {
+                // Use columnar filtering
+                let bitmap = create_filter_bitmap_tree(rows.len(), &predicate_tree, |row_idx, col_idx| {
+                    rows.get(row_idx).and_then(|row| row.get(col_idx))
+                })?;
+
+                // Keep only rows that pass the filter
+                let filtered_rows: Vec<_> = rows
+                    .into_iter()
+                    .zip(&bitmap)
+                    .filter_map(|(row, &passes)| if passes { Some(row) } else { None })
+                    .collect();
+
+                return Ok(filtered_rows);
+            }
+        }
 
         // Create evaluator for filtering with outer context for correlated subqueries
         let evaluator = if let (Some(outer_row), Some(outer_schema)) = (outer_row, outer_schema) {
