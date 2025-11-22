@@ -3,7 +3,7 @@
 //! This module provides schema creation and data loading functions for TPC-H
 //! benchmark tables across multiple database engines (VibeSQL, SQLite, DuckDB).
 
-use super::data::{TPCHData, NATIONS, PRIORITIES, REGIONS, SEGMENTS, SHIP_MODES};
+use super::data::{TPCHData, NATIONS, PRIORITIES, REGIONS, SEGMENTS, SHIP_MODES, PART_BRANDS, PART_CONTAINERS, PART_TYPES};
 use vibesql_storage::Database as VibeDB;
 use vibesql_types::Date;
 
@@ -34,6 +34,7 @@ pub fn load_vibesql(scale_factor: f64) -> VibeDB {
     load_partsupp_vibesql(&mut db, &mut data);
     load_orders_vibesql(&mut db, &mut data);
     load_lineitem_vibesql(&mut db, &mut data);
+    load_part_vibesql(&mut db, &mut data);
 
     // Create indexes to match SQLite benchmark (for fair comparison)
     create_tpch_indexes_vibesql(&mut db);
@@ -64,6 +65,7 @@ pub fn load_sqlite(scale_factor: f64) -> SqliteConn {
     load_supplier_sqlite(&conn, &mut data);
     load_orders_sqlite(&conn, &mut data);
     load_lineitem_sqlite(&conn, &mut data);
+    load_part_sqlite(&conn, &mut data);
 
     conn
 }
@@ -83,6 +85,7 @@ pub fn load_duckdb(scale_factor: f64) -> DuckDBConn {
     load_supplier_duckdb(&conn, &mut data);
     load_orders_duckdb(&conn, &mut data);
     load_lineitem_duckdb(&conn, &mut data);
+    load_part_duckdb(&conn, &mut data);
 
     conn
 }
@@ -1370,5 +1373,78 @@ fn load_lineitem_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
 
             line_id += 1;
         }
+    }
+}
+
+// =============================================================================
+// Data Loading (PART - generated data, for Q19)
+// =============================================================================
+
+fn load_part_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
+    use vibesql_storage::Row;
+    use vibesql_types::SqlValue;
+    for i in 0..data.part_count {
+        let size = (i % 50) + 1;
+        let retailprice = 900.0 + (i as f64 * 0.01);
+        let row = Row::new(vec![
+            SqlValue::Integer(i as i64 + 1),
+            SqlValue::Varchar(format!("Part#{:09}", i + 1)),
+            SqlValue::Varchar(format!("Manufacturer#{}", (i % 5) + 1)),
+            SqlValue::Varchar(PART_BRANDS[i % PART_BRANDS.len()].to_string()),
+            SqlValue::Varchar(PART_TYPES[i % PART_TYPES.len()].to_string()),
+            SqlValue::Integer(size as i64),
+            SqlValue::Varchar(PART_CONTAINERS[i % PART_CONTAINERS.len()].to_string()),
+            SqlValue::Numeric(retailprice),
+            SqlValue::Varchar(data.random_varchar(23)),
+        ]);
+        db.insert_row("PART", row).unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_part_sqlite(conn: &SqliteConn, data: &mut TPCHData) {
+    let mut stmt = conn
+        .prepare("INSERT INTO part VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .unwrap();
+
+    for i in 0..data.part_count {
+        let size = (i % 50) + 1;
+        let retailprice = 900.0 + (i as f64 * 0.01);
+        stmt.execute(rusqlite::params![
+            i as i64 + 1,
+            format!("Part#{:09}", i + 1),
+            format!("Manufacturer#{}", (i % 5) + 1),
+            PART_BRANDS[i % PART_BRANDS.len()],
+            PART_TYPES[i % PART_TYPES.len()],
+            size as i64,
+            PART_CONTAINERS[i % PART_CONTAINERS.len()],
+            retailprice,
+            data.random_varchar(23),
+        ])
+        .unwrap();
+    }
+}
+
+#[cfg(feature = "benchmark-comparison")]
+fn load_part_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
+    let mut stmt = conn
+        .prepare("INSERT INTO part VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .unwrap();
+
+    for i in 0..data.part_count {
+        let size = (i % 50) + 1;
+        let retailprice = 900.0 + (i as f64 * 0.01);
+        stmt.execute(duckdb::params![
+            i as i64 + 1,
+            format!("Part#{:09}", i + 1),
+            format!("Manufacturer#{}", (i % 5) + 1),
+            PART_BRANDS[i % PART_BRANDS.len()],
+            PART_TYPES[i % PART_TYPES.len()],
+            size as i64,
+            PART_CONTAINERS[i % PART_CONTAINERS.len()],
+            retailprice,
+            data.random_varchar(23),
+        ])
+        .unwrap();
     }
 }

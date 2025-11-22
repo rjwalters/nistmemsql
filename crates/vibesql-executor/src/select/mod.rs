@@ -1,4 +1,4 @@
-mod columnar;
+pub mod columnar;
 mod cte;
 mod executor;
 mod filter;

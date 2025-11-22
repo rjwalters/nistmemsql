@@ -367,7 +367,8 @@ ORDER BY o_totalprice DESC, o_orderdate
 LIMIT 100
 "#;
 
-// TPC-H Q19: Discounted Revenue
+// TPC-H Q19: Discounted Revenue (full version with complex OR)
+// 2-way JOIN with OR of three AND groups for different brand/container combinations
 pub const TPCH_Q19: &str = r#"
 SELECT
     SUM(l_extendedprice * (1 - l_discount)) as revenue

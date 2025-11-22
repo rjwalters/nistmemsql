@@ -24,6 +24,22 @@ pub const COLORS: &[&str] = &["almond", "antique", "aquamarine", "azure", "beige
 pub const TYPES: &[&str] = &["STANDARD", "SMALL", "MEDIUM", "LARGE", "ECONOMY", "PROMO"];
 pub const CONTAINERS: &[&str] = &["SM CASE", "SM BOX", "SM PACK", "SM PKG", "MED BAG", "MED BOX", "MED PKG", "MED PACK", "LG CASE", "LG BOX", "LG PACK", "LG PKG", "JUMBO BOX", "JUMBO CASE", "JUMBO PACK", "JUMBO PKG", "WRAP CASE", "WRAP BOX", "WRAP PACK", "WRAP PKG"];
 
+// Part table constants for TPC-H Q19
+pub const PART_BRANDS: &[&str] = &[
+    "Brand#11", "Brand#12", "Brand#13", "Brand#14", "Brand#15",
+    "Brand#21", "Brand#22", "Brand#23", "Brand#24", "Brand#25",
+    "Brand#31", "Brand#32", "Brand#33", "Brand#34", "Brand#35",
+];
+pub const PART_CONTAINERS: &[&str] = &[
+    "SM CASE", "SM BOX", "SM PACK", "SM PKG",
+    "MED BAG", "MED BOX", "MED PKG", "MED PACK",
+    "LG CASE", "LG BOX", "LG PACK", "LG PKG",
+    "WRAP CASE", "WRAP BOX", "WRAP PACK", "WRAP PKG",
+];
+pub const PART_TYPES: &[&str] = &[
+    "STANDARD", "SMALL", "MEDIUM", "LARGE", "ECONOMY", "PROMO",
+];
+
 pub struct TPCHData {
     pub scale_factor: f64,
     pub customer_count: usize,
