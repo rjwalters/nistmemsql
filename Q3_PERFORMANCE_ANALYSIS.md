@@ -68,6 +68,9 @@ Run benchmarks:
 # Quick profiling (60s timeout per query)
 ./scripts/bench-tpch.sh 60 summary
 
+# Detailed Q3 profiling with join debugging
+./scripts/profile_q3.sh
+
 # Criterion benchmarks with comparison
 cargo bench --package vibesql-executor --bench tpch_benchmark \
   --features benchmark-comparison -- q3
