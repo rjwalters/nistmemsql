@@ -1,8 +1,8 @@
 #!/bin/bash
 # Profile TPC-H Q3 execution
 
-# Run with JOIN_DEBUG=1 to see join ordering
-JOIN_DEBUG=1 cargo run --release --package vibesql-executor --example run_query <<'EOF'
+# Run with JOIN_REORDER_VERBOSE=1 to see join ordering
+JOIN_REORDER_VERBOSE=1 cargo run --release --package vibesql-executor --example run_query <<'EOF'
 SELECT
     l_orderkey,
     SUM(l_extendedprice * (1 - l_discount)) as revenue,
