@@ -265,6 +265,8 @@ ORDER BY custdist DESC, c_count DESC
 "#;
 
 // TPC-H Q14: Promotion Effect
+// 2-way JOIN between lineitem and part with date range filter.
+// Uses CASE in aggregate to calculate promotional percentage.
 pub const TPCH_Q14: &str = r#"
 SELECT
     100.00 * SUM(CASE WHEN p_type LIKE 'PROMO%'
