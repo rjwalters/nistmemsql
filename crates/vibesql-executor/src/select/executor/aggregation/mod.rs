@@ -4,6 +4,7 @@
 mod detection;
 
 mod evaluation;
+mod having_subquery;
 
 use std::collections::HashMap;
 
@@ -122,6 +123,18 @@ impl SelectExecutor<'_> {
         // This allows SELECT * and SELECT table.* to work with GROUP BY/aggregates
         let expanded_select_list = self.expand_wildcards_for_aggregation(&stmt.select_list, &schema)?;
 
+        // Optimize HAVING clause: pre-evaluate non-correlated scalar subqueries
+        // This eliminates per-group overhead of correlation checks, hash computation, and cache lookups
+        let optimized_having = if let Some(having_expr) = &stmt.having {
+            Some(having_subquery::optimize_having_subqueries(
+                having_expr,
+                &schema,
+                self.database,
+            )?)
+        } else {
+            None
+        };
+
         // Compute aggregates for each group and apply HAVING
         let mut result_rows = Vec::new();
         for (group_key, group_rows) in groups {
@@ -158,8 +171,8 @@ impl SelectExecutor<'_> {
                 }
             }
 
-            // Apply HAVING filter
-            let include_group = if let Some(having_expr) = &stmt.having {
+            // Apply HAVING filter (using optimized expression with pre-evaluated subqueries)
+            let include_group = if let Some(having_expr) = &optimized_having {
                 let having_result = self.evaluate_with_aggregates(
                     having_expr,
                     &group_rows,
