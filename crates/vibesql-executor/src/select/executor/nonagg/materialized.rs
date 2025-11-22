@@ -75,7 +75,7 @@ impl SelectExecutor<'_> {
         // Create evaluator with procedural context support
         // Priority: 1) outer context (for subqueries) 2) procedural context 3) just database
         let evaluator =
-            if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+            if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
                 CombinedExpressionEvaluator::with_database_and_outer_context(
                     &schema,
                     self.database,
@@ -277,7 +277,7 @@ impl SelectExecutor<'_> {
                         self.database,
                         mapping,
                     )
-                } else if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+                } else if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
                     CombinedExpressionEvaluator::with_database_and_outer_context(
                         schema,
                         self.database,

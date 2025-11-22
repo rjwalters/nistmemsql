@@ -15,8 +15,8 @@ use crate::{
 /// Executes SELECT queries
 pub struct SelectExecutor<'a> {
     pub(super) database: &'a vibesql_storage::Database,
-    pub(super) _outer_row: Option<&'a vibesql_storage::Row>,
-    pub(super) _outer_schema: Option<&'a crate::schema::CombinedSchema>,
+    pub(super) outer_row: Option<&'a vibesql_storage::Row>,
+    pub(super) outer_schema: Option<&'a crate::schema::CombinedSchema>,
     /// Procedural context for stored procedure/function variable resolution
     pub(super) procedural_context: Option<&'a crate::procedural::ExecutionContext>,
     /// Subquery nesting depth (for preventing stack overflow)
@@ -45,8 +45,8 @@ impl<'a> SelectExecutor<'a> {
     pub fn new(database: &'a vibesql_storage::Database) -> Self {
         SelectExecutor {
             database,
-            _outer_row: None,
-            _outer_schema: None,
+            outer_row: None,
+            outer_schema: None,
             procedural_context: None,
             subquery_depth: 0,
             memory_used_bytes: Cell::new(0),
@@ -66,8 +66,8 @@ impl<'a> SelectExecutor<'a> {
     ) -> Self {
         SelectExecutor {
             database,
-            _outer_row: Some(outer_row),
-            _outer_schema: Some(outer_schema),
+            outer_row: Some(outer_row),
+            outer_schema: Some(outer_schema),
             procedural_context: None,
             subquery_depth: 0,
             memory_used_bytes: Cell::new(0),
@@ -84,8 +84,8 @@ impl<'a> SelectExecutor<'a> {
     pub fn new_with_depth(database: &'a vibesql_storage::Database, parent_depth: usize) -> Self {
         SelectExecutor {
             database,
-            _outer_row: None,
-            _outer_schema: None,
+            outer_row: None,
+            outer_schema: None,
             procedural_context: None,
             subquery_depth: parent_depth + 1,
             memory_used_bytes: Cell::new(0),
@@ -121,8 +121,8 @@ impl<'a> SelectExecutor<'a> {
     ) -> Self {
         SelectExecutor {
             database,
-            _outer_row: Some(outer_row),
-            _outer_schema: Some(outer_schema),
+            outer_row: Some(outer_row),
+            outer_schema: Some(outer_schema),
             procedural_context: None,
             subquery_depth: parent_depth + 1,
             memory_used_bytes: Cell::new(0),
@@ -141,8 +141,8 @@ impl<'a> SelectExecutor<'a> {
     ) -> Self {
         SelectExecutor {
             database,
-            _outer_row: None,
-            _outer_schema: None,
+            outer_row: None,
+            outer_schema: None,
             procedural_context: Some(procedural_context),
             subquery_depth: 0,
             memory_used_bytes: Cell::new(0),
