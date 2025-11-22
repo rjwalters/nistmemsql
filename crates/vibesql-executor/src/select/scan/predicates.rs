@@ -115,7 +115,8 @@ pub(crate) fn apply_table_local_predicates(
     predicate_plan: &PredicatePlan,
     table_name: &str,
     database: &vibesql_storage::Database,
-    cte_context: Option<&std::collections::HashMap<String, crate::select::CteResult>>,
+    outer_row: Option<&vibesql_storage::Row>,
+    outer_schema: Option<&CombinedSchema>,
 ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
     // Get table statistics for selectivity-based ordering
     let table_stats = database
@@ -131,9 +132,9 @@ pub(crate) fn apply_table_local_predicates(
         // Combine ordered predicates with AND
         let combined_where = combine_predicates_with_and(ordered_preds);
 
-        // Create evaluator for filtering - with CTE context if available
-        let evaluator = if let Some(cte_ctx) = cte_context {
-            CombinedExpressionEvaluator::with_database_and_cte(&schema, database, cte_ctx)
+        // Create evaluator for filtering with outer context for correlated subqueries
+        let evaluator = if let (Some(outer_row), Some(outer_schema)) = (outer_row, outer_schema) {
+            CombinedExpressionEvaluator::with_database_and_outer_context(&schema, database, outer_row, outer_schema)
         } else {
             CombinedExpressionEvaluator::with_database(&schema, database)
         };
@@ -143,7 +144,7 @@ pub(crate) fn apply_table_local_predicates(
         {
             let config = ParallelConfig::global();
             if config.should_parallelize_scan(rows.len()) {
-                return apply_predicates_parallel(rows, combined_where, evaluator);
+                return apply_predicates_parallel(rows, combined_where, evaluator, outer_row, outer_schema);
             }
         }
 

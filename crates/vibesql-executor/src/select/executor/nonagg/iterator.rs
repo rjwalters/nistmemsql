@@ -76,7 +76,7 @@ impl SelectExecutor<'_> {
             self.cte_context
         };
 
-        let evaluator = if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+        let evaluator = if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
             if let Some(cte_ctx) = cte_ctx {
                 CombinedExpressionEvaluator::with_database_and_outer_context_and_cte(
                     &schema,

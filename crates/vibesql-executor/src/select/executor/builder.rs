@@ -171,8 +171,8 @@ impl<'a> SelectExecutor<'a> {
     ) -> Self {
         SelectExecutor {
             database,
-            _outer_row: None,
-            _outer_schema: None,
+            outer_row: None,
+            outer_schema: None,
             procedural_context: None,
             cte_context: Some(cte_context),
             subquery_depth: parent_depth + 1,
@@ -196,8 +196,8 @@ impl<'a> SelectExecutor<'a> {
     ) -> Self {
         SelectExecutor {
             database,
-            _outer_row: Some(outer_row),
-            _outer_schema: Some(outer_schema),
+            outer_row: Some(outer_row),
+            outer_schema: Some(outer_schema),
             procedural_context: None,
             cte_context: Some(cte_context),
             subquery_depth: parent_depth + 1,

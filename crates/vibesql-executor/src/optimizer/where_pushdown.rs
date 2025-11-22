@@ -304,11 +304,6 @@ fn extract_tables_recursive_branch(
             // IN with subquery: may be correlated, treat as complex
             false
         }
-        vibesql_ast::Expression::InList { expr, values, .. } => {
-            // IN with value list: extract tables from left expression and values
-            extract_tables_recursive_branch(expr, schema, tables)
-                && values.iter().all(|val| extract_tables_recursive_branch(val, schema, tables))
-        }
         vibesql_ast::Expression::ScalarSubquery(_) => {
             // Scalar subqueries may reference columns from outer scope (correlated subqueries)
             // Treat as complex predicates to prevent incorrect pushdown to individual tables

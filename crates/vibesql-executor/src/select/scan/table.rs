@@ -54,7 +54,8 @@ pub(crate) fn execute_table_scan(
                 &predicate_plan,
                 table_name,
                 database,
-                if !cte_results.is_empty() { Some(cte_results) } else { None },
+                None,  // outer_row
+                None,  // outer_schema
             )?;
         }
 
@@ -130,7 +131,8 @@ pub(crate) fn execute_table_scan(
                 &predicate_plan,
                 table_name,
                 database,
-                if !cte_results.is_empty() { Some(cte_results) } else { None },
+                None,  // outer_row
+                None,  // outer_schema
             )?;
         }
 
@@ -180,7 +182,8 @@ pub(crate) fn execute_table_scan(
                 &predicate_plan,
                 table_name,
                 database,
-                if !cte_results.is_empty() { Some(cte_results) } else { None },
+                None,  // outer_row: table scans don't have outer context
+                None,  // outer_schema: table scans don't have outer context
             )?;
             return Ok(super::FromResult::from_rows(schema, filtered_rows));
         }
