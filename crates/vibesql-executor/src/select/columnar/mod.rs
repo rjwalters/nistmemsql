@@ -34,10 +34,12 @@
 // Experimental module - allow dead code warnings for future optimization work
 #![allow(dead_code)]
 
+mod batch;
 mod scan;
 mod filter;
 mod aggregate;
 
+pub use batch::{ColumnarBatch, ColumnArray};
 pub use scan::ColumnarScan;
 pub use filter::{
     apply_columnar_filter, create_filter_bitmap, extract_column_predicates, ColumnPredicate,
