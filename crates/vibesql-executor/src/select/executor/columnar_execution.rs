@@ -106,11 +106,12 @@ impl SelectExecutor<'_> {
             return false;
         }
 
-        // TODO: Check if aggregates have simple column references only (no complex expressions)
-        // Temporarily disabled to investigate test failures
-        // if !self.has_simple_aggregates(&stmt.select_list) {
-        //     return false;
-        // }
+        // Check if aggregates have simple column references only (no complex expressions)
+        // Complex expressions like SUM(a * b) are not yet supported by columnar execution
+        // and will fall back to row-based execution
+        if !self.has_simple_aggregates(&stmt.select_list) {
+            return false;
+        }
 
         // No GROUP BY support yet (Phase 5 limitation)
         // TODO: Add GROUP BY support in future phase
