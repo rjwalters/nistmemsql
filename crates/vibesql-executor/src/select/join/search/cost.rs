@@ -4,7 +4,7 @@
 //! guide the search algorithm in selecting optimal join orders by predicting
 //! the expense of different join sequences.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 
 use super::{JoinCost, JoinOrderContext};
 
@@ -176,7 +176,7 @@ impl JoinOrderContext {
     pub(super) fn estimate_join_cost(
         &self,
         current_cardinality: usize,
-        joined_tables: &HashSet<String>,
+        joined_tables: &BTreeSet<String>,
         next_table: &str,
     ) -> JoinCost {
         if joined_tables.is_empty() {
@@ -211,7 +211,7 @@ impl JoinOrderContext {
     ///
     /// Note: Composite join keys (multiple edges between same table pair) are already
     /// handled in compute_edge_selectivities, so the selectivities here are combined.
-    fn get_edge_selectivity(&self, joined_tables: &HashSet<String>, next_table: &str) -> f64 {
+    fn get_edge_selectivity(&self, joined_tables: &BTreeSet<String>, next_table: &str) -> f64 {
         let mut best_selectivity = 0.5; // Default for cross join (no edge)
 
         for joined_table in joined_tables {
@@ -230,7 +230,7 @@ impl JoinOrderContext {
     }
 
     /// Check if there's a join edge connecting the joined tables and next table
-    pub(super) fn has_join_edge(&self, joined_tables: &HashSet<String>, next_table: &str) -> bool {
+    pub(super) fn has_join_edge(&self, joined_tables: &BTreeSet<String>, next_table: &str) -> bool {
         for edge in &self.edges {
             if edge.involves_table(next_table) {
                 for joined_table in joined_tables {
