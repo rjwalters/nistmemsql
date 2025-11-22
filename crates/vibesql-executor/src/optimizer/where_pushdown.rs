@@ -306,12 +306,23 @@ fn extract_tables_recursive_branch(
             let else_ok = else_result.as_ref().is_none_or(|else_res| extract_tables_recursive_branch(else_res, schema, tables));
             op_ok && when_ok && else_ok
         }
-        vibesql_ast::Expression::In { expr, .. } => {
-            extract_tables_recursive_branch(expr, schema, tables)
+        vibesql_ast::Expression::In { .. } => {
+            // IN with subquery: may be correlated, treat as complex
+            false
         }
         vibesql_ast::Expression::ScalarSubquery(_) => {
-            // Scalar subqueries are complex and handled after joins
-            true
+            // Scalar subqueries may reference columns from outer scope (correlated subqueries)
+            // Treat as complex predicates to prevent incorrect pushdown to individual tables
+            // This ensures the subquery has access to the full combined schema including outer context
+            false
+        }
+        vibesql_ast::Expression::Exists { .. } => {
+            // EXISTS subqueries may be correlated, treat as complex
+            false
+        }
+        vibesql_ast::Expression::QuantifiedComparison { .. } => {
+            // Quantified comparisons (ANY/ALL/SOME) may be correlated, treat as complex
+            false
         }
         _ => {
             // Other expression types: Literal, Wildcard, IsNull, Like, etc.

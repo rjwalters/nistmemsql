@@ -259,7 +259,7 @@ impl SelectExecutor<'_> {
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause;
-        execute_from_clause(from, cte_results, self.database, None, None, |query| self.execute_with_columns(query))
+        execute_from_clause(from, cte_results, self.database, None, None, self.outer_row, self.outer_schema, |query| self.execute_with_columns(query))
     }
 
     /// Execute a FROM clause with WHERE and ORDER BY for optimization
@@ -271,9 +271,26 @@ impl SelectExecutor<'_> {
         order_by: Option<&[vibesql_ast::OrderByItem]>,
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause;
-        execute_from_clause(from, cte_results, self.database, where_clause, order_by, |query| {
+        let mut from_result = execute_from_clause(from, cte_results, self.database, where_clause, order_by, self.outer_row, self.outer_schema, |query| {
             self.execute_with_columns(query)
-        })
+        })?;
+
+        // For correlated subqueries: merge outer schema with subquery's schema
+        // This allows the subquery to reference outer table columns
+        if let Some(outer_schema) = self.outer_schema {
+            // Build a new schema that includes both outer and inner tables
+            // Outer tables come first, then inner tables (subquery's FROM clause)
+            let mut schema_builder = crate::schema::SchemaBuilder::from_schema(outer_schema.clone());
+
+            // Add the subquery's own tables after the outer tables
+            for (table_name, (_start_idx, table_schema)) in &from_result.schema.table_schemas {
+                schema_builder.add_table(table_name.clone(), table_schema.clone());
+            }
+
+            from_result.schema = schema_builder.build();
+        }
+
+        Ok(from_result)
     }
 
     /// Try to execute using a monomorphic (type-specialized) plan

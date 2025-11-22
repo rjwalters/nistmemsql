@@ -48,6 +48,8 @@ pub(super) fn execute_from_clause<F>(
     database: &vibesql_storage::Database,
     where_clause: Option<&vibesql_ast::Expression>,
     order_by: Option<&[vibesql_ast::OrderByItem]>,
+    outer_row: Option<&vibesql_storage::Row>,
+    outer_schema: Option<&crate::schema::CombinedSchema>,
     execute_subquery: F,
 ) -> Result<FromResult, ExecutorError>
 where
@@ -66,14 +68,14 @@ where
         // column ordering that must be preserved.
         if reorder::should_apply_join_reordering(table_count) && reorder::all_joins_are_cross(from) {
             // Apply join reordering optimization
-            return reorder::execute_with_join_reordering(from, cte_results, database, where_clause, execute_subquery);
+            return reorder::execute_with_join_reordering(from, cte_results, database, where_clause, outer_row, outer_schema, execute_subquery);
         }
     }
 
     // Fall back to standard execution (recursive left-deep joins)
     match from {
         vibesql_ast::FromClause::Table { name, alias } => {
-            table::execute_table_scan(name, alias.as_ref(), cte_results, database, where_clause, order_by)
+            table::execute_table_scan(name, alias.as_ref(), cte_results, database, where_clause, order_by, outer_row, outer_schema)
         }
         vibesql_ast::FromClause::Join { left, right, join_type, condition, natural } => join_scan::execute_join(
             left,
@@ -84,6 +86,8 @@ where
             cte_results,
             database,
             where_clause,
+            outer_row,
+            outer_schema,
             execute_subquery,
         ),
         vibesql_ast::FromClause::Subquery { query, alias } => {
