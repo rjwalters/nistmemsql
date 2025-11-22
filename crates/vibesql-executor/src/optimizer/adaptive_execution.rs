@@ -47,7 +47,7 @@
 //! }
 //! ```
 
-use vibesql_ast::{Expression, FromClause, SelectItem, SelectStmt};
+use vibesql_ast::{BinaryOperator, Expression, FromClause, JoinType, SelectItem, SelectStmt};
 
 /// Execution model for query processing
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -166,7 +166,7 @@ fn has_group_by(query: &SelectStmt) -> bool {
 /// Check if query contains aggregate functions (SUM, AVG, MIN, MAX, COUNT)
 fn has_aggregate_functions(query: &SelectStmt) -> bool {
     query.select_list.iter().any(|item| match item {
-        SelectItem::Expr { expr, .. } => contains_aggregate(expr),
+        SelectItem::Expression { expr, .. } => contains_aggregate(expr),
         SelectItem::Wildcard { .. } => false,
         SelectItem::QualifiedWildcard { .. } => false,
     })
@@ -175,20 +175,15 @@ fn has_aggregate_functions(query: &SelectStmt) -> bool {
 /// Recursively check if an expression contains aggregate functions
 fn contains_aggregate(expr: &Expression) -> bool {
     match expr {
-        Expression::FunctionCall { name, args, .. } => {
-            let func_name = name.to_uppercase();
-            let is_aggregate = matches!(
-                func_name.as_str(),
-                "SUM" | "AVG" | "MIN" | "MAX" | "COUNT" | "COUNT_BIG"
-            );
-
-            // Check function name or recurse into arguments
-            is_aggregate || args.iter().any(contains_aggregate)
+        Expression::AggregateFunction { .. } => true,
+        Expression::Function { args, .. } => {
+            // Check arguments for nested aggregates
+            args.iter().any(contains_aggregate)
         }
         Expression::BinaryOp { left, right, .. } => {
             contains_aggregate(left) || contains_aggregate(right)
         }
-        Expression::UnaryOp { operand, .. } => contains_aggregate(operand),
+        Expression::UnaryOp { expr, .. } => contains_aggregate(expr),
         Expression::Case {
             operand,
             when_clauses,
@@ -196,20 +191,21 @@ fn contains_aggregate(expr: &Expression) -> bool {
             ..
         } => {
             operand.as_ref().map_or(false, |e| contains_aggregate(e))
-                || when_clauses
-                    .iter()
-                    .any(|(cond, result)| contains_aggregate(cond) || contains_aggregate(result))
+                || when_clauses.iter().any(|clause| {
+                    clause.conditions.iter().any(contains_aggregate)
+                        || contains_aggregate(&clause.result)
+                })
                 || else_result
                     .as_ref()
                     .map_or(false, |e| contains_aggregate(e))
         }
-        Expression::InList { expr, list, .. } => {
-            contains_aggregate(expr) || list.iter().any(contains_aggregate)
+        Expression::InList { expr, values, .. } => {
+            contains_aggregate(expr) || values.iter().any(contains_aggregate)
         }
         Expression::Between {
             expr, low, high, ..
         } => contains_aggregate(expr) || contains_aggregate(low) || contains_aggregate(high),
-        Expression::Subquery(_) => {
+        Expression::ScalarSubquery(_) | Expression::In { .. } => {
             // Conservative: assume subqueries may contain aggregates
             true
         }
@@ -224,7 +220,7 @@ fn contains_aggregate(expr: &Expression) -> bool {
 fn has_arithmetic_expressions(query: &SelectStmt) -> bool {
     // Check SELECT list for arithmetic
     let select_has_arithmetic = query.select_list.iter().any(|item| match item {
-        SelectItem::Expr { expr, .. } => contains_arithmetic(expr),
+        SelectItem::Expression { expr, .. } => contains_arithmetic(expr),
         _ => false,
     });
 
@@ -242,34 +238,45 @@ fn contains_arithmetic(expr: &Expression) -> bool {
     match expr {
         Expression::BinaryOp { op, left, right } => {
             let is_arithmetic = matches!(
-                op.as_str(),
-                "+" | "-" | "*" | "/" | "%" | "^" | "||" // Include string concat
+                op,
+                BinaryOperator::Plus
+                    | BinaryOperator::Minus
+                    | BinaryOperator::Multiply
+                    | BinaryOperator::Divide
+                    | BinaryOperator::Modulo
+                    | BinaryOperator::IntegerDivide
+                    | BinaryOperator::Concat
             );
 
             is_arithmetic || contains_arithmetic(left) || contains_arithmetic(right)
         }
-        Expression::UnaryOp { operand, .. } => contains_arithmetic(operand),
+        Expression::UnaryOp { expr, .. } => contains_arithmetic(expr),
         Expression::Case {
             operand,
             when_clauses,
             else_result,
             ..
         } => {
-            operand.as_ref().map_or(false, contains_arithmetic)
-                || when_clauses
-                    .iter()
-                    .any(|(cond, result)| contains_arithmetic(cond) || contains_arithmetic(result))
+            operand
+                .as_ref()
+                .map_or(false, |e| contains_arithmetic(e))
+                || when_clauses.iter().any(|clause| {
+                    clause.conditions.iter().any(contains_arithmetic)
+                        || contains_arithmetic(&clause.result)
+                })
                 || else_result
                     .as_ref()
-                    .map_or(false, contains_arithmetic)
+                    .map_or(false, |e| contains_arithmetic(e))
         }
-        Expression::InList { expr, list, .. } => {
-            contains_arithmetic(expr) || list.iter().any(contains_arithmetic)
+        Expression::InList { expr, values, .. } => {
+            contains_arithmetic(expr) || values.iter().any(contains_arithmetic)
         }
         Expression::Between {
             expr, low, high, ..
         } => contains_arithmetic(expr) || contains_arithmetic(low) || contains_arithmetic(high),
-        Expression::FunctionCall { args, .. } => args.iter().any(contains_arithmetic),
+        Expression::Function { args, .. } | Expression::AggregateFunction { args, .. } => {
+            args.iter().any(contains_arithmetic)
+        }
         _ => false,
     }
 }
@@ -306,10 +313,6 @@ fn count_tables(from: &FromClause) -> usize {
             4 // > 3, forces row-oriented execution
         }
         FromClause::Join { left, right, .. } => count_tables(left) + count_tables(right),
-        FromClause::Lateral { .. } => {
-            // LATERAL joins are complex, use row-oriented
-            4
-        }
     }
 }
 
@@ -327,14 +330,21 @@ fn has_selective_projection(query: &SelectStmt) -> bool {
     let non_wildcard_count = query
         .select_list
         .iter()
-        .filter(|item| !matches!(item, SelectItem::Wildcard { .. } | SelectItem::QualifiedWildcard { .. }))
+        .filter(|item| {
+            !matches!(
+                item,
+                SelectItem::Wildcard { .. } | SelectItem::QualifiedWildcard { .. }
+            )
+        })
         .count();
 
     // If there are any wildcards, projection is NOT selective
-    let has_wildcard = query
-        .select_list
-        .iter()
-        .any(|item| matches!(item, SelectItem::Wildcard { .. } | SelectItem::QualifiedWildcard { .. }));
+    let has_wildcard = query.select_list.iter().any(|item| {
+        matches!(
+            item,
+            SelectItem::Wildcard { .. } | SelectItem::QualifiedWildcard { .. }
+        )
+    });
 
     if has_wildcard {
         return false;
@@ -349,7 +359,8 @@ fn has_selective_projection(query: &SelectStmt) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vibesql_ast::{FromClause, Identifier, SelectItem, SelectStmt};
+    use vibesql_ast::{BinaryOperator, FromClause, JoinType, SelectItem, SelectStmt};
+    use vibesql_types::SqlValue;
 
     #[test]
     fn test_row_oriented_for_point_lookup() {
@@ -357,17 +368,20 @@ mod tests {
         let query = SelectStmt {
             with_clause: None,
             distinct: false,
-            select_list: vec![SelectItem::Wildcard { except: None }],
+            select_list: vec![SelectItem::Wildcard { alias: None }],
             into_table: None,
             into_variables: None,
             from: Some(FromClause::Table {
-                name: Identifier::Single("users".to_string()),
+                name: "users".to_string(),
                 alias: None,
             }),
             where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::Identifier(Identifier::Single("id".to_string()))),
-                op: "=".to_string(),
-                right: Box::new(Expression::Literal("123".to_string())),
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Literal(SqlValue::Integer(123))),
             }),
             group_by: None,
             having: None,
@@ -388,25 +402,28 @@ mod tests {
             with_clause: None,
             distinct: false,
             select_list: vec![
-                SelectItem::Expr {
-                    expr: Expression::Identifier(Identifier::Single("region".to_string())),
+                SelectItem::Expression {
+                    expr: Expression::ColumnRef {
+                        table: None,
+                        column: "region".to_string(),
+                    },
                     alias: None,
                 },
-                SelectItem::Expr {
-                    expr: Expression::FunctionCall {
+                SelectItem::Expression {
+                    expr: Expression::AggregateFunction {
                         name: "SUM".to_string(),
-                        args: vec![Expression::BinaryOp {
-                            left: Box::new(Expression::Identifier(Identifier::Single(
-                                "price".to_string(),
-                            ))),
-                            op: "*".to_string(),
-                            right: Box::new(Expression::Identifier(Identifier::Single(
-                                "quantity".to_string(),
-                            ))),
-                        }],
                         distinct: false,
-                        filter: None,
-                        over: None,
+                        args: vec![Expression::BinaryOp {
+                            left: Box::new(Expression::ColumnRef {
+                                table: None,
+                                column: "price".to_string(),
+                            }),
+                            op: BinaryOperator::Multiply,
+                            right: Box::new(Expression::ColumnRef {
+                                table: None,
+                                column: "quantity".to_string(),
+                            }),
+                        }],
                     },
                     alias: None,
                 },
@@ -414,13 +431,14 @@ mod tests {
             into_table: None,
             into_variables: None,
             from: Some(FromClause::Table {
-                name: Identifier::Single("orders".to_string()),
+                name: "orders".to_string(),
                 alias: None,
             }),
             where_clause: None,
-            group_by: Some(vec![Expression::Identifier(Identifier::Single(
-                "region".to_string(),
-            ))]),
+            group_by: Some(vec![Expression::ColumnRef {
+                table: None,
+                column: "region".to_string(),
+            }]),
             having: None,
             order_by: None,
             limit: None,
@@ -438,39 +456,42 @@ mod tests {
         let query = SelectStmt {
             with_clause: None,
             distinct: false,
-            select_list: vec![SelectItem::Wildcard { except: None }],
+            select_list: vec![SelectItem::Wildcard { alias: None }],
             into_table: None,
             into_variables: None,
             from: Some(FromClause::Join {
-                join_type: "INNER".to_string(),
+                join_type: JoinType::Inner,
                 left: Box::new(FromClause::Join {
-                    join_type: "INNER".to_string(),
+                    join_type: JoinType::Inner,
                     left: Box::new(FromClause::Join {
-                        join_type: "INNER".to_string(),
+                        join_type: JoinType::Inner,
                         left: Box::new(FromClause::Table {
-                            name: Identifier::Single("t1".to_string()),
+                            name: "t1".to_string(),
                             alias: None,
                         }),
                         right: Box::new(FromClause::Table {
-                            name: Identifier::Single("t2".to_string()),
+                            name: "t2".to_string(),
                             alias: None,
                         }),
-                        on: None,
-                        using: None,
+                        join_type: JoinType::Inner,
+                        condition: None,
+                        natural: false,
                     }),
                     right: Box::new(FromClause::Table {
-                        name: Identifier::Single("t3".to_string()),
+                        name: "t3".to_string(),
                         alias: None,
                     }),
-                    on: None,
-                    using: None,
+                    join_type: JoinType::Inner,
+                    condition: None,
+                    natural: false,
                 }),
                 right: Box::new(FromClause::Table {
-                    name: Identifier::Single("t4".to_string()),
+                    name: "t4".to_string(),
                     alias: None,
                 }),
-                on: None,
-                using: None,
+                join_type: JoinType::Inner,
+                condition: None,
+                natural: false,
             }),
             where_clause: None,
             group_by: None,
@@ -490,20 +511,18 @@ mod tests {
         let query_with_count = SelectStmt {
             with_clause: None,
             distinct: false,
-            select_list: vec![SelectItem::Expr {
-                expr: Expression::FunctionCall {
+            select_list: vec![SelectItem::Expression {
+                expr: Expression::AggregateFunction {
                     name: "COUNT".to_string(),
-                    args: vec![Expression::Wildcard],
                     distinct: false,
-                    filter: None,
-                    over: None,
+                    args: vec![Expression::Wildcard],
                 },
                 alias: None,
             }],
             into_table: None,
             into_variables: None,
             from: Some(FromClause::Table {
-                name: Identifier::Single("orders".to_string()),
+                name: "orders".to_string(),
                 alias: None,
             }),
             where_clause: None,
@@ -523,22 +542,24 @@ mod tests {
         let query_with_arithmetic = SelectStmt {
             with_clause: None,
             distinct: false,
-            select_list: vec![SelectItem::Expr {
+            select_list: vec![SelectItem::Expression {
                 expr: Expression::BinaryOp {
-                    left: Box::new(Expression::Identifier(Identifier::Single(
-                        "price".to_string(),
-                    ))),
-                    op: "*".to_string(),
-                    right: Box::new(Expression::Identifier(Identifier::Single(
-                        "quantity".to_string(),
-                    ))),
+                    left: Box::new(Expression::ColumnRef {
+                        table: None,
+                        column: "price".to_string(),
+                    }),
+                    op: BinaryOperator::Multiply,
+                    right: Box::new(Expression::ColumnRef {
+                        table: None,
+                        column: "quantity".to_string(),
+                    }),
                 },
                 alias: Some("total".to_string()),
             }],
             into_table: None,
             into_variables: None,
             from: Some(FromClause::Table {
-                name: Identifier::Single("orders".to_string()),
+                name: "orders".to_string(),
                 alias: None,
             }),
             where_clause: None,
@@ -560,19 +581,25 @@ mod tests {
             with_clause: None,
             distinct: false,
             select_list: vec![
-                SelectItem::Expr {
-                    expr: Expression::Identifier(Identifier::Single("id".to_string())),
+                SelectItem::Expression {
+                    expr: Expression::ColumnRef {
+                        table: None,
+                        column: "id".to_string(),
+                    },
                     alias: None,
                 },
-                SelectItem::Expr {
-                    expr: Expression::Identifier(Identifier::Single("name".to_string())),
+                SelectItem::Expression {
+                    expr: Expression::ColumnRef {
+                        table: None,
+                        column: "name".to_string(),
+                    },
                     alias: None,
                 },
             ],
             into_table: None,
             into_variables: None,
             from: Some(FromClause::Table {
-                name: Identifier::Single("users".to_string()),
+                name: "users".to_string(),
                 alias: None,
             }),
             where_clause: None,
@@ -590,11 +617,11 @@ mod tests {
         let non_selective = SelectStmt {
             with_clause: None,
             distinct: false,
-            select_list: vec![SelectItem::Wildcard { except: None }],
+            select_list: vec![SelectItem::Wildcard { alias: None }],
             into_table: None,
             into_variables: None,
             from: Some(FromClause::Table {
-                name: Identifier::Single("users".to_string()),
+                name: "users".to_string(),
                 alias: None,
             }),
             where_clause: None,
