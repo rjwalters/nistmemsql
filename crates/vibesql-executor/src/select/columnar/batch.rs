@@ -410,7 +410,7 @@ impl ColumnArray {
                 }
                 values.get(index)
                     .map(|v| SqlValue::Integer(*v))
-                    .ok_or_else(|| ExecutorError::Other("Index out of bounds"))
+                    .ok_or_else(|| ExecutorError::Other("Index out of bounds".to_string()))
             }
 
             Self::Float64(values, nulls) => {
@@ -421,7 +421,7 @@ impl ColumnArray {
                 }
                 values.get(index)
                     .map(|v| SqlValue::Double(*v))
-                    .ok_or_else(|| ExecutorError::Other("Index out of bounds"))
+                    .ok_or_else(|| ExecutorError::Other("Index out of bounds".to_string()))
             }
 
             Self::String(values, nulls) => {
@@ -432,7 +432,7 @@ impl ColumnArray {
                 }
                 values.get(index)
                     .map(|v| SqlValue::Varchar(v.clone()))
-                    .ok_or_else(|| ExecutorError::Other("Index out of bounds"))
+                    .ok_or_else(|| ExecutorError::Other("Index out of bounds".to_string()))
             }
 
             Self::Boolean(values, nulls) => {
@@ -443,16 +443,16 @@ impl ColumnArray {
                 }
                 values.get(index)
                     .map(|v| SqlValue::Boolean(*v != 0))
-                    .ok_or_else(|| ExecutorError::Other("Index out of bounds"))
+                    .ok_or_else(|| ExecutorError::Other("Index out of bounds".to_string()))
             }
 
             Self::Mixed(values) => {
                 values.get(index)
                     .cloned()
-                    .ok_or_else(|| ExecutorError::Other("Index out of bounds"))
+                    .ok_or_else(|| ExecutorError::Other("Index out of bounds".to_string()))
             }
 
-            _ => Err(ExecutorError::Other("Unsupported column type")),
+            _ => Err(ExecutorError::Other("Unsupported column type".to_string())),
         }
     }
 
@@ -463,12 +463,12 @@ impl ColumnArray {
             Self::Int32(_, _) => DataType::Integer,
             Self::Float64(_, _) => DataType::DoublePrecision,
             Self::Float32(_, _) => DataType::Real,
-            Self::String(_, _) => DataType::Varchar(None),
-            Self::FixedString(_, _) => DataType::Char(None),
+            Self::String(_, _) => DataType::Varchar { max_length: None },
+            Self::FixedString(_, _) => DataType::Character { length: 255 },
             Self::Date(_, _) => DataType::Date,
-            Self::Timestamp(_, _) => DataType::Timestamp(None),
+            Self::Timestamp(_, _) => DataType::Timestamp { with_timezone: false },
             Self::Boolean(_, _) => DataType::Boolean,
-            Self::Mixed(_) => DataType::Varchar(None), // fallback
+            Self::Mixed(_) => DataType::Varchar { max_length: None }, // fallback
         }
     }
 
