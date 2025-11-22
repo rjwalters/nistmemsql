@@ -7,6 +7,7 @@ use super::from_iterator::FromIterator;
 mod expression_mapper;
 mod hash_join;
 mod hash_join_iterator;
+mod hash_semi_join;
 mod join_analyzer;
 mod nested_loop;
 pub mod reorder;
@@ -18,6 +19,8 @@ mod tests;
 // Re-export join reorder analyzer for public tests
 // Re-export hash_join functions for internal use
 use hash_join::hash_join_inner;
+// Re-export hash semi-join for internal use
+use hash_semi_join::hash_semi_join;
 // Re-export hash join iterator for public use
 pub use hash_join_iterator::HashJoinIterator;
 // Re-export nested loop join variants for internal use
