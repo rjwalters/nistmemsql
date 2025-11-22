@@ -37,7 +37,7 @@ mod cost;
 mod dfs;
 mod greedy;
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use super::reorder::{JoinEdge, JoinOrderAnalyzer};
 
@@ -94,7 +94,7 @@ impl Default for ParallelSearchConfig {
 #[derive(Debug, Clone)]
 pub(super) struct SearchState {
     /// Tables already joined
-    pub joined_tables: HashSet<String>,
+    pub joined_tables: BTreeSet<String>,
     /// Cumulative cost so far
     pub cost_so_far: JoinCost,
     /// Ordering of tables
@@ -110,7 +110,7 @@ pub(super) struct SearchState {
 /// DFS, BFS, and greedy algorithms.
 pub(super) struct JoinOrderContext {
     /// All tables in the query
-    pub all_tables: HashSet<String>,
+    pub all_tables: BTreeSet<String>,
     /// Join edges (which tables connect)
     pub edges: Vec<JoinEdge>,
     /// Estimated rows for each table after local filters
@@ -619,5 +619,76 @@ mod tests {
         // Note: customer and lineitem CAN be adjacent in orders like [orders, lineitem, customer]
         // because both connect to orders. The key is that each table after the first has
         // a connection to at least one previously-joined table, which we verified above.
+    }
+
+    #[test]
+    fn test_join_order_determinism() {
+        // Test that join order search produces deterministic results across multiple runs
+        // This is important for reproducibility and testing
+        //
+        // After switching from HashSet to BTreeSet, iteration order should be deterministic
+        let mut analyzer = JoinOrderAnalyzer::new();
+        analyzer.register_tables(vec![
+            "customer".to_string(),
+            "orders".to_string(),
+            "lineitem".to_string(),
+            "supplier".to_string(),
+            "nation".to_string(),
+        ]);
+
+        // Create a connected join graph (TPC-H Q5-style)
+        analyzer.add_edge(JoinEdge {
+            left_table: "customer".to_string(),
+            left_column: "c_custkey".to_string(),
+            right_table: "orders".to_string(),
+            right_column: "o_custkey".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "orders".to_string(),
+            left_column: "o_orderkey".to_string(),
+            right_table: "lineitem".to_string(),
+            right_column: "l_orderkey".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "lineitem".to_string(),
+            left_column: "l_suppkey".to_string(),
+            right_table: "supplier".to_string(),
+            right_column: "s_suppkey".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "supplier".to_string(),
+            left_column: "s_nationkey".to_string(),
+            right_table: "nation".to_string(),
+            right_column: "n_nationkey".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "customer".to_string(),
+            left_column: "c_nationkey".to_string(),
+            right_table: "nation".to_string(),
+            right_column: "n_nationkey".to_string(),
+        });
+
+        let db = vibesql_storage::Database::new();
+        let search = JoinOrderSearch::from_analyzer(&analyzer, &db);
+
+        // Run search 10 times
+        let mut orders = Vec::new();
+        for _ in 0..10 {
+            let order = search.find_optimal_order();
+            orders.push(order);
+        }
+
+        // All orders should be identical
+        let first_order = &orders[0];
+        for (i, order) in orders.iter().enumerate().skip(1) {
+            assert_eq!(
+                order, first_order,
+                "Join order iteration {} differed from first: {:?} != {:?}",
+                i, order, first_order
+            );
+        }
+
+        // Verify we got all 5 tables
+        assert_eq!(first_order.len(), 5);
     }
 }

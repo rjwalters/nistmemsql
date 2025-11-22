@@ -287,7 +287,7 @@ impl JoinOrderAnalyzer {
     }
 
     /// Get all tables registered in this analyzer
-    pub fn tables(&self) -> std::collections::HashSet<String> {
+    pub fn tables(&self) -> std::collections::BTreeSet<String> {
         self.tables.keys().cloned().collect()
     }
 

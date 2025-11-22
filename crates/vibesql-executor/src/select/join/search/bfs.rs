@@ -4,7 +4,7 @@
 //! It explores all candidate orderings at each depth level using parallel iteration,
 //! with intelligent pruning to manage memory usage.
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[cfg(feature = "parallel")]
@@ -20,7 +20,7 @@ impl JoinOrderContext {
     pub(super) fn find_optimal_order_parallel(&self) -> Vec<String> {
         // Initial state: empty set of joined tables
         let initial_state = SearchState {
-            joined_tables: HashSet::new(),
+            joined_tables: BTreeSet::new(),
             cost_so_far: JoinCost::new(0, 0),
             order: Vec::new(),
             current_cardinality: 0,

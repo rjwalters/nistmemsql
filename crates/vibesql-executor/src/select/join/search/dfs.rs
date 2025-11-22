@@ -4,7 +4,7 @@
 //! It uses recursive backtracking with branch-and-bound pruning to explore the
 //! search space efficiently.
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use super::{JoinCost, JoinOrderContext, SearchState};
 
@@ -22,7 +22,7 @@ impl JoinOrderContext {
         }
 
         let initial_state = SearchState {
-            joined_tables: HashSet::new(),
+            joined_tables: BTreeSet::new(),
             cost_so_far: JoinCost::new(0, 0),
             order: Vec::new(),
             current_cardinality: 0,
