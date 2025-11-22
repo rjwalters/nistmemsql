@@ -85,25 +85,23 @@ impl JoinOrderContext {
         }
 
         // Try adding each unjoined table that can be joined to already-joined tables
-        // First, try only tables with join edges (connected joins)
-        let mut candidates: Vec<&String> = self.all_tables
-            .iter()
-            .filter(|t| !state.joined_tables.contains(*t))
-            .collect();
-
-        // Filter to connected candidates (unless this is the first table)
-        if !state.joined_tables.is_empty() {
-            let connected: Vec<&String> = candidates
+        // For the first table, any table is valid
+        // For subsequent tables, ONLY consider tables with join edges (enforce connectivity)
+        let candidates: Vec<&String> = if state.joined_tables.is_empty() {
+            // First table: any unjoined table
+            self.all_tables
                 .iter()
+                .filter(|t| !state.joined_tables.contains(*t))
+                .collect()
+        } else {
+            // Subsequent tables: MUST have join edge to already-joined tables
+            // This enforces connected subgraph enumeration (no CROSS JOINs)
+            self.all_tables
+                .iter()
+                .filter(|t| !state.joined_tables.contains(*t))
                 .filter(|t| self.has_join_edge(&state.joined_tables, t))
-                .copied()
-                .collect();
-
-            // Only use connected candidates if any exist (avoid CROSS JOINs)
-            if !connected.is_empty() {
-                candidates = connected;
-            }
-        }
+                .collect()
+        };
 
         for next_table in candidates {
             if state.joined_tables.contains(next_table) {
