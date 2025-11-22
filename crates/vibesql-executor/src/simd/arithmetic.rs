@@ -185,31 +185,6 @@ pub fn simd_mul_i64(a: &[i64], b: &[i64]) -> Vec<i64> {
     result
 }
 
-/// SIMD division for i64 columns
-#[cfg(feature = "simd")]
-pub fn simd_div_i64(a: &[i64], b: &[i64]) -> Vec<i64> {
-    let mut result = Vec::with_capacity(a.len());
-
-    // Process chunks of 4 elements with SIMD
-    let chunks = a.len() / 4;
-    for i in 0..chunks {
-        let offset = i * 4;
-        let a_vec = i64x4::from([a[offset], a[offset + 1], a[offset + 2], a[offset + 3]]);
-        let b_vec = i64x4::from([b[offset], b[offset + 1], b[offset + 2], b[offset + 3]]);
-        let quotient = a_vec / b_vec;
-
-        let arr: [i64; 4] = quotient.into();
-        result.extend_from_slice(&arr);
-    }
-
-    // Handle remainder elements with scalar fallback
-    let remainder_start = chunks * 4;
-    for i in remainder_start..a.len() {
-        result.push(a[i] / b[i]);
-    }
-
-    result
-}
 
 #[cfg(all(test, feature = "simd"))]
 mod tests {

@@ -6,7 +6,7 @@
 //!
 //! # Features
 //!
-//! - **Arithmetic operations**: `+`, `-`, `*`, `/` for i64 and f64 columns
+//! - **Arithmetic operations**: `+`, `-`, `*`, `/` for f64 columns; `+`, `-`, `*` for i64 columns
 //! - **Comparison operations**: `<`, `<=`, `>`, `>=`, `=`, `!=`
 //! - **Aggregations**: `SUM`, `AVG`, `MIN`, `MAX`, `COUNT`
 //! - **NULL handling**: Bitmask-based NULL value support
@@ -41,7 +41,7 @@
 //!
 //! # Platform Support
 //!
-//! SIMD operations use `packed_simd_2` which supports:
+//! SIMD operations use `wide` which supports:
 //! - x86/x86_64 with SSE2, AVX, AVX2
 //! - ARM with NEON
 //! - WASM with SIMD proposal
