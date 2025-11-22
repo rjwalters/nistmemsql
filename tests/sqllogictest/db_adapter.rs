@@ -107,7 +107,6 @@ pub struct VibeSqlDB {
     // Automatic INSERT batching for test data loading optimization
     insert_batching_enabled: bool,
     in_implicit_transaction: bool,
-    last_insert_table: Option<String>,
     implicit_transaction_insert_count: usize,
 }
 
@@ -170,7 +169,6 @@ impl VibeSqlDB {
             other_timings: StatementTimings::default(),
             insert_batching_enabled,
             in_implicit_transaction: false,
-            last_insert_table: None,
             implicit_transaction_insert_count: 0,
         }
     }
@@ -188,7 +186,6 @@ impl VibeSqlDB {
                 .commit_transaction()
                 .map_err(|e| TestError::Execution(format!("Transaction error: {:?}", e)))?;
             self.in_implicit_transaction = false;
-            self.last_insert_table = None;
             self.implicit_transaction_insert_count = 0;
         }
         Ok(())
@@ -354,7 +351,6 @@ impl VibeSqlDB {
                         self.db.begin_transaction()
                             .map_err(|e| TestError::Execution(format!("Transaction error: {:?}", e)))?;
                         self.in_implicit_transaction = true;
-                        self.last_insert_table = Some(insert_stmt.table_name.clone());
                         self.implicit_transaction_insert_count = 0;
                     }
                     // Track INSERTs in the batch
@@ -400,6 +396,9 @@ impl VibeSqlDB {
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
             vibesql_ast::Statement::DropTable(drop_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 // Invalidate cache for this table
                 if self.cache_enabled {
                     self.result_cache.invalidate_table(&drop_stmt.table_name);
@@ -410,16 +409,25 @@ impl VibeSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::AlterTable(alter_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::AlterTableExecutor::execute(&alter_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateSchema(create_schema_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::SchemaExecutor::execute_create_schema(&create_schema_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropSchema(drop_schema_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::SchemaExecutor::execute_drop_schema(&drop_schema_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
@@ -450,46 +458,73 @@ impl VibeSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::Grant(grant_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::GrantExecutor::execute_grant(&grant_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::Revoke(revoke_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::RevokeExecutor::execute_revoke(&revoke_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateRole(create_role_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::RoleExecutor::execute_create_role(&create_role_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropRole(drop_role_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::RoleExecutor::execute_drop_role(&drop_role_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateDomain(create_domain_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::DomainExecutor::execute_create_domain(&create_domain_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropDomain(drop_domain_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::DomainExecutor::execute_drop_domain(&drop_domain_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateType(create_type_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::TypeExecutor::execute_create_type(&create_type_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropType(drop_type_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::TypeExecutor::execute_drop_type(&drop_type_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateAssertion(create_assertion_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::advanced_objects::execute_create_assertion(
                     &create_assertion_stmt,
                     &mut self.db,
@@ -498,6 +533,9 @@ impl VibeSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropAssertion(drop_assertion_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::advanced_objects::execute_drop_assertion(
                     &drop_assertion_stmt,
                     &mut self.db,
@@ -506,41 +544,65 @@ impl VibeSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateView(create_view_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::advanced_objects::execute_create_view(&create_view_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropView(drop_view_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::advanced_objects::execute_drop_view(&drop_view_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateIndex(create_index_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::IndexExecutor::execute(&create_index_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropIndex(drop_index_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::IndexExecutor::execute_drop(&drop_index_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::Analyze(analyze_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::AnalyzeExecutor::execute(&analyze_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::Reindex(reindex_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::IndexExecutor::execute_reindex(&reindex_stmt, &self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateTrigger(create_trigger_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::TriggerExecutor::create_trigger(&mut self.db, &create_trigger_stmt)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::DropTrigger(drop_trigger_stmt) => {
+                // Commit any pending implicit transaction before DDL
+                self.commit_implicit_transaction_if_needed()?;
+
                 vibesql_executor::TriggerExecutor::drop_trigger(&mut self.db, &drop_trigger_stmt)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
@@ -567,7 +629,6 @@ impl VibeSqlDB {
                 // Rollback any implicit transaction if exists
                 if self.in_implicit_transaction {
                     self.in_implicit_transaction = false;
-                    self.last_insert_table = None;
                     self.implicit_transaction_insert_count = 0;
                 }
 
@@ -577,18 +638,27 @@ impl VibeSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::Savepoint(savepoint_stmt) => {
+                // Commit any pending implicit transaction before savepoint
+                self.commit_implicit_transaction_if_needed()?;
+
                 self.db
                     .create_savepoint(savepoint_stmt.name.clone())
                     .map_err(|e| TestError::Execution(format!("Transaction error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::RollbackToSavepoint(rollback_stmt) => {
+                // Commit any pending implicit transaction before rollback to savepoint
+                self.commit_implicit_transaction_if_needed()?;
+
                 self.db
                     .rollback_to_savepoint(rollback_stmt.name.clone())
                     .map_err(|e| TestError::Execution(format!("Transaction error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::ReleaseSavepoint(release_stmt) => {
+                // Commit any pending implicit transaction before release savepoint
+                self.commit_implicit_transaction_if_needed()?;
+
                 self.db
                     .release_savepoint(release_stmt.name.clone())
                     .map_err(|e| TestError::Execution(format!("Transaction error: {:?}", e)))?;
