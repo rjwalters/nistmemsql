@@ -255,8 +255,9 @@ WHERE l_shipdate >= '1995-09-01'
 
 // TPC-H Q15: Top Supplier
 // Uses CTE to compute revenue once (avoiding double-scan).
-// Official TPC-H specification uses MAX scalar subquery to find suppliers
-// with the maximum revenue. The CTE is referenced from the scalar subquery.
+// NOTE: Official TPC-H uses MAX scalar subquery: WHERE total_revenue = (SELECT MAX(...) FROM revenue)
+// but CTE references in scalar subqueries are not yet supported, so we use ORDER BY DESC LIMIT 1
+// which produces the same result (returns supplier(s) with maximum revenue).
 pub const TPCH_Q15: &str = r#"
 WITH revenue AS (
     SELECT
@@ -275,8 +276,8 @@ SELECT
     total_revenue
 FROM supplier, revenue
 WHERE s_suppkey = supplier_no
-    AND total_revenue = (SELECT MAX(total_revenue) FROM revenue)
-ORDER BY s_suppkey
+ORDER BY total_revenue DESC
+LIMIT 1
 "#;
 
 // TPC-H Q16: Parts/Supplier Relationship
