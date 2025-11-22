@@ -550,6 +550,119 @@ pub fn extract_aggregates(
     Some(aggregates)
 }
 
+/// Compute aggregates with GROUP BY using columnar execution
+///
+/// This function implements hash-based grouping on columnar data, enabling
+/// TPC-H Q1 and similar queries to use the columnar execution path.
+///
+/// # Algorithm
+///
+/// 1. Build hash table mapping group keys → (row indices in that group)
+/// 2. For each group, compute aggregates over the grouped rows
+/// 3. Return results as rows with (group_key_cols, aggregate_cols)
+///
+/// # Arguments
+///
+/// * `rows` - Input rows to group and aggregate
+/// * `group_cols` - Indices of columns to group by
+/// * `agg_cols` - List of (column_index, aggregate_op) pairs to compute
+/// * `filter_bitmap` - Optional filter to apply before grouping
+///
+/// # Returns
+///
+/// Vec of Row objects, each containing group key values followed by aggregate results
+///
+/// # Example
+///
+/// ```rust,ignore
+/// // SELECT l_returnflag, SUM(l_extendedprice)
+/// // FROM lineitem
+/// // GROUP BY l_returnflag
+///
+/// let rows = vec![
+///     Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Double(100.0)]),
+///     Row::new(vec![SqlValue::Varchar("B".to_string()), SqlValue::Double(200.0)]),
+///     Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Double(150.0)]),
+/// ];
+///
+/// let group_cols = vec![0]; // Group by first column (l_returnflag)
+/// let agg_cols = vec![(1, AggregateOp::Sum)]; // SUM(l_extendedprice)
+///
+/// let result = columnar_group_by(&rows, &group_cols, &agg_cols, None)?;
+/// // Returns:
+/// // Row["A", 250.0]
+/// // Row["B", 200.0]
+/// ```
+pub fn columnar_group_by(
+    rows: &[Row],
+    group_cols: &[usize],
+    agg_cols: &[(usize, AggregateOp)],
+    filter_bitmap: Option<&[bool]>,
+) -> Result<Vec<Row>, ExecutorError> {
+    use std::collections::HashMap;
+
+    // Early return for empty input
+    if rows.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // Create columnar scan for efficient column access
+    let scan = ColumnarScan::new(rows);
+
+    // Phase 1: Build hash table mapping group keys to row indices
+    // HashMap<Vec<SqlValue>, Vec<usize>>
+    // Key: group key values, Value: indices of rows in that group
+    let mut groups: HashMap<Vec<SqlValue>, Vec<usize>> = HashMap::new();
+
+    for row_idx in 0..rows.len() {
+        // Check filter bitmap
+        if let Some(bitmap) = filter_bitmap {
+            if !bitmap.get(row_idx).copied().unwrap_or(false) {
+                continue;
+            }
+        }
+
+        // Extract group key values for this row
+        let mut group_key = Vec::with_capacity(group_cols.len());
+        for &col_idx in group_cols {
+            let value = scan.row(row_idx)
+                .and_then(|row| row.get(col_idx))
+                .unwrap_or(&SqlValue::Null);
+            group_key.push(value.clone());
+        }
+
+        // Add row index to this group
+        groups.entry(group_key).or_default().push(row_idx);
+    }
+
+    // Phase 2: Compute aggregates for each group
+    let mut result_rows = Vec::with_capacity(groups.len());
+
+    for (group_key, row_indices) in groups {
+        // Create a bitmap for rows in this group
+        let mut group_bitmap = vec![false; rows.len()];
+        for &idx in &row_indices {
+            group_bitmap[idx] = true;
+        }
+
+        // Compute aggregates for this group
+        let mut result_values = Vec::with_capacity(group_key.len() + agg_cols.len());
+
+        // First, add group key values
+        result_values.extend(group_key);
+
+        // Then, compute each aggregate
+        for (col_idx, agg_op) in agg_cols {
+            let agg_result = compute_columnar_aggregate(&scan, *col_idx, *agg_op, Some(&group_bitmap))?;
+            result_values.push(agg_result);
+        }
+
+        result_rows.push(Row::new(result_values));
+    }
+
+    Ok(result_rows)
+}
+
 /// Check if an expression is a simple arithmetic expression we can optimize
 ///
 /// Returns Some(()) if the expression only contains column references and
@@ -814,5 +927,213 @@ mod tests {
         assert_eq!(aggregates.len(), 1);
         assert!(matches!(aggregates[0].op, AggregateOp::Sum));
         assert!(matches!(aggregates[0].source, AggregateSource::Expression(_)));
+    }
+
+    // GROUP BY tests
+
+    #[test]
+    fn test_columnar_group_by_simple() {
+        // Test simple GROUP BY with one group column
+        // SELECT status, SUM(amount) FROM test GROUP BY status
+        let rows = vec![
+            Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Double(100.0)]),
+            Row::new(vec![SqlValue::Varchar("B".to_string()), SqlValue::Double(200.0)]),
+            Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Double(150.0)]),
+            Row::new(vec![SqlValue::Varchar("B".to_string()), SqlValue::Double(50.0)]),
+        ];
+
+        let group_cols = vec![0]; // Group by status
+        let agg_cols = vec![(1, AggregateOp::Sum)]; // SUM(amount)
+
+        let result = columnar_group_by(&rows, &group_cols, &agg_cols, None).unwrap();
+
+        // Should have 2 groups: A and B
+        assert_eq!(result.len(), 2);
+
+        // Sort results by group key for deterministic testing
+        let mut sorted = result;
+        sorted.sort_by(|a, b| {
+            let a_key = a.get(0).unwrap();
+            let b_key = b.get(0).unwrap();
+            a_key.partial_cmp(b_key).unwrap()
+        });
+
+        // Check group A: SUM = 250.0
+        assert_eq!(sorted[0].get(0), Some(&SqlValue::Varchar("A".to_string())));
+        assert!(matches!(sorted[0].get(1), Some(&SqlValue::Double(sum)) if (sum - 250.0).abs() < 0.001));
+
+        // Check group B: SUM = 250.0
+        assert_eq!(sorted[1].get(0), Some(&SqlValue::Varchar("B".to_string())));
+        assert!(matches!(sorted[1].get(1), Some(&SqlValue::Double(sum)) if (sum - 250.0).abs() < 0.001));
+    }
+
+    #[test]
+    fn test_columnar_group_by_multiple_group_keys() {
+        // Test GROUP BY with multiple columns
+        // SELECT status, category, COUNT(*) FROM test GROUP BY status, category
+        let rows = vec![
+            Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Integer(1)]),
+            Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Integer(2)]),
+            Row::new(vec![SqlValue::Varchar("B".to_string()), SqlValue::Integer(1)]),
+            Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Integer(1)]),
+            Row::new(vec![SqlValue::Varchar("B".to_string()), SqlValue::Integer(2)]),
+        ];
+
+        let group_cols = vec![0, 1]; // Group by status, category
+        let agg_cols = vec![(0, AggregateOp::Count)]; // COUNT(*)
+
+        let result = columnar_group_by(&rows, &group_cols, &agg_cols, None).unwrap();
+
+        // Should have 4 groups: (A,1), (A,2), (B,1), (B,2)
+        assert_eq!(result.len(), 4);
+
+        // Verify we have correct counts
+        for row in &result {
+            let status = row.get(0).unwrap();
+            let category = row.get(1).unwrap();
+            let count = row.get(2).unwrap();
+
+            match (status, category) {
+                (SqlValue::Varchar(s), SqlValue::Integer(1)) if s == "A" => {
+                    assert_eq!(count, &SqlValue::Integer(2)); // Two rows with A,1
+                }
+                (SqlValue::Varchar(s), SqlValue::Integer(2)) if s == "A" => {
+                    assert_eq!(count, &SqlValue::Integer(1)); // One row with A,2
+                }
+                (SqlValue::Varchar(s), SqlValue::Integer(1)) if s == "B" => {
+                    assert_eq!(count, &SqlValue::Integer(1)); // One row with B,1
+                }
+                (SqlValue::Varchar(s), SqlValue::Integer(2)) if s == "B" => {
+                    assert_eq!(count, &SqlValue::Integer(1)); // One row with B,2
+                }
+                _ => panic!("Unexpected group key: {:?}, {:?}", status, category),
+            }
+        }
+    }
+
+    #[test]
+    fn test_columnar_group_by_multiple_aggregates() {
+        // Test GROUP BY with multiple aggregate functions
+        // SELECT category, SUM(price), AVG(quantity), COUNT(*) FROM test GROUP BY category
+        let rows = vec![
+            Row::new(vec![SqlValue::Integer(1), SqlValue::Double(100.0), SqlValue::Integer(10)]),
+            Row::new(vec![SqlValue::Integer(2), SqlValue::Double(200.0), SqlValue::Integer(20)]),
+            Row::new(vec![SqlValue::Integer(1), SqlValue::Double(150.0), SqlValue::Integer(15)]),
+        ];
+
+        let group_cols = vec![0]; // Group by category
+        let agg_cols = vec![
+            (1, AggregateOp::Sum),   // SUM(price)
+            (2, AggregateOp::Avg),   // AVG(quantity)
+            (0, AggregateOp::Count), // COUNT(*)
+        ];
+
+        let result = columnar_group_by(&rows, &group_cols, &agg_cols, None).unwrap();
+
+        // Should have 2 groups
+        assert_eq!(result.len(), 2);
+
+        // Sort by category for deterministic testing
+        let mut sorted = result;
+        sorted.sort_by(|a, b| {
+            let a_key = a.get(0).unwrap();
+            let b_key = b.get(0).unwrap();
+            a_key.partial_cmp(b_key).unwrap()
+        });
+
+        // Group 1: SUM=250, AVG=12.5, COUNT=2
+        assert_eq!(sorted[0].get(0), Some(&SqlValue::Integer(1)));
+        assert!(matches!(sorted[0].get(1), Some(&SqlValue::Double(sum)) if (sum - 250.0).abs() < 0.001));
+        assert!(matches!(sorted[0].get(2), Some(&SqlValue::Double(avg)) if (avg - 12.5).abs() < 0.001));
+        assert_eq!(sorted[0].get(3), Some(&SqlValue::Integer(2)));
+
+        // Group 2: SUM=200, AVG=20.0, COUNT=1
+        assert_eq!(sorted[1].get(0), Some(&SqlValue::Integer(2)));
+        assert!(matches!(sorted[1].get(1), Some(&SqlValue::Double(sum)) if (sum - 200.0).abs() < 0.001));
+        assert!(matches!(sorted[1].get(2), Some(&SqlValue::Double(avg)) if (avg - 20.0).abs() < 0.001));
+        assert_eq!(sorted[1].get(3), Some(&SqlValue::Integer(1)));
+    }
+
+    #[test]
+    fn test_columnar_group_by_with_filter() {
+        // Test GROUP BY with pre-filtering
+        // SELECT status, SUM(amount) FROM test WHERE amount > 100 GROUP BY status
+        let rows = vec![
+            Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Double(100.0)]),
+            Row::new(vec![SqlValue::Varchar("B".to_string()), SqlValue::Double(200.0)]),
+            Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Double(150.0)]),
+            Row::new(vec![SqlValue::Varchar("B".to_string()), SqlValue::Double(50.0)]),
+        ];
+
+        // Filter: amount > 100 (rows 1 and 2)
+        let filter = vec![false, true, true, false];
+
+        let group_cols = vec![0]; // Group by status
+        let agg_cols = vec![(1, AggregateOp::Sum)]; // SUM(amount)
+
+        let result = columnar_group_by(&rows, &group_cols, &agg_cols, Some(&filter)).unwrap();
+
+        // Should have 2 groups (only rows passing filter)
+        assert_eq!(result.len(), 2);
+
+        // Sort results by group key
+        let mut sorted = result;
+        sorted.sort_by(|a, b| {
+            let a_key = a.get(0).unwrap();
+            let b_key = b.get(0).unwrap();
+            a_key.partial_cmp(b_key).unwrap()
+        });
+
+        // Check group A: only row 2 (150.0) passes filter
+        assert_eq!(sorted[0].get(0), Some(&SqlValue::Varchar("A".to_string())));
+        assert!(matches!(sorted[0].get(1), Some(&SqlValue::Double(sum)) if (sum - 150.0).abs() < 0.001));
+
+        // Check group B: only row 1 (200.0) passes filter
+        assert_eq!(sorted[1].get(0), Some(&SqlValue::Varchar("B".to_string())));
+        assert!(matches!(sorted[1].get(1), Some(&SqlValue::Double(sum)) if (sum - 200.0).abs() < 0.001));
+    }
+
+    #[test]
+    fn test_columnar_group_by_empty_input() {
+        let rows: Vec<Row> = vec![];
+        let group_cols = vec![0];
+        let agg_cols = vec![(1, AggregateOp::Sum)];
+
+        let result = columnar_group_by(&rows, &group_cols, &agg_cols, None).unwrap();
+
+        // Should return empty result for empty input
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_columnar_group_by_null_in_group_key() {
+        // Test that NULL values in group keys are handled correctly
+        let rows = vec![
+            Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Double(100.0)]),
+            Row::new(vec![SqlValue::Null, SqlValue::Double(200.0)]),
+            Row::new(vec![SqlValue::Varchar("A".to_string()), SqlValue::Double(150.0)]),
+            Row::new(vec![SqlValue::Null, SqlValue::Double(50.0)]),
+        ];
+
+        let group_cols = vec![0]; // Group by first column
+        let agg_cols = vec![(1, AggregateOp::Sum)]; // SUM
+
+        let result = columnar_group_by(&rows, &group_cols, &agg_cols, None).unwrap();
+
+        // Should have 2 groups: "A" and NULL
+        assert_eq!(result.len(), 2);
+
+        // Find the groups
+        let a_group = result.iter().find(|r| matches!(r.get(0), Some(SqlValue::Varchar(s)) if s == "A"));
+        let null_group = result.iter().find(|r| matches!(r.get(0), Some(SqlValue::Null)));
+
+        assert!(a_group.is_some());
+        assert!(null_group.is_some());
+
+        // Check "A" group: 100 + 150 = 250
+        assert!(matches!(a_group.unwrap().get(1), Some(&SqlValue::Double(sum)) if (sum - 250.0).abs() < 0.001));
+
+        // Check NULL group: 200 + 50 = 250
+        assert!(matches!(null_group.unwrap().get(1), Some(&SqlValue::Double(sum)) if (sum - 250.0).abs() < 0.001));
     }
 }
