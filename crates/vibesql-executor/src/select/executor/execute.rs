@@ -51,12 +51,21 @@ impl SelectExecutor<'_> {
         #[cfg(feature = "profile-q6")]
         let optimizer_time = optimizer_start.elapsed();
 
-        // Execute CTEs if present
-        let cte_results = if let Some(with_clause) = &optimized_stmt.with_clause {
+        // Execute CTEs if present and merge with outer query's CTE context
+        let mut cte_results = if let Some(with_clause) = &optimized_stmt.with_clause {
+            // This query has its own CTEs - execute them
             execute_ctes(with_clause, |query, cte_ctx| self.execute_with_ctes(query, cte_ctx))?
         } else {
             HashMap::new()
         };
+
+        // If we have access to outer query's CTEs (for subqueries), merge them in
+        // Local CTEs take precedence over outer CTEs if there are name conflicts
+        if let Some(outer_cte_ctx) = self.cte_context {
+            for (name, result) in outer_cte_ctx {
+                cte_results.entry(name.clone()).or_insert_with(|| result.clone());
+            }
+        }
 
         #[cfg(feature = "profile-q6")]
         let pre_execute_time = execute_start.elapsed();
@@ -166,6 +175,7 @@ impl SelectExecutor<'_> {
         let mut results = if has_aggregates || has_group_by {
             self.execute_with_aggregation(stmt, cte_results)?
         } else if let Some(from_clause) = &stmt.from {
+
             // Re-enabled predicate pushdown for all queries (issue #1902)
             //
             // Previously, predicate pushdown was selectively disabled for multi-column IN clauses
@@ -182,7 +192,7 @@ impl SelectExecutor<'_> {
             // Pass WHERE and ORDER BY to execute_from for optimization
             let from_result =
                 self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref(), stmt.order_by.as_deref())?;
-            self.execute_without_aggregation(stmt, from_result)?
+            self.execute_without_aggregation(stmt, from_result, cte_results)?
         } else {
             // SELECT without FROM - evaluate expressions as a single row
             self.execute_select_without_from(stmt)?
@@ -225,7 +235,7 @@ impl SelectExecutor<'_> {
         } else if let Some(from_clause) = &right_stmt.from {
             let from_result =
                 self.execute_from_with_where(from_clause, cte_results, right_stmt.where_clause.as_ref(), right_stmt.order_by.as_deref())?;
-            self.execute_without_aggregation(right_stmt, from_result)?
+            self.execute_without_aggregation(right_stmt, from_result, cte_results)?
         } else {
             self.execute_select_without_from(right_stmt)?
         };

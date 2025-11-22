@@ -126,15 +126,36 @@ impl CombinedExpressionEvaluator<'_> {
 
         // Execute the subquery with outer context for correlated subqueries
         // Pass the entire CombinedSchema to preserve alias information and propagate depth
-        let select_executor = if !self.schema.table_schemas.is_empty() {
-            crate::select::SelectExecutor::new_with_outer_context_and_depth(
-                database,
-                row,
-                self.schema,
-                self.depth,
-            )
+        // Also pass CTE context if available so subqueries can reference CTEs from outer query
+        let select_executor = if let Some(cte_ctx) = self.cte_context {
+            // Have CTE context to pass through
+            if !self.schema.table_schemas.is_empty() {
+                crate::select::SelectExecutor::new_with_outer_and_cte_and_depth(
+                    database,
+                    row,
+                    self.schema,
+                    cte_ctx,
+                    self.depth,
+                )
+            } else {
+                crate::select::SelectExecutor::new_with_cte_and_depth(
+                    database,
+                    cte_ctx,
+                    self.depth,
+                )
+            }
         } else {
-            crate::select::SelectExecutor::new(database)
+            // No CTE context - use existing constructors
+            if !self.schema.table_schemas.is_empty() {
+                crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                    database,
+                    row,
+                    self.schema,
+                    self.depth,
+                )
+            } else {
+                crate::select::SelectExecutor::new(database)
+            }
         };
         let rows = select_executor.execute(subquery)?;
 

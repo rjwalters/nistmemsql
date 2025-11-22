@@ -19,6 +19,9 @@ pub struct SelectExecutor<'a> {
     pub(super) _outer_schema: Option<&'a crate::schema::CombinedSchema>,
     /// Procedural context for stored procedure/function variable resolution
     pub(super) procedural_context: Option<&'a crate::procedural::ExecutionContext>,
+    /// CTE (Common Table Expression) context for accessing WITH clause results
+    /// Enables scalar subqueries to reference CTEs defined in the outer query
+    pub(super) cte_context: Option<&'a HashMap<String, super::super::cte::CteResult>>,
     /// Subquery nesting depth (for preventing stack overflow)
     pub(super) subquery_depth: usize,
     /// Memory used by this query execution (in bytes)
@@ -48,6 +51,7 @@ impl<'a> SelectExecutor<'a> {
             _outer_row: None,
             _outer_schema: None,
             procedural_context: None,
+            cte_context: None,
             subquery_depth: 0,
             memory_used_bytes: Cell::new(0),
             memory_warning_logged: Cell::new(false),
@@ -69,6 +73,7 @@ impl<'a> SelectExecutor<'a> {
             _outer_row: Some(outer_row),
             _outer_schema: Some(outer_schema),
             procedural_context: None,
+            cte_context: None,
             subquery_depth: 0,
             memory_used_bytes: Cell::new(0),
             memory_warning_logged: Cell::new(false),
@@ -87,6 +92,7 @@ impl<'a> SelectExecutor<'a> {
             _outer_row: None,
             _outer_schema: None,
             procedural_context: None,
+            cte_context: None,
             subquery_depth: parent_depth + 1,
             memory_used_bytes: Cell::new(0),
             memory_warning_logged: Cell::new(false),
@@ -124,6 +130,7 @@ impl<'a> SelectExecutor<'a> {
             _outer_row: Some(outer_row),
             _outer_schema: Some(outer_schema),
             procedural_context: None,
+            cte_context: None,
             subquery_depth: parent_depth + 1,
             memory_used_bytes: Cell::new(0),
             memory_warning_logged: Cell::new(false),
@@ -144,7 +151,56 @@ impl<'a> SelectExecutor<'a> {
             _outer_row: None,
             _outer_schema: None,
             procedural_context: Some(procedural_context),
+            cte_context: None,
             subquery_depth: 0,
+            memory_used_bytes: Cell::new(0),
+            memory_warning_logged: Cell::new(false),
+            start_time: Instant::now(),
+            timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
+            aggregate_cache: RefCell::new(HashMap::new()),
+            arena: RefCell::new(QueryArena::new()),
+        }
+    }
+
+    /// Create a new SELECT executor with CTE context and depth tracking
+    /// Used for non-correlated subqueries that need access to parent CTEs
+    pub fn new_with_cte_and_depth(
+        database: &'a vibesql_storage::Database,
+        cte_context: &'a HashMap<String, super::super::cte::CteResult>,
+        parent_depth: usize,
+    ) -> Self {
+        SelectExecutor {
+            database,
+            _outer_row: None,
+            _outer_schema: None,
+            procedural_context: None,
+            cte_context: Some(cte_context),
+            subquery_depth: parent_depth + 1,
+            memory_used_bytes: Cell::new(0),
+            memory_warning_logged: Cell::new(false),
+            start_time: Instant::now(),
+            timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
+            aggregate_cache: RefCell::new(HashMap::new()),
+            arena: RefCell::new(QueryArena::new()),
+        }
+    }
+
+    /// Create a new SELECT executor with outer context, CTE context, and depth tracking
+    /// Used for correlated subqueries that need access to both outer row and parent CTEs
+    pub fn new_with_outer_and_cte_and_depth(
+        database: &'a vibesql_storage::Database,
+        outer_row: &'a vibesql_storage::Row,
+        outer_schema: &'a crate::schema::CombinedSchema,
+        cte_context: &'a HashMap<String, super::super::cte::CteResult>,
+        parent_depth: usize,
+    ) -> Self {
+        SelectExecutor {
+            database,
+            _outer_row: Some(outer_row),
+            _outer_schema: Some(outer_schema),
+            procedural_context: None,
+            cte_context: Some(cte_context),
+            subquery_depth: parent_depth + 1,
             memory_used_bytes: Cell::new(0),
             memory_warning_logged: Cell::new(false),
             start_time: Instant::now(),

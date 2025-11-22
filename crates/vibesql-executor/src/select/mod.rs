@@ -1,5 +1,5 @@
 mod columnar;
-mod cte;
+pub(crate) mod cte;
 mod executor;
 mod filter;
 mod from_iterator;
@@ -21,6 +21,7 @@ pub(crate) mod scan;
 mod set_operations;
 mod window;
 
+pub use cte::CteResult;
 pub use iterator::{RowIterator, TableScanIterator};
 pub use window::WindowFunctionKey;
 
