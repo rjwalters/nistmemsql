@@ -98,7 +98,7 @@ pub fn analyze_compound_equi_join(
 
     // Try to extract from AND conditions
     match condition {
-        Expression::BinaryOp { op: BinaryOperator::And, left, right } => {
+        Expression::BinaryOp { op: BinaryOperator::And, left: _, right: _ } => {
             // Flatten all AND conditions
             let mut conditions = Vec::new();
             flatten_and_conditions(condition, &mut conditions);
