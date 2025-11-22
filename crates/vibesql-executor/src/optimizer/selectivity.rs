@@ -121,11 +121,9 @@ pub fn estimate_selectivity(predicate: &Expression, stats: &TableStatistics) -> 
         // BETWEEN: treated as range (0.33 default)
         Expression::Between { .. } => 0.33,
 
-        // IN: depends on number of values
-        Expression::InList { values, .. } => {
-            // Rough estimate: each value has 1/n_distinct chance
-            let n_values = values.len() as f64;
-            (n_values / 100.0).min(1.0) // Cap at 100% but rough heuristic
+        // IN: depends on number of values and column NDV
+        Expression::InList { expr, values, .. } => {
+            estimate_in_list_selectivity(expr, values, stats)
         }
 
         // LIKE: depends on pattern
@@ -219,6 +217,45 @@ fn estimate_range_selectivity(
     }
 }
 
+/// Estimate selectivity for IN list predicates (col IN (val1, val2, ...))
+///
+/// Uses NDV (number of distinct values) to estimate how many rows match.
+/// For example, if n_name has NDV=25 and we filter with IN ('FRANCE', 'GERMANY'),
+/// the selectivity is 2/25 = 0.08, resulting in 25 * 0.08 = 2 rows.
+fn estimate_in_list_selectivity(
+    expr: &Expression,
+    values: &[Expression],
+    stats: &TableStatistics,
+) -> f64 {
+    // Extract column name
+    let column_name = match expr {
+        Expression::ColumnRef { column, .. } => column,
+        _ => return (values.len() as f64 / 100.0).min(1.0), // Fallback for complex expressions
+    };
+
+    // Look up column statistics (case-insensitive)
+    let col_stats = stats.columns.get(column_name)
+        .or_else(|| stats.columns.get(&column_name.to_uppercase()))
+        .or_else(|| stats.columns.get(&column_name.to_lowercase()));
+
+    if let Some(col_stats) = col_stats {
+        // Use NDV-based estimation: selectivity = n_values / n_distinct
+        let n_values = values.len() as f64;
+        let n_distinct = col_stats.n_distinct as f64;
+
+        if n_distinct > 0.0 {
+            // Cap at 1.0 (can't select more than 100% of rows)
+            (n_values / n_distinct).min(1.0)
+        } else {
+            // No distinct values recorded, use heuristic
+            (n_values / 100.0).min(1.0)
+        }
+    } else {
+        // No stats available: rough heuristic (assume ~100 distinct values)
+        (values.len() as f64 / 100.0).min(1.0)
+    }
+}
+
 /// Estimate selectivity for IS NULL
 fn estimate_is_null_selectivity(expr: &Expression, stats: &TableStatistics) -> f64 {
     // Extract column name
@@ -254,15 +291,20 @@ fn estimate_like_selectivity(pattern: &Expression) -> f64 {
     };
 
     // Analyze pattern for wildcards
+    // Generally, substring searches are quite selective in real data
     if pattern_str.starts_with('%') && pattern_str.ends_with('%') {
-        // %pattern% - very unselective
-        0.8
-    } else if pattern_str.starts_with('%') || pattern_str.ends_with('%') {
-        // %pattern or pattern% - moderately selective
-        0.5
+        // %pattern% - substring search, typically filters 90%+ of rows
+        // E.g., finding names containing "green" in TPC-H parts (~1-2% match)
+        0.1
+    } else if pattern_str.starts_with('%') {
+        // %pattern - suffix search, fairly selective
+        0.15
+    } else if pattern_str.ends_with('%') {
+        // pattern% - prefix search, can use index, moderately selective
+        0.2
     } else if pattern_str.contains('%') || pattern_str.contains('_') {
         // Has wildcards in middle
-        0.3
+        0.15
     } else {
         // Exact match (equivalent to equality)
         0.1
@@ -379,6 +421,50 @@ mod tests {
         // Note: id < 10 has selectivity 1.0 for this test data (all ids are < 10)
         assert!((selectivity - 1.0).abs() < 0.01,
             "Expected selectivity 1.0, got {}", selectivity);
+    }
+
+    #[test]
+    fn test_in_list_selectivity() {
+        let stats = create_test_stats();
+
+        // status IN ('active', 'inactive')
+        // Should match all non-null rows: 4/5 = 80%
+        // NDV for status is 2 (active, inactive), so selectivity = 2/2 = 1.0
+        let pred = Expression::InList {
+            expr: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "status".to_string(),
+            }),
+            values: vec![
+                Expression::Literal(SqlValue::Varchar("active".to_string())),
+                Expression::Literal(SqlValue::Varchar("inactive".to_string())),
+            ],
+            negated: false,
+        };
+
+        let selectivity = estimate_selectivity(&pred, &stats);
+        // With NDV=2 and 2 values in list: 2/2 = 1.0
+        assert!((selectivity - 1.0).abs() < 0.01,
+            "Expected selectivity 1.0 for IN list matching all distinct values, got {}", selectivity);
+
+        // status IN ('active')
+        // Should match 3/5 = 60% of rows (3 out of 4 non-null have 'active')
+        // NDV for status is 2, so selectivity = 1/2 = 0.5
+        let pred_single = Expression::InList {
+            expr: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "status".to_string(),
+            }),
+            values: vec![
+                Expression::Literal(SqlValue::Varchar("active".to_string())),
+            ],
+            negated: false,
+        };
+
+        let selectivity_single = estimate_selectivity(&pred_single, &stats);
+        // With NDV=2 and 1 value in list: 1/2 = 0.5
+        assert!((selectivity_single - 0.5).abs() < 0.01,
+            "Expected selectivity 0.5 for IN list with single value, got {}", selectivity_single);
     }
 
     #[test]

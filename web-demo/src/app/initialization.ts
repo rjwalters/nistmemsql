@@ -126,9 +126,10 @@ export async function initializeApp(
       return db
     }),
     // Preload Monaco while WASM loads (don't block on failure)
+    // Note: We don't update progress here since editor step is already complete
+    // with fallback editors. Monaco is a background optimization.
     loadMonaco()
       .then(() => {
-        progress.updateStep('editor', 80, 'loading')
         console.log('[Init] Monaco preloaded during WASM load')
       })
       .catch(err => {

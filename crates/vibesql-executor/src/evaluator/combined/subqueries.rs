@@ -105,6 +105,124 @@ fn count_columns_in_from_clause(
     }
 }
 
+/// Extract correlation value from a correlated scalar subquery
+///
+/// For subqueries like: SELECT AVG(x) FROM t WHERE t.key = outer.key
+/// This extracts the value of outer.key from the current row
+fn extract_correlation_value(
+    subquery: &vibesql_ast::SelectStmt,
+    row: &vibesql_storage::Row,
+    schema: &crate::schema::CombinedSchema,
+) -> Option<vibesql_types::SqlValue> {
+    // Find the correlation predicate in WHERE clause
+    let where_clause = subquery.where_clause.as_ref()?;
+
+    // Extract subquery's own tables
+    let subquery_tables = extract_subquery_tables(subquery);
+
+    // Find correlation predicate and extract outer column reference
+    extract_outer_column_value(where_clause, row, schema, &subquery_tables)
+}
+
+/// Extract table names from subquery's FROM clause
+fn extract_subquery_tables(subquery: &vibesql_ast::SelectStmt) -> Vec<String> {
+    let mut tables = Vec::new();
+    if let Some(from) = &subquery.from {
+        collect_table_names(from, &mut tables);
+    }
+    tables
+}
+
+fn collect_table_names(from: &vibesql_ast::FromClause, tables: &mut Vec<String>) {
+    match from {
+        vibesql_ast::FromClause::Table { name, alias } => {
+            tables.push(alias.clone().unwrap_or_else(|| name.clone()));
+        }
+        vibesql_ast::FromClause::Join { left, right, .. } => {
+            collect_table_names(left, tables);
+            collect_table_names(right, tables);
+        }
+        vibesql_ast::FromClause::Subquery { alias, .. } => {
+            tables.push(alias.clone());
+        }
+    }
+}
+
+/// Find correlation predicate and extract the outer column value
+fn extract_outer_column_value(
+    expr: &vibesql_ast::Expression,
+    row: &vibesql_storage::Row,
+    schema: &crate::schema::CombinedSchema,
+    subquery_tables: &[String],
+) -> Option<vibesql_types::SqlValue> {
+    use vibesql_ast::{BinaryOperator, Expression};
+
+    match expr {
+        // Simple equality: inner.col = outer.col
+        Expression::BinaryOp { op: BinaryOperator::Equal, left, right } => {
+            // Check if one side is from subquery tables and other is from outer
+            if let Some(value) = try_extract_correlation_value(left, right, row, schema, subquery_tables) {
+                return Some(value);
+            }
+            if let Some(value) = try_extract_correlation_value(right, left, row, schema, subquery_tables) {
+                return Some(value);
+            }
+            None
+        }
+
+        // AND: search both branches
+        Expression::BinaryOp { op: BinaryOperator::And, left, right } => {
+            if let Some(value) = extract_outer_column_value(left, row, schema, subquery_tables) {
+                return Some(value);
+            }
+            extract_outer_column_value(right, row, schema, subquery_tables)
+        }
+
+        _ => None,
+    }
+}
+
+/// Try to extract correlation value from an equality predicate
+fn try_extract_correlation_value(
+    inner_candidate: &vibesql_ast::Expression,
+    outer_candidate: &vibesql_ast::Expression,
+    row: &vibesql_storage::Row,
+    schema: &crate::schema::CombinedSchema,
+    subquery_tables: &[String],
+) -> Option<vibesql_types::SqlValue> {
+    use vibesql_ast::Expression;
+
+    // Check if inner_candidate is from subquery tables
+    let inner_is_subquery_col = match inner_candidate {
+        Expression::ColumnRef { table: Some(t), .. } => {
+            subquery_tables.iter().any(|st| st.eq_ignore_ascii_case(t))
+        }
+        Expression::ColumnRef { table: None, column } => {
+            // Unqualified - use TPC-H naming heuristic
+            let col_prefix = column.chars().next().unwrap_or('_').to_ascii_lowercase();
+            subquery_tables.iter().any(|st| {
+                let table_prefix = st.chars().next().unwrap_or('_').to_ascii_lowercase();
+                col_prefix == table_prefix
+            })
+        }
+        _ => false,
+    };
+
+    if !inner_is_subquery_col {
+        return None;
+    }
+
+    // Check if outer_candidate is from outer schema and get its value
+    match outer_candidate {
+        Expression::ColumnRef { table, column } => {
+            // Try to find this column in the outer schema
+            let col_idx = schema.get_column_index(table.as_deref(), column)?;
+            row.values.get(col_idx).cloned()
+        }
+        _ => None,
+    }
+}
+
 impl CombinedExpressionEvaluator<'_> {
     /// Evaluate scalar subquery - must return exactly one row and one column
     pub(super) fn eval_scalar_subquery(
@@ -124,22 +242,84 @@ impl CombinedExpressionEvaluator<'_> {
             "Subquery execution requires database reference".to_string(),
         ))?;
 
-        // Execute the subquery with outer context for correlated subqueries
-        // Pass the entire CombinedSchema to preserve alias information and propagate depth
-        let select_executor = if !self.schema.table_schemas.is_empty() {
-            crate::select::SelectExecutor::new_with_outer_context_and_depth(
-                database,
-                row,
-                self.schema,
-                self.depth,
-            )
-        } else {
-            crate::select::SelectExecutor::new(database)
-        };
-        let rows = select_executor.execute(subquery)?;
+        // Check if this is a correlated subquery that can be cached
+        let is_correlated = crate::correlation::is_correlated(subquery, self.schema);
 
-        // Delegate to shared logic
-        super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())
+        if is_correlated {
+            // Try to extract the correlation key value from the current row
+            // For queries like: SELECT ... WHERE l_partkey = p_partkey
+            // The correlation key is p_partkey (from outer table)
+            if let Some(correlation_value) = extract_correlation_value(subquery, row, self.schema) {
+                let subquery_hash = compute_subquery_hash(subquery);
+                let cache_key = (subquery_hash, correlation_value.clone());
+
+                // Check cache first
+                let cached_result = self.correlated_scalar_cache.borrow().peek(&cache_key).cloned();
+                if let Some(result) = cached_result {
+                    return Ok(result);
+                }
+
+                // Cache miss - execute subquery
+                let select_executor = if !self.schema.table_schemas.is_empty() {
+                    crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                        database,
+                        row,
+                        self.schema,
+                        self.depth,
+                    )
+                } else {
+                    crate::select::SelectExecutor::new(database)
+                };
+                let rows = select_executor.execute(subquery)?;
+                let result = super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())?;
+
+                // Cache the result
+                self.correlated_scalar_cache.borrow_mut().put(cache_key, result.clone());
+                return Ok(result);
+            }
+        }
+
+        // Non-correlated or couldn't extract correlation key
+        if !is_correlated {
+            // Non-correlated subquery - try cache first
+            let cache_key = compute_subquery_hash(subquery);
+
+            // Check cache (explicitly scope the borrow to avoid holding it during execution)
+            // Use peek() for readonly access (get() requires &mut for LRU tracking)
+            let cached_result = self.subquery_cache.borrow().peek(&cache_key).cloned();
+
+            if let Some(cached_rows) = cached_result {
+                // Cache hit - use cached result
+                // Delegate to shared logic
+                return super::super::subqueries_shared::eval_scalar_subquery_core(&cached_rows, subquery.select_list.len());
+            }
+
+            // Cache miss - execute and cache
+            let select_executor = crate::select::SelectExecutor::new_with_depth(database, self.depth);
+            let rows = select_executor.execute(subquery)?;
+
+            // Cache the result
+            self.subquery_cache.borrow_mut().put(cache_key, rows.clone());
+
+            // Delegate to shared logic
+            super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())
+        } else {
+            // Correlated subquery that couldn't extract correlation key - execute with outer context
+            let select_executor = if !self.schema.table_schemas.is_empty() {
+                crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                    database,
+                    row,
+                    self.schema,
+                    self.depth,
+                )
+            } else {
+                crate::select::SelectExecutor::new(database)
+            };
+            let rows = select_executor.execute(subquery)?;
+
+            // Delegate to shared logic
+            super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())
+        }
     }
 
     /// Evaluate EXISTS predicate: EXISTS (SELECT ...)
@@ -236,14 +416,17 @@ impl CombinedExpressionEvaluator<'_> {
     /// Evaluate IN operator with subquery
     /// SQL:1999 Section 8.4: IN predicate with subquery
     ///
-    /// # Implementation Note
+    /// # Implementation
     ///
-    /// Currently uses linear search through subquery results. HashSet optimization
-    /// is not feasible because SQL equality semantics (with type coercion) differ
-    /// from Rust's PartialEq trait, making HashSet.contains() unsuitable.
+    /// **Uncorrelated subqueries:** Uses HashSet caching for O(1) membership testing.
+    /// The subquery is executed once, results cached as a HashSet, then reused across
+    /// all row evaluations. For same-type comparisons, uses O(1) HashSet.contains().
+    /// For cross-type comparisons (e.g., Integer vs Float), falls back to SQL equality
+    /// semantics with type coercion.
     ///
-    /// Future optimization: Use lazy execution via execute_iter() to enable
-    /// early termination of subquery execution after finding first match.
+    /// **Correlated subqueries:** Executes with outer context for each row (no caching).
+    ///
+    /// NULL handling follows SQL standard: NULL IN (empty) = FALSE, NULL IN (values) = NULL
     pub(super) fn eval_in_subquery(
         &self,
         expr: &vibesql_ast::Expression,
@@ -283,32 +466,98 @@ impl CombinedExpressionEvaluator<'_> {
             // If index optimization fails, fall through to caching/regular execution
         }
 
-        // Check if this is a non-correlated subquery that can be cached
+        // Check if this is a non-correlated subquery that can use HashSet cache
         let is_correlated = crate::correlation::is_correlated(subquery, self.schema);
 
-        // Execute or retrieve from cache
-        let rows = if !is_correlated {
-            // Non-correlated subquery - try cache first
+        if !is_correlated {
+            // Non-correlated subquery - use HashSet cache for O(1) lookups
             let cache_key = compute_subquery_hash(subquery);
 
-            // Check cache (explicitly scope the borrow to avoid holding it during execution)
-            // Use peek() for readonly access (get() requires &mut for LRU tracking)
-            let cached_result = self.subquery_cache.borrow().peek(&cache_key).cloned();
+            // Check if we have a cached value set
+            let cached_values = self.in_value_cache.borrow().peek(&cache_key).cloned();
 
-            if let Some(cached_rows) = cached_result {
-                // Cache hit - use cached result
-                cached_rows
+            let (value_set, has_null) = if let Some(cached) = cached_values {
+                // Cache hit - use cached value set
+                cached
             } else {
-                // Cache miss - execute and cache
-                // IMPORTANT: Propagate depth to prevent bypassing MAX_EXPRESSION_DEPTH
+                // Cache miss - execute subquery and build value set
                 let select_executor = crate::select::SelectExecutor::new_with_depth(database, self.depth);
                 let rows = select_executor.execute(subquery)?;
 
-                // Cache the result
-                self.subquery_cache.borrow_mut().put(cache_key, rows.clone());
-                rows
+                // Validate single column
+                let column_count = if !rows.is_empty() {
+                    rows[0].values.len()
+                } else {
+                    compute_select_list_column_count(subquery, database)?
+                };
+
+                if column_count != 1 {
+                    return Err(ExecutorError::SubqueryColumnCountMismatch {
+                        expected: 1,
+                        actual: column_count,
+                    });
+                }
+
+                // Build HashSet of values and track NULL presence
+                let mut values = std::collections::HashSet::new();
+                let mut found_null = false;
+
+                for subquery_row in &rows {
+                    let val = subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+                    if matches!(val, vibesql_types::SqlValue::Null) {
+                        found_null = true;
+                    } else {
+                        values.insert(val.clone());
+                    }
+                }
+
+                // Cache the value set
+                self.in_value_cache.borrow_mut().put(cache_key, (values.clone(), found_null));
+
+                (values, found_null)
+            };
+
+            // Now use O(1) HashSet lookup for membership testing
+            // Handle NULL input specially
+            if matches!(expr_val, vibesql_types::SqlValue::Null) {
+                if value_set.is_empty() && !has_null {
+                    return Ok(vibesql_types::SqlValue::Boolean(negated));
+                }
+                return Ok(vibesql_types::SqlValue::Null);
             }
 
+            // Try exact HashSet match first (O(1))
+            if value_set.contains(&expr_val) {
+                return Ok(vibesql_types::SqlValue::Boolean(!negated));
+            }
+
+            // For type coercion cases, fall back to linear search if types differ
+            // This handles Integer(5) == Float(5.0) SQL semantics
+            for subquery_val in &value_set {
+                // Skip if same type (already checked by HashSet)
+                if std::mem::discriminant(&expr_val) == std::mem::discriminant(subquery_val) {
+                    continue;
+                }
+
+                // Check with type coercion
+                let eq_result = ExpressionEvaluator::eval_binary_op_static(
+                    &expr_val,
+                    &vibesql_ast::BinaryOperator::Equal,
+                    subquery_val,
+                    sql_mode.clone(),
+                )?;
+
+                if matches!(eq_result, vibesql_types::SqlValue::Boolean(true)) {
+                    return Ok(vibesql_types::SqlValue::Boolean(!negated));
+                }
+            }
+
+            // No match found
+            if has_null {
+                Ok(vibesql_types::SqlValue::Null)
+            } else {
+                Ok(vibesql_types::SqlValue::Boolean(negated))
+            }
         } else {
             // Correlated subquery - execute with outer context (can't cache)
             let select_executor = if !self.schema.table_schemas.is_empty() {
@@ -321,135 +570,69 @@ impl CombinedExpressionEvaluator<'_> {
             } else {
                 crate::select::SelectExecutor::new(database)
             };
-            select_executor.execute(subquery)?
-        };
+            let rows = select_executor.execute(subquery)?;
 
-        // SQL standard (R-35033-20570): The subquery must be a scalar subquery
-        // (single column) when the left expression is not a row value expression.
-        // We must validate this AFTER execution because wildcards like SELECT *
-        // expand to multiple columns at runtime.
-        //
-        // Validation must occur even for empty result sets to catch schema errors.
-        let column_count = if !rows.is_empty() {
-            // Get column count from first row
-            rows[0].values.len()
-        } else {
-            // For empty result sets, compute column count from SELECT list
-            compute_select_list_column_count(subquery, database)?
-        };
-
-        if column_count != 1 {
-            return Err(ExecutorError::SubqueryColumnCountMismatch {
-                expected: 1,
-                actual: column_count,
-            });
-        }
-
-        // SQL standard behavior for NULL IN (subquery):
-        // - NULL IN (empty set) → FALSE (special case per R-52275-55503)
-        // - NULL IN (non-empty set without NULL) → NULL (three-valued logic)
-        // - NULL IN (set containing NULL) → NULL
-        if matches!(expr_val, vibesql_types::SqlValue::Null) {
-            // Special case: empty set always returns FALSE for IN, TRUE for NOT IN
-            // This overrides the usual NULL behavior (R-52275-55503)
-            if rows.is_empty() {
-                return Ok(vibesql_types::SqlValue::Boolean(negated));
-            }
-
-            // For non-empty sets, check if subquery contains NULL
-            for subquery_row in &rows {
-                let subquery_val =
-                    subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
-
-                if matches!(subquery_val, vibesql_types::SqlValue::Null) {
-                    // NULL IN (set with NULL) → NULL
-                    return Ok(vibesql_types::SqlValue::Null);
-                }
-            }
-
-            // NULL IN (non-empty set without NULL) → NULL (not FALSE!)
-            // This follows three-valued logic: NULL compared to any value is NULL
-            return Ok(vibesql_types::SqlValue::Null);
-        }
-
-        // Build or retrieve cached HashSet for O(1) membership testing
-        // This is especially important for NOT IN/NOT EXISTS patterns where we check
-        // many outer rows against the same subquery result (e.g., TPC-H Q22)
-        let (values_set, found_null) = if !is_correlated {
-            // Non-correlated: try HashSet cache first
-            let cache_key = compute_subquery_hash(subquery);
-            let cached = self.in_subquery_hashset_cache.borrow().peek(&cache_key).cloned();
-
-            if let Some((set, has_null)) = cached {
-                (set, has_null)
+            // Validate single column
+            let column_count = if !rows.is_empty() {
+                rows[0].values.len()
             } else {
-                // Build HashSet from rows
-                let mut set = std::collections::HashSet::new();
-                let mut has_null = false;
+                compute_select_list_column_count(subquery, database)?
+            };
+
+            if column_count != 1 {
+                return Err(ExecutorError::SubqueryColumnCountMismatch {
+                    expected: 1,
+                    actual: column_count,
+                });
+            }
+
+            // SQL standard behavior for NULL IN (subquery)
+            if matches!(expr_val, vibesql_types::SqlValue::Null) {
+                if rows.is_empty() {
+                    return Ok(vibesql_types::SqlValue::Boolean(negated));
+                }
+
                 for subquery_row in &rows {
                     let subquery_val =
                         subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+
                     if matches!(subquery_val, vibesql_types::SqlValue::Null) {
-                        has_null = true;
-                    } else {
-                        set.insert(subquery_val.clone());
+                        return Ok(vibesql_types::SqlValue::Null);
                     }
                 }
-                // Cache the HashSet
-                self.in_subquery_hashset_cache.borrow_mut().put(cache_key, (set.clone(), has_null));
-                (set, has_null)
+
+                return Ok(vibesql_types::SqlValue::Null);
             }
-        } else {
-            // Correlated: build HashSet without caching
-            let mut set = std::collections::HashSet::new();
-            let mut has_null = false;
+
+            // Linear search for correlated subqueries
+            let mut found_null = false;
+
             for subquery_row in &rows {
                 let subquery_val =
                     subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+
                 if matches!(subquery_val, vibesql_types::SqlValue::Null) {
-                    has_null = true;
-                } else {
-                    set.insert(subquery_val.clone());
+                    found_null = true;
+                    continue;
+                }
+
+                let eq_result = ExpressionEvaluator::eval_binary_op_static(
+                    &expr_val,
+                    &vibesql_ast::BinaryOperator::Equal,
+                    subquery_val,
+                    sql_mode.clone(),
+                )?;
+
+                if matches!(eq_result, vibesql_types::SqlValue::Boolean(true)) {
+                    return Ok(vibesql_types::SqlValue::Boolean(!negated));
                 }
             }
-            (set, has_null)
-        };
 
-        // Try direct HashSet lookup first (O(1)) - works when types match exactly
-        // This is the common case for decorrelated NOT EXISTS (e.g., custkey NOT IN custkeys)
-        if values_set.contains(&expr_val) {
-            return Ok(vibesql_types::SqlValue::Boolean(!negated));
-        }
-
-        // Fall back to type-coercing comparison for cross-type equality
-        // (e.g., Integer(5) == Float(5.0) in SQL but not in Rust PartialEq)
-        // Only needed when HashSet lookup fails and types might differ
-        for value in &values_set {
-            // Skip same-type values since HashSet already checked them
-            if std::mem::discriminant(&expr_val) == std::mem::discriminant(value) {
-                continue;
+            if found_null {
+                Ok(vibesql_types::SqlValue::Null)
+            } else {
+                Ok(vibesql_types::SqlValue::Boolean(negated))
             }
-
-            // Compare using SQL equality with type coercion
-            let eq_result = ExpressionEvaluator::eval_binary_op_static(
-                &expr_val,
-                &vibesql_ast::BinaryOperator::Equal,
-                value,
-                sql_mode.clone(),
-            )?;
-
-            if matches!(eq_result, vibesql_types::SqlValue::Boolean(true)) {
-                return Ok(vibesql_types::SqlValue::Boolean(!negated));
-            }
-        }
-
-        // No match found
-        // If we encountered NULL, return NULL (per SQL three-valued logic)
-        // Otherwise return FALSE (or TRUE if negated)
-        if found_null {
-            Ok(vibesql_types::SqlValue::Null)
-        } else {
-            Ok(vibesql_types::SqlValue::Boolean(negated))
         }
     }
 }

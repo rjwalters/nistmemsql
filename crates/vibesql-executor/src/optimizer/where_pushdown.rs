@@ -148,6 +148,12 @@ pub fn decompose_where_clause(
         classify_predicate_branch(&conjunct, from_schema, &mut decomposition)?;
     }
 
+    // Extract implied single-table filters from OR predicates
+    // This is critical for queries like TPC-H Q7 where:
+    //   (n1.n_name = 'FRANCE' AND n2.n_name = 'GERMANY') OR (n1.n_name = 'GERMANY' AND n2.n_name = 'FRANCE')
+    // implies: n1.n_name IN ('FRANCE', 'GERMANY') AND n2.n_name IN ('FRANCE', 'GERMANY')
+    extract_implied_filters_from_or_predicates(&mut decomposition, from_schema);
+
     Ok(decomposition)
 }
 
@@ -251,7 +257,9 @@ fn extract_tables_recursive_branch(
     match expr {
         vibesql_ast::Expression::ColumnRef { table: Some(table_name), .. } => {
             let normalized = table_name.to_lowercase();
-            if schema.table_schemas.contains_key(&normalized) {
+            // Case-insensitive lookup: check if any schema key matches when lowercased
+            let found = schema.table_schemas.keys().any(|k| k.to_lowercase() == normalized);
+            if found {
                 tables.insert(normalized);
                 true
             } else {
@@ -266,7 +274,8 @@ fn extract_tables_recursive_branch(
             let mut found = false;
             for (table_name, (_start_idx, table_schema)) in &schema.table_schemas {
                 if table_schema.columns.iter().any(|col| col.name.to_lowercase() == column_lower) {
-                    tables.insert(table_name.clone());
+                    // Always store with lowercase for consistent lookup
+                    tables.insert(table_name.to_lowercase());
                     found = true;
                 }
             }
@@ -386,6 +395,117 @@ pub fn combine_with_and(expressions: Vec<Expression>) -> Option<Expression> {
     }
 }
 
+// ============================================================================
+// OR Filter Extraction
+// ============================================================================
+
+/// Extract implied single-table filters from complex OR predicates
+///
+/// For predicates like:
+///   (n1.n_name = 'FRANCE' AND n2.n_name = 'GERMANY') OR (n1.n_name = 'GERMANY' AND n2.n_name = 'FRANCE')
+///
+/// We can extract implied filters:
+///   n1.n_name IN ('FRANCE', 'GERMANY')
+///   n2.n_name IN ('FRANCE', 'GERMANY')
+///
+/// This enables much better join ordering by recognizing that nation tables will be filtered.
+fn extract_implied_filters_from_or_predicates(
+    decomposition: &mut PredicateDecomposition,
+    schema: &CombinedSchema,
+) {
+    // Process each complex predicate to see if it's an OR we can extract from
+    for complex_pred in &decomposition.complex_predicates {
+        if let Some(implied_filters) = extract_table_filters_from_or(complex_pred, schema) {
+            // Add extracted filters to table_local_predicates
+            for (table_name, filter_expr) in implied_filters {
+                decomposition
+                    .table_local_predicates
+                    .entry(table_name)
+                    .or_default()
+                    .push(filter_expr);
+            }
+        }
+    }
+}
+
+/// Extract single-table filters from an OR predicate
+///
+/// For (A1 AND B1) OR (A2 AND B2) where:
+/// - A1, A2 reference only table t1
+/// - B1, B2 reference only table t2
+///
+/// Returns filters: [(t1, A1 OR A2), (t2, B1 OR B2)]
+fn extract_table_filters_from_or(
+    expr: &Expression,
+    schema: &CombinedSchema,
+) -> Option<Vec<(String, Expression)>> {
+    // Check if this is an OR expression
+    let (left_branch, right_branch) = match expr {
+        Expression::BinaryOp {
+            op: vibesql_ast::BinaryOperator::Or,
+            left,
+            right,
+        } => (left.as_ref(), right.as_ref()),
+        _ => return None,
+    };
+
+    // Extract table->predicates for each OR branch
+    let left_filters = extract_table_predicates_from_branch(left_branch, schema);
+    let right_filters = extract_table_predicates_from_branch(right_branch, schema);
+
+    // Find tables that are filtered in BOTH branches
+    let mut result = Vec::new();
+    for (table_name, left_preds) in &left_filters {
+        if let Some(right_preds) = right_filters.get(table_name) {
+            // Combine left and right predicates for this table with OR
+            let left_combined = combine_predicates_with_and(left_preds.clone());
+            let right_combined = combine_predicates_with_and(right_preds.clone());
+
+            let combined_filter = Expression::BinaryOp {
+                op: vibesql_ast::BinaryOperator::Or,
+                left: Box::new(left_combined),
+                right: Box::new(right_combined),
+            };
+
+            result.push((table_name.clone(), combined_filter));
+        }
+    }
+
+    if result.is_empty() {
+        None
+    } else {
+        Some(result)
+    }
+}
+
+/// Extract table-local predicates from a branch of an OR
+///
+/// For an AND chain like (t1.a = 'X' AND t2.b = 'Y' AND t1.c = 'Z')
+/// Returns: {"t1": [t1.a = 'X', t1.c = 'Z'], "t2": [t2.b = 'Y']}
+fn extract_table_predicates_from_branch(
+    expr: &Expression,
+    schema: &CombinedSchema,
+) -> HashMap<String, Vec<Expression>> {
+    let mut table_predicates: HashMap<String, Vec<Expression>> = HashMap::new();
+
+    // Flatten ANDs in this branch
+    let conjuncts = flatten_conjuncts(expr);
+
+    for conjunct in conjuncts {
+        // Get tables referenced by this conjunct
+        if let Some(tables) = extract_referenced_tables_branch(&conjunct, schema) {
+            if tables.len() == 1 {
+                // Single-table predicate - add to that table's list
+                let table_name = tables.iter().next().unwrap().clone();
+                table_predicates.entry(table_name).or_default().push(conjunct);
+            }
+            // Multi-table predicates are ignored for filter extraction
+        }
+    }
+
+    table_predicates
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -446,5 +566,84 @@ mod tests {
         ];
         let result = combine_with_and(exprs);
         assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_or_filter_extraction() {
+        use vibesql_ast::{BinaryOperator, Expression};
+        use vibesql_types::SqlValue;
+        use vibesql_catalog::{ColumnSchema, TableSchema};
+
+        // Create schema with two nation tables (n1, n2)
+        let n1_schema = TableSchema::new(
+            "n1".to_string(),
+            vec![ColumnSchema::new("n_name".to_string(), vibesql_types::DataType::Varchar { max_length: Some(25) }, false)],
+        );
+        let n2_schema = TableSchema::new(
+            "n2".to_string(),
+            vec![ColumnSchema::new("n_name".to_string(), vibesql_types::DataType::Varchar { max_length: Some(25) }, false)],
+        );
+        // Build CombinedSchema properly
+        let schema = CombinedSchema::combine(
+            CombinedSchema::from_table("n1".to_string(), n1_schema),
+            "n2".to_string(),
+            n2_schema,
+        );
+
+        // Build Q7-style OR predicate:
+        // (n1.n_name = 'FRANCE' AND n2.n_name = 'GERMANY') OR (n1.n_name = 'GERMANY' AND n2.n_name = 'FRANCE')
+        let n1_france = Expression::BinaryOp {
+            op: BinaryOperator::Equal,
+            left: Box::new(Expression::ColumnRef { table: Some("n1".to_string()), column: "n_name".to_string() }),
+            right: Box::new(Expression::Literal(SqlValue::Varchar("FRANCE".to_string()))),
+        };
+        let n2_germany = Expression::BinaryOp {
+            op: BinaryOperator::Equal,
+            left: Box::new(Expression::ColumnRef { table: Some("n2".to_string()), column: "n_name".to_string() }),
+            right: Box::new(Expression::Literal(SqlValue::Varchar("GERMANY".to_string()))),
+        };
+        let n1_germany = Expression::BinaryOp {
+            op: BinaryOperator::Equal,
+            left: Box::new(Expression::ColumnRef { table: Some("n1".to_string()), column: "n_name".to_string() }),
+            right: Box::new(Expression::Literal(SqlValue::Varchar("GERMANY".to_string()))),
+        };
+        let n2_france = Expression::BinaryOp {
+            op: BinaryOperator::Equal,
+            left: Box::new(Expression::ColumnRef { table: Some("n2".to_string()), column: "n_name".to_string() }),
+            right: Box::new(Expression::Literal(SqlValue::Varchar("FRANCE".to_string()))),
+        };
+
+        // (n1.n_name = 'FRANCE' AND n2.n_name = 'GERMANY')
+        let left_branch = Expression::BinaryOp {
+            op: BinaryOperator::And,
+            left: Box::new(n1_france),
+            right: Box::new(n2_germany),
+        };
+
+        // (n1.n_name = 'GERMANY' AND n2.n_name = 'FRANCE')
+        let right_branch = Expression::BinaryOp {
+            op: BinaryOperator::And,
+            left: Box::new(n1_germany),
+            right: Box::new(n2_france),
+        };
+
+        // Full OR predicate
+        let or_predicate = Expression::BinaryOp {
+            op: BinaryOperator::Or,
+            left: Box::new(left_branch),
+            right: Box::new(right_branch),
+        };
+
+        // Extract filters
+        let filters = extract_table_filters_from_or(&or_predicate, &schema);
+        assert!(filters.is_some(), "Should extract filters from OR predicate");
+
+        let filters = filters.unwrap();
+        assert_eq!(filters.len(), 2, "Should extract 2 table filters (n1 and n2)");
+
+        // Check that both n1 and n2 have filters
+        let table_names: HashSet<_> = filters.iter().map(|(t, _)| t.as_str()).collect();
+        assert!(table_names.contains("n1"), "Should have filter for n1");
+        assert!(table_names.contains("n2"), "Should have filter for n2");
     }
 }
