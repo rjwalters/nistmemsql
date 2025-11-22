@@ -309,6 +309,29 @@ fn materialize_expr(expr: &Expression, database: &Database) -> Result<Expression
 mod tests {
     use super::*;
 
-    // Tests would require a mock database, which is complex
-    // For now, we rely on integration tests with TPC-H Q4
+    // TODO: Add unit tests with database setup
+    //
+    // Required test cases:
+    // 1. test_materialize_uncorrelated_in_subquery()
+    //    - Create test table with data
+    //    - Execute query with uncorrelated IN subquery
+    //    - Verify it gets converted to InList
+    //    - Verify correct results
+    //
+    // 2. test_preserve_correlated_in_subquery()
+    //    - Verify correlated subqueries remain unchanged
+    //    - Should NOT be materialized
+    //
+    // 3. test_materialize_uncorrelated_exists()
+    //    - Verify uncorrelated EXISTS gets evaluated to boolean
+    //
+    // 4. test_nested_uncorrelated_subqueries()
+    //    - Verify nested IN subqueries all get materialized
+    //
+    // 5. test_empty_subquery_result()
+    //    - Verify IN () becomes false, NOT IN () becomes true
+    //
+    // For examples of database setup in tests, see:
+    // - crates/vibesql-executor/src/tests/integration/
+    // - crates/vibesql-storage/src/tests/
 }
