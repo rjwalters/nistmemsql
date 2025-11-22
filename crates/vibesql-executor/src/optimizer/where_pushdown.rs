@@ -737,12 +737,21 @@ mod tests {
         // Extract filters from the inner OR first
         let inner_filters = extract_table_filters_from_or(&inner_or, &schema);
         assert!(inner_filters.is_some(), "Should extract filters from inner OR");
+        let inner_filters = inner_filters.unwrap();
+        assert_eq!(inner_filters.len(), 2, "Inner OR should extract 2 table filters (t1 and t2)");
 
-        // The outer OR won't extract properly because one branch is a complex filter
-        // This demonstrates the current limitation with multi-branch ORs
+        // Test outer OR: The left branch is an OR expression (which becomes a complex predicate)
+        // The right branch is a simple AND expression
+        // Because the function works on binary OR only and doesn't recursively expand,
+        // the outer OR has one branch as a complex filter, limiting extraction
         let outer_filters = extract_table_filters_from_or(&outer_or, &schema);
-        // This may or may not work depending on how the nested structure is handled
-        // The test documents the behavior rather than mandating a specific result
+
+        // The current implementation will see the inner_or as a single complex predicate
+        // in the left branch, and branch3 as an AND in the right branch.
+        // It can only extract filters for tables that appear in BOTH branches as simple predicates.
+        // Since the left branch has no simple table predicates (it's an OR), no filters are extracted.
+        assert!(outer_filters.is_none(),
+            "Outer OR should return None because left branch is a complex OR predicate, not simple AND predicates");
     }
 
     #[test]
@@ -896,9 +905,9 @@ mod tests {
 
     #[test]
     fn test_or_filter_extraction_single_table() {
-        // Test case 4: Single-table OR - Should return None
+        // Test case 4: Single-table OR - Extracts filter successfully
         // t1.a = 1 OR t1.a = 2
-        // Not a complex predicate pattern we're trying to extract from
+        // This is a valid case that extracts a simple OR filter for one table
         use vibesql_ast::{BinaryOperator, Expression};
         use vibesql_types::SqlValue;
         use vibesql_catalog::{ColumnSchema, TableSchema};
@@ -927,8 +936,8 @@ mod tests {
 
         let filters = extract_table_filters_from_or(&single_table_or, &schema);
 
-        // This actually WILL extract a filter for t1: (t1.a = 1) OR (t1.a = 2)
-        // This is valid and useful - it's just a simple OR filter for one table
+        // Extracts filter: (t1.a = 1) OR (t1.a = 2)
+        // This is valid and useful - a simple OR filter for one table
         assert!(filters.is_some(), "Should extract filter from single-table OR");
         let filters = filters.unwrap();
         assert_eq!(filters.len(), 1, "Should extract 1 table filter");
