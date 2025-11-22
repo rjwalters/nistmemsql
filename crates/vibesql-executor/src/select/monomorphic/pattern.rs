@@ -88,6 +88,50 @@ fn contains_aggregate(expr: &Expression, function_name: &str) -> bool {
     }
 }
 
+/// Count the total number of aggregate function calls in the SELECT list
+///
+/// This function counts ALL aggregate functions (SUM, COUNT, AVG, etc.) across
+/// all SELECT items, regardless of their names.
+pub fn count_aggregate_functions(select_list: &[SelectItem]) -> usize {
+    select_list.iter().map(|item| match item {
+        SelectItem::Expression { expr, .. } => count_aggregates_in_expr(expr),
+        _ => 0,
+    }).sum()
+}
+
+/// Recursively count aggregate functions in an expression
+fn count_aggregates_in_expr(expr: &Expression) -> usize {
+    match expr {
+        Expression::AggregateFunction { .. } => 1,
+        Expression::BinaryOp { left, right, .. } => {
+            count_aggregates_in_expr(left) + count_aggregates_in_expr(right)
+        }
+        Expression::UnaryOp { expr, .. } => count_aggregates_in_expr(expr),
+        Expression::Case {
+            operand,
+            when_clauses,
+            else_result,
+        } => {
+            operand
+                .as_ref()
+                .map(|e| count_aggregates_in_expr(e))
+                .unwrap_or(0)
+                + when_clauses.iter().map(|wc| {
+                    wc.conditions
+                        .iter()
+                        .map(|c| count_aggregates_in_expr(c))
+                        .sum::<usize>()
+                        + count_aggregates_in_expr(&wc.result)
+                }).sum::<usize>()
+                + else_result
+                    .as_ref()
+                    .map(|e| count_aggregates_in_expr(e))
+                    .unwrap_or(0)
+        }
+        _ => 0,
+    }
+}
+
 /// Check if the expression contains a multiplication of two specific columns
 ///
 /// This matches expressions like `col1 * col2` regardless of operand order (case-insensitive).

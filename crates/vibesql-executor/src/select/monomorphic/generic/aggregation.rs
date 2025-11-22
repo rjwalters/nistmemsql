@@ -9,7 +9,7 @@ use vibesql_types::SqlValue;
 
 use crate::{errors::ExecutorError, schema::CombinedSchema};
 
-use super::super::pattern::{has_aggregate_function, has_no_joins, QueryPattern};
+use super::super::pattern::{count_aggregate_functions, has_aggregate_function, has_no_joins, QueryPattern};
 use super::super::MonomorphicPlan;
 use super::filter::{extract_filters, optimize_date_ranges, FilterPredicate};
 
@@ -98,6 +98,12 @@ impl GenericFilteredAggregationPlan {
 
         // Must have SUM aggregate
         if !has_aggregate_function(&stmt.select_list, "SUM") {
+            return None;
+        }
+
+        // Must have exactly ONE aggregate function (this plan only supports single-aggregate queries)
+        let aggregate_count = count_aggregate_functions(&stmt.select_list);
+        if aggregate_count != 1 {
             return None;
         }
 
