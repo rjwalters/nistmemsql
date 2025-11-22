@@ -55,7 +55,7 @@ pub use filter::{
     evaluate_predicate_tree, extract_column_predicates, extract_predicate_tree, ColumnPredicate,
     PredicateTree,
 };
-pub use aggregate::{compute_multiple_aggregates, extract_aggregates, AggregateOp};
+pub use aggregate::{compute_multiple_aggregates, extract_aggregates, AggregateOp, AggregateSpec, AggregateSource};
 
 #[cfg(feature = "simd")]
 pub use simd_aggregate::{can_use_simd_for_column, simd_aggregate_f64, simd_aggregate_i64};
@@ -108,7 +108,8 @@ use vibesql_types::Date;
 pub fn execute_columnar_aggregate(
     rows: &[Row],
     predicates: &[ColumnPredicate],
-    aggregates: &[(usize, AggregateOp)],
+    aggregates: &[aggregate::AggregateSpec],
+    schema: Option<&CombinedSchema>,
 ) -> Result<Vec<Row>, ExecutorError> {
     // Early return for empty input
     if rows.is_empty() {
@@ -129,7 +130,7 @@ pub fn execute_columnar_aggregate(
     };
 
     // Compute aggregates
-    let results = compute_multiple_aggregates(rows, aggregates, filter_bitmap.as_deref())?;
+    let results = compute_multiple_aggregates(rows, aggregates, filter_bitmap.as_deref(), schema)?;
 
     // Return as single row
     Ok(vec![Row::new(results)])
@@ -168,13 +169,16 @@ pub fn execute_columnar(
     };
 
     // Extract aggregates from SELECT list
-    let agg_ops = match extract_aggregates(aggregates, schema) {
-        Some(ops) => ops,
+    let agg_specs = match extract_aggregates(aggregates, schema) {
+        Some(specs) => specs,
         None => return None, // Too complex for columnar optimization
     };
 
-    // Call the simplified interface
-    Some(execute_columnar_aggregate(rows, &predicates, &agg_ops))
+    // Call the simplified interface, passing schema if any aggregates use expressions
+    let needs_schema = agg_specs.iter().any(|spec| matches!(spec.source, aggregate::AggregateSource::Expression(_)));
+    let schema_ref = if needs_schema { Some(schema) } else { None };
+
+    Some(execute_columnar_aggregate(rows, &predicates, &agg_specs, schema_ref))
 }
 
 #[cfg(test)]
@@ -234,11 +238,11 @@ mod tests {
 
         // Aggregates: SUM(extendedprice), COUNT(*)
         let aggregates = vec![
-            (1, AggregateOp::Sum), // SUM(extendedprice)
-            (0, AggregateOp::Count), // COUNT(*)
+            AggregateSpec { op: AggregateOp::Sum, source: AggregateSource::Column(1) }, // SUM(extendedprice)
+            AggregateSpec { op: AggregateOp::Count, source: AggregateSource::Column(0) }, // COUNT(*)
         ];
 
-        let result = execute_columnar_aggregate(&rows, &predicates, &aggregates).unwrap();
+        let result = execute_columnar_aggregate(&rows, &predicates, &aggregates, None).unwrap();
 
         assert_eq!(result.len(), 1);
         let result_row = &result[0];
@@ -261,12 +265,12 @@ mod tests {
 
         let predicates = vec![];
         let aggregates = vec![
-            (0, AggregateOp::Sum),
-            (1, AggregateOp::Avg),
-            (0, AggregateOp::Max),
+            AggregateSpec { op: AggregateOp::Sum, source: AggregateSource::Column(0) },
+            AggregateSpec { op: AggregateOp::Avg, source: AggregateSource::Column(1) },
+            AggregateSpec { op: AggregateOp::Max, source: AggregateSource::Column(0) },
         ];
 
-        let result = execute_columnar_aggregate(&rows, &predicates, &aggregates).unwrap();
+        let result = execute_columnar_aggregate(&rows, &predicates, &aggregates, None).unwrap();
 
         assert_eq!(result.len(), 1);
         let result_row = &result[0];
@@ -293,9 +297,12 @@ mod tests {
             value: SqlValue::Integer(50),
         }];
 
-        let aggregates = vec![(0, AggregateOp::Sum), (0, AggregateOp::Count)];
+        let aggregates = vec![
+            AggregateSpec { op: AggregateOp::Sum, source: AggregateSource::Column(0) },
+            AggregateSpec { op: AggregateOp::Count, source: AggregateSource::Column(0) },
+        ];
 
-        let result = execute_columnar_aggregate(&rows, &predicates, &aggregates).unwrap();
+        let result = execute_columnar_aggregate(&rows, &predicates, &aggregates, None).unwrap();
 
         assert_eq!(result.len(), 1);
         let result_row = &result[0];
