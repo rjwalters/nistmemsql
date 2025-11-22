@@ -561,3 +561,149 @@ pub(super) fn nested_loop_cross_join(
 
     Ok(FromResult::from_rows(combined_schema, result_rows))
 }
+
+/// Nested loop SEMI JOIN implementation
+///
+/// Semi-join returns left rows where at least one matching right row exists.
+/// Result contains only left columns. Each left row appears at most once.
+pub(super) fn nested_loop_semi_join(
+    mut left: FromResult,
+    mut right: FromResult,
+    condition: &Option<vibesql_ast::Expression>,
+    database: &vibesql_storage::Database,
+) -> Result<FromResult, ExecutorError> {
+    // Schema is just the left side (semi-join doesn't include right columns)
+    let result_schema = left.schema.clone();
+
+    // Build combined schema once for condition evaluation
+    let right_table_name = right
+        .schema
+        .table_schemas
+        .keys()
+        .next()
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .clone();
+    let right_schema = right
+        .schema
+        .table_schemas
+        .get(&right_table_name)
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .1
+        .clone();
+    let combined_schema = CombinedSchema::combine(
+        left.schema.clone(),
+        right_table_name,
+        right_schema,
+    );
+
+    // Create evaluator for condition if needed
+    let evaluator = condition
+        .as_ref()
+        .map(|_| CombinedExpressionEvaluator::with_database(&combined_schema, database));
+
+    let mut result_rows = Vec::new();
+
+    for left_row in left.rows() {
+        // Check if any right row matches
+        let mut found_match = false;
+        for right_row in right.rows() {
+            let combined_row = combine_rows(left_row, right_row);
+
+            let matches = match (condition, &evaluator) {
+                (Some(expr), Some(eval)) => {
+                    eval.clear_cse_cache();
+                    match eval.eval(expr, &combined_row)? {
+                        vibesql_types::SqlValue::Boolean(true) => true,
+                        _ => false,
+                    }
+                }
+                (None, _) => true,
+                _ => true,
+            };
+
+            if matches {
+                found_match = true;
+                break; // Early termination - one match is enough
+            }
+        }
+
+        if found_match {
+            result_rows.push(left_row.clone());
+        }
+    }
+
+    Ok(FromResult::from_rows(result_schema, result_rows))
+}
+
+/// Nested loop ANTI JOIN implementation
+///
+/// Anti-join returns left rows where NO matching right row exists.
+/// Result contains only left columns. This is the inverse of semi-join.
+pub(super) fn nested_loop_anti_join(
+    mut left: FromResult,
+    mut right: FromResult,
+    condition: &Option<vibesql_ast::Expression>,
+    database: &vibesql_storage::Database,
+) -> Result<FromResult, ExecutorError> {
+    // Schema is just the left side (anti-join doesn't include right columns)
+    let result_schema = left.schema.clone();
+
+    // Build combined schema once for condition evaluation
+    let right_table_name = right
+        .schema
+        .table_schemas
+        .keys()
+        .next()
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .clone();
+    let right_schema = right
+        .schema
+        .table_schemas
+        .get(&right_table_name)
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .1
+        .clone();
+    let combined_schema = CombinedSchema::combine(
+        left.schema.clone(),
+        right_table_name,
+        right_schema,
+    );
+
+    // Create evaluator for condition if needed
+    let evaluator = condition
+        .as_ref()
+        .map(|_| CombinedExpressionEvaluator::with_database(&combined_schema, database));
+
+    let mut result_rows = Vec::new();
+
+    for left_row in left.rows() {
+        // Check if any right row matches
+        let mut found_match = false;
+        for right_row in right.rows() {
+            let combined_row = combine_rows(left_row, right_row);
+
+            let matches = match (condition, &evaluator) {
+                (Some(expr), Some(eval)) => {
+                    eval.clear_cse_cache();
+                    match eval.eval(expr, &combined_row)? {
+                        vibesql_types::SqlValue::Boolean(true) => true,
+                        _ => false,
+                    }
+                }
+                (None, _) => true,
+                _ => true,
+            };
+
+            if matches {
+                found_match = true;
+                break; // Early termination - one match means exclude
+            }
+        }
+
+        if !found_match {
+            result_rows.push(left_row.clone());
+        }
+    }
+
+    Ok(FromResult::from_rows(result_schema, result_rows))
+}

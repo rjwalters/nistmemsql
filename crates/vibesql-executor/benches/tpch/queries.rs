@@ -405,7 +405,8 @@ WHERE
     )
 "#;
 
-// TPC-H Q20: Potential Part Promotion
+// TPC-H Q20: Potential Part Promotion (Full triple-nested IN subquery)
+// Identifies suppliers in a nation with excess inventory of parts matching a name pattern
 pub const TPCH_Q20: &str = r#"
 SELECT
     s_name,
