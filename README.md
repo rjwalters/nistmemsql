@@ -346,7 +346,14 @@ Errors: 2
 **Advanced Usage**:
 
 ```bash
-# Direct execution with custom timeout
+# Isolated execution (recommended for reliability)
+# Each query runs in separate subprocess to prevent cascading failures
+./scripts/bench-tpch-isolated.sh 30 /tmp/tpch_results.txt
+
+# Run single query
+QUERY_TIMEOUT_SECS=30 ./target/release/deps/tpch_profiling-* Q1
+
+# Direct execution with custom timeout (all queries in one process)
 QUERY_TIMEOUT_SECS=60 ./target/release/deps/tpch_profiling-* > /tmp/results.txt
 
 # View detailed output
