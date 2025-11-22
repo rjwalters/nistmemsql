@@ -21,6 +21,8 @@ use super::RowIterator;
 /// - **LEFT OUTER**: All left rows + NULLs for unmatched
 /// - **RIGHT OUTER**: All right rows + NULLs for unmatched (requires full left scan first)
 /// - **FULL OUTER**: Combination of LEFT and RIGHT
+/// - **SEMI**: Left rows that have at least one match in right (no duplicates)
+/// - **ANTI**: Left rows that have NO match in right
 ///
 /// # Current Limitation
 ///
@@ -285,7 +287,26 @@ impl<'schema, I: RowIterator> Iterator for LazyNestedLoopJoin<'schema, I> {
                         // Match found!
                         self.current_left_matched = true;
                         self.right_matched[right_idx] = true;
-                        return Some(Ok(combined_row));
+
+                        // Handle different join types
+                        match self.join_type {
+                            vibesql_ast::JoinType::Semi => {
+                                // Semi-join: return left row only (no duplicates)
+                                // Move to next left row immediately
+                                let result = left_row.clone();
+                                self.current_left = None;
+                                return Some(Ok(result));
+                            }
+                            vibesql_ast::JoinType::Anti => {
+                                // Anti-join: skip this left row (it has a match)
+                                self.current_left = None;
+                                break; // Move to next left row
+                            }
+                            _ => {
+                                // Regular joins: return combined row
+                                return Some(Ok(combined_row));
+                            }
+                        }
                     }
                     Ok(false) => {
                         // No match, continue to next right row
@@ -296,7 +317,7 @@ impl<'schema, I: RowIterator> Iterator for LazyNestedLoopJoin<'schema, I> {
             }
 
             // Finished all right rows for this left row
-            // Handle LEFT/FULL OUTER: emit left + NULLs if no matches
+            // Handle unmatched left rows based on join type
             if !self.current_left_matched {
                 match self.join_type {
                     vibesql_ast::JoinType::LeftOuter | vibesql_ast::JoinType::FullOuter => {
@@ -310,8 +331,14 @@ impl<'schema, I: RowIterator> Iterator for LazyNestedLoopJoin<'schema, I> {
                         self.current_left = None; // Move to next left row
                         return Some(Ok(vibesql_storage::Row::new(values)));
                     }
+                    vibesql_ast::JoinType::Anti => {
+                        // Anti-join: return left row when NO matches found
+                        let result = left_row.clone();
+                        self.current_left = None; // Move to next left row
+                        return Some(Ok(result));
+                    }
                     _ => {
-                        // INNER/CROSS/RIGHT: no match means don't emit
+                        // INNER/CROSS/RIGHT/SEMI: no match means don't emit
                         self.current_left = None; // Move to next left row
                         continue;
                     }
@@ -345,6 +372,10 @@ impl<'schema, I: RowIterator> Iterator for LazyNestedLoopJoin<'schema, I> {
             vibesql_ast::JoinType::RightOuter => {
                 // At least as many as right side
                 (right_count, None)
+            }
+            vibesql_ast::JoinType::Semi | vibesql_ast::JoinType::Anti => {
+                // At minimum 0, at most as many as left side (one row per left row)
+                (0, left_upper)
             }
         }
     }
