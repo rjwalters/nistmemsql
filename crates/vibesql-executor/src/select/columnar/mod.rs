@@ -38,11 +38,17 @@ mod scan;
 mod filter;
 mod aggregate;
 
+#[cfg(feature = "simd")]
+mod simd_aggregate;
+
 pub use scan::ColumnarScan;
 pub use filter::{
     apply_columnar_filter, create_filter_bitmap, extract_column_predicates, ColumnPredicate,
 };
 pub use aggregate::{compute_multiple_aggregates, extract_aggregates, AggregateOp};
+
+#[cfg(feature = "simd")]
+pub use simd_aggregate::{can_use_simd_for_column, simd_aggregate_f64, simd_aggregate_i64};
 
 use crate::errors::ExecutorError;
 use crate::schema::CombinedSchema;

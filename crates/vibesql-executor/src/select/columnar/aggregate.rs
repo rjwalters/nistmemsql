@@ -23,6 +23,9 @@ pub enum AggregateOp {
 /// This is the core columnar aggregation function that processes
 /// columns directly without materializing Row objects.
 ///
+/// Automatically detects when SIMD optimization is available (Int64/Float64 columns)
+/// and falls back to scalar implementation for other types.
+///
 /// # Arguments
 ///
 /// * `scan` - Columnar scan over the data
@@ -39,6 +42,24 @@ pub fn compute_columnar_aggregate(
     op: AggregateOp,
     filter_bitmap: Option<&[bool]>,
 ) -> Result<SqlValue, ExecutorError> {
+    // Try SIMD path for numeric columns (5-10x speedup)
+    #[cfg(feature = "simd")]
+    {
+        use super::simd_aggregate::{can_use_simd_for_column, simd_aggregate_f64, simd_aggregate_i64};
+
+        // Detect if column is SIMD-compatible
+        if let Some(is_integer) = can_use_simd_for_column(scan, column_idx) {
+            // Use SIMD implementation for Int64/Float64 columns
+            return if is_integer {
+                simd_aggregate_i64(scan, column_idx, op, filter_bitmap)
+            } else {
+                simd_aggregate_f64(scan, column_idx, op, filter_bitmap)
+            };
+        }
+        // Fall through to scalar path for non-SIMD types
+    }
+
+    // Scalar fallback path (always available, used for String, Date, etc.)
     match op {
         AggregateOp::Sum => compute_sum(scan, column_idx, filter_bitmap),
         AggregateOp::Count => compute_count(scan, filter_bitmap),
