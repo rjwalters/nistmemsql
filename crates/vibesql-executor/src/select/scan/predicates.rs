@@ -144,7 +144,7 @@ pub(crate) fn apply_table_local_predicates(
         {
             let config = ParallelConfig::global();
             if config.should_parallelize_scan(rows.len()) {
-                return apply_predicates_parallel(rows, combined_where, evaluator, outer_row, outer_schema);
+                return apply_predicates_parallel(rows, combined_where, evaluator);
             }
         }
 

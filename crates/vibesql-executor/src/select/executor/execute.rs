@@ -259,7 +259,7 @@ impl SelectExecutor<'_> {
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause;
-        execute_from_clause(from, cte_results, self.database, None, None, |query| self.execute_with_columns(query))
+        execute_from_clause(from, cte_results, self.database, None, None, self.outer_row, self.outer_schema, |query| self.execute_with_columns(query))
     }
 
     /// Execute a FROM clause with WHERE and ORDER BY for optimization
@@ -271,7 +271,7 @@ impl SelectExecutor<'_> {
         order_by: Option<&[vibesql_ast::OrderByItem]>,
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause;
-        let mut from_result = execute_from_clause(from, cte_results, self.database, where_clause, order_by, |query| {
+        let mut from_result = execute_from_clause(from, cte_results, self.database, where_clause, order_by, self.outer_row, self.outer_schema, |query| {
             self.execute_with_columns(query)
         })?;
 

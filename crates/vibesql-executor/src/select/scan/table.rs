@@ -25,6 +25,8 @@ pub(crate) fn execute_table_scan(
     database: &vibesql_storage::Database,
     where_clause: Option<&vibesql_ast::Expression>,
     order_by: Option<&[vibesql_ast::OrderByItem]>,
+    outer_row: Option<&vibesql_storage::Row>,
+    outer_schema: Option<&CombinedSchema>,
 ) -> Result<super::FromResult, ExecutorError> {
     // Check if table is a CTE first (with case-insensitive lookup)
     let cte_result = cte_results.get(table_name).or_else(|| {
@@ -54,8 +56,8 @@ pub(crate) fn execute_table_scan(
                 &predicate_plan,
                 table_name,
                 database,
-                None,  // outer_row
-                None,  // outer_schema
+                outer_row,
+                outer_schema,
             )?;
         }
 
@@ -131,8 +133,8 @@ pub(crate) fn execute_table_scan(
                 &predicate_plan,
                 table_name,
                 database,
-                None,  // outer_row
-                None,  // outer_schema
+                outer_row,
+                outer_schema,
             )?;
         }
 
@@ -182,8 +184,8 @@ pub(crate) fn execute_table_scan(
                 &predicate_plan,
                 table_name,
                 database,
-                None,  // outer_row: table scans don't have outer context
-                None,  // outer_schema: table scans don't have outer context
+                outer_row,
+                outer_schema,
             )?;
             return Ok(super::FromResult::from_rows(schema, filtered_rows));
         }
