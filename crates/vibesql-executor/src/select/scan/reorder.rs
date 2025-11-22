@@ -64,6 +64,75 @@ fn flatten_and_chain(expr: &vibesql_ast::Expression) -> Vec<vibesql_ast::Express
     }
 }
 
+/// Extract IN predicates from OR expressions for predicate pushdown (TPC-H Q7 optimization)
+///
+/// Transforms: `((t1.col = 'A' AND t2.col = 'B') OR (t1.col = 'B' AND t2.col = 'A'))`
+/// Into: `t1.col IN ('A', 'B')` and `t2.col IN ('A', 'B')`
+fn extract_in_predicates_from_or(
+    where_expr: &vibesql_ast::Expression,
+    table_set: &HashSet<String>,
+) -> HashMap<String, Vec<vibesql_ast::Expression>> {
+    use vibesql_ast::{BinaryOperator, Expression};
+    let mut result: HashMap<String, Vec<vibesql_ast::Expression>> = HashMap::new();
+
+    fn collect_or_branches(expr: &Expression, branches: &mut Vec<Vec<Expression>>) {
+        match expr {
+            Expression::BinaryOp { op: BinaryOperator::Or, left, right } => {
+                collect_or_branches(left, branches);
+                collect_or_branches(right, branches);
+            }
+            _ => branches.push(flatten_and_chain(expr)),
+        }
+    }
+
+    fn extract_eq(pred: &Expression, table_set: &HashSet<String>) -> Option<(String, String, vibesql_types::SqlValue)> {
+        if let Expression::BinaryOp { op: BinaryOperator::Equal, left, right } = pred {
+            if let (Expression::ColumnRef { table: Some(t), column: c }, Expression::Literal(v)) = (left.as_ref(), right.as_ref()) {
+                if table_set.contains(&t.to_lowercase()) { return Some((t.clone(), c.clone(), v.clone())); }
+            }
+            if let (Expression::Literal(v), Expression::ColumnRef { table: Some(t), column: c }) = (left.as_ref(), right.as_ref()) {
+                if table_set.contains(&t.to_lowercase()) { return Some((t.clone(), c.clone(), v.clone())); }
+            }
+        }
+        None
+    }
+
+    for pred in flatten_and_chain(where_expr) {
+        if !matches!(&pred, Expression::BinaryOp { op: BinaryOperator::Or, .. }) { continue; }
+        let mut branches: Vec<Vec<Expression>> = Vec::new();
+        collect_or_branches(&pred, &mut branches);
+        if branches.len() < 2 { continue; }
+
+        let mut col_vals: HashMap<(String, String), HashSet<vibesql_types::SqlValue>> = HashMap::new();
+        let mut col_count: HashMap<(String, String), usize> = HashMap::new();
+        for branch in &branches {
+            let mut seen: HashSet<(String, String)> = HashSet::new();
+            for eq in branch {
+                if let Some((t, c, v)) = extract_eq(eq, table_set) {
+                    let k = (t.to_lowercase(), c.to_lowercase());
+                    col_vals.entry(k.clone()).or_default().insert(v);
+                    seen.insert(k);
+                }
+            }
+            for k in seen { *col_count.entry(k).or_default() += 1; }
+        }
+        for ((t, c), vals) in col_vals {
+            if col_count.get(&(t.clone(), c.clone())) == Some(&branches.len()) && vals.len() >= 2 {
+                let in_pred = Expression::InList {
+                    expr: Box::new(Expression::ColumnRef { table: Some(t.clone()), column: c.clone() }),
+                    values: vals.into_iter().map(Expression::Literal).collect(),
+                    negated: false,
+                };
+                if std::env::var("JOIN_REORDER_VERBOSE").is_ok() {
+                    eprintln!("[JOIN_REORDER] Extracted IN predicate for {}.{} from OR", t, c);
+                }
+                result.entry(t).or_default().push(in_pred);
+            }
+        }
+    }
+    result
+}
+
 /// Check if join reordering optimization should be applied
 ///
 /// Enabled by default for 3-8 table joins. Can be disabled via JOIN_REORDER_DISABLED env var.
@@ -434,11 +503,18 @@ where
     join_conditions.extend(where_equijoins);
 
     // Step 6.5: Extract table-local predicates for cardinality estimation
-    let table_local_predicates = if let Some(where_expr) = where_clause {
+    let mut table_local_predicates = if let Some(where_expr) = where_clause {
         extract_table_local_predicates(where_expr, &table_set)
     } else {
         HashMap::new()
     };
+
+    // Also extract IN predicates from OR expressions (TPC-H Q7 optimization)
+    if let Some(where_expr) = where_clause {
+        for (table, preds) in extract_in_predicates_from_or(where_expr, &table_set) {
+            table_local_predicates.entry(table).or_default().extend(preds);
+        }
+    }
 
     if std::env::var("JOIN_REORDER_VERBOSE").is_ok() && !table_local_predicates.is_empty() {
         eprintln!("[JOIN_REORDER] Table-local predicates: {:?}",
