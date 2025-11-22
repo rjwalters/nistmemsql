@@ -161,8 +161,12 @@ pub fn execute_columnar(
     // Extract column predicates from filter expression
     let predicates = if let Some(filter_expr) = filter {
         match extract_column_predicates(filter_expr, schema) {
-            Some(preds) => preds,
-            None => return None, // Too complex for columnar optimization
+            Some(preds) => {
+                preds
+            }
+            None => {
+                return None; // Too complex for columnar optimization
+            }
         }
     } else {
         vec![] // No filter
@@ -170,8 +174,12 @@ pub fn execute_columnar(
 
     // Extract aggregates from SELECT list
     let agg_specs = match extract_aggregates(aggregates, schema) {
-        Some(specs) => specs,
-        None => return None, // Too complex for columnar optimization
+        Some(specs) => {
+            specs
+        }
+        None => {
+            return None; // Too complex for columnar optimization
+        }
     };
 
     // Call the simplified interface, passing schema if any aggregates use expressions

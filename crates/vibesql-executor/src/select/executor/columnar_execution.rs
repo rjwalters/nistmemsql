@@ -51,12 +51,12 @@ impl SelectExecutor<'_> {
             None => return Ok(None),
         };
 
-        // Execute FROM clause to get unfiltered data
-        // The WHERE clause will be applied by the columnar module below
+        // Execute FROM clause WITHOUT applying WHERE clause
+        // The columnar module will apply the WHERE clause using SIMD-accelerated filtering
         let mut from_result = self.execute_from_with_where(
             from_clause,
             cte_results,
-            None, // Don't filter here - columnar module will handle it
+            None, // Don't filter here - columnar module will handle it with SIMD
             None, // ORDER BY applied after aggregation
         )?;
 
@@ -73,10 +73,11 @@ impl SelectExecutor<'_> {
             })
             .collect();
 
-        // Try columnar execution with the AST-based interface
+        // Try columnar execution with SIMD-accelerated filtering
+        // If this returns None, the regular executor will handle the query with row-based execution
         match columnar::execute_columnar(
             from_result.rows(),
-            stmt.where_clause.as_ref(),
+            stmt.where_clause.as_ref(), // Let columnar module apply WHERE with SIMD
             &select_exprs,
             &schema,
         ) {
@@ -99,19 +100,17 @@ impl SelectExecutor<'_> {
     ///   (overhead of columnar conversion not worth it for small tables)
     /// - **Column types**: Prefer numeric columns (i64, f64) that benefit from SIMD
     /// - **Predicate complexity**: Simple AND predicates only (no OR for now)
-    /// - **Aggregate complexity**: Only simple column references (no expressions like SUM(a * b))
+    /// - **Aggregate complexity**: Supports simple column references and arithmetic expressions (e.g., SUM(a * b))
     fn should_use_columnar(&self, stmt: &vibesql_ast::SelectStmt) -> bool {
         // Must have aggregates
         if !self.has_aggregates(&stmt.select_list) && stmt.having.is_none() {
             return false;
         }
 
-        // Check if aggregates have simple column references only (no complex expressions)
-        // Complex expressions like SUM(a * b) are not yet supported by columnar execution
-        // and will fall back to row-based execution
-        if !self.has_simple_aggregates(&stmt.select_list) {
-            return false;
-        }
+        // Note: We no longer check has_simple_aggregates() here because the columnar
+        // module now supports complex expressions like SUM(a * b) via AggregateSource::Expression.
+        // The extract_aggregates() function will return None if it encounters unsupported
+        // expressions, triggering an automatic fallback to row-based execution.
 
         // No GROUP BY support yet (Phase 5 limitation)
         // TODO: Add GROUP BY support in future phase
@@ -199,17 +198,16 @@ impl SelectExecutor<'_> {
         }
     }
 
-    /// Check if aggregates use only simple column references (no complex expressions)
+    /// Check if aggregates have simple column references only
     ///
-    /// Returns false if any aggregate function contains complex expressions like:
-    /// - SUM(a * b) - binary operations
-    /// - SUM(a + 10) - arithmetic
-    /// - SUM(CASE ...) - case expressions
+    /// Returns true if all aggregate functions contain only:
+    /// - Column references (e.g., SUM(price))
+    /// - COUNT(*) wildcards
     ///
-    /// Returns true only for simple column references like:
-    /// - SUM(price)
-    /// - COUNT(*)
-    /// - AVG(quantity)
+    /// Returns false for complex expressions like:
+    /// - SUM(a * b)  - arithmetic expressions
+    /// - AVG(CASE ...) - conditional logic
+    /// - COUNT(DISTINCT x) - distinct handled separately
     fn has_simple_aggregates(&self, select_list: &[vibesql_ast::SelectItem]) -> bool {
         use vibesql_ast::{Expression, SelectItem};
 
@@ -219,9 +217,9 @@ impl SelectExecutor<'_> {
                     for arg in args {
                         match arg {
                             // Simple column references are OK
-                            Expression::ColumnRef { .. } => {},
+                            Expression::ColumnRef { .. } => {}
                             // COUNT(*) wildcard is OK
-                            Expression::Wildcard => {},
+                            Expression::Wildcard => {}
                             // Everything else is too complex
                             _ => return false,
                         }
