@@ -26,8 +26,17 @@ pub(crate) fn execute_table_scan(
     where_clause: Option<&vibesql_ast::Expression>,
     order_by: Option<&[vibesql_ast::OrderByItem]>,
 ) -> Result<super::FromResult, ExecutorError> {
-    // Check if table is a CTE first
-    if let Some((cte_schema, cte_rows)) = cte_results.get(table_name) {
+    // Check if table is a CTE first (with case-insensitive lookup)
+    let cte_result = cte_results.get(table_name).or_else(|| {
+        // Fall back to case-insensitive lookup if exact match fails
+        let table_name_lower = table_name.to_lowercase();
+        cte_results
+            .iter()
+            .find(|(key, _)| key.to_lowercase() == table_name_lower)
+            .map(|(_, value)| value)
+    });
+
+    if let Some((cte_schema, cte_rows)) = cte_result {
         // Use CTE result
         let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
         let schema = CombinedSchema::from_table(effective_name, cte_schema.clone());

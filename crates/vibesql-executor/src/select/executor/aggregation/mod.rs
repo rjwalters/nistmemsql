@@ -64,10 +64,16 @@ impl SelectExecutor<'_> {
 
         // Create evaluator with procedural context and CTE context support
         // Priority: 1) outer context (for subqueries) 2) procedural context 3) just database
-        // Also pass CTE context if available
+        // Also pass CTE context if available (from outer query or from current query's CTEs)
+        let cte_ctx = if !cte_results.is_empty() {
+            Some(cte_results)
+        } else {
+            self.cte_context
+        };
+
         let evaluator =
             if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
-                if let Some(cte_ctx) = self.cte_context {
+                if let Some(cte_ctx) = cte_ctx {
                     CombinedExpressionEvaluator::with_database_and_outer_context_and_cte(
                         &schema,
                         self.database,
@@ -84,7 +90,7 @@ impl SelectExecutor<'_> {
                     )
                 }
             } else if let Some(proc_ctx) = self.procedural_context {
-                if let Some(cte_ctx) = self.cte_context {
+                if let Some(cte_ctx) = cte_ctx {
                     CombinedExpressionEvaluator::with_database_and_procedural_context_and_cte(
                         &schema,
                         self.database,
@@ -98,7 +104,7 @@ impl SelectExecutor<'_> {
                         proc_ctx,
                     )
                 }
-            } else if let Some(cte_ctx) = self.cte_context {
+            } else if let Some(cte_ctx) = cte_ctx {
                 CombinedExpressionEvaluator::with_database_and_cte(&schema, self.database, cte_ctx)
             } else {
                 CombinedExpressionEvaluator::with_database(&schema, self.database)

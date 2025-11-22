@@ -202,3 +202,87 @@ LIMIT 1
         assert_eq!(*suppkey, 1, "Top supplier should be Supplier#1 (suppkey=1)");
     }
 }
+
+#[test]
+fn test_q15_with_max_scalar_subquery() {
+    let mut db = Database::new();
+    setup_q15_tables(&mut db);
+
+    // Test official Q15 specification: CTE referenced from MAX scalar subquery
+    // This is the key pattern for TPC-H Q15 - finding suppliers with maximum revenue
+    // by using a scalar subquery that references the CTE
+    let q15_official = r#"
+WITH revenue AS (
+    SELECT
+        l_suppkey as supplier_no,
+        SUM(l_extendedprice * (1 - l_discount)) as total_revenue
+    FROM lineitem_q15
+    WHERE l_shipdate >= '1996-01-01'
+        AND l_shipdate < '1996-04-01'
+    GROUP BY l_suppkey
+)
+SELECT
+    s_suppkey,
+    s_name,
+    s_address,
+    s_phone,
+    total_revenue
+FROM supplier_q15, revenue
+WHERE s_suppkey = supplier_no
+    AND total_revenue = (SELECT MAX(total_revenue) FROM revenue)
+ORDER BY s_suppkey
+"#;
+
+    let result = execute_sql(&mut db, q15_official);
+    assert!(
+        result.is_ok(),
+        "Q15 with MAX scalar subquery referencing CTE should work: {:?}",
+        result
+    );
+    let rows = result.unwrap();
+    assert_eq!(rows.len(), 1, "Should return 1 supplier with maximum revenue");
+
+    // First column should be s_suppkey = 1 (Supplier#1 has higher revenue: 280 vs 135)
+    if let SqlValue::Integer(suppkey) = &rows[0].values[0] {
+        assert_eq!(
+            *suppkey, 1,
+            "Top supplier should be Supplier#1 (suppkey=1) with max revenue"
+        );
+    }
+
+    // Verify revenue matches expected value (280.0)
+    if let SqlValue::Float(revenue) = &rows[0].values[4] {
+        assert!(
+            (*revenue - 280.0).abs() < 0.01,
+            "Revenue should be 280.0, got {}",
+            revenue
+        );
+    }
+}
+
+#[test]
+fn test_simple_cte_in_scalar_subquery() {
+    let mut db = Database::new();
+    setup_q15_tables(&mut db);
+
+    // Simpler test: CTE with aggregation, then scalar subquery references it
+    let simple_query = r#"
+WITH totals AS (
+    SELECT l_suppkey, SUM(l_extendedprice) as total
+    FROM lineitem_q15
+    GROUP BY l_suppkey
+)
+SELECT *
+FROM totals
+WHERE total = (SELECT MAX(total) FROM totals)
+"#;
+
+    let result = execute_sql(&mut db, simple_query);
+    assert!(
+        result.is_ok(),
+        "Simple CTE in scalar subquery should work: {:?}",
+        result
+    );
+    let rows = result.unwrap();
+    assert_eq!(rows.len(), 1, "Should return 1 row with maximum total");
+}
