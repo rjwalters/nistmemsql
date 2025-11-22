@@ -265,6 +265,8 @@ ORDER BY custdist DESC, c_count DESC
 "#;
 
 // TPC-H Q14: Promotion Effect
+// 2-way JOIN between lineitem and part with date range filter.
+// Uses CASE in aggregate to calculate promotional percentage.
 pub const TPCH_Q14: &str = r#"
 SELECT
     100.00 * SUM(CASE WHEN p_type LIKE 'PROMO%'
@@ -344,6 +346,7 @@ WHERE p_partkey = l_partkey
 "#;
 
 // TPC-H Q18: Large Volume Customer
+// Standard version with IN subquery filtered by GROUP BY HAVING
 pub const TPCH_Q18: &str = r#"
 SELECT
     c_name,
@@ -355,13 +358,19 @@ SELECT
 FROM customer, orders, lineitem
 WHERE c_custkey = o_custkey
     AND o_orderkey = l_orderkey
+    AND o_orderkey IN (
+        SELECT l_orderkey
+        FROM lineitem
+        GROUP BY l_orderkey
+        HAVING SUM(l_quantity) > 300
+    )
 GROUP BY c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice
-HAVING SUM(l_quantity) > 300
 ORDER BY o_totalprice DESC, o_orderdate
 LIMIT 100
 "#;
 
-// TPC-H Q19: Discounted Revenue
+// TPC-H Q19: Discounted Revenue (full version with complex OR)
+// 2-way JOIN with OR of three AND groups for different brand/container combinations
 pub const TPCH_Q19: &str = r#"
 SELECT
     SUM(l_extendedprice * (1 - l_discount)) as revenue
@@ -398,7 +407,8 @@ WHERE
     )
 "#;
 
-// TPC-H Q20: Potential Part Promotion
+// TPC-H Q20: Potential Part Promotion (Full triple-nested IN subquery)
+// Identifies suppliers in a nation with excess inventory of parts matching a name pattern
 pub const TPCH_Q20: &str = r#"
 SELECT
     s_name,

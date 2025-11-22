@@ -129,3 +129,8 @@ harness = false
 name = "tpch_profiling"
 harness = false
 required-features = ["benchmark-comparison"]
+
+[[bench]]
+name = "q3_profiling"
+harness = false
+required-features = ["benchmark-comparison"]
