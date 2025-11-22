@@ -362,10 +362,16 @@ pub(super) fn nested_loop_join(
                 };
 
                 // Apply remaining equijoins and conditions as post-join filters
+                // IMPORTANT: For complex conditions (AND/OR), we must keep the entire condition
+                // even though we extracted an equijoin from it. For example:
+                //   (t1.id = t2.id AND t1.x > 5) OR (t1.id = t2.id AND t1.y < 10)
+                // We use t1.id = t2.id for hash join, but still need the full condition
+                // to filter by the x > 5 and y < 10 predicates.
+                let is_current_complex = join_analyzer::is_complex_condition(equijoin);
                 let remaining_conditions: Vec<_> = additional_equijoins
                     .iter()
                     .enumerate()
-                    .filter(|(i, _)| *i != idx)
+                    .filter(|(i, _)| *i != idx || is_current_complex)
                     .map(|(_, e)| e.clone())
                     .collect();
 
