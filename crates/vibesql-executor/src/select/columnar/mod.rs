@@ -47,7 +47,7 @@ pub use aggregate::{compute_multiple_aggregates, extract_aggregates, AggregateOp
 use crate::errors::ExecutorError;
 use crate::schema::CombinedSchema;
 use vibesql_storage::Row;
-use vibesql_types::SqlValue;
+use vibesql_types::{Date, SqlValue};
 
 /// Execute a columnar aggregate query with filtering
 ///
