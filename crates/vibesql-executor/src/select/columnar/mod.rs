@@ -156,6 +156,7 @@ pub fn execute_columnar(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vibesql_types::Date;
 
     /// Test the full columnar pipeline: filter + aggregation
     #[test]

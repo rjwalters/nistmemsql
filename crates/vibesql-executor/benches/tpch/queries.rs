@@ -28,14 +28,29 @@ SELECT
     s_acctbal,
     s_name,
     n_name,
+    p_partkey,
+    p_mfgr,
     s_address,
     s_phone,
     s_comment
-FROM supplier, nation, region
-WHERE s_nationkey = n_nationkey
+FROM part, supplier, partsupp, nation, region
+WHERE p_partkey = ps_partkey
+    AND s_suppkey = ps_suppkey
+    AND p_size = 15
+    AND p_type LIKE '%BRASS'
+    AND s_nationkey = n_nationkey
     AND n_regionkey = r_regionkey
     AND r_name = 'EUROPE'
-ORDER BY s_acctbal DESC
+    AND ps_supplycost = (
+        SELECT MIN(ps_supplycost)
+        FROM partsupp, supplier, nation, region
+        WHERE p_partkey = ps_partkey
+            AND s_suppkey = ps_suppkey
+            AND s_nationkey = n_nationkey
+            AND n_regionkey = r_regionkey
+            AND r_name = 'EUROPE'
+    )
+ORDER BY s_acctbal DESC, n_name, s_name, p_partkey
 LIMIT 100
 "#;
 
@@ -150,16 +165,21 @@ GROUP BY o_year
 ORDER BY o_year
 "#;
 
-// TPC-H Q9: Product Type Profit Measure
+// TPC-H Q9: Product Type Profit Measure (8-way join)
+// Calculates profit for parts containing 'green' in name, grouped by nation and year
 pub const TPCH_Q9: &str = r#"
 SELECT
     n_name as nation,
     SUBSTR(o_orderdate, 1, 4) as o_year,
-    SUM(l_extendedprice * (1 - l_discount)) as sum_profit
-FROM lineitem, orders, nation, supplier
-WHERE l_orderkey = o_orderkey
-    AND l_suppkey = s_suppkey
+    SUM(l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity) as sum_profit
+FROM part, supplier, lineitem, partsupp, orders, nation
+WHERE s_suppkey = l_suppkey
+    AND ps_suppkey = l_suppkey
+    AND ps_partkey = l_partkey
+    AND p_partkey = l_partkey
+    AND o_orderkey = l_orderkey
     AND s_nationkey = n_nationkey
+    AND p_name LIKE '%green%'
 GROUP BY nation, o_year
 ORDER BY nation, o_year DESC
 "#;
@@ -190,19 +210,21 @@ LIMIT 20
 // TPC-H Q11: Important Stock Identification
 pub const TPCH_Q11: &str = r#"
 SELECT
-    s_suppkey,
-    SUM(s_acctbal) as total_value
-FROM supplier, nation
-WHERE s_nationkey = n_nationkey
+    ps_partkey,
+    SUM(ps_supplycost * ps_availqty) as value
+FROM partsupp, supplier, nation
+WHERE ps_suppkey = s_suppkey
+    AND s_nationkey = n_nationkey
     AND n_name = 'GERMANY'
-GROUP BY s_suppkey
-HAVING SUM(s_acctbal) > (
-    SELECT SUM(s_acctbal) * 0.0001
-    FROM supplier, nation
-    WHERE s_nationkey = n_nationkey
+GROUP BY ps_partkey
+HAVING SUM(ps_supplycost * ps_availqty) > (
+    SELECT SUM(ps_supplycost * ps_availqty) * 0.0001
+    FROM partsupp, supplier, nation
+    WHERE ps_suppkey = s_suppkey
+        AND s_nationkey = n_nationkey
         AND n_name = 'GERMANY'
 )
-ORDER BY total_value DESC
+ORDER BY value DESC
 "#;
 
 // TPC-H Q12: Shipping Modes and Order Priority
@@ -245,11 +267,12 @@ ORDER BY custdist DESC, c_count DESC
 // TPC-H Q14: Promotion Effect
 pub const TPCH_Q14: &str = r#"
 SELECT
-    100.00 * SUM(CASE WHEN l_shipdate >= '1995-09-01' AND l_shipdate < '1995-10-01'
+    100.00 * SUM(CASE WHEN p_type LIKE 'PROMO%'
         THEN l_extendedprice * (1 - l_discount)
         ELSE 0 END) / SUM(l_extendedprice * (1 - l_discount)) as promo_revenue
-FROM lineitem
-WHERE l_shipdate >= '1995-09-01'
+FROM lineitem, part
+WHERE l_partkey = p_partkey
+    AND l_shipdate >= '1995-09-01'
     AND l_shipdate < '1995-10-01'
 "#;
 
@@ -287,27 +310,37 @@ ORDER BY s_suppkey
 // TPC-H Q16: Parts/Supplier Relationship
 pub const TPCH_Q16: &str = r#"
 SELECT
-    COUNT(DISTINCT s_suppkey) as supplier_cnt
-FROM supplier
-WHERE s_suppkey NOT IN (
-    SELECT s_suppkey
-    FROM supplier
-    WHERE s_comment LIKE '%Customer%Complaints%'
-)
-GROUP BY s_nationkey
-ORDER BY supplier_cnt DESC, s_nationkey
-LIMIT 1
+    p_brand,
+    p_type,
+    p_size,
+    COUNT(DISTINCT ps_suppkey) as supplier_cnt
+FROM partsupp, part
+WHERE p_partkey = ps_partkey
+    AND p_brand <> 'Brand#45'
+    AND p_type NOT LIKE 'MEDIUM POLISHED%'
+    AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)
+    AND ps_suppkey NOT IN (
+        SELECT s_suppkey
+        FROM supplier
+        WHERE s_comment LIKE '%Customer%Complaints%'
+    )
+GROUP BY p_brand, p_type, p_size
+ORDER BY supplier_cnt DESC, p_brand, p_type, p_size
 "#;
 
 // TPC-H Q17: Small-Quantity-Order Revenue
 pub const TPCH_Q17: &str = r#"
 SELECT
     SUM(l_extendedprice) / 7.0 as avg_yearly
-FROM lineitem
-WHERE l_quantity < (
-    SELECT 0.2 * AVG(l_quantity)
-    FROM lineitem
-)
+FROM lineitem, part
+WHERE p_partkey = l_partkey
+    AND p_brand = 'Brand#23'
+    AND p_container = 'MED BOX'
+    AND l_quantity < (
+        SELECT 0.2 * AVG(l_quantity)
+        FROM lineitem
+        WHERE l_partkey = p_partkey
+    )
 "#;
 
 // TPC-H Q18: Large Volume Customer
@@ -332,11 +365,37 @@ LIMIT 100
 pub const TPCH_Q19: &str = r#"
 SELECT
     SUM(l_extendedprice * (1 - l_discount)) as revenue
-FROM lineitem
-WHERE l_quantity >= 1
-    AND l_quantity <= 30
-    AND l_shipmode IN ('AIR', 'AIR REG')
-    AND l_shipinstruct = 'DELIVER IN PERSON'
+FROM lineitem, part
+WHERE
+    (
+        p_partkey = l_partkey
+        AND p_brand = 'Brand#12'
+        AND p_container IN ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG')
+        AND l_quantity >= 1 AND l_quantity <= 11
+        AND p_size BETWEEN 1 AND 5
+        AND l_shipmode IN ('AIR', 'AIR REG')
+        AND l_shipinstruct = 'DELIVER IN PERSON'
+    )
+    OR
+    (
+        p_partkey = l_partkey
+        AND p_brand = 'Brand#23'
+        AND p_container IN ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK')
+        AND l_quantity >= 10 AND l_quantity <= 20
+        AND p_size BETWEEN 1 AND 10
+        AND l_shipmode IN ('AIR', 'AIR REG')
+        AND l_shipinstruct = 'DELIVER IN PERSON'
+    )
+    OR
+    (
+        p_partkey = l_partkey
+        AND p_brand = 'Brand#34'
+        AND p_container IN ('LG CASE', 'LG BOX', 'LG PACK', 'LG PKG')
+        AND l_quantity >= 20 AND l_quantity <= 30
+        AND p_size BETWEEN 1 AND 15
+        AND l_shipmode IN ('AIR', 'AIR REG')
+        AND l_shipinstruct = 'DELIVER IN PERSON'
+    )
 "#;
 
 // TPC-H Q20: Potential Part Promotion
@@ -346,12 +405,21 @@ SELECT
     s_address
 FROM supplier, nation
 WHERE s_suppkey IN (
-    SELECT l_suppkey
-    FROM lineitem
-    WHERE l_shipdate >= '1994-01-01'
-        AND l_shipdate < '1995-01-01'
-    GROUP BY l_suppkey
-    HAVING SUM(l_quantity) > 50
+    SELECT ps_suppkey
+    FROM partsupp
+    WHERE ps_partkey IN (
+        SELECT p_partkey
+        FROM part
+        WHERE p_name LIKE 'forest%'
+    )
+    AND ps_availqty > (
+        SELECT 0.5 * SUM(l_quantity)
+        FROM lineitem
+        WHERE l_partkey = ps_partkey
+            AND l_suppkey = ps_suppkey
+            AND l_shipdate >= '1994-01-01'
+            AND l_shipdate < '1995-01-01'
+    )
 )
     AND s_nationkey = n_nationkey
     AND n_name = 'CANADA'

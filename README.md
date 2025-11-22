@@ -305,31 +305,62 @@ See [benchmarks/suite/README.md](benchmarks/suite/README.md) for complete docume
 
 ### TPC-H Query Profiling
 
-Profile individual TPC-H queries with detailed timing breakdown:
+Comprehensive TPC-H benchmark suite for all 22 standard queries with automatic timeout handling.
 
+**Quick Start** (Recommended):
 ```bash
-# Build and run the profiler for all 22 TPC-H queries
-cargo bench --package vibesql-executor --bench tpch_profiling --features benchmark-comparison --no-run
-./target/release/deps/tpch_profiling-*
+# Run all 22 TPC-H queries with 30s timeout per query (default)
+./scripts/bench-tpch.sh
 
-# Set per-query timeout (default 30s)
-QUERY_TIMEOUT_SECS=60 ./target/release/deps/tpch_profiling-*
+# Show summary only (color-coded results)
+./scripts/bench-tpch.sh 30 summary
 
-# Analyze output with summary script
-./target/release/deps/tpch_profiling-* 2>&1 | tee profile.txt
-python3 scripts/analyze_profile.py profile.txt
+# Custom timeout (60 seconds per query)
+./scripts/bench-tpch.sh 60 summary
 ```
 
-**Output includes**:
+**Example Output**:
+```
+=== Results Summary ===
+  Q1: 343ms ✓
+  Q2: 295ms ✓
+  Q3: 949ms ✓
+  Q4: 1.76s ✓
+  Q7: TIMEOUT (>30s)
+  Q9: ERROR - Memory limit exceeded
+  ...
+
+=== Quick Stats ===
+Passed: 15
+Timeout: 7
+Errors: 2
+```
+
+**Features**:
+- ✅ **Timeout handling** - Automatically skips slow queries and continues
+- ✅ **Complete coverage** - Tests all 22 TPC-H queries in ~2 minutes
+- ✅ **Color-coded output** - Green (pass), Yellow (timeout), Red (error)
+- ✅ **Per-query details** - Parse time, executor creation, execution time
+- ✅ **macOS compatible** - No GNU tools required
+
+**Advanced Usage**:
+
+```bash
+# Direct execution with custom timeout
+QUERY_TIMEOUT_SECS=60 ./target/release/deps/tpch_profiling-* > /tmp/results.txt
+
+# View detailed output
+grep -E "(=== Q|TOTAL:|TIMEOUT)" /tmp/results.txt
+
+# Build benchmark binary
+cargo build --release -p vibesql-executor --bench tpch_profiling --features benchmark-comparison
+```
+
+**Output Details**:
 - Parse time, executor creation time, execution time per query
-- Row counts and error/timeout detection
-- Summary table with all 22 queries
-
-**Per-query profiling** (for deep-dive analysis):
-```bash
-# Profile specific query (e.g., Q6)
-cargo bench --package vibesql-executor --bench q6_profiling --features benchmark-comparison
-```
+- Row counts for successful queries
+- Timeout indication for queries exceeding limit
+- Error messages for failed queries
 
 See [docs/performance/BENCHMARKING.md](docs/performance/BENCHMARKING.md) for complete benchmarking documentation.
 

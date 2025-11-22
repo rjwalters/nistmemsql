@@ -30,6 +30,8 @@ pub fn load_vibesql(scale_factor: f64) -> VibeDB {
     load_nation_vibesql(&mut db);
     load_customer_vibesql(&mut db, &mut data);
     load_supplier_vibesql(&mut db, &mut data);
+    load_part_vibesql(&mut db, &mut data);
+    load_partsupp_vibesql(&mut db, &mut data);
     load_orders_vibesql(&mut db, &mut data);
     load_lineitem_vibesql(&mut db, &mut data);
 
@@ -451,6 +453,112 @@ fn create_tpch_schema_vibesql(db: &mut VibeDB) {
         ],
     ))
     .unwrap();
+
+    // PART table
+    db.create_table(TableSchema::new(
+        "PART".to_string(),
+        vec![
+            ColumnSchema {
+                name: "P_PARTKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_NAME".to_string(),
+                data_type: DataType::Varchar { max_length: Some(55) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_MFGR".to_string(),
+                data_type: DataType::Varchar { max_length: Some(25) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_BRAND".to_string(),
+                data_type: DataType::Varchar { max_length: Some(10) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_TYPE".to_string(),
+                data_type: DataType::Varchar { max_length: Some(25) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_SIZE".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_CONTAINER".to_string(),
+                data_type: DataType::Varchar { max_length: Some(10) },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_RETAILPRICE".to_string(),
+                data_type: DataType::Decimal {
+                    precision: 15,
+                    scale: 2,
+                },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "P_COMMENT".to_string(),
+                data_type: DataType::Varchar { max_length: Some(23) },
+                nullable: true,
+                default_value: None,
+            },
+        ],
+    ))
+    .unwrap();
+
+    // PARTSUPP table
+    db.create_table(TableSchema::new(
+        "PARTSUPP".to_string(),
+        vec![
+            ColumnSchema {
+                name: "PS_PARTKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "PS_SUPPKEY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "PS_AVAILQTY".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "PS_SUPPLYCOST".to_string(),
+                data_type: DataType::Decimal {
+                    precision: 15,
+                    scale: 2,
+                },
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "PS_COMMENT".to_string(),
+                data_type: DataType::Varchar { max_length: Some(199) },
+                nullable: true,
+                default_value: None,
+            },
+        ],
+    ))
+    .unwrap();
 }
 
 /// Create indexes on TPC-H tables to match SQLite/DuckDB benchmark setup
@@ -545,6 +653,39 @@ fn create_tpch_indexes_vibesql(db: &mut VibeDB) {
         ],
     )
     .unwrap();
+
+    // Part table: PRIMARY KEY (p_partkey)
+    db.create_index(
+        "idx_part_pk".to_string(),
+        "PART".to_string(),
+        true, // unique
+        vec![IndexColumn {
+            column_name: "P_PARTKEY".to_string(),
+            direction: OrderDirection::Asc,
+            prefix_length: None,
+        }],
+    )
+    .unwrap();
+
+    // Partsupp table: PRIMARY KEY (ps_partkey, ps_suppkey)
+    db.create_index(
+        "idx_partsupp_pk".to_string(),
+        "PARTSUPP".to_string(),
+        true, // unique
+        vec![
+            IndexColumn {
+                column_name: "PS_PARTKEY".to_string(),
+                direction: OrderDirection::Asc,
+                prefix_length: None,
+            },
+            IndexColumn {
+                column_name: "PS_SUPPKEY".to_string(),
+                direction: OrderDirection::Asc,
+                prefix_length: None,
+            },
+        ],
+    )
+    .unwrap();
 }
 
 #[cfg(feature = "benchmark-comparison")]
@@ -615,6 +756,27 @@ fn create_tpch_schema_sqlite(conn: &SqliteConn) {
             s_phone TEXT NOT NULL,
             s_acctbal REAL NOT NULL,
             s_comment TEXT
+        );
+
+        CREATE TABLE part (
+            p_partkey INTEGER PRIMARY KEY,
+            p_name TEXT NOT NULL,
+            p_mfgr TEXT NOT NULL,
+            p_brand TEXT NOT NULL,
+            p_type TEXT NOT NULL,
+            p_size INTEGER NOT NULL,
+            p_container TEXT NOT NULL,
+            p_retailprice REAL NOT NULL,
+            p_comment TEXT
+        );
+
+        CREATE TABLE partsupp (
+            ps_partkey INTEGER NOT NULL,
+            ps_suppkey INTEGER NOT NULL,
+            ps_availqty INTEGER NOT NULL,
+            ps_supplycost REAL NOT NULL,
+            ps_comment TEXT,
+            PRIMARY KEY (ps_partkey, ps_suppkey)
         );
     "#,
     )
@@ -689,6 +851,27 @@ fn create_tpch_schema_duckdb(conn: &DuckDBConn) {
             s_phone VARCHAR(15) NOT NULL,
             s_acctbal DECIMAL(15,2) NOT NULL,
             s_comment VARCHAR(101)
+        );
+
+        CREATE TABLE part (
+            p_partkey INTEGER PRIMARY KEY,
+            p_name VARCHAR(55) NOT NULL,
+            p_mfgr VARCHAR(25) NOT NULL,
+            p_brand VARCHAR(10) NOT NULL,
+            p_type VARCHAR(25) NOT NULL,
+            p_size INTEGER NOT NULL,
+            p_container VARCHAR(10) NOT NULL,
+            p_retailprice DECIMAL(15,2) NOT NULL,
+            p_comment VARCHAR(23)
+        );
+
+        CREATE TABLE partsupp (
+            ps_partkey INTEGER NOT NULL,
+            ps_suppkey INTEGER NOT NULL,
+            ps_availqty INTEGER NOT NULL,
+            ps_supplycost DECIMAL(15,2) NOT NULL,
+            ps_comment VARCHAR(199),
+            PRIMARY KEY (ps_partkey, ps_suppkey)
         );
     "#,
     )
@@ -910,6 +1093,59 @@ fn load_supplier_duckdb(conn: &DuckDBConn, data: &mut TPCHData) {
             data.random_varchar(101),
         ])
         .unwrap();
+    }
+}
+
+// =============================================================================
+// Data Loading (PART - generated data)
+// =============================================================================
+
+fn load_part_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
+    use super::data::{COLORS, CONTAINERS, TYPES};
+    use vibesql_storage::Row;
+    use vibesql_types::SqlValue;
+    for i in 0..data.part_count {
+        let color1 = COLORS[i % COLORS.len()];
+        let color2 = COLORS[(i * 7) % COLORS.len()];
+        let p_name = format!("{} {} {}", color1, TYPES[i % TYPES.len()], color2);
+        let retailprice = (90000.0 + (i as f64 / 10.0) % 10000.0) / 100.0;
+        let row = Row::new(vec![
+            SqlValue::Integer(i as i64 + 1),
+            SqlValue::Varchar(p_name),
+            SqlValue::Varchar(format!("Manufacturer#{}", (i % 5) + 1)),
+            SqlValue::Varchar(format!("Brand#{}{}", (i % 5) + 1, (i / 5 % 5) + 1)),
+            SqlValue::Varchar(TYPES[i % TYPES.len()].to_string()),
+            SqlValue::Integer(((i % 50) + 1) as i64),
+            SqlValue::Varchar(CONTAINERS[i % CONTAINERS.len()].to_string()),
+            SqlValue::Numeric(retailprice),
+            SqlValue::Varchar(data.random_varchar(23)),
+        ]);
+        db.insert_row("PART", row).unwrap();
+    }
+}
+
+// =============================================================================
+// Data Loading (PARTSUPP - generated data)
+// =============================================================================
+
+fn load_partsupp_vibesql(db: &mut VibeDB, data: &mut TPCHData) {
+    use vibesql_storage::Row;
+    use vibesql_types::SqlValue;
+    // Each part is supplied by 4 suppliers
+    for part_key in 1..=data.part_count {
+        for j in 0..4 {
+            let supp_key = ((part_key + (j * (data.supplier_count / 4 + (part_key - 1) / data.supplier_count))) % data.supplier_count) + 1;
+            let availqty = ((part_key * 17 + j * 31) % 9999) + 1;
+            let supplycost = ((part_key * 13 + j * 7) % 100000) as f64 / 100.0 + 1.0;
+            let row = Row::new(vec![
+                SqlValue::Integer(part_key as i64),
+                SqlValue::Integer(supp_key as i64),
+                SqlValue::Integer(availqty as i64),
+                SqlValue::Numeric(supplycost),
+                SqlValue::Varchar(data.random_varchar(199)),
+            ]);
+            db.insert_row("PARTSUPP", row).unwrap();
+        }
     }
 }
 

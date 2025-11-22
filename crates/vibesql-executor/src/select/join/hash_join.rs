@@ -9,23 +9,26 @@ use crate::{errors::ExecutorError, schema::CombinedSchema};
 #[cfg(feature = "parallel")]
 use crate::select::parallel::ParallelConfig;
 
-/// Build hash table sequentially (fallback for small inputs)
+/// Build hash table sequentially using indices (fallback for small inputs)
+///
+/// Returns a map from join key to row indices, avoiding storing row references
+/// which enables deferred materialization.
 fn build_hash_table_sequential(
     build_rows: &[vibesql_storage::Row],
     build_col_idx: usize,
-) -> HashMap<vibesql_types::SqlValue, Vec<&vibesql_storage::Row>> {
-    let mut hash_table: HashMap<vibesql_types::SqlValue, Vec<&vibesql_storage::Row>> = HashMap::new();
-    for row in build_rows {
+) -> HashMap<vibesql_types::SqlValue, Vec<usize>> {
+    let mut hash_table: HashMap<vibesql_types::SqlValue, Vec<usize>> = HashMap::new();
+    for (idx, row) in build_rows.iter().enumerate() {
         let key = row.values[build_col_idx].clone();
         // Skip NULL values - they never match in equi-joins
         if key != vibesql_types::SqlValue::Null {
-            hash_table.entry(key).or_default().push(row);
+            hash_table.entry(key).or_default().push(idx);
         }
     }
     hash_table
 }
 
-/// Build hash table in parallel using partitioned approach
+/// Build hash table in parallel using partitioned approach (index-based)
 ///
 /// Algorithm (when parallel feature enabled):
 /// 1. Divide build_rows into chunks (one per thread)
@@ -37,7 +40,7 @@ fn build_hash_table_sequential(
 fn build_hash_table_parallel(
     build_rows: &[vibesql_storage::Row],
     build_col_idx: usize,
-) -> HashMap<vibesql_types::SqlValue, Vec<&vibesql_storage::Row>> {
+) -> HashMap<vibesql_types::SqlValue, Vec<usize>> {
     #[cfg(feature = "parallel")]
     {
         let config = ParallelConfig::global();
@@ -47,29 +50,31 @@ fn build_hash_table_parallel(
             return build_hash_table_sequential(build_rows, build_col_idx);
         }
 
-        // Phase 1: Parallel build of partial hash tables
+        // Phase 1: Parallel build of partial hash tables with indices
         // Each thread processes a chunk and builds its own hash table
         let chunk_size = (build_rows.len() / config.num_threads).max(1000);
-        let partial_tables: Vec<HashMap<_, _>> = build_rows
+        let partial_tables: Vec<(usize, HashMap<_, _>)> = build_rows
             .par_chunks(chunk_size)
-            .map(|chunk| {
-                let mut local_table: HashMap<vibesql_types::SqlValue, Vec<&vibesql_storage::Row>> = HashMap::new();
-                for row in chunk {
+            .enumerate()
+            .map(|(chunk_idx, chunk)| {
+                let base_idx = chunk_idx * chunk_size;
+                let mut local_table: HashMap<vibesql_types::SqlValue, Vec<usize>> = HashMap::new();
+                for (i, row) in chunk.iter().enumerate() {
                     let key = row.values[build_col_idx].clone();
                     if key != vibesql_types::SqlValue::Null {
-                        local_table.entry(key).or_default().push(row);
+                        local_table.entry(key).or_default().push(base_idx + i);
                     }
                 }
-                local_table
+                (chunk_idx, local_table)
             })
             .collect();
 
         // Phase 2: Sequential merge of partial tables
         // This is fast because we only touch keys that appear in multiple partitions
         partial_tables.into_iter()
-            .fold(HashMap::new(), |mut acc, partial| {
-                for (key, mut rows) in partial {
-                    acc.entry(key).or_default().append(&mut rows);
+            .fold(HashMap::new(), |mut acc, (_chunk_idx, partial)| {
+                for (key, mut indices) in partial {
+                    acc.entry(key).or_default().append(&mut indices);
                 }
                 acc
             })
@@ -142,13 +147,16 @@ pub(super) fn hash_join_inner(
 
     // Build phase: Create hash table from build side (using parallel algorithm)
     // Key: join column value
-    // Value: vector of rows with that key (handles duplicates)
+    // Value: vector of row indices (not row references) for deferred materialization
     // Automatically uses parallel build when beneficial (based on row count and hardware)
     let hash_table = build_hash_table_parallel(build_rows, build_col_idx);
 
-    // Probe phase: Look up matches for each probe row
-    let mut result_rows = Vec::new();
-    for probe_row in probe_rows {
+    // Probe phase: Collect (build_idx, probe_idx) pairs without materializing rows
+    // This defers the expensive row cloning until after we know all matches
+    let estimated_capacity = probe_rows.len().saturating_mul(2).min(100_000);
+    let mut join_pairs: Vec<(usize, usize)> = Vec::with_capacity(estimated_capacity);
+
+    for (probe_idx, probe_row) in probe_rows.iter().enumerate() {
         let key = &probe_row.values[probe_col_idx];
 
         // Skip NULL values - they never match in equi-joins
@@ -156,20 +164,24 @@ pub(super) fn hash_join_inner(
             continue;
         }
 
-        if let Some(build_matches) = hash_table.get(key) {
-            for build_row in build_matches {
-                // Combine rows in correct order (left first, then right)
-                let combined_row = if left_is_build {
-                    // build_row is from left, probe_row is from right
-                    combine_rows(build_row, probe_row)
-                } else {
-                    // probe_row is from left, build_row is from right
-                    combine_rows(probe_row, build_row)
-                };
-
-                result_rows.push(combined_row);
+        if let Some(build_indices) = hash_table.get(key) {
+            for &build_idx in build_indices {
+                join_pairs.push((build_idx, probe_idx));
             }
         }
+    }
+
+    // Materialization phase: Create combined rows from index pairs
+    // Pre-allocate result vector with exact size now that we know it
+    let mut result_rows = Vec::with_capacity(join_pairs.len());
+    for (build_idx, probe_idx) in join_pairs {
+        // Combine rows in correct order (left first, then right)
+        let combined_row = if left_is_build {
+            combine_rows(&build_rows[build_idx], &probe_rows[probe_idx])
+        } else {
+            combine_rows(&probe_rows[probe_idx], &build_rows[build_idx])
+        };
+        result_rows.push(combined_row);
     }
 
     Ok(FromResult::from_rows(combined_schema, result_rows))
@@ -464,16 +476,16 @@ mod tests {
 
     #[test]
     fn test_build_hash_table_sequential_basic() {
-        let rows = create_test_rows(100);
-        let hash_table = build_hash_table_sequential(&rows, 0);
+        let build_rows = create_test_rows(100);
+        let hash_table = build_hash_table_sequential(&build_rows, 0);
 
         // Should have 100 unique keys (0-99)
         assert_eq!(hash_table.len(), 100);
 
-        // Each key should have 1 row
-        for (key, rows) in hash_table.iter() {
-            assert_eq!(rows.len(), 1);
-            assert_eq!(rows[0].values[0], *key);
+        // Each key should have 1 row index
+        for (key, row_indices) in hash_table.iter() {
+            assert_eq!(row_indices.len(), 1);
+            assert_eq!(build_rows[row_indices[0]].values[0], *key);
         }
     }
 
@@ -537,22 +549,22 @@ mod tests {
     #[test]
     fn test_parallel_sequential_equivalence_large() {
         // Large dataset - should use parallel path
-        let rows = create_test_rows(10000); // Well above threshold (5000)
+        let build_rows = create_test_rows(10000); // Well above threshold (5000)
 
-        let seq_table = build_hash_table_sequential(&rows, 0);
-        let par_table = build_hash_table_parallel(&rows, 0);
+        let seq_table = build_hash_table_sequential(&build_rows, 0);
+        let par_table = build_hash_table_parallel(&build_rows, 0);
 
         // Should produce identical results
         assert_eq!(seq_table.len(), par_table.len());
 
-        for (key, seq_rows) in seq_table.iter() {
-            let par_rows = par_table.get(key).expect("Key should exist in parallel table");
-            assert_eq!(seq_rows.len(), par_rows.len(), "Row count mismatch for key {:?}", key);
+        for (key, seq_indices) in seq_table.iter() {
+            let par_indices = par_table.get(key).expect("Key should exist in parallel table");
+            assert_eq!(seq_indices.len(), par_indices.len(), "Row count mismatch for key {:?}", key);
 
-            // Verify all rows are present (order may differ)
-            for seq_row in seq_rows {
+            // Verify all row indices are present (order may differ)
+            for &seq_idx in seq_indices {
                 assert!(
-                    par_rows.iter().any(|par_row| par_row.values == seq_row.values),
+                    par_indices.iter().any(|&par_idx| build_rows[par_idx].values == build_rows[seq_idx].values),
                     "Row not found in parallel table"
                 );
             }
