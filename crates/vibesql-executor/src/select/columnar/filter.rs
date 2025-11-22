@@ -4,15 +4,48 @@ use crate::{errors::ExecutorError, schema::CombinedSchema};
 use vibesql_ast::{BinaryOperator, Expression};
 use vibesql_types::SqlValue;
 
-/// Apply a filter to row indices based on column predicates
+/// Apply a filter to row indices based on a predicate tree
 ///
 /// Returns a bitmap of which rows pass the filter.
-/// This avoids creating intermediate Row objects.
+/// Supports complex nested AND/OR logic.
 ///
 /// # Arguments
 ///
 /// * `row_count` - Total number of rows
-/// * `predicates` - Column-based predicates to evaluate
+/// * `tree` - Predicate tree to evaluate
+/// * `get_value` - Closure to get a value at (row_index, column_index)
+///
+/// # Returns
+///
+/// A Vec<bool> where true means the row passes the filter
+pub fn create_filter_bitmap_tree<'a, F>(
+    row_count: usize,
+    tree: &PredicateTree,
+    mut get_value: F,
+) -> Result<Vec<bool>, ExecutorError>
+where
+    F: FnMut(usize, usize) -> Option<&'a SqlValue>,
+{
+    let mut bitmap = vec![false; row_count];
+
+    // Evaluate each row against the predicate tree
+    for row_idx in 0..row_count {
+        bitmap[row_idx] = evaluate_predicate_tree(tree, |col_idx| get_value(row_idx, col_idx));
+    }
+
+    Ok(bitmap)
+}
+
+/// Apply a filter to row indices based on column predicates (legacy)
+///
+/// Returns a bitmap of which rows pass the filter.
+/// This avoids creating intermediate Row objects.
+/// For OR support, use `create_filter_bitmap_tree`.
+///
+/// # Arguments
+///
+/// * `row_count` - Total number of rows
+/// * `predicates` - Column-based predicates to evaluate (implicitly ANDed)
 /// * `get_value` - Closure to get a value at (row_index, column_index)
 ///
 /// # Returns
@@ -113,6 +146,31 @@ pub fn filter_rows(
     Ok(indices.into_iter().filter_map(|idx| rows.get(idx).cloned()).collect())
 }
 
+/// A predicate tree representing complex logical expressions
+///
+/// Supports nested AND/OR combinations for efficient columnar evaluation.
+/// Example: `((col0 < 10 OR col1 > 20) AND col2 = 5)` becomes:
+/// ```text
+/// And([
+///     Or([
+///         Leaf(col0 < 10),
+///         Leaf(col1 > 20)
+///     ]),
+///     Leaf(col2 = 5)
+/// ])
+/// ```
+#[derive(Debug, Clone)]
+pub enum PredicateTree {
+    /// Logical AND - all children must be true
+    And(Vec<PredicateTree>),
+
+    /// Logical OR - at least one child must be true
+    Or(Vec<PredicateTree>),
+
+    /// Leaf predicate - single column comparison
+    Leaf(ColumnPredicate),
+}
+
 /// A predicate on a single column
 ///
 /// Represents filters like: `column_idx < 24` or `column_idx BETWEEN 0.05 AND 0.07`
@@ -141,16 +199,15 @@ pub enum ColumnPredicate {
     },
 }
 
-/// Extract simple column predicates from a WHERE clause expression
+/// Extract column predicates as a tree from a WHERE clause expression
 ///
-/// This attempts to convert complex AST expressions into simple column predicates
-/// that can be evaluated efficiently. Returns None if the expression is too complex
-/// for columnar optimization.
+/// This converts AST expressions into a predicate tree that can be evaluated
+/// efficiently using columnar operations. Supports complex nested AND/OR logic.
 ///
 /// Currently supports:
 /// - Simple comparisons: column op literal (where op is <, >, <=, >=, =)
 /// - BETWEEN: column BETWEEN literal AND literal
-/// - AND combinations of the above
+/// - AND/OR combinations of the above with arbitrary nesting
 ///
 /// # Arguments
 ///
@@ -159,8 +216,29 @@ pub enum ColumnPredicate {
 ///
 /// # Returns
 ///
-/// Some(predicates) if the expression can be converted to simple column predicates,
+/// Some(tree) if the expression can be converted to columnar predicates,
 /// None if the expression is too complex for columnar optimization.
+pub fn extract_predicate_tree(
+    expr: &Expression,
+    schema: &CombinedSchema,
+) -> Option<PredicateTree> {
+    extract_tree_recursive(expr, schema)
+}
+
+/// Extract simple column predicates from a WHERE clause expression (legacy)
+///
+/// This is the legacy interface that returns a flat list of predicates
+/// that are implicitly ANDed together. For OR support, use `extract_predicate_tree`.
+///
+/// # Arguments
+///
+/// * `expr` - The WHERE clause expression
+/// * `schema` - The schema to resolve column names to indices
+///
+/// # Returns
+///
+/// Some(predicates) if the expression can be converted to simple AND-only predicates,
+/// None if the expression contains OR or is too complex.
 pub fn extract_column_predicates(
     expr: &Expression,
     schema: &CombinedSchema,
@@ -170,7 +248,150 @@ pub fn extract_column_predicates(
     Some(predicates)
 }
 
-/// Recursively extract predicates from an expression
+/// Recursively extract predicates as a tree from an expression (handles OR)
+fn extract_tree_recursive(expr: &Expression, schema: &CombinedSchema) -> Option<PredicateTree> {
+    match expr {
+        // AND: combine both sides
+        Expression::BinaryOp {
+            left,
+            op: BinaryOperator::And,
+            right,
+        } => {
+            let left_tree = extract_tree_recursive(left, schema)?;
+            let right_tree = extract_tree_recursive(right, schema)?;
+
+            // Flatten nested ANDs
+            let mut children = Vec::new();
+            match left_tree {
+                PredicateTree::And(mut left_children) => children.append(&mut left_children),
+                other => children.push(other),
+            }
+            match right_tree {
+                PredicateTree::And(mut right_children) => children.append(&mut right_children),
+                other => children.push(other),
+            }
+
+            Some(PredicateTree::And(children))
+        }
+
+        // OR: combine both sides
+        Expression::BinaryOp {
+            left,
+            op: BinaryOperator::Or,
+            right,
+        } => {
+            let left_tree = extract_tree_recursive(left, schema)?;
+            let right_tree = extract_tree_recursive(right, schema)?;
+
+            // Flatten nested ORs
+            let mut children = Vec::new();
+            match left_tree {
+                PredicateTree::Or(mut left_children) => children.append(&mut left_children),
+                other => children.push(other),
+            }
+            match right_tree {
+                PredicateTree::Or(mut right_children) => children.append(&mut right_children),
+                other => children.push(other),
+            }
+
+            Some(PredicateTree::Or(children))
+        }
+
+        // Binary comparison: column op literal
+        Expression::BinaryOp { left, op, right } => {
+            // Try: column op literal
+            if let (Expression::ColumnRef { table, column }, Expression::Literal(value)) =
+                (left.as_ref(), right.as_ref())
+            {
+                let column_idx = schema.get_column_index(table.as_deref(), column)?;
+                let predicate = match op {
+                    BinaryOperator::LessThan => ColumnPredicate::LessThan {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::GreaterThan => ColumnPredicate::GreaterThan {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::LessThanOrEqual => ColumnPredicate::LessThanOrEqual {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::GreaterThanOrEqual => ColumnPredicate::GreaterThanOrEqual {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::Equal => ColumnPredicate::Equal {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    _ => return None,
+                };
+                return Some(PredicateTree::Leaf(predicate));
+            }
+
+            // Try: literal op column (reverse the comparison)
+            if let (Expression::Literal(value), Expression::ColumnRef { table, column }) =
+                (left.as_ref(), right.as_ref())
+            {
+                let column_idx = schema.get_column_index(table.as_deref(), column)?;
+                let predicate = match op {
+                    BinaryOperator::LessThan => ColumnPredicate::GreaterThan {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::GreaterThan => ColumnPredicate::LessThan {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::LessThanOrEqual => ColumnPredicate::GreaterThanOrEqual {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::GreaterThanOrEqual => ColumnPredicate::LessThanOrEqual {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    BinaryOperator::Equal => ColumnPredicate::Equal {
+                        column_idx,
+                        value: value.clone(),
+                    },
+                    _ => return None,
+                };
+                return Some(PredicateTree::Leaf(predicate));
+            }
+
+            None
+        }
+
+        // BETWEEN: column BETWEEN low AND high
+        Expression::Between {
+            expr: inner,
+            low,
+            high,
+            negated: false,
+            symmetric: _,
+        } => {
+            if let Expression::ColumnRef { table, column } = inner.as_ref() {
+                if let (Expression::Literal(low_val), Expression::Literal(high_val)) =
+                    (low.as_ref(), high.as_ref())
+                {
+                    let column_idx = schema.get_column_index(table.as_deref(), column)?;
+                    return Some(PredicateTree::Leaf(ColumnPredicate::Between {
+                        column_idx,
+                        low: low_val.clone(),
+                        high: high_val.clone(),
+                    }));
+                }
+            }
+            None
+        }
+
+        _ => None,
+    }
+}
+
+/// Recursively extract predicates from an expression (legacy AND-only)
 fn extract_predicates_recursive(
     expr: &Expression,
     schema: &CombinedSchema,
@@ -287,6 +508,63 @@ fn extract_predicates_recursive(
     }
 }
 
+/// Evaluate a predicate tree on a row
+///
+/// Returns true if the row satisfies the entire predicate tree.
+/// Implements proper short-circuit semantics for AND/OR.
+///
+/// # Arguments
+///
+/// * `tree` - The predicate tree to evaluate
+/// * `get_value` - Closure to get a value at a column index for the current row
+///
+/// # Returns
+///
+/// true if the row passes the predicate tree, false otherwise
+pub fn evaluate_predicate_tree<F>(tree: &PredicateTree, mut get_value: F) -> bool
+where
+    F: FnMut(usize) -> Option<&SqlValue>,
+{
+    match tree {
+        PredicateTree::And(children) => {
+            // All children must be true - short-circuit on first false
+            for child in children {
+                if !evaluate_predicate_tree(child, &mut get_value) {
+                    return false;
+                }
+            }
+            true
+        }
+        PredicateTree::Or(children) => {
+            // At least one child must be true - short-circuit on first true
+            for child in children {
+                if evaluate_predicate_tree(child, &mut get_value) {
+                    return true;
+                }
+            }
+            false
+        }
+        PredicateTree::Leaf(predicate) => {
+            // Get the column value and evaluate the leaf predicate
+            let column_idx = match predicate {
+                ColumnPredicate::LessThan { column_idx, .. }
+                | ColumnPredicate::GreaterThan { column_idx, .. }
+                | ColumnPredicate::GreaterThanOrEqual { column_idx, .. }
+                | ColumnPredicate::LessThanOrEqual { column_idx, .. }
+                | ColumnPredicate::Equal { column_idx, .. }
+                | ColumnPredicate::Between { column_idx, .. } => *column_idx,
+            };
+
+            if let Some(value) = get_value(column_idx) {
+                evaluate_predicate(predicate, value)
+            } else {
+                // NULL values fail all predicates
+                false
+            }
+        }
+    }
+}
+
 /// Evaluate a column predicate on a specific value
 ///
 /// Returns true if the value satisfies the predicate
@@ -380,6 +658,154 @@ fn compare_values(a: &SqlValue, b: &SqlValue) -> std::cmp::Ordering {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vibesql_storage::Row;
+
+    #[test]
+    fn test_predicate_tree_or() {
+        // Test: (col0 < 10 OR col0 > 20)
+        let tree = PredicateTree::Or(vec![
+            PredicateTree::Leaf(ColumnPredicate::LessThan {
+                column_idx: 0,
+                value: SqlValue::Integer(10),
+            }),
+            PredicateTree::Leaf(ColumnPredicate::GreaterThan {
+                column_idx: 0,
+                value: SqlValue::Integer(20),
+            }),
+        ]);
+
+        // Test with value < 10 (should pass via first condition)
+        assert!(evaluate_predicate_tree(&tree, |idx| {
+            if idx == 0 {
+                Some(&SqlValue::Integer(5))
+            } else {
+                None
+            }
+        }));
+
+        // Test with value > 20 (should pass via second condition)
+        assert!(evaluate_predicate_tree(&tree, |idx| {
+            if idx == 0 {
+                Some(&SqlValue::Integer(25))
+            } else {
+                None
+            }
+        }));
+
+        // Test with value in middle (should fail both conditions)
+        assert!(!evaluate_predicate_tree(&tree, |idx| {
+            if idx == 0 {
+                Some(&SqlValue::Integer(15))
+            } else {
+                None
+            }
+        }));
+    }
+
+    #[test]
+    fn test_predicate_tree_complex() {
+        // Test: ((col0 < 10 OR col1 > 20) AND col2 = 5)
+        // This mirrors the structure from issue #2397
+        let tree = PredicateTree::And(vec![
+            PredicateTree::Or(vec![
+                PredicateTree::Leaf(ColumnPredicate::LessThan {
+                    column_idx: 0,
+                    value: SqlValue::Integer(10),
+                }),
+                PredicateTree::Leaf(ColumnPredicate::GreaterThan {
+                    column_idx: 1,
+                    value: SqlValue::Integer(20),
+                }),
+            ]),
+            PredicateTree::Leaf(ColumnPredicate::Equal {
+                column_idx: 2,
+                value: SqlValue::Integer(5),
+            }),
+        ]);
+
+        let rows = vec![
+            // Row 0: col0=5, col1=15, col2=5 -> (5<10 OR 15>20) AND 5=5 -> TRUE AND TRUE -> TRUE
+            Row::new(vec![
+                SqlValue::Integer(5),
+                SqlValue::Integer(15),
+                SqlValue::Integer(5),
+            ]),
+            // Row 1: col0=15, col1=25, col2=5 -> (15<10 OR 25>20) AND 5=5 -> TRUE AND TRUE -> TRUE
+            Row::new(vec![
+                SqlValue::Integer(15),
+                SqlValue::Integer(25),
+                SqlValue::Integer(5),
+            ]),
+            // Row 2: col0=15, col1=15, col2=5 -> (15<10 OR 15>20) AND 5=5 -> FALSE AND TRUE -> FALSE
+            Row::new(vec![
+                SqlValue::Integer(15),
+                SqlValue::Integer(15),
+                SqlValue::Integer(5),
+            ]),
+            // Row 3: col0=5, col1=25, col2=10 -> (5<10 OR 25>20) AND 10=5 -> TRUE AND FALSE -> FALSE
+            Row::new(vec![
+                SqlValue::Integer(5),
+                SqlValue::Integer(25),
+                SqlValue::Integer(10),
+            ]),
+        ];
+
+        let bitmap = create_filter_bitmap_tree(rows.len(), &tree, |row_idx, col_idx| {
+            rows.get(row_idx).and_then(|row| row.get(col_idx))
+        })
+        .unwrap();
+
+        assert_eq!(bitmap, vec![true, true, false, false]);
+    }
+
+    #[test]
+    fn test_extract_predicate_tree_or() {
+        use crate::schema::CombinedSchema;
+        use vibesql_ast::{BinaryOperator, Expression};
+        use vibesql_catalog::{ColumnSchema, TableSchema};
+        use vibesql_types::DataType;
+
+        let schema = TableSchema::new(
+            "test".to_string(),
+            vec![
+                ColumnSchema::new("col0".to_string(), DataType::Integer, false),
+                ColumnSchema::new("col1".to_string(), DataType::Integer, false),
+            ],
+        );
+        let schema = CombinedSchema::from_table("test".to_string(), schema);
+
+        // Build: col0 < 10 OR col1 > 20
+        let expr = Expression::BinaryOp {
+            left: Box::new(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col0".to_string(),
+                }),
+                op: BinaryOperator::LessThan,
+                right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            }),
+            op: BinaryOperator::Or,
+            right: Box::new(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col1".to_string(),
+                }),
+                op: BinaryOperator::GreaterThan,
+                right: Box::new(Expression::Literal(SqlValue::Integer(20))),
+            }),
+        };
+
+        let tree = extract_predicate_tree(&expr, &schema);
+        assert!(tree.is_some());
+
+        let tree = tree.unwrap();
+        match tree {
+            PredicateTree::Or(children) => {
+                assert_eq!(children.len(), 2);
+            }
+            _ => panic!("Expected Or node"),
+        }
+    }
 
     #[test]
     fn test_less_than_predicate() {

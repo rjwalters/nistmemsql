@@ -40,7 +40,9 @@ mod aggregate;
 
 pub use scan::ColumnarScan;
 pub use filter::{
-    apply_columnar_filter, create_filter_bitmap, extract_column_predicates, ColumnPredicate,
+    apply_columnar_filter, create_filter_bitmap, create_filter_bitmap_tree,
+    evaluate_predicate_tree, extract_column_predicates, extract_predicate_tree, ColumnPredicate,
+    PredicateTree,
 };
 pub use aggregate::{compute_multiple_aggregates, extract_aggregates, AggregateOp};
 
