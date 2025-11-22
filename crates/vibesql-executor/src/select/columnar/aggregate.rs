@@ -476,7 +476,7 @@ pub fn extract_aggregates(
 ) -> Option<Vec<AggregateSpec>> {
     let mut aggregates = Vec::new();
 
-    for expr in exprs {
+    for (i, expr) in exprs.iter().enumerate() {
         match expr {
             Expression::AggregateFunction {
                 name,
@@ -507,14 +507,24 @@ pub fn extract_aggregates(
                     continue;
                 }
 
-                // Handle COUNT(*) with wildcard argument
+                // Handle COUNT(*) with wildcard argument (Expression::Wildcard or ColumnRef { column: "*" })
                 if op == AggregateOp::Count && args.len() == 1 {
-                    if matches!(args[0], Expression::Wildcard) {
-                        aggregates.push(AggregateSpec {
-                            op,
-                            source: AggregateSource::Column(0),
-                        });
-                        continue;
+                    match &args[0] {
+                        Expression::Wildcard => {
+                            aggregates.push(AggregateSpec {
+                                op,
+                                source: AggregateSource::Column(0),
+                            });
+                            continue;
+                        }
+                        Expression::ColumnRef { table: _, column } if column == "*" => {
+                            aggregates.push(AggregateSpec {
+                                op,
+                                source: AggregateSource::Column(0),
+                            });
+                            continue;
+                        }
+                        _ => {}
                     }
                 }
 
@@ -543,7 +553,9 @@ pub fn extract_aggregates(
 
                 aggregates.push(AggregateSpec { op, source });
             }
-            _ => return None, // Non-aggregate expressions not supported
+            _ => {
+                return None; // Non-aggregate expressions not supported
+            }
         }
     }
 

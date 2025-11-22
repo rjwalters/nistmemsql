@@ -78,7 +78,7 @@ where
 
     // Evaluate each row against all predicates (AND logic)
     for row_idx in 0..row_count {
-        for predicate in predicates {
+        for (pred_idx, predicate) in predicates.iter().enumerate() {
             let column_idx = match predicate {
                 ColumnPredicate::LessThan { column_idx, .. } => *column_idx,
                 ColumnPredicate::GreaterThan { column_idx, .. } => *column_idx,
@@ -89,7 +89,8 @@ where
             };
 
             if let Some(value) = get_value(row_idx, column_idx) {
-                if !evaluate_predicate(predicate, value) {
+                let result = evaluate_predicate(predicate, value);
+                if !result {
                     bitmap[row_idx] = false;
                     break; // Short-circuit: row failed, skip remaining predicates
                 }
@@ -101,6 +102,7 @@ where
         }
     }
 
+    let passing_count = bitmap.iter().filter(|&&b| b).count();
     Ok(bitmap)
 }
 
@@ -612,13 +614,11 @@ pub fn evaluate_predicate(predicate: &ColumnPredicate, value: &SqlValue) -> bool
             compare_values(value, target) == std::cmp::Ordering::Equal
         }
         ColumnPredicate::Between { low, high, .. } => {
-            matches!(
-                compare_values(value, low),
-                std::cmp::Ordering::Greater | std::cmp::Ordering::Equal
-            ) && matches!(
-                compare_values(value, high),
-                std::cmp::Ordering::Less | std::cmp::Ordering::Equal
-            )
+            let cmp_low = compare_values(value, low);
+            let cmp_high = compare_values(value, high);
+            let passes_low = matches!(cmp_low, std::cmp::Ordering::Greater | std::cmp::Ordering::Equal);
+            let passes_high = matches!(cmp_high, std::cmp::Ordering::Less | std::cmp::Ordering::Equal);
+            passes_low && passes_high
         }
     }
 }
@@ -663,10 +663,33 @@ fn compare_values(a: &SqlValue, b: &SqlValue) -> std::cmp::Ordering {
         (SqlValue::Varchar(a), SqlValue::Varchar(b)) => a.cmp(b),
         (SqlValue::Character(a), SqlValue::Character(b)) => a.cmp(b),
         (SqlValue::Date(a), SqlValue::Date(b)) => a.cmp(b),
-        // Mixed numeric types: coerce to f64
+
+        // Date-String comparisons: convert string to date format for comparison
+        // This handles cases like: date_column >= '1994-01-01'
+        (SqlValue::Date(date), SqlValue::Varchar(s)) | (SqlValue::Date(date), SqlValue::Character(s)) => {
+            // Compare dates as strings in ISO format (YYYY-MM-DD)
+            let date_str = date.to_string();
+            date_str.as_str().cmp(s.as_str())
+        }
+        (SqlValue::Varchar(s), SqlValue::Date(date)) | (SqlValue::Character(s), SqlValue::Date(date)) => {
+            // Reverse comparison
+            let date_str = date.to_string();
+            s.as_str().cmp(date_str.as_str())
+        }
+
+        // Mixed numeric types: coerce to f64 with epsilon comparison for floats
         _ => {
             if let (Some(a_f64), Some(b_f64)) = (to_f64(a), to_f64(b)) {
-                a_f64.partial_cmp(&b_f64).unwrap_or(Ordering::Equal)
+                // Use epsilon comparison for floating point values to handle precision issues
+                // This is especially important for Float(0.07) vs Numeric(0.07) comparisons
+                const EPSILON: f64 = 1e-9;
+                if (a_f64 - b_f64).abs() < EPSILON {
+                    Ordering::Equal
+                } else if a_f64 < b_f64 {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
             } else {
                 // Non-numeric mixed types: fall back to Equal (will fail predicate appropriately)
                 Ordering::Equal

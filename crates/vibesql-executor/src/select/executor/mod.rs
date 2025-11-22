@@ -12,6 +12,7 @@
 mod aggregation;
 mod builder;
 mod columns;
+mod columnar_execution;
 mod execute;
 mod index_optimization;
 mod nonagg;

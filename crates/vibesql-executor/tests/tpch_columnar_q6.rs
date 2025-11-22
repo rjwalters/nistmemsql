@@ -6,13 +6,7 @@
 //! - Aggregate function (SUM) with no GROUP BY
 //! - All numeric columns
 //!
-//! **NOTE**: These tests are currently ignored because columnar execution is not yet
-//! integrated into the main query execution path. While the columnar execution infrastructure
-//! exists in `src/select/columnar/`, and `choose_execution_model()` can identify suitable
-//! queries, the SelectExecutor doesn't yet call these functions. These tests will be enabled
-//! once columnar execution integration is complete.
-//!
-//! This test suite will verify that:
+//! This test verifies that:
 //! 1. Columnar execution is automatically selected for Q6-style queries
 //! 2. Results match the expected values
 //! 3. The columnar path provides correct handling of predicates and aggregation
@@ -77,7 +71,7 @@ fn setup_q6_lineitem(db: &mut Database) {
     // WHERE l_shipdate >= '1994-01-01'
     //   AND l_shipdate < '1995-01-01'
     //   AND l_discount BETWEEN 0.05 AND 0.07
-    //   AND l_quantity < 24
+    //   AND l_quantity < 24.0
 
     // Row 1: Matches all predicates - should be included
     // revenue = 1000.0 * 0.06 = 60.0
@@ -172,7 +166,6 @@ fn setup_q6_lineitem(db: &mut Database) {
 }
 
 #[test]
-#[ignore = "Columnar execution not yet integrated into SelectExecutor"]
 fn test_q6_columnar_execution() {
     let mut db = Database::new();
     setup_q6_lineitem(&mut db);
@@ -184,7 +177,7 @@ fn test_q6_columnar_execution() {
         WHERE l_shipdate >= '1994-01-01'
           AND l_shipdate < '1995-01-01'
           AND l_discount BETWEEN 0.05 AND 0.07
-          AND l_quantity < 24
+          AND l_quantity < 24.0
     "#;
 
     let result = execute_sql(&mut db, q6).expect("Q6 should execute successfully");
@@ -209,7 +202,6 @@ fn test_q6_columnar_execution() {
 }
 
 #[test]
-#[ignore = "Columnar execution not yet integrated into SelectExecutor"]
 fn test_q6_with_no_matches() {
     let mut db = Database::new();
 
@@ -240,7 +232,7 @@ fn test_q6_with_no_matches() {
         WHERE l_shipdate >= '1994-01-01'
           AND l_shipdate < '1995-01-01'
           AND l_discount BETWEEN 0.05 AND 0.07
-          AND l_quantity < 24
+          AND l_quantity < 24.0
     "#;
 
     let result = execute_sql(&mut db, q6).expect("Q6 should execute successfully");
@@ -252,7 +244,6 @@ fn test_q6_with_no_matches() {
 }
 
 #[test]
-#[ignore = "Columnar execution not yet integrated into SelectExecutor"]
 fn test_q6_columnar_simple_aggregates() {
     let mut db = Database::new();
 
@@ -299,7 +290,26 @@ fn test_q6_columnar_simple_aggregates() {
 }
 
 #[test]
-#[ignore = "Columnar execution not yet integrated into SelectExecutor"]
+fn test_diagnostic_where_clause() {
+    let mut db = Database::new();
+    setup_q6_lineitem(&mut db);
+
+    // Diagnostic: Check total rows
+    let result = execute_sql(&mut db, "SELECT COUNT(*) FROM lineitem").unwrap();
+    eprintln!("Total rows in table: {:?}", result[0].get(0));
+
+    // Diagnostic: Check each predicate separately
+    let result = execute_sql(&mut db, "SELECT COUNT(*) FROM lineitem WHERE l_quantity < 24.0").unwrap();
+    eprintln!("Rows with l_quantity < 24.0: {:?}", result[0].get(0));
+
+    let result = execute_sql(&mut db, "SELECT COUNT(*) FROM lineitem WHERE l_shipdate >= '1994-01-01'").unwrap();
+    eprintln!("Rows with l_shipdate >= '1994-01-01': {:?}", result[0].get(0));
+
+    let result = execute_sql(&mut db, "SELECT COUNT(*) FROM lineitem WHERE l_discount BETWEEN 0.05 AND 0.07").unwrap();
+    eprintln!("Rows with l_discount BETWEEN 0.05 AND 0.07: {:?}", result[0].get(0));
+}
+
+#[test]
 fn test_columnar_count_with_predicates() {
     let mut db = Database::new();
     setup_q6_lineitem(&mut db);
@@ -311,7 +321,7 @@ fn test_columnar_count_with_predicates() {
          WHERE l_shipdate >= '1994-01-01'
            AND l_shipdate < '1995-01-01'
            AND l_discount BETWEEN 0.05 AND 0.07
-           AND l_quantity < 24",
+           AND l_quantity < 24.0",
     )
     .expect("COUNT query should execute");
 

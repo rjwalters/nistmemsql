@@ -76,11 +76,6 @@ impl SelectExecutor<'_> {
         #[cfg(feature = "profile-q6")]
         {
             let total_execute = execute_start.elapsed();
-            eprintln!("[Q6 PROFILE] execute() breakdown:");
-            eprintln!("[Q6 PROFILE]   Setup (arena/timeout/depth): {:?}", setup_time);
-            eprintln!("[Q6 PROFILE]   Optimizer (rewrite): {:?}", optimizer_time);
-            eprintln!("[Q6 PROFILE]   Pre-execute_with_ctes: {:?}", pre_execute_time);
-            eprintln!("[Q6 PROFILE]   Total execute(): {:?}", total_execute);
         }
 
         Ok(result)
@@ -152,18 +147,35 @@ impl SelectExecutor<'_> {
         #[cfg(feature = "profile-q6")]
         let execute_ctes_start = std::time::Instant::now();
 
-        // Try monomorphic execution path for known query patterns
-        // This eliminates SqlValue enum overhead for ~2.4x speedup
+        // Try columnar execution path FIRST for compatible queries
+        // Phase 5: SIMD-accelerated columnar execution provides 6-10x speedup
+        // This runs before monomorphic to allow columnar path to handle aggregate queries
+        #[cfg(feature = "profile-q6")]
+        let columnar_check_start = std::time::Instant::now();
+
+        if let Some(result) = self.try_columnar_execution(stmt, cte_results)? {
+            #[cfg(feature = "profile-q6")]
+            {
+                let total_execute_ctes = execute_ctes_start.elapsed();
+                let columnar_check_time = columnar_check_start.elapsed();
+            }
+            return Ok(result);
+        }
+
+        // Try monomorphic execution path for known query patterns (TEMPORARILY DISABLED)
+        // NOTE: Monomorphic execution currently has issues with complex aggregate expressions
+        // For Phase 5, we're prioritizing columnar execution over monomorphic
+        // TODO: Re-enable monomorphic execution after fixing complex aggregate handling
+        let mono_result: Option<Vec<vibesql_storage::Row>> = None; // Disabled
+
         #[cfg(feature = "profile-q6")]
         let mono_check_start = std::time::Instant::now();
 
-        if let Some(result) = self.try_monomorphic_execution(stmt, cte_results)? {
+        if let Some(result) = mono_result {
             #[cfg(feature = "profile-q6")]
             {
                 let total_execute_ctes = execute_ctes_start.elapsed();
                 let mono_check_time = mono_check_start.elapsed();
-                eprintln!("[Q6 PROFILE] execute_with_ctes total: {:?}", total_execute_ctes);
-                eprintln!("[Q6 PROFILE]   Monomorphic check+execute: {:?}", mono_check_time);
             }
             return Ok(result);
         }
@@ -171,6 +183,7 @@ impl SelectExecutor<'_> {
         // Execute the left-hand side query
         let has_aggregates = self.has_aggregates(&stmt.select_list) || stmt.having.is_some();
         let has_group_by = stmt.group_by.is_some();
+
 
         let mut results = if has_aggregates || has_group_by {
             self.execute_with_aggregation(stmt, cte_results)?
@@ -326,7 +339,7 @@ impl SelectExecutor<'_> {
         #[cfg(feature = "profile-q6")]
         {
             let load_time = load_start.elapsed();
-            eprintln!("[Q6 PROFILE] Row loading: {:?} ({} rows, {:?}/row)",
+            eprintln!("[Q6 PROFILE] Load time: {:?}, rows: {}, per-row: {:?}",
                 load_time, from_result.rows().len(), load_time / from_result.rows().len() as u32);
         }
 
