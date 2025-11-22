@@ -57,6 +57,12 @@ pub fn try_convert_exists_to_semijoin(stmt: &SelectStmt) -> (SelectStmt, bool) {
         return (stmt.clone(), false);
     }
 
+    // Skip EXISTS with LIMIT 1 - these are likely from IN → EXISTS transformation
+    // and should remain as EXISTS for proper evaluation
+    if exists_subquery.limit == Some(1) {
+        return (stmt.clone(), false);
+    }
+
     // Try to convert the EXISTS subquery to a semi-join
     let Some((semi_join_table, semi_join_condition)) = try_convert_subquery_to_join(&exists_subquery)
     else {

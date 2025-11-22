@@ -62,17 +62,6 @@ pub fn rewrite_subquery_optimizations(stmt: &SelectStmt) -> SelectStmt {
         return stmt.clone();
     }
 
-    // Phase 1: Try to convert EXISTS to SEMI JOIN (highest priority optimization)
-    // This provides 100-10,000x speedup for correlated EXISTS subqueries
-    let (stmt_after_semijoin, was_transformed) = exists_to_semijoin::try_convert_exists_to_semijoin(stmt);
-
-    // If we transformed EXISTS to semi-join, use that as the base for further optimizations
-    let stmt = if was_transformed {
-        &stmt_after_semijoin
-    } else {
-        stmt
-    };
-
     // Extract outer table names for EXISTS decorrelation
     let outer_tables = extract_table_names(&stmt.from);
 
@@ -120,6 +109,14 @@ pub fn rewrite_subquery_optimizations(stmt: &SelectStmt) -> SelectStmt {
         *new_set_op.right = rewrite_subquery_optimizations(&set_op.right);
         rewritten.set_operation = Some(new_set_op);
     }
+
+    // TODO(#2296): Re-enable EXISTS → SEMI JOIN transformation
+    // Currently disabled to avoid test failures. The transformation logic is implemented
+    // but needs additional work to coexist with existing IN → EXISTS optimizations.
+    // For now, users can manually write SEMI JOIN queries.
+    //
+    // let (final_stmt, _was_transformed) = exists_to_semijoin::try_convert_exists_to_semijoin(&rewritten);
+    // final_stmt
 
     rewritten
 }
